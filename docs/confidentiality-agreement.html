@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>הסכם סודיות (NDA) — פנקס המאמן / CourtSide</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1d2330; --muted:#5b6472;
+    --line:#e2e6ec; --accent:#d9531e; --accent-dark:#b8400f; --ok:#1c7c45; --soft:#fff4ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",Arial,"Helvetica Neue",sans-serif;line-height:1.75;}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 16px 80px;}
+  .brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px;}
+  .brand .logo{font-size:26px}
+  .brand h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.3px}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:18px}
+
+  .toolbar{background:var(--soft);border:1px solid #f1cdba;border-radius:14px;
+    padding:14px 16px;margin-bottom:18px;font-size:14px;color:#7a3a1c}
+  .toolbar b{color:var(--accent-dark)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:22px;margin-bottom:18px;box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+  .card h2 .n{background:var(--accent);color:#fff;border-radius:8px;
+    width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;flex:none}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    font-size:15px;font-family:inherit;background:#fff;transition:border .15s}
+  .field input:focus{outline:none;border-color:var(--accent)}
+  .field input[readonly],.field input.locked{background:#f3f4f6;color:#3a4150;cursor:not-allowed}
+
+  .agreement{font-size:14.5px;color:#2a3140}
+  .agreement h3{font-size:15px;margin:20px 0 6px;color:var(--ink)}
+  .agreement .intro{background:#fafbfc;border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:6px}
+  .agreement ol{padding-inline-start:22px;margin:6px 0}
+  .agreement li{margin:7px 0}
+  .agreement .sub-ol{list-style:lower-alpha}
+  .tok{font-weight:700;color:var(--accent-dark);border-bottom:1px dashed #e9b79f;padding:0 2px}
+  .tok.empty::after{content:"—";color:#c0c6cf}
+
+  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:620px){.sign-grid{grid-template-columns:1fr}}
+  .sign-box{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}
+  .sign-box h4{margin:0 0 10px;font-size:14px}
+  .sign-box .who{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .pad-wrap{position:relative;border:1.5px dashed #cfd5dd;border-radius:10px;
+    background:#fcfcfd;height:150px;overflow:hidden}
+  .pad-wrap canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+  .pad-wrap .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#b8bec7;font-size:13px;pointer-events:none}
+  .pad-wrap img.sig-img{width:100%;height:100%;object-fit:contain;display:none}
+  .sign-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+  .clear-btn{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-weight:600}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:12px;
+    padding:13px 20px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:var(--accent-dark)}
+  .btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent-dark)}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+
+  .disclaimer{font-size:12.5px;color:var(--muted);background:#fbfbfc;border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;margin-top:6px}
+  .stamp{text-align:center;font-size:12px;color:var(--muted);margin-top:10px}
+  .ok-tag{display:none;background:#e7f6ed;color:var(--ok);border:1px solid #bfe6cd;
+    border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;text-align:center;margin-bottom:12px}
+
+  /* Recipient mode hides owner-only tools */
+  body[data-mode="recipient"] .owner-only{display:none}
+  body[data-mode="recipient"] .recipient-banner{display:block}
+  .recipient-banner{display:none;background:#eef5ff;border:1px solid #c9ddf7;color:#1b4b86;
+    border-radius:14px;padding:14px 16px;margin-bottom:18px;font-size:14px}
+
+  @media print{
+    body{background:#fff}
+    .no-print{display:none !important}
+    .card{box-shadow:none;border:1px solid #d7dbe0;page-break-inside:avoid}
+    .wrap{padding:0}
+    .pad-wrap{border-style:solid}
+  }
+</style>
+</head>
+<body data-mode="owner">
+<div class="wrap">
+
+  <div class="brand"><span class="logo">🏀</span><h1>הסכם סודיות (NDA)</h1></div>
+  <div class="sub">פנקס המאמן · CourtSide</div>
+
+  <div class="ok-tag" id="okTag">✅ נשמר! הקובץ לחתימה ירד למחשב/לטלפון שלך.</div>
+
+  <!-- Owner instructions -->
+  <div class="toolbar owner-only no-print">
+    <b>איך זה עובד:</b> 1) מלא/י את הפרטים שלך למטה והגדרות ההסכם. 2) לחצ/י על <b>«שמור פרטים וצור קובץ לחתימה»</b> — ירד קובץ מוכן. 3) שלח/י אותו (וואטסאפ/מייל) לצד השני. 4) הוא ממלא את פרטיו, חותם דיגיטלית, ושומר כ-PDF שחוזר אליך.
+  </div>
+
+  <!-- Recipient banner -->
+  <div class="recipient-banner no-print">
+    שלום 👋 קיבלת הסכם סודיות לחתימה מאת <b><span class="tok" data-tok="owner_name">—</span></b>.
+    אנא מלא/י את פרטיך בתחתית המסמך, חתום/חתמי בתיבת החתימה, ולחצ/י על <b>«חתום ושמור כ‑PDF»</b>. שלח/י את הקובץ שנשמר חזרה אל מי ששלח לך.
+  </div>
+
+  <!-- Owner details -->
+  <div class="card">
+    <h2><span class="n">1</span> פרטי מגלה המידע (בעל הפרויקט)</h2>
+    <div class="grid">
+      <div class="field"><label>שם מלא / שם החברה</label>
+        <input data-owner id="owner_name" placeholder="לדוגמה: אגם — פנקס המאמן"></div>
+      <div class="field"><label>ת״ז / ח.פ.</label>
+        <input data-owner id="owner_id" placeholder="000000000"></div>
+      <div class="field"><label>דרך התקשרות (טלפון / אימייל)</label>
+        <input data-owner id="owner_contact" placeholder="agam15122003@gmail.com"></div>
+      <div class="field"><label>כתובת (רשות)</label>
+        <input data-owner id="owner_addr" placeholder="עיר / כתובת"></div>
+    </div>
+  </div>
+
+  <!-- Agreement params -->
+  <div class="card owner-only">
+    <h2><span class="n">2</span> הגדרות ההסכם</h2>
+    <div class="grid">
+      <div class="field"><label>שם הפרויקט</label>
+        <input data-owner id="project_name" value="פנקס המאמן (CourtSide)"></div>
+      <div class="field"><label>תקופת הסודיות (בשנים)</label>
+        <input data-owner id="duration" value="5"></div>
+      <div class="field"><label>תאריך ההסכם</label>
+        <input data-owner id="date" type="date"></div>
+      <div class="field"><label>פיצוי מוסכם בגין הפרה (₪)</label>
+        <input data-owner id="penalty" value="50,000"></div>
+    </div>
+  </div>
+
+  <!-- The agreement text -->
+  <div class="card">
+    <h2><span class="n">3</span> נוסח ההסכם</h2>
+    <div class="agreement">
+      <div class="intro">
+        הסכם סודיות זה ("<b>ההסכם</b>") נערך ונחתם ביום <span class="tok empty" data-tok="date"></span>,
+        בין <span class="tok empty" data-tok="owner_name"></span>, ת״ז/ח.פ. <span class="tok empty" data-tok="owner_id"></span> ("<b>המגלה</b>" או "<b>בעל הפרויקט</b>"),
+        לבין <span class="tok empty" data-tok="recipient_name"></span>, ת״ז/ח.פ. <span class="tok empty" data-tok="recipient_id"></span> ("<b>מקבל המידע</b>"); המגלה ומקבל המידע יחד: "<b>הצדדים</b>".
+      </div>
+
+      <p><b>הואיל</b> והמגלה פיתח ומחזיק בפרויקט <span class="tok empty" data-tok="project_name"></span> ("<b>הפרויקט</b>"), לרבות רעיון, קוד מקור, מסד נתונים, עיצוב, תוכן וסודות מסחריים;
+      <b>והואיל</b> והצדדים מעוניינים לקיים ביניהם מגעים ו/או שיתוף פעולה במהלכם ייחשף מקבל המידע למידע סודי של המגלה ("<b>המטרה</b>");
+      <b>והואיל</b> והמגלה מסכים לגלות מידע כאמור אך ורק בכפוף להתחייבויות מקבל המידע על פי הסכם זה — לפיכך הוסכם בין הצדדים כדלקמן:</p>
+
+      <h3>1. מבוא והגדרות</h3>
+      <ol>
+        <li>המבוא להסכם זה והנספחים לו (אם יהיו) מהווים חלק בלתי נפרד הימנו.</li>
+        <li>"<b>מידע סודי</b>" — כל מידע, בכתב או בעל פה, מוחשי או בלתי מוחשי, בכל פורמט שהוא, אשר נמסר או ייוודע למקבל המידע במישרין או בעקיפין בקשר עם המגלה או הפרויקט, ובכלל זה ומבלי למצות: קוד מקור ותוכנה, אלגוריתמים, מבני נתונים ומסדי נתונים, רשימות וזהות משתמשים, לקוחות, מאמנים וספקים, רעיונות, מפרטים, תכניות עסקיות ושיווקיות, נתונים פיננסיים, סודות מסחריים, שיטות עבודה, עיצובים, וכל מידע שמטבעו או נסיבות מסירתו ניתן להבין כי הוא סודי.</li>
+      </ol>
+
+      <h3>2. התחייבות לסודיות</h3>
+      <ol start="3">
+        <li>מקבל המידע מתחייב לשמור את המידע הסודי בסודיות מוחלטת, לנקוט בכל האמצעים הסבירים להגנתו, ולא לגלותו, להעבירו או להציגו לכל צד שלישי כלשהו, ללא הסכמת המגלה מראש ובכתב.</li>
+        <li>מקבל המידע מתחייב להגביל את הגישה למידע הסודי אך ורק למי שנדרש לכך לצורך המטרה, ובלבד שאלה יהיו כפופים לחובת סודיות מקבילה; מקבל המידע יישא באחריות לכל הפרה מצדם.</li>
+      </ol>
+
+      <h3>3. שימוש למטרה בלבד</h3>
+      <ol start="5">
+        <li>מקבל המידע יעשה שימוש במידע הסודי אך ורק לצורך המטרה, ולא לכל מטרה אחרת, ובכלל זה לא לטובתו האישית או לטובת צד שלישי, ולא באופן המתחרה במגלה.</li>
+      </ol>
+
+      <h3>4. חריגים לחובת הסודיות</h3>
+      <ol start="6">
+        <li>חובת הסודיות לא תחול על מידע אשר מקבל המידע יוכיח, בכתב, כי: (א) היה נחלת הכלל במועד מסירתו, או הפך לנחלת הכלל לאחר מכן שלא עקב הפרת הסכם זה; (ב) היה ברשותו כדין טרם מסירתו, ללא חובת סודיות; (ג) נמסר לו כדין על ידי צד שלישי שאינו כפוף לחובת סודיות; או (ד) נדרש לגילוי על פי דין או צו של רשות מוסמכת — ובלבד שמקבל המידע יודיע למגלה מבעוד מועד ויאפשר לו לפעול למניעת או צמצום הגילוי.</li>
+      </ol>
+
+      <h3>5. הגנה על המידע</h3>
+      <ol start="7">
+        <li>מקבל המידע ינקוט באמצעי אבטחה סבירים — פיזיים, ארגוניים וטכנולוגיים — להגנת המידע הסודי, ברמה שאינה נופלת מזו שבה היה נוקט להגנת מידע סודי משלו, ובכל מקרה ברמה סבירה.</li>
+      </ol>
+
+      <h3>6. החזרת והשמדת מידע</h3>
+      <ol start="8">
+        <li>עם תום המגעים או על פי דרישת המגלה — לפי המוקדם — ישיב מקבל המידע למגלה, או ישמיד לפי הוראתו, את כל המידע הסודי וכל עותק הימנו (לרבות עותקים דיגיטליים), ויאשר בכתב את ביצוע ההשמדה.</li>
+      </ol>
+
+      <h3>7. קניין רוחני וזכויות</h3>
+      <ol start="9">
+        <li>כל הזכויות במידע הסודי ובפרויקט, לרבות זכויות הקניין הרוחני, היו ויישארו בבעלותו הבלעדית של המגלה. אין בהסכם זה כדי להעניק למקבל המידע כל זכות, רישיון או בעלות במידע הסודי, מפורשת או משתמעת, למעט זכות השימוש המוגבלת לצורך המטרה.</li>
+      </ol>
+
+      <h3>8. אי-שידול ואי-תחרות</h3>
+      <ol start="10">
+        <li>מקבל המידע מתחייב כי במהלך תקופת ההסכם ובמשך 12 חודשים לאחריה לא יפנה, ישדל או יגייס, במישרין או בעקיפין, עובדים, מאמנים, משתמשים או ספקים של המגלה, ולא יעשה שימוש במידע הסודי לשם פיתוח מוצר או שירות המתחרה בפרויקט.</li>
+      </ol>
+
+      <h3>9. תקופת ההסכם והסודיות</h3>
+      <ol start="11">
+        <li>חובות הסודיות לפי הסכם זה יחולו ממועד חתימתו ויעמדו בתוקפן למשך <span class="tok empty" data-tok="duration"></span> שנים ממועד הגילוי האחרון; ואולם, ביחס למידע המהווה "סוד מסחרי" כהגדרתו בחוק עוולות מסחריות, התשנ״ט–1999 — תעמוד חובת הסודיות בתוקפה ללא הגבלת זמן, כל עוד המידע נותר סוד מסחרי.</li>
+      </ol>
+
+      <h3>10. הפרה, פיצוי מוסכם וסעדים</h3>
+      <ol start="12">
+        <li>מוסכם כי הפרת חובת הסודיות עלולה לגרום למגלה נזק חמור ובלתי הפיך. בגין כל הפרה יסודית של הסכם זה יהא המגלה זכאי לפיצוי מוסכם ומוערך מראש בסך <span class="tok empty" data-tok="penalty"></span> ₪, וזאת מבלי לגרוע מכל סעד אחר על פי דין, לרבות פיצוי בגין הנזק בפועל.</li>
+        <li>מבלי לגרוע מהאמור, מקבל המידע מסכים כי המגלה יהא זכאי לסעד של צו מניעה זמני וקבוע לשם מניעת הפרה או המשך הפרה של הסכם זה, מבלי שיידרש להוכיח נזק או להפקיד ערובה.</li>
+      </ol>
+
+      <h3>11. כללי</h3>
+      <ol start="14">
+        <li>היעדר ויתור: ויתור או הימנעות מצד המגלה מלממש זכות לא ייחשבו כוויתור על זכות זו או על זכות אחרת.</li>
+        <li>שלמות ההסכם: הסכם זה ממצה את מלוא ההסכמות בין הצדדים בנושאו, וכל שינוי בו ייעשה בכתב ובחתימת שני הצדדים.</li>
+        <li>דין וסמכות שיפוט: על הסכם זה יחולו דיני מדינת ישראל בלבד, וסמכות השיפוט הבלעדית בכל הנוגע אליו תהא נתונה לבתי המשפט המוסמכים במדינת ישראל.</li>
+        <li>הצהרת הצדדים: הצדדים מצהירים כי קראו והבינו את הסכם זה, וכי הם חותמים עליו מרצונם החופשי ובהבנה מלאה של תוכנו.</li>
+      </ol>
+
+      <p style="margin-top:18px"><b>ולראיה באו הצדדים על החתום:</b></p>
+    </div>
+  </div>
+
+  <!-- Recipient details -->
+  <div class="card">
+    <h2><span class="n">4</span> פרטי מקבל המידע (החותם)</h2>
+    <div class="grid">
+      <div class="field"><label>שם מלא / שם החברה</label>
+        <input data-recipient id="recipient_name" placeholder="שם החותם"></div>
+      <div class="field"><label>ת״ז / ח.פ.</label>
+        <input data-recipient id="recipient_id" placeholder="000000000"></div>
+      <div class="field"><label>דרך התקשרות (טלפון / אימייל)</label>
+        <input data-recipient id="recipient_contact" placeholder="טלפון או אימייל"></div>
+      <div class="field"><label>כתובת (רשות)</label>
+        <input data-recipient id="recipient_addr" placeholder="עיר / כתובת"></div>
+    </div>
+  </div>
+
+  <!-- Signatures -->
+  <div class="card">
+    <h2><span class="n">5</span> חתימות</h2>
+    <div class="sign-grid">
+      <!-- Owner signature -->
+      <div class="sign-box">
+        <h4>חתימת המגלה (בעל הפרויקט)</h4>
+        <div class="who"><span class="tok empty" data-tok="owner_name"></span></div>
+        <div class="pad-wrap">
+          <canvas id="pad_owner" class="owner-only"></canvas>
+          <img id="img_owner" class="sig-img" alt="חתימת המגלה">
+          <div class="ph owner-only" id="ph_owner">חתום/חתמי כאן (רשות)</div>
+        </div>
+        <div class="sign-meta">
+          <span>תאריך: <span class="tok empty" data-tok="date"></span></span>
+          <button class="clear-btn no-print owner-only" data-clear="owner">נקה חתימה</button>
+        </div>
+      </div>
+
+      <!-- Recipient signature -->
+      <div class="sign-box">
+        <h4>חתימת מקבל המידע</h4>
+        <div class="who"><span class="tok empty" data-tok="recipient_name"></span></div>
+        <div class="pad-wrap">
+          <canvas id="pad_recipient"></canvas>
+          <img id="img_recipient" class="sig-img" alt="חתימת מקבל המידע">
+          <div class="ph" id="ph_recipient">חתום/חתמי כאן באצבע או בעכבר</div>
+        </div>
+        <div class="sign-meta">
+          <span>תאריך: <span id="recipient_date_lbl">—</span></span>
+          <button class="clear-btn no-print" data-clear="recipient">נקה חתימה</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer" id="disclaimer">
+      <b>הבהרה משפטית:</b> מסמך זה הוא תבנית כללית לנוחות הצדדים ואינו מהווה ייעוץ משפטי או תחליף לו.
+      מומלץ להתאים את ההסכם לנסיבות הספציפיות ולהיוועץ בעורך/ת דין לפני חתימה.
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions no-print">
+    <button class="btn btn-primary owner-only" id="btnGenerate">💾 שמור פרטים וצור קובץ לחתימה</button>
+    <button class="btn btn-primary" id="btnSign">✅ חתום ושמור כ‑PDF</button>
+    <button class="btn btn-ghost owner-only" id="btnSave">📌 שמור פרטים במכשיר</button>
+  </div>
+  <div class="stamp no-print">מסמך דיגיטלי · נחתם בדפדפן · אין צורך בהדפסה פיזית</div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var body = document.body;
+  var isRecipient = body.getAttribute("data-mode") === "recipient";
+
+  // ---------- token live-binding ----------
+  function tokenVal(id){
+    var el = document.getElementById(id);
+    return el ? (el.value || "").trim() : "";
+  }
+  function refreshTokens(){
+    var toks = document.querySelectorAll(".tok");
+    for (var i=0;i<toks.length;i++){
+      var key = toks[i].getAttribute("data-tok");
+      var v = tokenVal(key);
+      if (key === "date" && v){ v = formatDate(v); }
+      toks[i].textContent = v || "";
+      if (v) toks[i].classList.remove("empty"); else toks[i].classList.add("empty");
+    }
+  }
+  function formatDate(iso){
+    // iso = yyyy-mm-dd  ->  dd/mm/yyyy
+    var p = iso.split("-");
+    if (p.length === 3) return p[2] + "/" + p[1] + "/" + p[0];
+    return iso;
+  }
+  document.addEventListener("input", refreshTokens);
+
+  // default date = today (only if empty)
+  var dateEl = document.getElementById("date");
+  if (dateEl && !dateEl.value){
+    var t = new Date();
+    var mm = String(t.getMonth()+1).padStart(2,"0");
+    var dd = String(t.getDate()).padStart(2,"0");
+    dateEl.value = t.getFullYear() + "-" + mm + "-" + dd;
+  }
+
+  // ---------- signature pads ----------
+  function SignaturePad(canvas, placeholder){
+    var ctx = canvas.getContext("2d");
+    var drawing = false, last = null, dirty = false;
+    function resize(){
+      var ratio = window.devicePixelRatio || 1;
+      var rect = canvas.getBoundingClientRect();
+      var data = dirty ? canvas.toDataURL() : null;
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
+      ctx.setTransform(ratio,0,0,ratio,0,0);
+      ctx.lineWidth = 2.2; ctx.lineCap="round"; ctx.lineJoin="round";
+      ctx.strokeStyle = "#16233a";
+      if (data){ var im=new Image(); im.onload=function(){ctx.drawImage(im,0,0,rect.width,rect.height);}; im.src=data; }
+    }
+    function pos(e){
+      var rect = canvas.getBoundingClientRect();
+      var pt = e.touches ? e.touches[0] : e;
+      return { x: pt.clientX-rect.left, y: pt.clientY-rect.top };
+    }
+    function start(e){ drawing=true; last=pos(e); if(placeholder)placeholder.style.display="none"; e.preventDefault(); }
+    function move(e){
+      if(!drawing) return;
+      var p=pos(e);
+      ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+      last=p; dirty=true; e.preventDefault();
+    }
+    function end(){ drawing=false; }
+    canvas.addEventListener("mousedown",start); canvas.addEventListener("mousemove",move);
+    window.addEventListener("mouseup",end);
+    canvas.addEventListener("touchstart",start,{passive:false});
+    canvas.addEventListener("touchmove",move,{passive:false});
+    canvas.addEventListener("touchend",end);
+    setTimeout(resize,30); window.addEventListener("resize",resize);
+    return {
+      isEmpty:function(){return !dirty;},
+      toDataURL:function(){return canvas.toDataURL("image/png");},
+      clear:function(){ ctx.clearRect(0,0,canvas.width,canvas.height); dirty=false; if(placeholder)placeholder.style.display="flex"; }
+    };
+  }
+  var padOwner=null, padRecipient=null;
+  var cOwner=document.getElementById("pad_owner");
+  var cRecipient=document.getElementById("pad_recipient");
+  if(cOwner && !isRecipient) padOwner=SignaturePad(cOwner, document.getElementById("ph_owner"));
+  if(cRecipient) padRecipient=SignaturePad(cRecipient, document.getElementById("ph_recipient"));
+
+  document.addEventListener("click",function(e){
+    var t=e.target.getAttribute && e.target.getAttribute("data-clear");
+    if(t==="owner" && padOwner) padOwner.clear();
+    if(t==="recipient" && padRecipient) padRecipient.clear();
+  });
+
+  // ---------- localStorage (owner convenience) ----------
+  var STORE="nda_courtside_owner";
+  function ownerInputs(){ return document.querySelectorAll("[data-owner]"); }
+  function saveLocal(){
+    if(isRecipient) return;
+    var d={}; ownerInputs().forEach(function(el){ d[el.id]=el.value; });
+    try{ localStorage.setItem(STORE, JSON.stringify(d)); }catch(_){}
+  }
+  function loadLocal(){
+    if(isRecipient) return;
+    try{
+      var raw=localStorage.getItem(STORE); if(!raw) return;
+      var d=JSON.parse(raw);
+      ownerInputs().forEach(function(el){ if(d[el.id]!==undefined && d[el.id]!=="") el.value=d[el.id]; });
+    }catch(_){}
+  }
+  loadLocal();
+
+  var btnSave=document.getElementById("btnSave");
+  if(btnSave) btnSave.addEventListener("click",function(){
+    saveLocal(); flash("📌 הפרטים נשמרו במכשיר זה.");
+  });
+
+  function flash(msg){
+    var tag=document.getElementById("okTag");
+    tag.textContent=msg; tag.style.display="block";
+    setTimeout(function(){ tag.style.display="none"; }, 4000);
+  }
+
+  // ---------- generate file for the recipient ----------
+  var btnGen=document.getElementById("btnGenerate");
+  if(btnGen) btnGen.addEventListener("click",function(){
+    refreshTokens(); saveLocal();
+    if(!tokenVal("owner_name")){ alert("נא למלא לפחות את שם מגלה המידע."); return; }
+
+    // bake owner values into attributes + lock them
+    ownerInputs().forEach(function(el){
+      el.setAttribute("value", el.value);
+      el.setAttribute("readonly","readonly");
+      el.classList.add("locked");
+    });
+    // bake owner signature (if drawn) as an embedded image
+    if(padOwner && !padOwner.isEmpty()){
+      var img=document.getElementById("img_owner");
+      img.src=padOwner.toDataURL(); img.style.display="block";
+      if(cOwner) cOwner.style.display="none";
+      var ph=document.getElementById("ph_owner"); if(ph) ph.style.display="none";
+    }
+    // switch document to recipient mode
+    body.setAttribute("data-mode","recipient");
+
+    var out="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+    var fname="הסכם-סודיות-לחתימה-"+(tokenVal("recipient_name")||"מקבל-המידע")+".html";
+    download(fname, out, "text/html");
+
+    // revert the live page so the owner can keep editing
+    body.setAttribute("data-mode","owner");
+    ownerInputs().forEach(function(el){
+      el.removeAttribute("readonly"); el.classList.remove("locked");
+    });
+    flash("✅ נשמר! הקובץ לחתימה ירד אליך — שלח/י אותו לצד השני.");
+  });
+
+  function download(filename, text, mime){
+    var blob=new Blob(["﻿"+text],{type:(mime||"text/plain")+";charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+  }
+
+  // ---------- recipient signs & saves as PDF ----------
+  var btnSign=document.getElementById("btnSign");
+  if(btnSign) btnSign.addEventListener("click",function(){
+    refreshTokens();
+    if(!tokenVal("recipient_name")){ alert("נא למלא את שם מקבל המידע לפני החתימה."); return; }
+    if(!tokenVal("recipient_id")){ alert("נא למלא ת״ז / ח.פ. של מקבל המידע."); return; }
+    if(padRecipient && padRecipient.isEmpty()){ alert("נא לחתום בתיבת החתימה לפני השמירה."); return; }
+
+    // stamp signing date
+    var t=new Date();
+    var lbl=String(t.getDate()).padStart(2,"0")+"/"+String(t.getMonth()+1).padStart(2,"0")+"/"+t.getFullYear();
+    var de=document.getElementById("recipient_date_lbl"); if(de) de.textContent=lbl;
+
+    // freeze recipient inputs for a clean printout
+    document.querySelectorAll("[data-recipient]").forEach(function(el){
+      el.setAttribute("value", el.value); el.setAttribute("readonly","readonly"); el.classList.add("locked");
+    });
+    setTimeout(function(){ window.print(); }, 150);
+  });
+
+  refreshTokens();
+})();
+</script>
+</body>
+</html>
