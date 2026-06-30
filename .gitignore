@@ -1,0 +1,16 @@
+# תלויות
+node_modules
+
+# קבצי בנייה
+dist
+dist-ssr
+
+# קובץ הסודות — אסור להעלות לאינטרנט!
+.env.local
+.env
+
+# קבצי מערכת
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json

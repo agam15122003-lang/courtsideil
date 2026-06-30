@@ -1,0 +1,11 @@
+# הגדרות פריסה ל-Netlify
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# מבטיח שכל הכתובות יובילו לאפליקציה (חשוב לאתר עם דפים)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
