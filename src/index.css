@@ -2171,7 +2171,7 @@ body {
 .land-court {
   width: 100%;
   max-width: 340px;
-  filter: drop-shadow(0 24px 50px rgba(27, 42, 74, 0.28));
+  filter: drop-shadow(0 30px 60px rgba(20, 29, 52, 0.32));
   transform: rotate(3deg);
   transition: transform 0.4s ease-out;
 }
@@ -2208,7 +2208,7 @@ body {
 }
 .land-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-4);
   margin-top: var(--space-8);
   text-align: start;
