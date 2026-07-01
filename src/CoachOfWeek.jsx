@@ -73,8 +73,8 @@ export default function CoachOfWeek({ onOpenCoach }) {
       <div className="cow-card cow-empty">
         <div className="cow-badge"><Trophy size={16} /> {L('מאמן השבוע', 'Coach of the Week')}</div>
         <p className="cow-empty-text">
-          {L('עדיין לא נצבר מספיק דירוגים השבוע. דרגו תרגילים — והמאמן עם התרגילים הכי מדורגים יזכה בתואר! 🏀',
-            'Not enough ratings this week yet. Rate drills — and the coach with the highest-rated drills earns the title! 🏀')}
+          {L('עדיין לא נצבר מספיק דירוגים השבוע. דרגו תרגילים — והמאמן עם התרגילים הכי מדורגים יזכה בתואר.',
+            'Not enough ratings this week yet. Rate drills — and the coach with the highest-rated drills earns the title.')}
         </p>
       </div>
     )

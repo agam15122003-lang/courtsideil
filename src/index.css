@@ -1,5 +1,4 @@
-/* ===== גופנים ===== */
-@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@400;500;700;800;900&display=swap');
+/* ===== גופנים — נטענים מ-index.html (preconnect + link, לא חוסם רינדור) ===== */
 
 /* ===== מערכת העיצוב — טוקנים (SPEC §8) ===== */
 :root {
@@ -26,11 +25,11 @@
   --gray-700: #4B5567;
   --gray-900: #1A1F2B;
 
-  /* סמנטיים */
-  --success: #2E9E5B;
-  --warning: #E0A92E;
-  --error: #D64545;
-  --info: #3A82E8;
+  /* סמנטיים — מוכהים לעמידה ב-AA (4.5:1) כטקסט על רקע בהיר */
+  --success: #1F7A44;
+  --warning: #A97B12;
+  --error: #C03434;
+  --info: #2364C8;
 
   /* טוקנים לפי תפקיד — מצב בהיר (ניטרליים קרירים ובהירים, hairline borders) */
   --bg: #F6F9FC;
@@ -93,6 +92,13 @@
   --shadow-md: 0 4px 8px -2px rgba(10, 37, 64, 0.06), 0 12px 24px -6px rgba(10, 37, 64, 0.08);
   --shadow-lg: 0 18px 40px -12px rgba(10, 37, 64, 0.16), 0 30px 60px -30px rgba(10, 37, 64, 0.12);
 
+  /* ===== מערכת מוֹשֶׁן — טוקני תנועה אחידים ===== */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);        /* ease-out-quint — יציאה חלקה */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);   /* קפיציות עדינה למיקרו-אינטראקציות */
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 380ms;
+
   /* ===== כינויי תאימות-לאחור (הקוד הקיים משתמש בשמות האלה) ===== */
   --court: var(--accent);
   --court-dark: var(--orange-600);
@@ -134,7 +140,7 @@ body {
 
 ::placeholder {
   color: var(--text-muted);
-  opacity: 0.65;
+  opacity: 1;
 }
 
 .app {
@@ -1968,11 +1974,7 @@ a.btn-ghost {
   max-width: 1040px;
 }
 body {
-  background:
-    radial-gradient(1200px 600px at 100% -10%, rgba(232, 118, 58, 0.06), transparent 60%),
-    radial-gradient(1000px 500px at -10% 110%, rgba(27, 42, 74, 0.06), transparent 55%),
-    var(--paper);
-  background-attachment: fixed;
+  background: var(--paper);
 }
 
 /* כפתורים גדולים + יישור אייקונים */
@@ -2171,7 +2173,7 @@ body {
 .land-court {
   width: 100%;
   max-width: 340px;
-  filter: drop-shadow(0 24px 50px rgba(27, 42, 74, 0.28));
+  filter: drop-shadow(0 30px 60px rgba(20, 29, 52, 0.32));
   transform: rotate(3deg);
   transition: transform 0.4s ease-out;
 }
@@ -2208,7 +2210,7 @@ body {
 }
 .land-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-4);
   margin-top: var(--space-8);
   text-align: start;
@@ -2713,19 +2715,7 @@ textarea {
 .btn-ghost {
   padding: 10px 16px;
 }
-/* טבעת פוקוס ברורה לניווט מקלדת */
-.btn-primary:focus-visible,
-.btn-ghost:focus-visible,
-.btn-soft:focus-visible,
-.btn-hero:focus-visible,
-.chip:focus-visible,
-.nav-item:focus-visible,
-.tab:focus-visible,
-.link-button:focus-visible,
-.icon-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* טבעת פוקוס — מטופלת ע"י הכלל הגלובלי :focus-visible (ניגודיות AA) */
 
 /* כניסה רכה למסכים */
 .main-inner > * {
@@ -5606,33 +5596,20 @@ html.a11y-spacing * {
   gap: var(--space-3);
 }
 
-/* ===== מאמן השבוע — שדרוג "מיוחד" ===== */
+/* ===== מאמן השבוע — הדגשה מרוסנת ומקצועית ===== */
 .cow-card.cow-win {
-  box-shadow: 0 18px 48px rgba(27, 42, 74, 0.42), 0 0 0 1.5px rgba(244, 183, 64, 0.5);
-}
-.cow-card.cow-win::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 35%, rgba(244, 183, 64, 0.16) 50%, transparent 65%);
-  transform: translateX(120%);
-  animation: cow-shimmer 6s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes cow-shimmer {
-  0%, 55% { transform: translateX(120%); }
-  100% { transform: translateX(-120%); }
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-hover);
 }
 .cow-badge {
-  box-shadow: 0 6px 16px rgba(244, 183, 64, 0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  box-shadow: none;
+  letter-spacing: 0.02em;
 }
 .cow-win .cow-ava :where(.avatar, img) {
-  box-shadow: 0 0 0 3px #f4b740, 0 0 20px rgba(244, 183, 64, 0.55);
+  box-shadow: 0 0 0 2px var(--accent-fill);
 }
 .cow-win .cow-name {
-  font-size: 24px;
+  font-size: 22px;
 }
 @media (prefers-reduced-motion: reduce) {
   .cow-card.cow-win::after {
@@ -6176,7 +6153,7 @@ html.a11y-spacing * {
 
 /* ---- מאמן השבוע — שם המאמן בולט + לחיץ לפרופיל ---- */
 .cow-name { font-size: 19px; font-weight: 900; line-height: 1.15; }
-.cow-club { font-size: 13.5px; color: var(--text-muted); font-weight: 600; }
+.cow-club { font-size: 13.5px; color: rgba(255, 255, 255, 0.72); font-weight: 600; }
 .cow-win { cursor: pointer; transition: transform .12s, box-shadow .12s; }
 .cow-win:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.12); }
 .cow-foot {
@@ -6193,3 +6170,134 @@ html.a11y-spacing * {
 .yt-import-btn { display: inline-flex; align-items: center; gap: 6px; }
 .yt-import-btn svg { color: #ff0000; flex-shrink: 0; }
 .yt-import-btn:disabled { opacity: .6; cursor: progress; }
+
+/* ============================================================= */
+/* ===== שכבת מוֹשֶׁן רוחבית — מעברים חלקים בכל האפליקציה ===== */
+/* ============================================================= */
+
+/* כניסת מסך — כל החלפת טאב ב-Dashboard מרנדרת מחדש את .main-inner (key={view}) */
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.main-inner {
+  animation: view-enter var(--dur-slow) var(--ease-out) both;
+}
+
+/* הופעת כרטיסים ברשתות — stagger עדין לארבעת הראשונים */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.land-feature,
+.home-card,
+.drill-card,
+.coach-card,
+.news-card,
+.stat-card {
+  animation: card-enter var(--dur-slow) var(--ease-out) both;
+}
+.land-feature:nth-child(1), .home-card:nth-child(1), .drill-card:nth-child(1), .coach-card:nth-child(1) { animation-delay: 40ms; }
+.land-feature:nth-child(2), .home-card:nth-child(2), .drill-card:nth-child(2), .coach-card:nth-child(2) { animation-delay: 90ms; }
+.land-feature:nth-child(3), .home-card:nth-child(3), .drill-card:nth-child(3), .coach-card:nth-child(3) { animation-delay: 140ms; }
+.land-feature:nth-child(4), .home-card:nth-child(4), .drill-card:nth-child(4), .coach-card:nth-child(4) { animation-delay: 190ms; }
+
+/* reveal-on-scroll בדף הנחיתה — מופעל ע"י IntersectionObserver (class: reveal / is-visible) */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform 600ms var(--ease-out);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* מיקרו-אינטראקציות אחידות לכפתורים — הרמה עדינה, לחיצה מוחשית */
+button,
+.btn-primary, .btn-ghost, .btn-soft, .btn-hero {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+.btn-primary:hover:not(:disabled),
+.btn-hero:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled),
+.btn-hero:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.btn-soft:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+/* פוקוס נראה ואחיד — טבעת כפולה נגישה על כל אלמנט אינטראקטיבי */
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* מעבר ערכת נושא חלק (בהיר/כהה) */
+html[data-theme] body,
+body {
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease;
+}
+
+/* כיבוד prefers-reduced-motion — מטרייה מלאה על כל השכבה */
+@media (prefers-reduced-motion: reduce) {
+  .main-inner,
+  .land-feature, .home-card, .drill-card, .coach-card, .news-card, .stat-card {
+    animation: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== מוֹשֶׁן: מודאלים וטוסטים ===== */
+/* כניסת מודאל — overlay מתעמעם פנימה, החלון "קופץ" ברכות */
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tm-overlay,
+.a11y-overlay {
+  animation: overlay-fade var(--dur-base) ease both;
+}
+.tm-modal,
+.a11y-modal {
+  animation: modal-pop var(--dur-slow) var(--ease-out) both;
+}
+
+/* יציאת טוסט — מחליק החוצה ומתעמעם (מסונכרן עם EXIT_MS ב-Toaster.jsx) */
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+.toast-leaving {
+  animation: toast-out 200ms ease-in both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-overlay, .a11y-overlay, .tm-modal, .a11y-modal, .toast-leaving {
+    animation: none;
+  }
+}

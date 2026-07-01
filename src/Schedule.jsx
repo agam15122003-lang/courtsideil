@@ -91,38 +91,39 @@ export default function Schedule({ session }) {
 
   async function load() {
     setLoading(true)
-    const { data, error: err } = await supabase
-      .from('schedule_entries')
-      .select('*, plan:training_plans(id, name)')
-      .gte('date', ymd(weekStart))
-      .lte('date', ymd(weekEnd))
-    if (err) {
-      setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + err.message)
+    // ארבע השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
+    const [entriesRes, plansRes, meetingsRes, coachesRes] = await Promise.all([
+      supabase
+        .from('schedule_entries')
+        .select('*, plan:training_plans(id, name)')
+        .gte('date', ymd(weekStart))
+        .lte('date', ymd(weekEnd)),
+      supabase
+        .from('training_plans')
+        .select('id, name')
+        .order('created_at', { ascending: false }),
+      // פגישות עם מאמנים אחרים (RLS מסנן לפגישות שאני צד בהן). אם הטבלה עוד לא קיימת — מתעלמים.
+      supabase
+        .from('coach_meetings')
+        .select('*, from_p:profiles!coach_meetings_from_coach_fkey(first_name,last_name), to_p:profiles!coach_meetings_to_coach_fkey(first_name,last_name)')
+        .gte('date', ymd(weekStart))
+        .lte('date', ymd(weekEnd)),
+      // רשימת מאמנים לזימון (כל מי שאינו אני)
+      supabase
+        .from('profiles')
+        .select('id, first_name, last_name, club')
+        .neq('id', me),
+    ])
+    if (entriesRes.error) {
+      setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + entriesRes.error.message)
       setLoading(false)
       return
     }
     setError(null)
-    setEntries(data || [])
-    const { data: pl } = await supabase
-      .from('training_plans')
-      .select('id, name')
-      .order('created_at', { ascending: false })
-    setPlans(pl || [])
-
-    // פגישות עם מאמנים אחרים (RLS מסנן לפגישות שאני צד בהן). אם הטבלה עוד לא קיימת — מתעלמים.
-    const { data: mt, error: mtErr } = await supabase
-      .from('coach_meetings')
-      .select('*, from_p:profiles!coach_meetings_from_coach_fkey(first_name,last_name), to_p:profiles!coach_meetings_to_coach_fkey(first_name,last_name)')
-      .gte('date', ymd(weekStart))
-      .lte('date', ymd(weekEnd))
-    setMeetings(mtErr ? [] : mt || [])
-
-    // רשימת מאמנים לזימון (כל מי שאינו אני)
-    const { data: cs } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, club')
-      .neq('id', me)
-    setCoaches((cs || []).filter((c) => c.first_name && c.last_name))
+    setEntries(entriesRes.data || [])
+    setPlans(plansRes.data || [])
+    setMeetings(meetingsRes.error ? [] : meetingsRes.data || [])
+    setCoaches((coachesRes.data || []).filter((c) => c.first_name && c.last_name))
     setLoading(false)
   }
 

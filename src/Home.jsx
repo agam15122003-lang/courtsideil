@@ -14,8 +14,7 @@ import {
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
   NEWS_FALLBACK_IMAGES,
-  CONTENT_LINKS,
-} from './constants'
+  CONTENT_LINKS, safeUrl } from './constants'
 import { L } from './i18n'
 import CoachOfWeek from './CoachOfWeek'
 
@@ -234,7 +233,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           >
             <X size={16} />
           </button>
-          <h3 className="onboard-title">{L(`ברוך הבא, ${name}! 👋`, `Welcome, ${name}! 👋`)}</h3>
+          <h3 className="onboard-title">{L(`ברוך הבא, ${name}!`, `Welcome, ${name}!`)}</h3>
           <p className="muted small">{L('שלושה צעדים קצרים כדי להתחיל:', 'Three quick steps to get started:')}</p>
           <div className="onboard-steps">
             {onboardSteps.map((s, i) => (
@@ -293,7 +292,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
       {!loading && !error && items.length > 0 && (
         <div className="news-grid">
           {items.map((a, i) => (
-            <a key={i} className="news-card" href={a.link} target="_blank" rel="noreferrer">
+            <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
               <div
                 className="news-thumb"
                 style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}

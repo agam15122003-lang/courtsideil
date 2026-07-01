@@ -148,7 +148,7 @@ export default function ChatWindow({
         {loading ? (
           <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
+          <div className="alert alert-error" role="alert">{error}</div>
         ) : messages.length === 0 ? (
           empty
         ) : (

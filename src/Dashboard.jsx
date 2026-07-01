@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
 import ProfileForm from './ProfileForm'
-import CoachFinder from './CoachFinder'
-import DrillLibrary from './DrillLibrary'
-import TrainingPlans from './TrainingPlans'
-import Messages from './Messages'
 import MyStats from './MyStats'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Home from './Home'
-import Schedule from './Schedule'
-import Teams from './Teams'
-import Admin from './Admin'
-import Media from './Media'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
 import { useLang } from './i18n'
+
+// מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
+const CoachFinder = lazy(() => import('./CoachFinder'))
+const DrillLibrary = lazy(() => import('./DrillLibrary'))
+const TrainingPlans = lazy(() => import('./TrainingPlans'))
+const Messages = lazy(() => import('./Messages'))
+const Schedule = lazy(() => import('./Schedule'))
+const Teams = lazy(() => import('./Teams'))
+const Admin = lazy(() => import('./Admin'))
+const Media = lazy(() => import('./Media'))
 import {
   Home as HomeIcon,
   User,
@@ -165,8 +167,16 @@ export default function Dashboard({ session }) {
       </aside>
 
       <main className="main-content" id="main">
-        <div className="main-inner">
+        {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
+        <div className="main-inner" key={showForm ? 'profile-form' : view}>
           {!loading && !showForm && <QuoteStrip />}
+          <Suspense
+            fallback={
+              <div className="app-loading" style={{ padding: '48px 0' }}>
+                <div className="loader" />
+              </div>
+            }
+          >
           {loading ? (
             <div className="welcome-card">
               <div className="app-loading" style={{ padding: '24px 0' }}>
@@ -273,6 +283,7 @@ export default function Dashboard({ session }) {
               <MyStats session={session} />
             </div>
           )}
+          </Suspense>
         </div>
       </main>
     </div>

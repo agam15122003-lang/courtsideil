@@ -130,8 +130,8 @@ export default function ResetPassword() {
           )}
         </form>
 
-        {error && <div className="alert alert-error">{error}</div>}
-        {message && <div className="alert alert-success">{message}</div>}
+        {error && <div className="alert alert-error" role="alert">{error}</div>}
+        {message && <div className="alert alert-success" role="status">{message}</div>}
         </div>
 
         <footer className="auth-footer">{L('נבנה למען קהילת המאמנים', 'Built for the coaching community')}</footer>
