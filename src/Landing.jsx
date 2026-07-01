@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   Dumbbell,
   ClipboardList,
@@ -11,6 +12,26 @@ import {
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
+
+// reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
+function useReveal() {
+  useEffect(() => {
+    const els = document.querySelectorAll('.land .reveal')
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-visible')
+            io.unobserve(e.target)
+          }
+        })
+      },
+      { threshold: 0.12 }
+    )
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+}
 
 // אילוסטרציית מגרש כדורסל מקורית (SVG) — משטח נייבי מרוסן עם כדור ככתם החום היחיד
 function CourtArt() {
@@ -56,6 +77,7 @@ function CourtArt() {
 
 // דף נחיתה ציבורי — נראה למי שעדיין לא מחובר. onEnter פותח את מסך ההתחברות.
 export default function Landing({ onEnter }) {
+  useReveal()
   const FEATURES = [
     { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם שדות עשירים, דירוג כוכבים, מועדפים ותגובות — ידע משותף של הקהילה.', 'Hundreds of drills with rich details, star ratings, favorites and comments — shared knowledge from the community.') },
     { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('הרכב אימון מלא בדקות — ידני או בנאי חכם אוטומטי לפי גיל, נושא וזמן יעד.', 'Build a full practice in minutes — manually or with the smart auto-builder by age, topic and target time.') },
@@ -133,7 +155,7 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
-      <section className="land-section" id="features">
+      <section className="land-section reveal" id="features">
         <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
         <h2 className="land-h2">{L('כל מה שמאמן צריך', 'Everything a coach needs')}</h2>
         <p className="land-lead">{L('שבעה כלים מקצועיים שעובדים יחד, בלי לקפוץ בין אפליקציות.', 'Seven professional tools that work together — no jumping between apps.')}</p>
@@ -150,7 +172,7 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
-      <section className="land-section land-steps-wrap">
+      <section className="land-section land-steps-wrap reveal">
         <span className="land-kicker">{L('איך זה עובד', 'How It Works')}</span>
         <h2 className="land-h2">{L('מתחילים בשלוש דקות', 'Get started in three minutes')}</h2>
         <div className="land-steps">
@@ -164,7 +186,7 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
-      <section className="land-band">
+      <section className="land-band reveal">
         <h2 className="land-band-title">{L('מוכן לסדר את עולם האימון שלך?', 'Ready to organize your coaching world?')}</h2>
         <p className="land-band-sub">{L('הצטרף לקהילת מאמני הכדורסל — בחינם, בעברית, מהמכשיר שכבר בכיס שלך.', 'Join the basketball coaching community — free, and right from the device already in your pocket.')}</p>
         <button className="btn-hero btn-lg" onClick={onEnter}>

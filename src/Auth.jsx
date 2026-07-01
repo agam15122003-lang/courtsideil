@@ -318,8 +318,8 @@ export default function Auth({ onBack }) {
           </button>
         )}
 
-        {error && <div className="alert alert-error">{error}</div>}
-        {message && <div className="alert alert-success">{message}</div>}
+        {error && <div className="alert alert-error" role="alert">{error}</div>}
+        {message && <div className="alert alert-success" role="status">{message}</div>}
 
           <ul className="auth-trust-inline">
             <li>

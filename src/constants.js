@@ -151,10 +151,17 @@ export const ytSearchUrl = (cat) =>
   encodeURIComponent('basketball ' + (VIDEO_TOPIC_EN[cat] || cat) + ' coaching')
 
 // ===== ייבוא אוטומטי של סרטונים מיוטיוב (YouTube Data API v3) =====
+// המפתח נטען מקובץ .env.local (VITE_YOUTUBE_API_KEY) — לא נשמר בקוד!
 // השג מפתח חינמי: https://console.cloud.google.com → הפעל "YouTube Data API v3"
-// → "Create credentials" → API key → הדבק כאן בין הגרשיים.
-// מומלץ להגביל את המפתח (Application restrictions → HTTP referrers → הדומיין שלך).
-export const YOUTUBE_API_KEY = 'AIzaSyC10OKin9E5vjy_JYDEnYYGStkIsl1pqWA'
+// → "Create credentials" → API key → שים ב-.env.local.
+// חובה להגביל את המפתח (Application restrictions → HTTP referrers → הדומיין שלך).
+export const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || ''
+
+// ===== אבטחה: מאשר רק קישורי http/https — חוסם javascript: וכד' (XSS) =====
+export const safeUrl = (u) => {
+  const s = String(u || '').trim()
+  return /^https?:\/\//i.test(s) ? s : null
+}
 // כמה סרטונים לייבא לכל נושא בלחיצה
 export const YT_IMPORT_PER_CATEGORY = 12
 

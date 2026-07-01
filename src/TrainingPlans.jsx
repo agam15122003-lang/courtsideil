@@ -7,6 +7,7 @@ import SmartBuilder from './SmartBuilder'
 import NotebookPage from './NotebookPage'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
+import { safeUrl } from './constants'
 
 // ממיר פריטי תוכנית לפורמט "דף מחברת" (כותרת, פרטים, הערה, ולוח טקטיקה לאנימציה)
 export function planToNotebook(name, items) {
@@ -855,13 +856,13 @@ function PlanBuilder({ planId, plan, onBack }) {
                       </div>
                     )}
 
-                    {d.video_url && (
+                    {safeUrl(d.video_url) && (
                       <a
                         className="btn-ghost"
                         style={{ marginTop: 12, display: 'inline-block' }}
-                        href={d.video_url}
+                        href={safeUrl(d.video_url)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                       >
                         {L('סרטון', 'Video')}
                       </a>

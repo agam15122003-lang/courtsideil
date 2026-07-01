@@ -165,7 +165,7 @@ export default function Messages({ session }) {
         error={null}
         empty={
           <p className="muted" style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-            {L('אין הודעות עדיין — כתוב את הראשונה 👋', 'No messages yet — write the first one 👋')}
+            {L('אין הודעות עדיין — כתוב את הראשונה', 'No messages yet — write the first one')}
           </p>
         }
         header={

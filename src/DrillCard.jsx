@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Star, Bookmark, BookOpen, ChevronUp } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
+import { safeUrl } from './constants'
 import TacticsBoard from './TacticsBoard'
 import NotebookPage from './NotebookPage'
 
@@ -163,9 +164,9 @@ export default function DrillCard({
               </div>
             )}
           </div>
-          {drill.image_url && (
-            <a className="drill-image" href={drill.image_url} target="_blank" rel="noreferrer">
-              <img src={drill.image_url} alt={drill.title} loading="lazy" />
+          {safeUrl(drill.image_url) && (
+            <a className="drill-image" href={safeUrl(drill.image_url)} target="_blank" rel="noopener noreferrer">
+              <img src={safeUrl(drill.image_url)} alt={drill.title} loading="lazy" />
             </a>
           )}
         </>
@@ -205,12 +206,12 @@ export default function DrillCard({
             <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} />
             {isSaved ? L('נשמר', 'Saved') : L('שמירה', 'Save')}
           </button>
-          {drill.video_url && (
+          {safeUrl(drill.video_url) && (
             <a
               className="btn-ghost"
-              href={drill.video_url}
+              href={safeUrl(drill.video_url)}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               {L('סרטון', 'Video')}
             </a>

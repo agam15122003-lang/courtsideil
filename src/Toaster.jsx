@@ -5,6 +5,7 @@ import { L } from './i18n'
 
 const ICONS = { success: CheckCircle2, error: AlertCircle, info: Info }
 const DURATION = 3500
+const EXIT_MS = 200 // משך אנימציית היציאה — תואם ל-toast-out ב-CSS
 
 // מציג את הודעות ה-Toast. ממוקם פעם אחת בשורש האפליקציה.
 // המיכל מרונדר תמיד (גם ריק) כדי שאזור ה-aria-live יהיה קבוע ב-DOM —
@@ -12,16 +13,22 @@ const DURATION = 3500
 export default function Toaster() {
   const [items, setItems] = useState([])
 
+  // יציאה חלקה: קודם מסמנים leaving (מנגן אנימציית יציאה), ואז מסירים מה-DOM
+  const startLeave = (id) => {
+    setItems((cur) => cur.map((x) => (x.id === id ? { ...x, leaving: true } : x)))
+    setTimeout(() => {
+      setItems((cur) => cur.filter((x) => x.id !== id))
+    }, EXIT_MS)
+  }
+
   useEffect(() => {
     return subscribe((t) => {
       setItems((cur) => [...cur, t])
-      setTimeout(() => {
-        setItems((cur) => cur.filter((x) => x.id !== t.id))
-      }, DURATION)
+      setTimeout(() => startLeave(t.id), DURATION)
     })
   }, [])
 
-  const dismiss = (id) => setItems((cur) => cur.filter((x) => x.id !== id))
+  const dismiss = (id) => startLeave(id)
 
   return (
     <div className="toaster" role="region" aria-live="polite" aria-atomic="false">
@@ -30,7 +37,7 @@ export default function Toaster() {
         return (
           <div
             key={t.id}
-            className={`toast toast-${t.type}`}
+            className={`toast toast-${t.type}${t.leaving ? ' toast-leaving' : ''}`}
             role={t.type === 'error' ? 'alert' : 'status'}
           >
             <Icon size={19} className="toast-ic" />
