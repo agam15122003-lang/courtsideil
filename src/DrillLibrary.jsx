@@ -179,8 +179,38 @@ export default function DrillLibrary({ session }) {
         </button>
       </div>
 
-      {/* טוגל המועדפים שלי */}
-      <div className="field-group" style={{ marginTop: 18 }}>
+      {/* סרגל סינון אופקי — חיפוש, קטגוריה וגיל בשורה אחת */}
+      <div className="filter-bar">
+        <input
+          className="finder-input filter-search"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={L('חיפוש בשם או בתיאור...', 'Search by name or description...')}
+          aria-label={L('חיפוש תרגילים', 'Search drills')}
+        />
+        <select
+          className="finder-input filter-select"
+          value={catFilter}
+          onChange={(e) => setCatFilter(e.target.value)}
+          aria-label={L('סינון לפי קטגוריה', 'Filter by category')}
+        >
+          <option value="">{L('כל הקטגוריות', 'All categories')}</option>
+          {DRILL_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>{tr(cat)}</option>
+          ))}
+        </select>
+        <div className="filter-ms">
+          <MultiSelect
+            options={AGE_GROUPS}
+            selected={ageFilter}
+            onToggle={toggleAge}
+            renderLabel={trTeam}
+            placeholder={L('כל הגילאים', 'All age groups')}
+          />
+        </div>
+      </div>
+      <div className="filter-chips-row">
         <button
           type="button"
           className={onlySaved ? 'chip selected' : 'chip'}
@@ -188,61 +218,21 @@ export default function DrillLibrary({ session }) {
         >
           {L('המועדפים שלי', 'My favorites')}
         </button>
-      </div>
-
-      {/* חיפוש חופשי */}
-      <div className="field-group" style={{ marginTop: 16 }}>
-        <input
-          className="finder-input"
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={L('חיפוש בשם או בתיאור...', 'Search by name or description...')}
-        />
-      </div>
-
-      {/* סינון לפי קטגוריה */}
-      <div className="field-group" style={{ marginTop: 16 }}>
-        <span className="field-label">{L('קטגוריה', 'Category')}</span>
-        <select className="finder-input" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
-          <option value="">{L('כל הקטגוריות', 'All categories')}</option>
-          {DRILL_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{tr(cat)}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* סינון לפי שכבת גיל */}
-      <div className="field-group" style={{ marginTop: 16 }}>
-        <span className="field-label">{L('שכבת גיל', 'Age group')}</span>
-        <MultiSelect
-          options={AGE_GROUPS}
-          selected={ageFilter}
-          onToggle={toggleAge}
-          renderLabel={trTeam}
-          placeholder={L('כל הגילאים', 'All age groups')}
-        />
-      </div>
-
-      {/* מיון */}
-      <div className="field-group" style={{ marginTop: 16 }}>
-        <span className="field-label">{L('מיון', 'Sort')}</span>
-        <div className="chips">
-          <button
-            type="button"
-            className={sortBy === 'new' ? 'chip selected' : 'chip'}
-            onClick={() => setSortBy('new')}
-          >
-            {L('החדשים ביותר', 'Newest')}
-          </button>
-          <button
-            type="button"
-            className={sortBy === 'rating' ? 'chip selected' : 'chip'}
-            onClick={() => setSortBy('rating')}
-          >
-            {L('הכי מדורגים', 'Top rated')}
-          </button>
-        </div>
+        <span className="filter-chips-sep" aria-hidden="true" />
+        <button
+          type="button"
+          className={sortBy === 'new' ? 'chip selected' : 'chip'}
+          onClick={() => setSortBy('new')}
+        >
+          {L('החדשים ביותר', 'Newest')}
+        </button>
+        <button
+          type="button"
+          className={sortBy === 'rating' ? 'chip selected' : 'chip'}
+          onClick={() => setSortBy('rating')}
+        >
+          {L('הכי מדורגים', 'Top rated')}
+        </button>
       </div>
 
       {tagFilter && (
