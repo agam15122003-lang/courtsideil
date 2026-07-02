@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { L, tr } from './i18n'
+import { useReducedMotion } from './ui/motion'
 
 // מצב הרצת אימון — טיימר גדול לכל תרגיל, עם מעבר בין התרגילים ברצף.
 // props:
@@ -13,6 +14,8 @@ export default function PlanRunner({ items, planName, onExit }) {
     (items[0]?.duration_minutes || 0) * 60
   )
   const [paused, setPaused] = useState(false)
+  const reduced = useReducedMotion() // תחת prefers-reduced-motion מדלגים על צליל/רטט
+  const audioCtxRef = useRef(null) // AudioContext יחיד לכל ההרצה
 
   const current = items[index]
   const d = current?.drill || {}
@@ -38,12 +41,61 @@ export default function PlanRunner({ items, planName, onExit }) {
   const ss = String(secondsLeft % 60).padStart(2, '0')
   const timeUp = hasDur && secondsLeft === 0
 
+  // התקדמות התרגיל הנוכחי — אחוז הזמן שחלף מתוך המשך
+  const totalSec = (current?.duration_minutes || 0) * 60
+  const elapsedPct = totalSec > 0 ? ((totalSec - secondsLeft) / totalSec) * 100 : 0
+
+  // סוף תרגיל — צפצוף קצר (WebAudio) ורטט, בעדינות ורק כשמותר להנפיש
+  useEffect(() => {
+    if (!timeUp || reduced) return
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (Ctx) {
+        if (!audioCtxRef.current) audioCtxRef.current = new Ctx()
+        const ctx = audioCtxRef.current
+        if (ctx.state === 'suspended') ctx.resume()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.value = 880
+        gain.gain.setValueAtTime(0.06, ctx.currentTime) // ווליום נמוך
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start()
+        osc.stop(ctx.currentTime + 0.15)
+      }
+    } catch {
+      /* אין תמיכה באודיו — ממשיכים בשקט */
+    }
+    try {
+      navigator.vibrate?.(200)
+    } catch {
+      /* אין תמיכה ברטט */
+    }
+  }, [timeUp, reduced])
+
+  // סגירת ה-AudioContext ביציאה מהמסך
+  useEffect(() => {
+    return () => {
+      try {
+        audioCtxRef.current?.close()
+      } catch {
+        /* כבר סגור */
+      }
+    }
+  }, [])
+
   const next = () => setIndex((i) => Math.min(i + 1, items.length - 1))
   const prev = () => setIndex((i) => Math.max(i - 1, 0))
   const resetTimer = () => {
     setSecondsLeft((current?.duration_minutes || 0) * 60)
     setPaused(false)
   }
+
+  const isLast = index === items.length - 1
+  // פעולה ראשית אחת ברורה בכל רגע: השהה/המשך בזמן ריצה, "הבא"/"סיום" כשהזמן נגמר או שאין משך
+  const nextIsPrimary = !hasDur || timeUp
 
   return (
     <div className="welcome-card">
@@ -71,7 +123,24 @@ export default function PlanRunner({ items, planName, onExit }) {
         {hasDur ? `${mm}:${ss}` : '—'}
       </div>
 
-      {timeUp && <p className="runner-timeup">{L('הזמן נגמר', "Time's up")}</p>}
+      {/* פס דק — כמה מהתרגיל הנוכחי כבר עבר */}
+      {hasDur && (
+        <div
+          className="runner-drill-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(elapsedPct)}
+          aria-label={L('התקדמות התרגיל הנוכחי', 'Current drill progress')}
+        >
+          <div
+            className={timeUp ? 'runner-drill-progress-fill up' : 'runner-drill-progress-fill'}
+            style={{ width: `${elapsedPct}%` }}
+          />
+        </div>
+      )}
+
+      {timeUp && <p className="runner-timeup" role="status">{L('הזמן נגמר', "Time's up")}</p>}
       {!hasDur && (
         <p className="muted small" style={{ textAlign: 'center' }}>
           {L('לתרגיל הזה לא הוגדר משך — עבור ל"הבא" כשתסיים.', 'No duration set for this drill — tap "Next" when you finish.')}
@@ -92,7 +161,7 @@ export default function PlanRunner({ items, planName, onExit }) {
         </button>
         {hasDur && (
           <button
-            className="btn-primary"
+            className={nextIsPrimary ? 'btn-ghost' : 'btn-primary'}
             style={{ marginTop: 0 }}
             onClick={() => setPaused((p) => !p)}
             disabled={timeUp}
@@ -105,13 +174,24 @@ export default function PlanRunner({ items, planName, onExit }) {
             {L('איפוס', 'Reset')}
           </button>
         )}
-        <button
-          className="btn-ghost"
-          onClick={next}
-          disabled={index === items.length - 1}
-        >
-          {L('הבא', 'Next')}
-        </button>
+        {isLast ? (
+          /* בתרגיל האחרון "הבא" מוחלף בסיום — תמיד יש פעולה ראשית זמינה */
+          <button
+            className={nextIsPrimary ? 'btn-primary' : 'btn-ghost'}
+            style={{ marginTop: 0 }}
+            onClick={onExit}
+          >
+            {L('סיום האימון', 'Finish practice')}
+          </button>
+        ) : (
+          <button
+            className={nextIsPrimary ? 'btn-primary' : 'btn-ghost'}
+            style={{ marginTop: 0 }}
+            onClick={next}
+          >
+            {L('הבא', 'Next')}
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
 import MultiSelect from './MultiSelect'
+import Button from './ui/Button'
 
 const DEFAULT_DRILL_MINUTES = 10 // משך ברירת מחדל לתרגיל בלי משך מוגדר
 
@@ -30,6 +31,7 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
   const [targetMinutes, setTargetMinutes] = useState('60')
   const [building, setBuilding] = useState(false)
   const [error, setError] = useState(null)
+  const [result, setResult] = useState(null) // סיכום הבנייה — { planId, count, minutes, target }
 
   const toggleCat = (c) => {
     setCats((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]))
@@ -109,13 +111,10 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
       return
     }
 
-    // סיכום תוצאה — שקיפות (כמה תרגילים, כמה דקות מול היעד)
+    // סיכום תוצאה — שקיפות (כמה תרגילים, כמה דקות מול היעד).
+    // במקום לקפוץ ישר לתוכנית מציגים שורת סיכום, והמאמן פותח כשהוא מוכן.
     toast.success(L(`נבנו ${chosen.length} תרגילים · כ-${totalMin} דקות`, `Built ${chosen.length} drills · about ${totalMin} min`))
-    if (totalMin < Number(target)) {
-      toast.info(L('האימון קצר מהיעד — לא נמצאו מספיק תרגילים מתאימים. אפשר להוסיף ידנית.', 'The practice is shorter than the target — not enough matching drills. You can add more manually.'))
-    }
-
-    onCreated(plan.id)
+    setResult({ planId: plan.id, count: chosen.length, minutes: totalMin, target })
   }
 
   return (
@@ -132,6 +131,33 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
         {L('בחר קריטריונים, והמערכת תרכיב אימון אוטומטית מהתרגילים בספרייה.', 'Pick your criteria and the system will auto-build a practice from your drill library.')}
       </p>
 
+      {result ? (
+        /* סיכום קומפקטי אחרי הבנייה — כמה תרגילים ודקות יצאו מול היעד */
+        <div className="sb-result" role="status">
+          <div className="alert alert-success sb-result-line">
+            <CheckCircle2 size={18} aria-hidden="true" />
+            <span>
+              {L(
+                `נבנו ${result.count} תרגילים · כ-${result.minutes} דקות (יעד: ${result.target} דקות)`,
+                `Built ${result.count} drills · about ${result.minutes} min (target: ${result.target} min)`
+              )}
+            </span>
+          </div>
+          {result.minutes < result.target && (
+            <p className="muted small">
+              {L('האימון קצר מהיעד — לא נמצאו מספיק תרגילים מתאימים. אפשר להוסיף ידנית בתוך התוכנית.', 'The practice is shorter than the target — not enough matching drills. You can add more manually inside the plan.')}
+            </p>
+          )}
+          <div className="form-actions">
+            <Button onClick={() => onCreated(result.planId)}>
+              {L('פתח את התוכנית', 'Open the plan')}
+            </Button>
+            <Button variant="ghost" onClick={() => setResult(null)}>
+              {L('בנה אימון נוסף', 'Build another')}
+            </Button>
+          </div>
+        </div>
+      ) : (
       <form
         className="auth-form"
         style={{ marginTop: 20 }}
@@ -189,22 +215,23 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
           />
         </div>
 
+        {/* שגיאות ולידציה/שרת — מעל כפתור הבנייה, בדיוק איפה שהעין נמצאת (ממצא #23) */}
+        {error && (
+          <div className="alert alert-error sb-error" role="alert">
+            {error}
+          </div>
+        )}
+
         <div className="form-actions">
-          <button type="submit" className="btn-primary" disabled={building}>
+          <Button type="submit" loading={building}>
             {building ? L('בונה...', 'Building...') : L('בניית אימון', 'Build practice')}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={onCancel}
-            disabled={building}
-          >
+          </Button>
+          <Button variant="ghost" onClick={onCancel} disabled={building}>
             {L('ביטול', 'Cancel')}
-          </button>
+          </Button>
         </div>
       </form>
-
-      {error && <div className="alert alert-error">{error}</div>}
+      )}
     </div>
   )
 }

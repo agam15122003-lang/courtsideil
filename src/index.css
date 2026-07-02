@@ -7685,3 +7685,82 @@ a:focus:not(:focus-visible) {
 .drill-form .form-section-title {
   margin-block-end: 0; /* הריווח מגיע מה-gap של הסקשן */
 }
+
+/* ===== ליטוש 2026 — תוכניות אימון (תוכניות, בנאי חכם, הרצת אימון) ===== */
+
+/* --- שגיאת טעינה: הודעה + "נסה שוב" באותה שורה (עוטף במסך צר) --- */
+.plans-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.plans-error .btn-ghost {
+  flex-shrink: 0;
+}
+
+/* --- בנאי חכם: השגיאה בתוך הטופס, מעל כפתור הבנייה (ממצא #23) --- */
+.sb-error {
+  margin-top: 0; /* הריווח מגיע מה-gap של הטופס */
+}
+
+/* --- בנאי חכם: שורת סיכום תוצאה אחרי הבנייה --- */
+.sb-result {
+  margin-top: var(--space-5);
+}
+.sb-result-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 0;
+}
+.sb-result-line svg {
+  flex-shrink: 0;
+}
+.sb-result .muted {
+  margin-top: var(--space-2);
+}
+.sb-result .form-actions {
+  margin-top: var(--space-4);
+}
+
+/* --- הרצת אימון: פס דק לתרגיל הנוכחי — כמה מהזמן כבר חלף --- */
+.runner-drill-progress {
+  height: 4px;
+  max-width: 320px;
+  margin-inline: auto;
+  margin-block: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.runner-drill-progress-fill {
+  height: 100%;
+  background: var(--accent-fill);
+  border-radius: var(--radius-full);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.runner-drill-progress-fill.up {
+  background: var(--error);
+}
+@media (prefers-reduced-motion: reduce) {
+  .runner-drill-progress-fill {
+    transition: none;
+  }
+}
+
+/* --- סרגלי פעולות במובייל: רשת ברוחב מלא במקום גלישה מרושלת (ממצא #11) --- */
+@media (max-width: 560px) {
+  .plan-actions,
+  .runner-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    width: 100%;
+  }
+  .plan-actions > *,
+  .runner-controls > * {
+    width: 100%;
+    margin-top: 0;
+  }
+}

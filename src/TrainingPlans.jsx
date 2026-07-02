@@ -6,6 +6,9 @@ import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
 import NotebookPage from './NotebookPage'
 import { SkeletonCards } from './Skeleton'
+import Modal from './ui/Modal'
+import Button from './ui/Button'
+import EmptyState from './ui/EmptyState'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
 
@@ -56,6 +59,8 @@ export default function TrainingPlans({ session }) {
   const [creating, setCreating] = useState(false)
   const [smartOpen, setSmartOpen] = useState(false) // בנאי אימון חכם
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
+  const [deleteTarget, setDeleteTarget] = useState(null) // תוכנית שממתינה לאישור מחיקה במודאל
+  const [deleting, setDeleting] = useState(false)
   const me = session.user.id
 
   // העתקת תוכנית ששותפה אל "התוכניות שלי"
@@ -130,13 +135,17 @@ export default function TrainingPlans({ session }) {
     setActivePlanId(data.id) // נכנסים ישר לבנייה
   }
 
-  const deletePlan = async (id) => {
-    if (!window.confirm(L('למחוק את התוכנית? פעולה זו אינה הפיכה.', 'Delete this plan? This cannot be undone.'))) return
-    const { error } = await supabase.from('training_plans').delete().eq('id', id)
+  // מחיקה בפועל — אחרי אישור במודאל (החליף את window.confirm)
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await supabase.from('training_plans').delete().eq('id', deleteTarget.id)
+    setDeleting(false)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
       return
     }
+    setDeleteTarget(null)
     toast.success(L('התוכנית נמחקה', 'Plan deleted'))
     loadPlans()
   }
@@ -191,7 +200,10 @@ export default function TrainingPlans({ session }) {
           await loadPlans()
           setActivePlanId(id)
         }}
-        onCancel={() => setSmartOpen(false)}
+        onCancel={() => {
+          setSmartOpen(false)
+          loadPlans() // ייתכן שנבנתה תוכנית בלי להיפתח — מרעננים את הרשימה
+        }}
       />
     )
   }
@@ -251,15 +263,23 @@ export default function TrainingPlans({ session }) {
         {loading ? (
           <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
-        ) : myPlans.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <ClipboardList size={26} />
-            </span>
-            <div className="empty-title">{L('עדיין אין תוכניות אימון', 'No training plans yet')}</div>
-            <p className="muted small">{L('צור את התוכנית הראשונה למעלה, או נסה את הבנאי החכם.', 'Create your first plan above, or try the smart builder.')}</p>
+          <div className="alert alert-error plans-error">
+            <span>{error}</span>
+            <Button variant="ghost" onClick={loadPlans}>
+              {L('נסה שוב', 'Try again')}
+            </Button>
           </div>
+        ) : myPlans.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title={L('עדיין אין תוכניות אימון', 'No training plans yet')}
+            desc={L('צור את התוכנית הראשונה למעלה, או תן לבנאי החכם להרכיב לך אימון.', 'Create your first plan above, or let the smart builder assemble one for you.')}
+            action={
+              <Button onClick={() => setSmartOpen(true)}>
+                {L('בנייה אוטומטית של אימון', 'Auto-build a practice')}
+              </Button>
+            }
+          />
         ) : (
           myPlans.map((p) => {
             const items = p.plan_items || []
@@ -272,7 +292,7 @@ export default function TrainingPlans({ session }) {
                   {total > 0 ? L(` · ${total} דקות`, ` · ${total} min`) : ''}
                   {p.is_public ? L(' · משותף', ' · shared') : ''}
                 </p>
-                <div className="coach-card-actions">
+                <div className="coach-card-actions plan-actions">
                   <button
                     className="btn-primary"
                     style={{ marginTop: 0 }}
@@ -283,7 +303,7 @@ export default function TrainingPlans({ session }) {
                   <button className="btn-ghost" onClick={() => toggleShare(p)}>
                     {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
                   </button>
-                  <button className="btn-ghost danger" onClick={() => deletePlan(p.id)}>
+                  <button className="btn-ghost danger" onClick={() => setDeleteTarget(p)}>
                     {L('מחק', 'Delete')}
                   </button>
                 </div>
@@ -317,7 +337,7 @@ export default function TrainingPlans({ session }) {
                     {items.length} {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
                     {total > 0 ? L(` · ${total} דקות`, ` · ${total} min`) : ''}
                   </p>
-                  <div className="coach-card-actions">
+                  <div className="coach-card-actions plan-actions">
                     <button
                       className="btn-primary"
                       style={{ marginTop: 0 }}
@@ -337,6 +357,32 @@ export default function TrainingPlans({ session }) {
           </div>
         </>
       )}
+
+      {/* אישור מחיקת תוכנית — מודאל נגיש במקום window.confirm */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null)
+        }}
+        title={L('מחיקת תוכנית', 'Delete plan')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="danger" loading={deleting} onClick={confirmDelete}>
+              {L('מחק תוכנית', 'Delete plan')}
+            </Button>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              {L('ביטול', 'Cancel')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ margin: 0 }}>
+          {L('למחוק את ', 'Delete ')}
+          <strong>{deleteTarget?.name}</strong>
+          {L('? פעולה זו אינה הפיכה.', '? This cannot be undone.')}
+        </p>
+      </Modal>
     </div>
   )
 }
@@ -711,17 +757,25 @@ function PlanBuilder({ planId, plan, onBack }) {
       {/* רצף התרגילים בתוכנית */}
       <div className="finder-results">
         {loading ? (
-          <p className="muted">{L('טוען...', 'Loading...')}</p>
+          <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
-        ) : items.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <ClipboardList size={26} />
-            </span>
-            <div className="empty-title">{L('התוכנית ריקה', 'This plan is empty')}</div>
-            <p className="muted small">{L('לחץ "הוסף תרגיל" כדי להתחיל לבנות את האימון.', 'Click "Add drill" to start building the practice.')}</p>
+          <div className="alert alert-error plans-error">
+            <span>{error}</span>
+            <Button variant="ghost" onClick={loadItems}>
+              {L('נסה שוב', 'Try again')}
+            </Button>
           </div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title={L('התוכנית ריקה', 'This plan is empty')}
+            desc={L('הוסף תרגיל מהספרייה או צור תרגיל חדש כדי להתחיל לבנות את האימון.', 'Add a drill from the library or create a new one to start building the practice.')}
+            action={
+              <Button onClick={openPicker}>
+                {L('הוספת תרגיל מהספרייה', 'Add drill from library')}
+              </Button>
+            }
+          />
         ) : (
           items.map((it, idx) => {
             const d = it.drill || {}
