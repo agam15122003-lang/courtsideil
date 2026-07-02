@@ -1,10 +1,12 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronRight, MessageSquare } from 'lucide-react'
+import { ChevronRight, MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import CommunityChat from './CommunityChat'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
+import Modal from './ui/Modal'
+import Button from './ui/Button'
 import { SkeletonCards } from './Skeleton'
 import { L } from './i18n'
 
@@ -44,12 +46,16 @@ export default function Messages({ session }) {
   const [messages, setMessages] = useState([])
   const [profilesById, setProfilesById] = useState({})
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [activeCoachId, setActiveCoachId] = useState(null)
   const [sending, setSending] = useState(false)
+  const [confirmDelMsg, setConfirmDelMsg] = useState(null) // id הודעה למחיקה (החליף את window.confirm)
+  const [deleting, setDeleting] = useState(false)
 
-  async function loadMessages() {
-    setLoading(true)
+  // refresh=true — הרשימה הקיימת נשארת על המסך (בלי "קריעה" לשלדים), רק חיווי עדין
+  async function loadMessages(refresh = false) {
+    refresh ? setRefreshing(true) : setLoading(true)
     const { data, error } = await supabase
       .from('messages')
       .select('*')
@@ -58,6 +64,7 @@ export default function Messages({ session }) {
     if (error) {
       setError(L('שגיאה בטעינת ההודעות: ', 'Failed to load messages: ') + error.message)
       setLoading(false)
+      setRefreshing(false)
       return
     }
 
@@ -81,6 +88,7 @@ export default function Messages({ session }) {
     }
 
     setLoading(false)
+    setRefreshing(false)
   }
 
   useEffect(() => {
@@ -114,7 +122,7 @@ export default function Messages({ session }) {
         .from('messages')
         .update({ read_at: new Date().toISOString() })
         .in('id', unreadIds)
-      loadMessages()
+      loadMessages(true)
     }
   }
 
@@ -131,19 +139,47 @@ export default function Messages({ session }) {
       return
     }
     toast.success(L('ההודעה נשלחה', 'Message sent'))
-    loadMessages()
+    loadMessages(true)
   }
 
-  const deleteMessage = async (id) => {
-    if (!window.confirm(L('למחוק את ההודעה? פעולה זו אינה הפיכה.', 'Delete this message? This cannot be undone.'))) return
-    const { error } = await supabase.from('messages').delete().eq('id', id)
+  // מחיקה בפועל — אחרי אישור במודאל (החליף את window.confirm)
+  const confirmDeleteMsg = async () => {
+    if (!confirmDelMsg) return
+    setDeleting(true)
+    const { error } = await supabase.from('messages').delete().eq('id', confirmDelMsg)
+    setDeleting(false)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message)
       return
     }
+    setConfirmDelMsg(null)
     toast.success(L('ההודעה נמחקה', 'Message deleted'))
-    loadMessages()
+    loadMessages(true)
   }
+
+  // מודאל אישור המחיקה — מרונדר גם במסך הרשימה וגם בתוך שיחה פתוחה
+  const deleteConfirmModal = (
+    <Modal
+      open={!!confirmDelMsg}
+      onClose={() => setConfirmDelMsg(null)}
+      title={L('מחיקת הודעה', 'Delete message')}
+      size="sm"
+      footer={
+        <>
+          <Button variant="danger" loading={deleting} onClick={confirmDeleteMsg}>
+            <Trash2 size={15} /> {L('מחיקה', 'Delete')}
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirmDelMsg(null)}>{L('ביטול', 'Cancel')}</Button>
+        </>
+      }
+    >
+      <p className="confirm-del-text">
+        {L('למחוק את ההודעה?', 'Delete this message?')}
+        <br />
+        <span className="muted small">{L('אי אפשר לבטל את הפעולה.', 'This action cannot be undone.')}</span>
+      </p>
+    </Modal>
+  )
 
   // ---------- תצוגת שיחה פרטית פתוחה ----------
   if (activeCoachId) {
@@ -155,11 +191,12 @@ export default function Messages({ session }) {
       senderName: nameOf(m.sender_id),
     }))
     return (
+      <>
       <ChatWindow
         messages={threadMsgs}
         myId={myId}
         onSend={sendMessage}
-        onDelete={deleteMessage}
+        onDelete={(id) => setConfirmDelMsg(id)}
         sending={sending}
         loading={false}
         error={null}
@@ -184,6 +221,8 @@ export default function Messages({ session }) {
           </>
         }
       />
+      {deleteConfirmModal}
+      </>
     )
   }
 
@@ -213,8 +252,13 @@ export default function Messages({ session }) {
         <>
           <div className="library-header">
             <h2 style={{ marginBottom: 0 }}>{L('השיחות שלי', 'My chats')}</h2>
-            <button className="btn-ghost library-add" onClick={loadMessages}>
-              {L('רענון', 'Refresh')}
+            <button
+              className="btn-ghost library-add"
+              onClick={() => loadMessages(true)}
+              disabled={refreshing}
+              aria-busy={refreshing || undefined}
+            >
+              <RefreshCw size={15} className={refreshing ? 'spin-ic' : undefined} /> {L('רענון', 'Refresh')}
             </button>
           </div>
 
@@ -222,7 +266,10 @@ export default function Messages({ session }) {
             {loading ? (
               <SkeletonCards count={3} />
             ) : error ? (
-              <div className="alert alert-error">{error}</div>
+              <div className="alert alert-error msgs-error" role="alert">
+                <span>{error}</span>
+                <Button variant="ghost" onClick={() => loadMessages()}>{L('נסה שוב', 'Try again')}</Button>
+              </div>
             ) : conversations.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-ic">
@@ -250,7 +297,7 @@ export default function Messages({ session }) {
                       {c.lastMessage.sender_id === myId ? L('אני: ', 'Me: ') : ''}
                       {c.lastMessage.content}
                     </span>
-                    <span className="msg-time">{formatTime(c.lastMessage.created_at)}</span>
+                    <span className="msg-time" dir="ltr">{formatTime(c.lastMessage.created_at)}</span>
                   </div>
                 </button>
               ))
@@ -258,6 +305,7 @@ export default function Messages({ session }) {
           </div>
         </>
       )}
+      {deleteConfirmModal}
     </div>
   )
 }
