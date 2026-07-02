@@ -9,6 +9,7 @@ import {
   PlayCircle,
   Star,
   ArrowLeft,
+  Shield,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
@@ -82,6 +83,7 @@ export default function Landing({ onEnter }) {
     { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם שדות עשירים, דירוג כוכבים, מועדפים ותגובות — ידע משותף של הקהילה.', 'Hundreds of drills with rich details, star ratings, favorites and comments — shared knowledge from the community.') },
     { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('הרכב אימון מלא בדקות — ידני או בנאי חכם אוטומטי לפי גיל, נושא וזמן יעד.', 'Build a full practice in minutes — manually or with the smart auto-builder by age, topic and target time.') },
     { Icon: PencilRuler, title: L('לוח טקטיקה', 'Tactics Board'), desc: L('שרטט מהלכים על מגרש דיגיטלי, הוסף חצי תנועה ומסירה, ונגן אנימציה שלב-אחרי-שלב.', 'Diagram plays on a digital court, add movement and passing arrows, and play back the animation step by step.') },
+    { Icon: Shield, title: L('ניהול קבוצות', 'Team Management'), desc: L('סגל שחקנים, צוות מקצועי, מטרות ומשחקים — כולל ייבוא לוח משחקים וטבלת ליגה חיה מאיגוד הכדורסל.', 'Player roster, staff, goals and games — including fixture import and a live league table from the basketball association.') },
     { Icon: CalendarDays, title: L('לו"ז חכם', 'Smart Schedule'), desc: L('נהל את שבוע האימונים בלוח שנה — אימוני קבוצה ואישיים, עם תוכנית מצורפת לכל שעה.', 'Manage your training week on a calendar — team and individual sessions, with a plan attached to every slot.') },
     { Icon: Users, title: L('קהילת מאמנים', 'Coaches Community'), desc: L('מצא מאמנים, צפה בתרגילים שלהם, העתק תוכניות ששותפו ותאם משחקי אימון.', 'Find coaches, browse their drills, copy shared plans and arrange scrimmages.') },
     { Icon: MessageSquare, title: L('תקשורת', 'Messaging'), desc: L('הודעות פרטיות 1:1 וצ׳אט קבוצתי לכל קהילת המאמנים — הכול במקום אחד.', 'Private 1:1 messages and group chat for the whole coaching community — all in one place.') },
@@ -122,14 +124,14 @@ export default function Landing({ onEnter }) {
       <section className="land-hero">
         <div className="land-hero-text">
           <span className="land-eyebrow">
-            <Star size={14} /> {L('הפנקס הדיגיטלי של מאמן הכדורסל', "The basketball coach's digital playbook")}
+            <Star size={14} /> {L('הבית הדיגיטלי של מאמני הכדורסל', 'The digital home for basketball coaches')}
           </span>
           <h1 className="land-title">
             {L('כל הידע של האימון שלך —', 'All your coaching knowledge —')}<br />
             <span className="land-title-accent">{L('במקום אחד.', 'in one place.')}</span>
           </h1>
           <p className="land-sub">
-            {L('תרגילים, תוכניות אימון, לוח טקטיקה, לו"ז וקהילת מאמנים. פלטפורמה מקצועית שנבנתה לעברית מהיסוד — מהירה מספיק לשימוש תוך כדי אימון על המגרש.', 'Drills, practice plans, a tactics board, a schedule and a coaching community. A professional platform built Hebrew-first — fast enough to use right on the court during practice.')}
+            {L('תרגילים, תוכניות אימון, לוח טקטיקה, ניהול קבוצות, לו"ז וקהילת מאמנים — פלטפורמה מקצועית אחת שנבנתה לעברית מהיסוד.', 'Drills, practice plans, a tactics board, team management, a schedule and a coaching community — one professional platform, built Hebrew-first.')}
           </p>
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>
