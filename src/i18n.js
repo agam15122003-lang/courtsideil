@@ -26,6 +26,8 @@ export const DICT = {
     'nav.media': 'מדיה',
     'nav.messages': 'הודעות',
     'nav.admin': 'ניהול',
+    'nav.more': 'עוד',
+    'nav.mobileNav': 'ניווט תחתון',
     // פעולות כלליות
     'action.signout': 'התנתקות',
     'action.editProfile': 'עריכת פרטים',
@@ -88,6 +90,8 @@ export const DICT = {
     'nav.media': 'Media',
     'nav.messages': 'Messages',
     'nav.admin': 'Admin',
+    'nav.more': 'More',
+    'nav.mobileNav': 'Bottom navigation',
     'action.signout': 'Sign out',
     'action.editProfile': 'Edit details',
     'common.openMenu': 'Open menu',

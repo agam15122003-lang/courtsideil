@@ -7436,3 +7436,92 @@ a:focus:not(:focus-visible) {
 /* --- טוסט אזהרה --- */
 .toast-warning { border-inline-start-color: var(--warning); }
 .toast-warning .toast-ic { color: var(--warning); }
+
+/* ===== ליטוש 2026 — ניווט מובייל (Dashboard) ===== */
+/* טאב-בר תחתון קבוע — מובייל בלבד; בדסקטופ הסייד-בר נשאר ואין בר */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .tabbar {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 50; /* מתחת למגירה (60) ולרקע שלה (55) — המגירה נפתחת מעל הבר */
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border-block-start: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(10, 37, 64, 0.08);
+    padding-block-start: var(--space-1);
+    padding-block-end: calc(var(--space-1) + env(safe-area-inset-bottom, 0px));
+  }
+  [data-theme="dark"] .tabbar {
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35);
+  }
+  .tabbar-item {
+    position: relative;
+    flex: 1;
+    min-width: 44px;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: var(--space-1) var(--space-2);
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+  }
+  .tabbar-item svg {
+    flex-shrink: 0;
+  }
+  .tabbar-item:hover {
+    color: var(--text);
+  }
+  .tabbar-item.active {
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+  /* אינדיקטור פעיל — פס עליון קטן, אותה שפה ויזואלית של הסייד-בר */
+  .tabbar-item.active::before {
+    content: '';
+    position: absolute;
+    inset-block-start: calc(-1 * var(--space-1));
+    inset-inline: 0;
+    margin-inline: auto;
+    width: 20px;
+    height: 3px;
+    border-radius: var(--radius-full);
+    background: var(--accent);
+  }
+  .tabbar-label {
+    line-height: 1.2;
+  }
+
+  /* התוכן לא נבלע מאחורי הבר */
+  .main-content {
+    padding-block-end: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* פקדים צפים (ווידג'ט נגישות, טוסטים) — מוגבהים מעל הבר כשהוא קיים */
+  body:has(.tabbar) .a11y-fab {
+    inset-block-end: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(.tabbar) .toaster {
+    inset-block-end: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* חלון הצ'אט — שדה הכתיבה נשאר גלוי מעל הבר */
+  .chat {
+    height: calc(100dvh - 240px - env(safe-area-inset-bottom, 0px));
+  }
+}

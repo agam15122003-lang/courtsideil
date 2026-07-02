@@ -46,6 +46,9 @@ const NAV = [
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
+// הטאב-בר התחתון (מובייל) — 4 היעדים המרכזיים; שאר המסכים נגישים דרך "עוד" (המגירה)
+const TABBAR_IDS = ['home', 'drills', 'plans', 'schedule']
+const TABBAR_NAV = NAV.filter((item) => TABBAR_IDS.includes(item.id))
 
 export default function Dashboard({ session }) {
   const { t } = useLang()
@@ -295,6 +298,30 @@ export default function Dashboard({ session }) {
         </m.div>
         </AnimatePresence>
       </main>
+
+      {/* טאב-בר תחתון — מובייל בלבד: 4 יעדים מרכזיים + "עוד" שפותח את המגירה המלאה */}
+      <nav className="tabbar" aria-label={t('nav.mobileNav')}>
+        {TABBAR_NAV.map((item) => (
+          <button
+            key={item.id}
+            className={view === item.id ? 'tabbar-item active' : 'tabbar-item'}
+            aria-current={view === item.id ? 'page' : undefined}
+            onClick={() => setView(item.id)}
+          >
+            <item.Icon size={22} />
+            <span className="tabbar-label">{t(item.key)}</span>
+          </button>
+        ))}
+        <button
+          className="tabbar-item"
+          onClick={() => setDrawerOpen(true)}
+          aria-haspopup="true"
+          aria-expanded={drawerOpen}
+        >
+          <Menu size={22} />
+          <span className="tabbar-label">{t('nav.more')}</span>
+        </button>
+      </nav>
     </div>
   )
 }
