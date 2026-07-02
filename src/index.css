@@ -8,13 +8,23 @@
   --orange-300: #F0A878;
   --orange-500: #E8763A;
   --orange-600: #D15F23;
+  --orange-650: #B85423;               /* קצה עליון לגרדיאנט כפתור */
   --orange-700: #A8491A;
+  --orange-800: #8E3D15;
+
+  /* מותג — זהב (שכבת award: מאמן השבוע, הדגשות פרס) */
+  --gold-300: #F4B740;
+  --gold-500: #E89B1F;
 
   /* מותג — נייבי */
   --navy-500: #41598C;
   --navy-700: #2F4068;
   --navy-800: #243352;
   --navy-900: #1B2A4A;
+
+  /* דיו — בסיס ברודקאסט כהה (hero, band, סייד-בר כהה) */
+  --ink-700: #131C31;
+  --ink-800: #0C1425;
 
   /* ניטרליים */
   --gray-50: #F7F8FA;
@@ -27,9 +37,13 @@
 
   /* סמנטיים — מוכהים לעמידה ב-AA (4.5:1) כטקסט על רקע בהיר */
   --success: #1F7A44;
+  --success-strong: #1C6E3D;           /* טקסט הצלחה על רקע success-bg */
   --warning: #A97B12;
   --error: #C03434;
+  --error-strong: #B42318;             /* טקסט שגיאה על רקע error-bg */
   --info: #2364C8;
+  --warning-bg: #FBF3E0;
+  --info-bg: #E8F0FB;
 
   /* טוקנים לפי תפקיד — מצב בהיר (ניטרליים קרירים ובהירים, hairline borders) */
   --bg: #F6F9FC;
@@ -41,18 +55,26 @@
   --border-hover: #C9D4E2;
   --ink-900: #0A0E18;                /* בסיס ברודקאסט כהה (hero/band) */
   --accent: var(--orange-500);              /* כתום בהיר — לכותרות-ענק, גבולות וגוונים בלבד */
-  --accent-fill: #A8491A;                   /* מילוי כפתורים עם טקסט לבן (5.78:1 ✓ AA) */
-  --accent-fill-press: #8E3D15;             /* hover/active כהה יותר */
-  --accent-strong: #A8491A;                 /* טקסט/אייקון אקצנט על רקע בהיר (5.78:1 ✓) */
+  --accent-fill: var(--orange-700);         /* מילוי כפתורים עם טקסט לבן (5.78:1 ✓ AA) */
+  --accent-fill-press: var(--orange-800);   /* hover/active כהה יותר */
+  --accent-strong: var(--orange-700);       /* טקסט/אייקון אקצנט על רקע בהיר (5.78:1 ✓) */
+  --on-accent: #FFFFFF;                     /* טקסט על מילוי צבעוני — קבוע, לא מתהפך בכהה */
   --quote-color: #1F57B0;                    /* כחול לציטוטים */
   --primary: var(--navy-900);
   --primary-press: var(--navy-800);
+  --surface-raised: #FFFFFF;                /* משטח מורם (בכהה: מדרגת luminance מעל surface) */
+  --focus-ring: var(--accent-strong);       /* טבעת פוקוס מותגית אחידה */
+
+  /* גרדיאנט הכפתור הראשי — מקור אמת יחיד (edge עליון בהיר → מילוי → תחתית כהה) */
+  --accent-grad: linear-gradient(180deg, var(--orange-650), var(--accent-fill) 55%, var(--accent-fill-press));
+  --accent-grad-hover: linear-gradient(180deg, #C25B27, var(--orange-700) 55%, var(--orange-800));
 
   /* טיפוגרפיה */
   --font: 'Rubik', 'Heebo', 'Assistant', system-ui, sans-serif;
   --font-display: 'Heebo', 'Rubik', system-ui, sans-serif; /* פנים כבדות לכותרות */
   --text-xs: 12px;
   --text-sm: 14px;
+  --text-ui: 15px;                     /* פקדים: כפתורים, אינפוטים, ניווט */
   --text-base: 16px;
   --text-lg: 18px;
   --text-xl: 22px;
@@ -285,18 +307,20 @@ body {
   box-shadow: 0 0 0 3px rgba(232, 118, 58, 0.12);
 }
 
-/* ===== כפתורים ===== */
+/* ===== כפתורים — הגדרה קנונית יחידה (מצבי hover/active/disabled כאן בלבד) ===== */
 .btn-primary {
-  padding: 13px 18px;
+  padding: 12px var(--space-5);
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: #fff;
+  background: var(--accent-grad);
+  color: var(--on-accent);
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--text-ui);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  min-height: 42px;
+  box-shadow: 0 1px 2px rgba(10, 14, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   cursor: pointer;
-  transition: all 0.15s ease-out;
 }
 /* מרווח עליון רק בטפסים מוערמים (התחברות/פרופיל) — לא בכל כפתור */
 .auth-form .btn-primary {
@@ -304,7 +328,8 @@ body {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-press);
+  background: var(--accent-grad-hover);
+  box-shadow: 0 4px 12px rgba(168, 73, 26, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   transform: translateY(-1px);
 }
 
@@ -314,21 +339,26 @@ body {
 }
 
 .btn-ghost {
-  padding: 9px 16px;
+  padding: 10px var(--space-4);
   border: 1.5px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--navy);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
+  min-height: 42px;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-ghost:hover {
   background: var(--court-soft);
   border-color: var(--court);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ===== התראות ===== */
@@ -1116,23 +1146,26 @@ body {
 }
 
 .stat-card {
-  background: var(--paper);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 16px 14px;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-num {
   font-size: 26px;
   font-weight: 800;
-  color: var(--court);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: var(--text-xs);
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 /* ===== מצב כהה ===== */
@@ -1141,13 +1174,19 @@ body {
   --bg: #0F1320;
   --surface: #1A2130;
   --surface-alt: #242D40;
+  --surface-raised: #212940; /* מדרגת luminance ל-hover (במקום צל, שלא נראה בכהה) */
   --text: #F1F3F8;
   --text-muted: #AEB6C6;
   --border: #343F58;
+  --border-hover: #46536F;
   --primary: #4663A0;        /* נייבי בהיר יותר, נראה על רקע כהה */
   --primary-press: #3A5080;
   --success: #5FCF9B;
+  --success-strong: #5FCF9B;
+  --warning: #E3C15C;
   --error: #F2918F;
+  --error-strong: #F2918F;
+  --info: #8AB4F8;
   --accent-strong: #F0A878;  /* במצב כהה — כתום בהיר לטקסט/אייקון (ניגודיות על רקע כהה) */
   --quote-color: #8AB4F8;    /* כחול בהיר לציטוטים במצב כהה */
 
@@ -1155,6 +1194,8 @@ body {
   --court-soft: #3A2A20;
   --success-bg: #16331F;
   --error-bg: #3A1E1E;
+  --warning-bg: #38301A;
+  --info-bg: #1D2B45;
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 
@@ -1476,20 +1517,23 @@ svg,
 }
 
 .btn-hero {
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-grad);
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius-sm);
-  padding: 13px 22px;
+  padding: 12px 22px;
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--text-ui);
+  font-weight: 700;
+  min-height: 42px;
+  box-shadow: 0 1px 2px rgba(10, 14, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   cursor: pointer;
-  transition: filter 0.15s;
 }
 
 .btn-hero:hover {
-  filter: brightness(1.08);
+  background: var(--accent-grad-hover);
+  box-shadow: 0 4px 12px rgba(168, 73, 26, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
 }
 
 .btn-hero-outline {
@@ -1702,11 +1746,32 @@ a.btn-ghost {
 }
 
 .drill-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 20px;
-  background: var(--paper);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(27, 42, 74, 0.04), var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) ease;
 }
+.drill-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--orange-500), var(--orange-700));
+  opacity: 0;
+  transition: opacity var(--dur-base) ease;
+}
+.drill-card:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1px rgba(27, 42, 74, 0.04), var(--shadow-md);
+  border-color: var(--border-hover);
+}
+.drill-card:hover::before { opacity: 1; }
 
 .drill-card-top {
   display: flex;
@@ -1718,11 +1783,11 @@ a.btn-ghost {
 .cat-badge {
   flex-shrink: 0;
   background: var(--navy);
-  color: var(--white);
-  font-size: 12px;
+  color: var(--on-accent);
+  font-size: var(--text-xs);
   font-weight: 700;
-  padding: 4px 11px;
-  border-radius: 20px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
 }
 
 .drill-desc {
@@ -1994,7 +2059,7 @@ body {
   gap: 8px;
 }
 .btn-hero.btn-lg {
-  box-shadow: 0 10px 24px rgba(232, 118, 58, 0.35);
+  box-shadow: var(--shadow-md);
 }
 .btn-hero.btn-lg:hover {
   transform: translateY(-2px);
@@ -2003,17 +2068,17 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 13px 18px;
+  gap: var(--space-2);
+  padding: 12px var(--space-5);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font-family: inherit;
   font-weight: 600;
+  min-height: 42px;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.18s ease-out;
 }
 .btn-soft:hover {
   border-color: var(--accent);
@@ -2396,17 +2461,7 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* כרטיסי סטטיסטיקה — גרדיאנט עדין ועומק */
-.stat-card {
-  background: linear-gradient(160deg, var(--surface), var(--surface-alt));
-  box-shadow: var(--shadow-sm);
-}
-.stat-num {
-  background: linear-gradient(120deg, var(--orange-500), var(--orange-700));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+/* כרטיסי סטטיסטיקה — מאוחדים בהגדרה הקנונית (האזור שלי) */
 
 /* אינפוטים — מיקוד עקבי בכל הטפסים */
 .finder-input,
@@ -2706,15 +2761,6 @@ textarea {
   scroll-margin-top: 84px;
 }
 
-/* ===== ליטוש כפתורים אחיד + נגישות ===== */
-.btn-primary,
-.btn-ghost,
-.btn-soft {
-  min-height: 42px;
-}
-.btn-ghost {
-  padding: 10px 16px;
-}
 /* טבעת פוקוס — מטופלת ע"י הכלל הגלובלי :focus-visible (ניגודיות AA) */
 
 /* כניסה רכה למסכים */
@@ -2967,14 +3013,15 @@ textarea {
   height: 46px;
   border: none;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--orange-500), var(--orange-700));
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--on-accent);
   cursor: pointer;
-  box-shadow: 0 6px 14px rgba(232, 118, 58, 0.3);
+  box-shadow: none;
   transition: transform 0.15s ease-out, box-shadow 0.15s, opacity 0.15s;
 }
 .btn-send:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1.04);
+  background: var(--accent-fill-press);
+  transform: translateY(-1px);
 }
 .btn-send:disabled {
   opacity: 0.45;
@@ -3321,31 +3368,7 @@ textarea {
   text-transform: uppercase;
 }
 
-/* כפתורים — כתום = CTA ראשי, תוויות 700, בלי זוהר צבעוני, מצב לחיצה */
-.btn-primary {
-  background: var(--accent);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--orange-600);
-}
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-}
-.btn-hero {
-  font-weight: 700;
-}
-.btn-hero.btn-lg {
-  box-shadow: var(--shadow-md);
-}
-.btn-send {
-  background: var(--accent);
-  box-shadow: none;
-}
-.btn-send:hover:not(:disabled) {
-  transform: translateY(-1px) scale(1);
-}
+/* כפתורים — מאוחדים בהגדרה הקנונית (===== כפתורים =====) */
 
 /* פחות גרדיאנטים — אריחי אייקון שטוחים, מספרים data-grade */
 .home-ic,
@@ -3353,9 +3376,6 @@ textarea {
   background: color-mix(in srgb, var(--accent) 12%, var(--surface));
   color: var(--accent);
   box-shadow: none;
-}
-.stat-card {
-  background: var(--surface);
 }
 .stat-num,
 .land-stat-num {
@@ -3398,8 +3418,7 @@ textarea {
 /* קצוות חדים יותר + borders של 1px (hairline) */
 .coach-card,
 .news-card,
-.land-feature,
-.drill-card {
+.land-feature {
   border-radius: var(--radius-card);
 }
 .coach-card:hover {
@@ -3875,26 +3894,11 @@ textarea {
 
 /* פוקוס מקלדת גלובלי — נראה על כל פקד אינטראקטיבי */
 :focus-visible {
-  outline: 2px solid var(--accent-strong);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-/* מילוי כפתורים — כתום כהה (טקסט לבן = 5.78:1 ✓) */
-.btn-primary,
-.btn-send {
-  background: var(--accent-fill);
-}
-.btn-primary:hover:not(:disabled),
-.btn-send:hover:not(:disabled) {
-  background: var(--accent-fill-press);
-}
-.btn-hero {
-  background: var(--accent-fill);
-}
-.btn-hero:hover {
-  background: var(--accent-fill-press);
-  filter: none;
-}
+/* מילוי כפתורים — מאוחד בהגדרה הקנונית (===== כפתורים =====) */
 .chip.selected {
   background: var(--accent-fill);
   border-color: var(--accent-fill);
@@ -3904,7 +3908,7 @@ textarea {
   background: var(--accent-fill);
 }
 .msg-bubble.mine {
-  background: linear-gradient(135deg, #a8491a, #8e3d15);
+  background: linear-gradient(135deg, var(--orange-700), var(--orange-800));
 }
 
 /* טקסט/אייקון אקצנט על רקע בהיר — כתום כהה (במצב כהה: כתום בהיר) */
@@ -3935,10 +3939,10 @@ textarea {
 
 /* טוקני סמנטיקה על רקע מגוון — מכהים לעמידה ב-AA */
 .alert-error {
-  color: #b42318;
+  color: var(--error-strong);
 }
 .alert-success {
-  color: #1c6e3d;
+  color: var(--success-strong);
 }
 .tab {
   color: var(--text-muted);
@@ -3964,8 +3968,7 @@ textarea {
 /* איחוד רדיוס כרטיסים */
 .plan-item,
 .msg-conv,
-.picker,
-.stat-card {
+.picker {
   border-radius: var(--radius-card);
 }
 
@@ -3989,14 +3992,7 @@ textarea {
   margin-bottom: var(--space-2);
 }
 
-/* מצבי כפתור-רפאים חסרים */
-.btn-ghost:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.btn-ghost:active:not(:disabled) {
-  transform: translateY(1px);
-}
+/* מצבי כפתור-רפאים — מאוחדים בהגדרה הקנונית + שכבת המוֹשֶׁן */
 
 /* ===== Chat 2.0 — מסך צ'אט מודרני (ChatWindow) ===== */
 .chat {
@@ -4532,7 +4528,7 @@ html.a11y-spacing * {
 }
 .skip-link:focus {
   top: 12px;
-  outline: 2px solid var(--accent-strong);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 /* ===== מאמן השבוע 🏆 ===== */
@@ -4760,7 +4756,6 @@ html.a11y-spacing * {
 }
 
 /* --- 3. הגבהת כרטיסים: רקע surface (היה --paper = רקע הדף, שטוח) --- */
-.drill-card,
 .chip {
   background: var(--surface);
 }
@@ -6238,7 +6233,7 @@ button,
 
 /* פוקוס נראה ואחיד — טבעת כפולה נגישה על כל אלמנט אינטראקטיבי */
 :focus-visible {
-  outline: 2px solid var(--accent-strong);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
@@ -6419,29 +6414,7 @@ body {
   margin-inline: 4px;
 }
 
-/* ---- כרטיסי תרגילים: עומק, פס אקצנט והרמה ב-hover ---- */
-.drill-card {
-  position: relative;
-  overflow: hidden;
-  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) ease;
-}
-.drill-card::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, var(--orange-500), var(--orange-700));
-  opacity: 0;
-  transition: opacity var(--dur-base) ease;
-}
-.drill-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-hover);
-}
-.drill-card:hover::before { opacity: 1; }
+/* ---- כרטיסי תרגילים: מאוחדים בהגדרה הקנונית (ספריית תרגילים) ---- */
 
 /* ---- כרטיסי מאמנים ובית: אותה שפת hover ---- */
 .coach-card,
@@ -6455,17 +6428,7 @@ body {
   border-color: rgba(232, 118, 58, 0.35);
 }
 
-/* ---- כפתור ראשי: גרדיאנט עדין + עומק ---- */
-.btn-primary,
-.btn-hero {
-  background: linear-gradient(180deg, #B85423, var(--accent-fill) 55%, #93400F);
-  box-shadow: 0 1px 2px rgba(10, 14, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-.btn-primary:hover:not(:disabled),
-.btn-hero:hover:not(:disabled) {
-  background: linear-gradient(180deg, #C25B27, #A8491A 55%, #8E3D15);
-  box-shadow: 0 4px 12px rgba(168, 73, 26, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
+/* ---- כפתור ראשי: הגרדיאנט מאוחד בהגדרה הקנונית (===== כפתורים =====) ---- */
 
 /* ---- ציטוט היום: שורה עדינה ושקטה ---- */
 .quote-strip {
@@ -6531,7 +6494,7 @@ body {
 
 /* ---- מצב כהה: הסייד-בר כבר כהה, רק לוודא גבול ---- */
 html[data-theme='dark'] .sidebar {
-  background: linear-gradient(180deg, #131C31 0%, #0C1425 100%);
+  background: linear-gradient(180deg, var(--ink-700) 0%, var(--ink-800) 100%);
 }
 
 /* ---- reduced motion ---- */
@@ -7108,14 +7071,7 @@ html[data-theme='dark'] .sidebar {
   border-color: rgba(244, 183, 64, 0.35);
 }
 
-/* ---- עומק כרטיס: keyline נייבי במצב בהיר, הרמת משטח במקום צל במצב כהה ---- */
-/* ===== כרטיס תרגיל: keyline פנימי + הרמת משטח בכהה (Luminance Ladder) ===== */
-.drill-card {
-  box-shadow: inset 0 0 0 1px rgba(27, 42, 74, 0.04), var(--shadow-sm);
-}
-.drill-card:hover {
-  box-shadow: inset 0 0 0 1px rgba(27, 42, 74, 0.04), var(--shadow-md);
-}
+/* ===== כרטיס תרגיל במצב כהה — הרמת משטח במקום צל (Luminance Ladder) ===== */
 [data-theme="dark"] .drill-card {
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -7124,7 +7080,7 @@ html[data-theme='dark'] .sidebar {
               border-color var(--dur-base) ease;
 }
 [data-theme="dark"] .drill-card:hover {
-  background: #212940;
+  background: var(--surface-raised);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
@@ -7135,7 +7091,7 @@ button:focus-visible,
 a:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--accent-strong);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 button:focus:not(:focus-visible),
