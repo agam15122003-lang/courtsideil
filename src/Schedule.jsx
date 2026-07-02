@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
+import Modal from './ui/Modal'
+import Button from './ui/Button'
 import NotebookPage from './NotebookPage'
 import { planToNotebook } from './TrainingPlans'
 import { L, trTeam } from './i18n'
@@ -50,6 +52,10 @@ export default function Schedule({ session }) {
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(null)
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
+
+  // אישור מחיקה במודאל (החליף את window.confirm)
+  const [confirmDel, setConfirmDel] = useState(null) // { type: 'entry'|'meeting', id, name }
+  const [deleting, setDeleting] = useState(false)
 
   const openPlan = async (plan) => {
     const { data } = await supabase
@@ -174,15 +180,20 @@ export default function Schedule({ session }) {
     load()
   }
 
-  const removeMeeting = async (id) => {
-    if (!window.confirm(L('למחוק את הפגישה?', 'Delete this meeting?'))) return
-    const { error } = await supabase.from('coach_meetings').delete().eq('id', id)
+  // מחיקה בפועל — אחרי אישור במודאל (החליף את window.confirm)
+  const confirmDelete = async () => {
+    if (!confirmDel) return
+    const table = confirmDel.type === 'meeting' ? 'coach_meetings' : 'schedule_entries'
+    setDeleting(true)
+    const { error } = await supabase.from(table).delete().eq('id', confirmDel.id)
+    setDeleting(false)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
       return
     }
+    setConfirmDel(null)
     setSelected(null)
-    toast.success(L('הפגישה נמחקה', 'Meeting deleted'))
+    toast.success(confirmDel.type === 'meeting' ? L('הפגישה נמחקה', 'Meeting deleted') : L('האימון הוסר', 'Practice removed'))
     load()
   }
 
@@ -240,17 +251,6 @@ export default function Schedule({ session }) {
     load()
   }
 
-  const removeEntry = async (id) => {
-    if (!window.confirm(L('למחוק את האימון מהלו"ז?', 'Remove this practice from the schedule?'))) return
-    const { error } = await supabase.from('schedule_entries').delete().eq('id', id)
-    if (error) {
-      toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
-      return
-    }
-    setSelected(null)
-    toast.success(L('האימון הוסר', 'Practice removed'))
-    load()
-  }
 
   const locale = 'he-IL' // תאריכים תמיד בפורמט ישראלי (יום · חודש · שנה)
   // פורמט מספרי ישראלי (יום.חודש.שנה) — אין בלבול RTL עם שמות חודשים
@@ -313,7 +313,10 @@ export default function Schedule({ session }) {
       {loading ? (
         <SkeletonCards count={2} />
       ) : error ? (
-        <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
+        <div className="alert alert-error sched-error" style={{ marginTop: 16 }} role="alert">
+          <span>{error}</span>
+          <Button variant="ghost" onClick={load}>{L('נסה שוב', 'Try again')}</Button>
+        </div>
       ) : (
         <div className="cal-scroll">
           <div className="cal-grid">
@@ -461,7 +464,7 @@ export default function Schedule({ session }) {
               </button>
             </div>
           )}
-          <button className="btn-ghost danger" style={{ marginTop: 12 }} onClick={() => removeMeeting(selected.id)}>
+          <button className="btn-ghost danger" style={{ marginTop: 12 }} onClick={() => setConfirmDel({ type: 'meeting', id: selected.id, name: selected.topic })}>
             <Trash2 size={15} /> {L('מחיקת הפגישה', 'Delete meeting')}
           </button>
         </div>
@@ -495,7 +498,7 @@ export default function Schedule({ session }) {
           <button
             className="btn-ghost danger"
             style={{ marginTop: 12 }}
-            onClick={() => removeEntry(selected.id)}
+            onClick={() => setConfirmDel({ type: 'entry', id: selected.id, name: selected.is_personal ? L('אימון אישי', 'Personal practice') : trTeam(selected.team) })}
           >
             <Trash2 size={15} /> {L('מחיקת האימון', 'Delete practice')}
           </button>
@@ -551,6 +554,7 @@ export default function Schedule({ session }) {
             <button
               type="button"
               className={!isPersonal ? 'chip selected' : 'chip'}
+              aria-pressed={!isPersonal}
               onClick={() => setIsPersonal(false)}
             >
               {L('אימון קבוצה', 'Team practice')}
@@ -558,6 +562,7 @@ export default function Schedule({ session }) {
             <button
               type="button"
               className={isPersonal ? 'chip selected' : 'chip'}
+              aria-pressed={isPersonal}
               onClick={() => setIsPersonal(true)}
             >
               {L('אימון אישי', 'Personal practice')}
@@ -687,6 +692,29 @@ export default function Schedule({ session }) {
           )}
         </div>
       )}
+
+      {/* מודאל: אישור מחיקה (החליף את window.confirm) */}
+      <Modal
+        open={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        title={L('אישור מחיקה', 'Confirm deletion')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="danger" loading={deleting} onClick={confirmDelete}>
+              <Trash2 size={15} /> {L('מחיקה', 'Delete')}
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
+          </>
+        }
+      >
+        <p className="confirm-del-text">
+          {confirmDel?.type === 'meeting' ? L('למחוק את הפגישה', 'Delete the meeting') : L('להסיר את האימון', 'Remove the practice')}{' '}
+          <strong>{confirmDel?.name || ''}</strong>?
+          <br />
+          <span className="muted small">{L('אי אפשר לבטל את הפעולה.', 'This action cannot be undone.')}</span>
+        </p>
+      </Modal>
     </div>
   )
 }

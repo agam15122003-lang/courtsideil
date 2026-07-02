@@ -539,6 +539,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
             <button
               type="button"
               className={!fullCourt ? 'chip selected' : 'chip'}
+              aria-pressed={!fullCourt}
               onClick={() => setCourt(false)}
             >
               {L('חצי מגרש', 'Half court')}
@@ -546,6 +547,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
             <button
               type="button"
               className={fullCourt ? 'chip selected' : 'chip'}
+              aria-pressed={fullCourt}
               onClick={() => setCourt(true)}
             >
               {L('מגרש שלם', 'Full court')}
@@ -555,6 +557,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
         <button
           type="button"
           className={layout === 'single' ? 'chip selected' : 'chip'}
+          aria-pressed={layout === 'single'}
           onClick={() => setLayout('single')}
         >
           {L('שלב בודד', 'Single step')}
@@ -562,6 +565,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
         <button
           type="button"
           className={layout === 'all' ? 'chip selected' : 'chip'}
+          aria-pressed={layout === 'all'}
           onClick={() => setLayout('all')}
         >
           {L('כל השלבים', 'All steps')}
@@ -569,6 +573,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
         <button
           type="button"
           className={layout === 'play' ? 'chip selected' : 'chip'}
+          aria-pressed={layout === 'play'}
           onClick={() => {
             setFrame({ idx: 0, p: 0 })
             setPaused(false)
@@ -584,6 +589,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
           <button
             type="button"
             className={tool === 'select' ? 'chip selected' : 'chip'}
+            aria-pressed={tool === 'select'}
             onClick={() => setTool('select')}
           >
             {L('גרירה', 'Drag')}
@@ -591,6 +597,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
           <button
             type="button"
             className={tool === 'arrow-move' ? 'chip selected' : 'chip'}
+            aria-pressed={tool === 'arrow-move'}
             onClick={() => setTool('arrow-move')}
           >
             {L('חץ תנועה', 'Movement arrow')}
@@ -598,6 +605,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
           <button
             type="button"
             className={tool === 'arrow-pass' ? 'chip selected' : 'chip'}
+            aria-pressed={tool === 'arrow-pass'}
             onClick={() => setTool('arrow-pass')}
           >
             {L('חץ מסירה', 'Pass arrow')}
@@ -605,6 +613,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
           <button
             type="button"
             className={tool === 'arrow-shot' ? 'chip selected' : 'chip'}
+            aria-pressed={tool === 'arrow-shot'}
             onClick={() => setTool('arrow-shot')}
           >
             {L('זריקה לסל', 'Shot')}
