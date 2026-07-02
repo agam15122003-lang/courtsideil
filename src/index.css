@@ -7326,3 +7326,113 @@ a:focus:not(:focus-visible) {
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+
+/* ============================================================= */
+/* ===== ערכת קומפוננטות בסיס 2026 (src/ui) ==================== */
+/* ============================================================= */
+
+/* --- כפתור מסוכן (מחיקות/פעולות הרסניות) --- */
+.btn-danger {
+  padding: 12px var(--space-5);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--error);
+  color: var(--on-accent);
+  font-family: inherit;
+  font-size: var(--text-ui);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  min-height: 42px;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-strong);
+  transform: translateY(-1px);
+}
+.btn-danger:active:not(:disabled) { transform: translateY(0) scale(0.985); }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+[data-theme="dark"] .btn-danger { background: #B54040; }
+[data-theme="dark"] .btn-danger:hover:not(:disabled) { background: #C24A4A; }
+
+/* --- מצב טעינה לכפתור --- */
+.btn-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.btn-spin {
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+
+/* --- תגית סמנטית --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.badge--success { background: var(--success-bg); color: var(--success-strong); border-color: transparent; }
+.badge--warning { background: var(--warning-bg); color: var(--warning); border-color: transparent; }
+.badge--error   { background: var(--error-bg);   color: var(--error-strong);  border-color: transparent; }
+.badge--info    { background: var(--info-bg);    color: var(--info);          border-color: transparent; }
+.badge--accent  { background: var(--court-soft); color: var(--accent-strong); border-color: transparent; }
+
+/* --- שדה טופס אחוד (Field) --- */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-label { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+.field-hint  { font-size: var(--text-xs); color: var(--text-muted); }
+.field-error { font-size: var(--text-xs); font-weight: 600; color: var(--error-strong); }
+.field--error input,
+.field--error textarea,
+.field--error select {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px rgba(192, 52, 52, 0.12);
+}
+
+/* --- מצב ריק (EmptyState) — פריסה ממורכזת --- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+}
+.empty-title { font-size: var(--text-lg); font-weight: 700; color: var(--text); margin-top: var(--space-2); }
+.empty-desc  { font-size: var(--text-sm); color: var(--text-muted); max-width: 340px; }
+.empty-action { margin-top: var(--space-3); }
+
+/* --- מודאל אחוד: כותרת/גוף/תחתית; tm-motion מבטל את אנימציית ה-CSS (framer מנפיש) --- */
+.tm-overlay.tm-motion,
+.tm-modal.tm-motion { animation: none; }
+.tm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.tm-title { font-size: var(--text-lg); font-weight: 800; color: var(--text); font-family: var(--font-display); }
+.tm-close { flex-shrink: 0; }
+.tm-body { min-width: 0; }
+.tm-foot {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-start;
+  margin-top: var(--space-4);
+}
+.tm-modal--sm { max-width: 400px; }
+.tm-modal--lg { max-width: 640px; }
+
+/* --- טוסט אזהרה --- */
+.toast-warning { border-inline-start-color: var(--warning); }
+.toast-warning .toast-ic { color: var(--warning); }

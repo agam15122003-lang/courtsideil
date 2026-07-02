@@ -12,6 +12,7 @@ export const toast = {
   success: (m) => emit(m, 'success'),
   error: (m) => emit(m, 'error'),
   info: (m) => emit(m, 'info'),
+  warning: (m) => emit(m, 'warning'),
 }
 
 export function subscribe(fn) {

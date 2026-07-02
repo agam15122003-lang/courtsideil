@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { Star } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonStats } from './Skeleton'
+import useCountUp from './ui/useCountUp'
 import { L } from './i18n'
+
+// מספר עם אנימציית count-up — מכבד prefers-reduced-motion דרך ה-hook
+function StatNum({ value }) {
+  const shown = useCountUp(value)
+  return <div className="stat-num">{shown}</div>
+}
 
 // "האזור שלי" — סיכום אישי של המאמן (מהנתונים הקיימים, בלי טבלה חדשה).
 // props:
@@ -71,7 +78,7 @@ export default function MyStats({ session }) {
       ) : (
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-num">{stats.drillCount}</div>
+            <StatNum value={stats.drillCount} />
             <div className="stat-label">{L('תרגילים שהוספתי', 'Drills I added')}</div>
           </div>
           <div className="stat-card">
@@ -88,11 +95,11 @@ export default function MyStats({ session }) {
             <div className="stat-label">{L('דירוג ממוצע שלי', 'My average rating')}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-num">{stats.favCount}</div>
+            <StatNum value={stats.favCount} />
             <div className="stat-label">{L('מועדפים', 'Favorites')}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-num">{stats.planCount}</div>
+            <StatNum value={stats.planCount} />
             <div className="stat-label">{L('תוכניות אימון', 'Training plans')}</div>
           </div>
         </div>

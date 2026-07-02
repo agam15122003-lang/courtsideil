@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react'
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react'
 import { subscribe } from './toast'
 import { L } from './i18n'
 
-const ICONS = { success: CheckCircle2, error: AlertCircle, info: Info }
+const ICONS = { success: CheckCircle2, error: AlertCircle, warning: AlertTriangle, info: Info }
 const DURATION = 3500
 const EXIT_MS = 200 // משך אנימציית היציאה — תואם ל-toast-out ב-CSS
 
