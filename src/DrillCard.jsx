@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
@@ -126,8 +126,41 @@ export default function DrillCard({
         <div className="drill-compact">
           <div className="drill-compact-head">
             <h3 className="drill-compact-title">{drill.title}</h3>
-            {drill.category && <span className="cat-badge">{tr(drill.category)}</span>}
+            {drill.category && (
+              <span className="cat-badge" data-cat={drill.category}>{tr(drill.category)}</span>
+            )}
+            {count > 0 && (
+              <span className="drill-rating-pill" title={L(`ממוצע של ${count} דירוגים`, `Average of ${count} ratings`)}>
+                <Star size={13} fill="currentColor" strokeWidth={0} />
+                <bdi>{avg.toFixed(1)}</bdi>
+              </span>
+            )}
           </div>
+          {(drill.duration_minutes || drill.players || drill.equipment || drill.difficulty) && (
+            <div className="drill-meta-line">
+              {drill.duration_minutes && (
+                <span className="meta-item">
+                  <Clock size={14} aria-hidden="true" />
+                  <bdi>{drill.duration_minutes}</bdi> {L('דק׳', 'min')}
+                </span>
+              )}
+              {drill.players && (
+                <span className="meta-item">
+                  <Users size={14} aria-hidden="true" /> {drill.players}
+                </span>
+              )}
+              {drill.equipment && (
+                <span className="meta-item">
+                  <Package size={14} aria-hidden="true" /> {drill.equipment}
+                </span>
+              )}
+              {drill.difficulty && (
+                <span className="meta-item">
+                  <Gauge size={14} aria-hidden="true" /> {tr(drill.difficulty)}
+                </span>
+              )}
+            </div>
+          )}
           {drill.age_groups && drill.age_groups.length > 0 && (
             <div className="drill-compact-ages">
               {drill.age_groups.map((g) => (

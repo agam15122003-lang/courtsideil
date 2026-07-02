@@ -408,6 +408,13 @@ export default function Schedule({ session }) {
                       </button>
                     )
                   })}
+
+                  {ds === todayStr && (() => {
+                    const now = new Date()
+                    const nowH = now.getHours() + now.getMinutes() / 60
+                    if (nowH < START_HOUR || nowH > END_HOUR + 1) return null
+                    return <div className="cal-nowline" style={{ top: (nowH - START_HOUR) * ROW_H }} aria-hidden="true" />
+                  })()}
                 </div>
               )
             })}
