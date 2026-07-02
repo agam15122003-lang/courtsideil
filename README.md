@@ -15,6 +15,18 @@
 4. `npm run dev` — הרצה מקומית
 5. `npm run build` + העלאה ל-Netlify — אתר חי
 
+## הרצה על מחשב חדש (לפטופ) 💻
+
+הקובץ `.env.local` **לא נשמר בגיט** (יש בו מפתחות) — ולכן שיבוט טרי מציג מסך "חסר קובץ הגדרות":
+
+1. `git clone https://github.com/agam15122003-lang/The-basketball-world.git`
+2. `cd The-basketball-world` ואז `npm install`
+3. צור קובץ `.env.local` בתיקיית השורש — העתק את `.env.local.example` ומלא את שני הערכים
+   (מהמחשב הראשי, או מ-Supabase → Project Settings → API: ה-URL וה-anon key)
+4. `npm run dev` — ואם הפורט תפוס, Vite יבחר אחד פנוי ויציג את הכתובת בטרמינל
+
+> טיפ: אם רואים מסך לבן — לפתוח את הקונסול (F12); מהיום מוצג מסך הסבר במקום.
+
 ## מבנה הפרויקט (שלב 1)
 
 ```
