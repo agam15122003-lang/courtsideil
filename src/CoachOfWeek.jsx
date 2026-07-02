@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Trophy, Star, ChevronLeft } from 'lucide-react'
+import { Trophy, Star, ChevronLeft, RefreshCw } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Avatar from './Avatar'
+import Button from './ui/Button'
 import { L } from './i18n'
 
 // מאמן השבוע — שיטת ניקוד הוגנת:
@@ -16,20 +17,30 @@ const coachScore = (sum, count, drills) =>
 export default function CoachOfWeek({ onOpenCoach }) {
   const [winner, setWinner] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [attempt, setAttempt] = useState(0) // מונה ניסיונות — "נסו שוב" מפעיל שליפה מחדש
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
-      const { data: ratings, error } = await supabase
+      const { data: ratings, error: ratingsErr } = await supabase
         .from('drill_ratings').select('rating, drill_id').gte('created_at', since)
-      if (error || !ratings || ratings.length === 0) {
+      if (ratingsErr) {
+        if (alive) { setError(true); setLoading(false) }
+        return
+      }
+      if (!ratings || ratings.length === 0) {
         if (alive) { setWinner(null); setLoading(false) }
         return
       }
 
       const drillIds = [...new Set(ratings.map((r) => r.drill_id))]
-      const { data: drills } = await supabase.from('drills').select('id, created_by').in('id', drillIds)
+      const { data: drills, error: drillsErr } = await supabase.from('drills').select('id, created_by').in('id', drillIds)
+      if (drillsErr) {
+        if (alive) { setError(true); setLoading(false) }
+        return
+      }
       const ownerOf = {}
       for (const d of drills || []) ownerOf[d.id] = d.created_by
 
@@ -57,13 +68,31 @@ export default function CoachOfWeek({ onOpenCoach }) {
       if (alive) { setWinner({ ...top, profile: prof }); setLoading(false) }
     })()
     return () => { alive = false }
-  }, [])
+  }, [attempt])
+
+  // ניסיון חוזר — חוזרים למצב טעינה ומפעילים את השליפה מחדש
+  const retry = () => { setError(false); setLoading(true); setAttempt((n) => n + 1) }
 
   if (loading) {
     return (
       <div className="cow-card is-skeleton">
         <div className="cow-badge"><Trophy size={16} /> {L('מאמן השבוע', 'Coach of the Week')}</div>
         <div className="skeleton skeleton-line" style={{ width: '60%', height: 22 }} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="cow-card cow-empty">
+        <div className="cow-badge"><Trophy size={16} /> {L('מאמן השבוע', 'Coach of the Week')}</div>
+        <div className="alert alert-error cow-error" role="alert">
+          <span>{L('לא הצלחנו לטעון את מאמן השבוע.', "We couldn't load the Coach of the Week.")}</span>
+          <Button variant="soft" onClick={retry}>
+            <RefreshCw size={15} />
+            {L('נסו שוב', 'Try again')}
+          </Button>
+        </div>
       </div>
     )
   }

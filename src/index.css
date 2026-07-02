@@ -7525,3 +7525,90 @@ a:focus:not(:focus-visible) {
     height: calc(100dvh - 240px - env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ===== ליטוש 2026 — דף הבית (Home) ===== */
+
+/* --- כניסה מדורגת לילדי ה-hero: eyebrow → כותרת → תקציר → כפתורים --- */
+@keyframes hero-child-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.home .hero-eyebrow,
+.home .hero-title,
+.home .hero-sub,
+.home .hero-actions {
+  animation: hero-child-in var(--dur-slow) var(--ease-out) both;
+}
+.home .hero-eyebrow { animation-delay: 40ms; }
+.home .hero-title   { animation-delay: 110ms; }
+.home .hero-sub     { animation-delay: 180ms; }
+.home .hero-actions { animation-delay: 250ms; }
+
+/* --- ריתמוס סקשנים אחיד — מרווח קבוע בין הסקשנים (החליף style inline) --- */
+.home .section-title {
+  margin-block-start: var(--space-8);
+}
+.home .news-sub {
+  margin-block-start: 0;
+  margin-block-end: var(--space-1);
+}
+
+/* --- תמונות כתבות: <img> אמיתי עם lazy-loading, ממלא את המסגרת בלי הסטת פריסה
+       (ל-.news-thumb יש גובה מפורש, והתמונה absolute בתוכו — CLS אפס) --- */
+.news-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --- שגיאת טעינת כתבות / מאמן השבוע — התראה עם כפתור ניסיון חוזר --- */
+.news-error,
+.cow-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.cow-error {
+  margin-top: var(--space-3);
+}
+
+/* --- מאמן השבוע: כרטיס ריק/שלד אינם לחיצים — בלי hover-lift ובלי סמן יד (ממצא #34) --- */
+.cow-card.cow-empty,
+.cow-card.is-skeleton {
+  cursor: default;
+}
+.cow-card.cow-empty:hover,
+.cow-card.is-skeleton:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), var(--shadow-lg);
+}
+
+/* --- כרטיסי קיצור: יישור אייקון עקבי --- */
+.home-card .home-ic {
+  flex-shrink: 0;
+}
+
+/* --- הרחבת ה-stagger של card-enter עד 8 ילדים (היה עד 4) + יישור רשת החדשות לאותו ריתמוס --- */
+.news-card:nth-child(1) { animation-delay: 40ms; }
+.news-card:nth-child(2) { animation-delay: 90ms; }
+.news-card:nth-child(3) { animation-delay: 140ms; }
+.news-card:nth-child(4) { animation-delay: 190ms; }
+.home-card:nth-child(5), .news-card:nth-child(5) { animation-delay: 240ms; }
+.home-card:nth-child(6), .news-card:nth-child(6) { animation-delay: 290ms; }
+.home-card:nth-child(7), .news-card:nth-child(7) { animation-delay: 340ms; }
+.home-card:nth-child(8), .news-card:nth-child(8) { animation-delay: 390ms; }
+
+/* --- reduced motion: ביטול מפורש (delay לא מתאפס ע"י המטרייה הגלובלית) --- */
+@media (prefers-reduced-motion: reduce) {
+  .home .hero-eyebrow,
+  .home .hero-title,
+  .home .hero-sub,
+  .home .hero-actions {
+    animation: none;
+  }
+}

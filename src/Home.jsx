@@ -6,6 +6,7 @@ import {
   MessageSquare,
   ExternalLink,
   Newspaper,
+  RefreshCw,
   X,
 } from 'lucide-react'
 import {
@@ -17,6 +18,8 @@ import {
   CONTENT_LINKS, safeUrl } from './constants'
 import { L } from './i18n'
 import CoachOfWeek from './CoachOfWeek'
+import Button from './ui/Button'
+import EmptyState from './ui/EmptyState'
 
 // ===== אגרגטור כתבות כדורסל (חוקי) =====
 // כותרת מקורית + תמונה כשיש + שם המקור + קישור לכתבה המקורית. בלי העתקת תוכן.
@@ -45,6 +48,7 @@ function parseDate(d) {
 
 function useNews() {
   const [state, setState] = useState({ items: [], loading: true, error: false })
+  const [attempt, setAttempt] = useState(0) // מונה ניסיונות — "נסו שוב" מפעיל שליפה מחדש
 
   useEffect(() => {
     let alive = true
@@ -70,11 +74,13 @@ function useNews() {
 
     // 2) שליפה טורית מכל המקורות (מקור ישיר קודם, כדי לא להיחנק בהגבלת קצב);
     //    פיד שנכשל פשוט מדולג.
+    let anyOk = false // האם לפחות מקור אחד ענה תקין — מבדיל בין שגיאת רשת למצב ריק אמיתי
     const fetchSrc = (src) =>
       fetch(src.api)
         .then((r) => r.json())
         .then((data) => {
           if (data.status !== 'ok' || !Array.isArray(data.items)) return []
+          anyOk = true
           return data.items.map((it) => {
             const parsed = src.google
               ? splitGoogleTitle(it.title)
@@ -141,7 +147,7 @@ function useNews() {
         return
       }
 
-      setState({ items, loading: false, error: items.length === 0 })
+      setState({ items, loading: false, error: items.length === 0 && !anyOk })
       try {
         localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items }))
       } catch {
@@ -152,9 +158,15 @@ function useNews() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [attempt])
 
-  return state
+  // ניסיון חוזר — חוזרים למצב טעינה ומפעילים את השליפה מחדש
+  const retry = () => {
+    setState({ items: [], loading: true, error: false })
+    setAttempt((n) => n + 1)
+  }
+
+  return { ...state, retry }
 }
 
 function formatDate(d) {
@@ -169,7 +181,7 @@ function formatDate(d) {
 //   onNavigate - (viewId) => מעבר לטאב אחר
 export default function Home({ profile, onNavigate, onOpenCoach }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
-  const { items, loading, error } = useNews()
+  const { items, loading, error, retry } = useNews()
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -255,7 +267,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         </div>
       )}
 
-      <h2 className="section-title" style={{ marginTop: 32 }}>
+      <h2 className="section-title">
         {L('קיצורי דרך', 'Shortcuts')}
       </h2>
       <div className="home-grid">
@@ -270,11 +282,11 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         ))}
       </div>
 
-      <h2 className="section-title section-title--icon" style={{ marginTop: 32 }}>
+      <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
         {L('כתבות כדורסל', 'Basketball news')}
       </h2>
-      <p className="muted small" style={{ marginTop: -2, marginBottom: 4 }}>
+      <p className="muted small news-sub">
         {L('מבחר כתבות כדורסל ממקורות ישראליים — לחיצה פותחת את הכתבה המלאה במקור.', 'A selection of basketball articles from Israeli sources — tap to open the full article at its source.')}
       </p>
 
@@ -296,11 +308,20 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         <div className="news-grid">
           {items.map((a, i) => (
             <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
-              <div
-                className="news-thumb"
-                style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}
-              >
-                {!a.image && <Newspaper size={22} />}
+              <div className="news-thumb">
+                {a.image ? (
+                  <img
+                    src={a.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none' // תמונה שבורה — נשאר רקע הכרטיס
+                    }}
+                  />
+                ) : (
+                  <Newspaper size={22} />
+                )}
                 {a.source && <span className="news-source">{a.source}</span>}
               </div>
               <div className="news-body">
@@ -314,13 +335,33 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         </div>
       )}
 
-      {!loading && (error || items.length === 0) && (
-        <p className="muted small" style={{ marginTop: 8 }}>
-          {L('לא הצלחנו לטעון כתבות כרגע. בינתיים — מקורות התוכן שלמטה.', "We couldn't load articles right now. In the meantime — the content sources below.")}
-        </p>
+      {!loading && error && (
+        <div className="alert alert-error news-error" role="alert">
+          <span>
+            {L('לא הצלחנו לטעון כתבות כרגע. בינתיים — מקורות התוכן שלמטה.', "We couldn't load articles right now. In the meantime — the content sources below.")}
+          </span>
+          <Button variant="soft" onClick={retry}>
+            <RefreshCw size={15} />
+            {L('נסו שוב', 'Try again')}
+          </Button>
+        </div>
       )}
 
-      <h2 className="section-title" style={{ marginTop: 32 }}>
+      {!loading && !error && items.length === 0 && (
+        <EmptyState
+          icon={Newspaper}
+          title={L('אין כתבות חדשות כרגע', 'No new articles right now')}
+          desc={L('המקורות לא החזירו כתבות. שווה לרענן או לחזור מאוחר יותר.', 'The sources returned no articles. Refresh or check back later.')}
+          action={
+            <Button variant="soft" onClick={retry}>
+              <RefreshCw size={15} />
+              {L('רענון', 'Refresh')}
+            </Button>
+          }
+        />
+      )}
+
+      <h2 className="section-title">
         {L('תוכן והשראה', 'Content & inspiration')}
       </h2>
       <div className="home-grid">
