@@ -49,14 +49,14 @@ function ObjectShape({ o }) {
     return (
       <polygon
         points={`${o.x},${o.y - 12} ${o.x - 11},${o.y + 10} ${o.x + 11},${o.y + 10}`}
-        fill="#E8763A"
-        stroke="#A8491A"
+        fill="var(--orange-500, #E8763A)"
+        stroke="var(--orange-700, #A8491A)"
         strokeWidth="1.5"
       />
     )
   }
   if (o.type === 'ball') {
-    return <circle cx={o.x} cy={o.y} r="9" fill="#E8763A" stroke="#A8491A" strokeWidth="1.5" />
+    return <circle cx={o.x} cy={o.y} r="9" fill="var(--orange-500, #E8763A)" stroke="var(--orange-700, #A8491A)" strokeWidth="1.5" />
   }
   if (o.type === 'defender') {
     return (
@@ -70,7 +70,7 @@ function ObjectShape({ o }) {
   }
   return (
     <>
-      <circle cx={o.x} cy={o.y} r="14" fill="#1B2A4A" />
+      <circle cx={o.x} cy={o.y} r="14" fill="var(--navy-900, #1B2A4A)" />
       <text x={o.x} y={o.y + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff">
         {o.label}
       </text>
@@ -96,7 +96,7 @@ function Arrow({ a, readOnly, onRemove }) {
     return (
       <g style={cursor} onDoubleClick={() => !readOnly && onRemove(a.id)}>
         <path d={d} fill="none" stroke="transparent" strokeWidth="16" />
-        <path d={d} fill="none" stroke="#E8763A" strokeWidth="3" markerEnd="url(#tb-arrowhead-shot)" />
+        <path d={d} fill="none" stroke="var(--orange-500, #E8763A)" strokeWidth="3" markerEnd="url(#tb-arrowhead-shot)" />
       </g>
     )
   }
@@ -109,7 +109,7 @@ function Arrow({ a, readOnly, onRemove }) {
         y1={a.y1}
         x2={a.x2}
         y2={a.y2}
-        stroke="#1B2A4A"
+        stroke="var(--navy-900, #1B2A4A)"
         strokeWidth="3"
         strokeDasharray={dash}
         markerEnd="url(#tb-arrowhead)"
@@ -247,7 +247,7 @@ function Board({
             orient="auto"
             markerUnits="userSpaceOnUse"
           >
-            <path d="M0,1 L10,5 L0,9 Z" fill="#1B2A4A" />
+            <path d="M0,1 L10,5 L0,9 Z" fill="var(--navy-900, #1B2A4A)" />
           </marker>
           <marker
             id="tb-arrowhead-shot"
@@ -258,7 +258,7 @@ function Board({
             orient="auto"
             markerUnits="userSpaceOnUse"
           >
-            <path d="M0,1 L10,5 L0,9 Z" fill="#E8763A" />
+            <path d="M0,1 L10,5 L0,9 Z" fill="var(--orange-500, #E8763A)" />
           </marker>
         </defs>
         <rect x="0" y="0" width={dim.w} height={dim.h} fill="#E3B877" />
@@ -276,7 +276,7 @@ function Board({
             <path
               d={arcPath(draft.x1, draft.y1, draft.x2, draft.y2)}
               fill="none"
-              stroke="#E8763A"
+              stroke="var(--orange-500, #E8763A)"
               strokeWidth="3"
               opacity="0.6"
               markerEnd="url(#tb-arrowhead-shot)"
@@ -287,7 +287,7 @@ function Board({
               y1={draft.y1}
               x2={draft.x2}
               y2={draft.y2}
-              stroke="#1B2A4A"
+              stroke="var(--navy-900, #1B2A4A)"
               strokeWidth="3"
               strokeDasharray={tool === 'arrow-pass' ? '8,7' : undefined}
               opacity="0.6"

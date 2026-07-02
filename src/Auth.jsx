@@ -137,10 +137,10 @@ export default function Auth({ onBack }) {
           <div className="brand">
           <div className="brand-mark">
             <svg viewBox="0 0 100 100" width="44" height="44">
-              <circle cx="42" cy="55" r="22" fill="#E8763A" />
+              <circle cx="42" cy="55" r="22" fill="var(--orange-500, #E8763A)" />
               <circle cx="42" cy="55" r="9" fill="#fff" />
-              <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-              <circle cx="78" cy="30" r="6" fill="#E8763A" />
+              <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--orange-500, #E8763A)" />
+              <circle cx="78" cy="30" r="6" fill="var(--orange-500, #E8763A)" />
             </svg>
           </div>
           <h1>CourtSide</h1>

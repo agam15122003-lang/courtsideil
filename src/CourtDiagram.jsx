@@ -2,7 +2,7 @@
 // מחברת האימונים), עם האובייקטים והחצים של לוח הטקטיקה (אם קיים).
 const FULL = { w: 940, h: 500 }
 const HALF = { w: 500, h: 470 }
-const LINE = '#1b2a4a'
+const LINE = 'var(--navy-900, #1B2A4A)'
 
 function CourtLines({ full }) {
   if (full) {
@@ -35,13 +35,13 @@ function ObjectShape({ o }) {
     return (
       <polygon
         points={`${o.x},${o.y - 12} ${o.x - 11},${o.y + 10} ${o.x + 11},${o.y + 10}`}
-        fill="#E8763A"
-        stroke="#A8491A"
+        fill="var(--orange-500, #E8763A)"
+        stroke="var(--orange-700, #A8491A)"
         strokeWidth="1.5"
       />
     )
   if (o.type === 'ball')
-    return <circle cx={o.x} cy={o.y} r="9" fill="#E8763A" stroke="#A8491A" strokeWidth="1.5" />
+    return <circle cx={o.x} cy={o.y} r="9" fill="var(--orange-500, #E8763A)" stroke="var(--orange-700, #A8491A)" strokeWidth="1.5" />
   if (o.type === 'defender')
     return (
       <>
@@ -53,7 +53,7 @@ function ObjectShape({ o }) {
     )
   return (
     <>
-      <circle cx={o.x} cy={o.y} r="14" fill="#1B2A4A" />
+      <circle cx={o.x} cy={o.y} r="14" fill="var(--navy-900, #1B2A4A)" />
       <text x={o.x} y={o.y + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff">
         {o.label}
       </text>
@@ -68,7 +68,7 @@ const arcPath = (x1, y1, x2, y2) =>
 function Arrow({ a }) {
   if (a.kind === 'shot')
     return (
-      <path d={arcPath(a.x1, a.y1, a.x2, a.y2)} fill="none" stroke="#E8763A" strokeWidth="3" markerEnd="url(#nb-arrow-shot)" />
+      <path d={arcPath(a.x1, a.y1, a.x2, a.y2)} fill="none" stroke="var(--orange-500, #E8763A)" strokeWidth="3" markerEnd="url(#nb-arrow-shot)" />
     )
   return (
     <line
@@ -96,7 +96,7 @@ export default function CourtDiagram({ full = false, step }) {
           <path d="M0,1 L10,5 L0,9 Z" fill={LINE} />
         </marker>
         <marker id="nb-arrow-shot" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-          <path d="M0,1 L10,5 L0,9 Z" fill="#E8763A" />
+          <path d="M0,1 L10,5 L0,9 Z" fill="var(--orange-500, #E8763A)" />
         </marker>
       </defs>
       <rect x="0" y="0" width={dim.w} height={dim.h} fill="#ffffff" />

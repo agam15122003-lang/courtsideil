@@ -106,10 +106,10 @@ export default function Dashboard({ session }) {
         </button>
         <div className="sidebar-brand">
           <svg viewBox="0 0 100 100" width="26" height="26">
-            <circle cx="42" cy="55" r="22" fill="#E8763A" />
+            <circle cx="42" cy="55" r="22" fill="var(--orange-500, #E8763A)" />
             <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-            <circle cx="78" cy="30" r="6" fill="#E8763A" />
+            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--orange-500, #E8763A)" />
+            <circle cx="78" cy="30" r="6" fill="var(--orange-500, #E8763A)" />
           </svg>
           <span>CourtSide</span>
         </div>
@@ -126,10 +126,10 @@ export default function Dashboard({ session }) {
       <aside className={drawerOpen ? 'sidebar open' : 'sidebar'}>
         <div className="sidebar-brand">
           <svg viewBox="0 0 100 100" width="30" height="30">
-            <circle cx="42" cy="55" r="22" fill="#E8763A" />
+            <circle cx="42" cy="55" r="22" fill="var(--orange-500, #E8763A)" />
             <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-            <circle cx="78" cy="30" r="6" fill="#E8763A" />
+            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--orange-500, #E8763A)" />
+            <circle cx="78" cy="30" r="6" fill="var(--orange-500, #E8763A)" />
           </svg>
           <span>CourtSide</span>
           <button
