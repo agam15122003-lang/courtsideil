@@ -206,7 +206,10 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
       <section className="hero hero--image">
         <div className="hero-content">
           <span className="hero-eyebrow">CourtSide</span>
-          <h1 className="hero-title">{L(`שלום, ${name}`, `Hi, ${name}`)}</h1>
+          <h1 className="hero-title">
+            {L('שלום, ', 'Hi, ')}
+            <span className="hero-title-accent">{name}</span>
+          </h1>
           <p className="hero-sub">
             {L('המרחב המקצועי שלך לניהול תרגילים, בניית אימונים וחיבור לקהילת המאמנים — הכול במקום אחד.', 'Your professional space to manage drills, build practices and connect with the coaching community — all in one place.')}
           </p>
