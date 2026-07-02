@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Camera, X, BookOpen, Printer, Pencil, Check } from 'lucide-react'
+import { Camera, X, BookOpen, Printer, Pencil, Check, ClipboardList, Gauge, Clapperboard } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
@@ -197,207 +197,237 @@ export default function DrillForm({ onSaved, onCancel }) {
         {L('רק שם וקטגוריה הם חובה — שאר הפרטים אופציונליים.', 'Only name and category are required — everything else is optional.')}
       </p>
 
-      <form onSubmit={handleSubmit} className="auth-form" style={{ marginTop: 24 }}>
-        {/* ===== בסיס ===== */}
-        <label>
-          {L('שם התרגיל *', 'Drill name *')}
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={L('לדוגמה: כדרור בין קונוסים', 'e.g. Dribbling between cones')}
-            required
-          />
-        </label>
+      <form onSubmit={handleSubmit} className="auth-form drill-form" style={{ marginTop: 24 }}>
+        {/* ===== פרטי בסיס ===== */}
+        <section className="form-section">
+          <h3 className="form-section-title">
+            <ClipboardList size={16} /> {L('פרטי בסיס', 'Basic details')}
+          </h3>
 
-        <label>
-          {L('תיאור', 'Description')}
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={L('איך מבצעים את התרגיל...', 'How the drill is performed...')}
-            rows={3}
-          />
-        </label>
-
-        <div className="field-group">
-          <span className="field-label">{L('קטגוריה *', 'Category *')}</span>
-          <select className="finder-input" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">{L('— בחר קטגוריה —', '— Choose a category —')}</option>
-            {DRILL_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{tr(cat)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="field-group">
-          <span className="field-label">{L('שכבות גיל מתאימות', 'Suitable age groups')}</span>
-          <MultiSelect
-            options={AGE_GROUPS}
-            selected={ageGroups}
-            onToggle={toggleAgeGroup}
-            renderLabel={trTeam}
-            placeholder={L('בחר שכבות גיל...', 'Select age groups...')}
-          />
-        </div>
-
-        <div className="field-group">
-          <span className="field-label">{L('תגיות (לסינון חופשי)', 'Tags (for free filtering)')}</span>
-          {tags.length > 0 && (
-            <div className="chips" style={{ marginBottom: 8 }}>
-              {tags.map((t) => (
-                <button
-                  type="button"
-                  key={t}
-                  className="chip selected tag-chip"
-                  onClick={() => removeTag(t)}
-                  aria-label={L(`הסרת התגית ${t}`, `Remove tag ${t}`)}
-                >
-                  {t} <X size={12} />
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="tag-add">
+          <label>
+            {L('שם התרגיל *', 'Drill name *')}
             <input
               type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={L('לדוגמה: כדרור בין קונוסים', 'e.g. Dribbling between cones')}
+              required
+            />
+          </label>
+
+          <label>
+            {L('תיאור', 'Description')}
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={L('איך מבצעים את התרגיל...', 'How the drill is performed...')}
+              rows={3}
+            />
+          </label>
+
+          <div className="field-group">
+            <span className="field-label">{L('קטגוריה *', 'Category *')}</span>
+            <select
               className="finder-input"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addTag()
-                }
-              }}
-              placeholder={L('לדוגמה: חימום, 3 נגד 3, פיק אנד רול', 'e.g. warm-up, 3-on-3, pick and roll')}
-              aria-label={L('הוספת תגית', 'Add tag')}
-            />
-            <button type="button" className="btn-ghost" onClick={addTag}>
-              {L('הוסף', 'Add')}
-            </button>
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              aria-label={L('קטגוריה', 'Category')}
+            >
+              <option value="">{L('— בחר קטגוריה —', '— Choose a category —')}</option>
+              {DRILL_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{tr(cat)}</option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        {/* ===== פרטים נוספים ===== */}
-        <div className="form-divider">{L('פרטים נוספים (לא חובה)', 'Additional details (optional)')}</div>
-
-        <div className="field-group">
-          <span className="field-label">{L('רמת קושי', 'Difficulty')}</span>
-          <select className="finder-input" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-            <option value="">{L('— בחר רמה —', '— Choose a level —')}</option>
-            {DIFFICULTY_LEVELS.map((level) => (
-              <option key={level} value={level}>{tr(level)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-grid-2">
-          <label>
-            {L('משך (בדקות)', 'Duration (minutes)')}
-            <input
-              type="number"
-              min="1"
-              dir="ltr"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder={L('לדוגמה: 10', 'e.g. 10')}
+          <div className="field-group">
+            <span className="field-label">{L('שכבות גיל מתאימות', 'Suitable age groups')}</span>
+            <MultiSelect
+              options={AGE_GROUPS}
+              selected={ageGroups}
+              onToggle={toggleAgeGroup}
+              renderLabel={trTeam}
+              placeholder={L('בחר שכבות גיל...', 'Select age groups...')}
             />
-          </label>
-          <label>
-            {L('מטרת התרגיל', 'Drill goal')}
-            <input
-              type="text"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder={L('לדוגמה: שיפור דיוק במסירה', 'e.g. improve passing accuracy')}
-            />
-          </label>
-        </div>
+          </div>
 
-        <div className="form-grid-2">
-          <label>
-            {L('ציוד נדרש', 'Equipment needed')}
-            <input
-              type="text"
-              value={equipment}
-              onChange={(e) => setEquipment(e.target.value)}
-              placeholder={L('לדוגמה: כדורים, קונוסים', 'e.g. balls, cones')}
-            />
-          </label>
-          <label>
-            {L('מספר שחקנים', 'Number of players')}
-            <input
-              type="text"
-              value={players}
-              onChange={(e) => setPlayers(e.target.value)}
-              placeholder={L('לדוגמה: זוגות, או 5+', 'e.g. pairs, or 5+')}
-            />
-          </label>
-        </div>
-
-        <label>
-          {L('חזרות / סטים', 'Reps / sets')}
-          <input
-            type="text"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            placeholder={L('לדוגמה: 3 סטים של 10', 'e.g. 3 sets of 10')}
-          />
-        </label>
-
-        <label>
-          {L('קישור לסרטון', 'Video link')}
-          <input
-            type="url"
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://youtube.com/..."
-            dir="ltr"
-          />
-        </label>
-
-        <label>
-          {L('דגשים למאמן', 'Coach notes')}
-          <textarea
-            value={coachNotes}
-            onChange={(e) => setCoachNotes(e.target.value)}
-            placeholder={L('נקודות חשובות לשים לב אליהן...', 'Key points to watch for...')}
-            rows={2}
-          />
-        </label>
-
-        <div className="field-group">
-          <span className="field-label">{L('תמונת התרגיל (לא חובה)', 'Drill image (optional)')}</span>
-          {imageUrl ? (
-            <div className="img-preview">
-              <img src={imageUrl} alt={L('תצוגה מקדימה של התרגיל', 'Drill preview')} />
-              <button
-                type="button"
-                className="img-remove"
-                onClick={() => setImageUrl('')}
-                aria-label={L('הסרת תמונה', 'Remove image')}
-              >
-                <X size={16} />
+          <div className="field-group">
+            <span className="field-label">{L('תגיות (לסינון חופשי)', 'Tags (for free filtering)')}</span>
+            {tags.length > 0 && (
+              <div className="chips" style={{ marginBottom: 8 }}>
+                {tags.map((t) => (
+                  <button
+                    type="button"
+                    key={t}
+                    className="chip selected tag-chip"
+                    onClick={() => removeTag(t)}
+                    aria-label={L(`הסרת התגית ${t}`, `Remove tag ${t}`)}
+                  >
+                    {t} <X size={12} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="tag-add">
+              <input
+                type="text"
+                className="finder-input"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addTag()
+                  }
+                }}
+                placeholder={L('לדוגמה: חימום, 3 נגד 3, פיק אנד רול', 'e.g. warm-up, 3-on-3, pick and roll')}
+                aria-label={L('הוספת תגית', 'Add tag')}
+              />
+              <button type="button" className="btn-ghost" onClick={addTag}>
+                {L('הוסף', 'Add')}
               </button>
             </div>
-          ) : (
-            <label className="btn-soft img-pick">
-              <Camera size={16} />
-              {uploadingImage ? L('מעלה...', 'Uploading...') : L('צילום או העלאת תמונה', 'Take or upload a photo')}
+          </div>
+        </section>
+
+        {/* ===== פרטים מקצועיים (לא חובה) ===== */}
+        <section className="form-section">
+          <h3 className="form-section-title">
+            <Gauge size={16} /> {L('פרטים מקצועיים (לא חובה)', 'Professional details (optional)')}
+          </h3>
+
+          <div className="field-group">
+            <span className="field-label">{L('רמת קושי', 'Difficulty')}</span>
+            <select
+              className="finder-input"
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              aria-label={L('רמת קושי', 'Difficulty')}
+            >
+              <option value="">{L('— בחר רמה —', '— Choose a level —')}</option>
+              {DIFFICULTY_LEVELS.map((level) => (
+                <option key={level} value={level}>{tr(level)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-grid-2">
+            <label>
+              {L('משך (בדקות)', 'Duration (minutes)')}
               <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={onImagePick}
-                disabled={uploadingImage}
-                hidden
+                type="number"
+                min="1"
+                dir="ltr"
+                inputMode="numeric"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder={L('לדוגמה: 10', 'e.g. 10')}
               />
             </label>
-          )}
-        </div>
+            <label>
+              {L('מטרת התרגיל', 'Drill goal')}
+              <input
+                type="text"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                placeholder={L('לדוגמה: שיפור דיוק במסירה', 'e.g. improve passing accuracy')}
+              />
+            </label>
+          </div>
 
-        <TacticsBoard value={board} onChange={setBoard} />
+          <div className="form-grid-2">
+            <label>
+              {L('ציוד נדרש', 'Equipment needed')}
+              <input
+                type="text"
+                value={equipment}
+                onChange={(e) => setEquipment(e.target.value)}
+                placeholder={L('לדוגמה: כדורים, קונוסים', 'e.g. balls, cones')}
+              />
+            </label>
+            <label>
+              {L('מספר שחקנים', 'Number of players')}
+              <input
+                type="text"
+                dir="ltr"
+                inputMode="numeric"
+                value={players}
+                onChange={(e) => setPlayers(e.target.value)}
+                placeholder={L('לדוגמה: זוגות, או 5+', 'e.g. pairs, or 5+')}
+              />
+            </label>
+          </div>
+
+          <label>
+            {L('חזרות / סטים', 'Reps / sets')}
+            <input
+              type="text"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              placeholder={L('לדוגמה: 3 סטים של 10', 'e.g. 3 sets of 10')}
+            />
+          </label>
+
+          <label>
+            {L('דגשים למאמן', 'Coach notes')}
+            <textarea
+              value={coachNotes}
+              onChange={(e) => setCoachNotes(e.target.value)}
+              placeholder={L('נקודות חשובות לשים לב אליהן...', 'Key points to watch for...')}
+              rows={2}
+            />
+          </label>
+        </section>
+
+        {/* ===== שרטוט ומדיה ===== */}
+        <section className="form-section">
+          <h3 className="form-section-title">
+            <Clapperboard size={16} /> {L('שרטוט ומדיה', 'Diagram & media')}
+          </h3>
+
+          <label>
+            {L('קישור לסרטון', 'Video link')}
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://youtube.com/..."
+              dir="ltr"
+            />
+          </label>
+
+          <div className="field-group">
+            <span className="field-label">{L('תמונת התרגיל (לא חובה)', 'Drill image (optional)')}</span>
+            {imageUrl ? (
+              <div className="img-preview">
+                <img src={imageUrl} alt={L('תצוגה מקדימה של התרגיל', 'Drill preview')} />
+                <button
+                  type="button"
+                  className="img-remove"
+                  onClick={() => setImageUrl('')}
+                  aria-label={L('הסרת תמונה', 'Remove image')}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <label className="btn-soft img-pick">
+                <Camera size={16} />
+                {uploadingImage ? L('מעלה...', 'Uploading...') : L('צילום או העלאת תמונה', 'Take or upload a photo')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={onImagePick}
+                  disabled={uploadingImage}
+                  hidden
+                />
+              </label>
+            )}
+          </div>
+
+          <TacticsBoard value={board} onChange={setBoard} />
+        </section>
 
         <div className="field-group">
           <span className="field-label">{L('נראות', 'Visibility')}</span>

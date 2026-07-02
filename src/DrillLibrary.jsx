@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { Dumbbell, X } from 'lucide-react'
+import { Dumbbell, SearchX, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
@@ -8,6 +8,8 @@ import DrillForm from './DrillForm'
 import DrillCard from './DrillCard'
 import MultiSelect from './MultiSelect'
 import { SkeletonCards } from './Skeleton'
+import Button from './ui/Button'
+import EmptyState from './ui/EmptyState'
 
 // מסך "ספריית תרגילים" — מציג את כל התרגילים, עם חיפוש, סינון,
 // הוספה, דירוג בכוכבים, שמירה למועדפים, ומחיקת תרגיל שלי.
@@ -30,6 +32,7 @@ export default function DrillLibrary({ session }) {
   // טוען את כל התרגילים, יחד עם: שם המאמן, הדירוגים, והאם שמרתי אותם
   async function loadDrills() {
     setLoading(true)
+    setError(null) // מנקה שגיאה קודמת — כדי ש"נסה שוב" יציג את התוכן אחרי הצלחה
     const { data, error } = await supabase
       .from('drills')
       .select(
@@ -60,7 +63,7 @@ export default function DrillLibrary({ session }) {
     if (error) {
       toast.error(L('הדירוג נכשל: ', 'Rating failed: ') + error.message)
     } else {
-      loadDrills() // מרענן כדי לעדכן את הממוצע
+      await loadDrills() // מרענן כדי לעדכן את הממוצע (await — הכפתור נשאר "עסוק" עד הסוף)
     }
   }
 
@@ -85,7 +88,7 @@ export default function DrillLibrary({ session }) {
         return
       }
     }
-    loadDrills()
+    await loadDrills()
   }
 
   // מחיקת תרגיל (רק תרגיל של המשתמש עצמו — מאובטח גם במסד)
@@ -96,7 +99,7 @@ export default function DrillLibrary({ session }) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
     } else {
       toast.success(L('התרגיל נמחק', 'Drill deleted'))
-      loadDrills()
+      await loadDrills()
     }
   }
 
@@ -259,27 +262,43 @@ export default function DrillLibrary({ session }) {
         {loading ? (
           <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
-        ) : results.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <Dumbbell size={26} />
-            </span>
-            <div className="empty-title">
-              {onlySaved
-                ? L('עדיין לא שמרת תרגילים', "You haven't saved any drills yet")
-                : drills.length === 0
-                ? L('הספרייה עדיין ריקה', 'The library is still empty')
-                : L('אין תוצאות לסינון', 'No results for this filter')}
-            </div>
-            <p className="muted small">
-              {onlySaved
-                ? L('לחץ על "שמירה" בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap "Save" on a drill card to keep it here.')
-                : drills.length === 0
-                ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
-                : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}
-            </p>
+          <div className="alert alert-error lib-error">
+            <span>{error}</span>
+            <Button variant="ghost" onClick={loadDrills}>
+              {L('נסה שוב', 'Try again')}
+            </Button>
           </div>
+        ) : results.length === 0 ? (
+          drills.length === 0 ? (
+            /* הספרייה כולה ריקה — הזמנה להוסיף את התרגיל הראשון */
+            <EmptyState
+              icon={Dumbbell}
+              title={L('הספרייה עדיין ריקה', 'The library is still empty')}
+              desc={L('כאן נבנה יחד מאגר תרגילים לכל המאמנים — התרגיל הראשון עליך.', "Let's build a shared drill collection — the first one is on you.")}
+              action={
+                <Button onClick={() => setAdding(true)}>
+                  {L('הוסף תרגיל ראשון', 'Add your first drill')}
+                </Button>
+              }
+            />
+          ) : (
+            /* יש תרגילים, אבל הסינון הנוכחי לא מחזיר כלום — מצב ריק "קל" */
+            <EmptyState
+              className="empty-state--soft"
+              icon={SearchX}
+              title={L('לא נמצאו תרגילים מתאימים', 'No matching drills found')}
+              desc={
+                onlySaved
+                  ? L('לחץ על "שמירה" בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap "Save" on a drill card to keep it here.')
+                  : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')
+              }
+              action={
+                <Button variant="soft" onClick={clearFilters}>
+                  {L('נקה סינון', 'Clear filters')}
+                </Button>
+              }
+            />
+          )
         ) : (
           <>
             <p className="muted small results-count">

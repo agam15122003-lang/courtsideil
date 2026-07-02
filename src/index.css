@@ -7612,3 +7612,76 @@ a:focus:not(:focus-visible) {
     animation: none;
   }
 }
+
+/* ===== ליטוש 2026 — ספריית תרגילים ===== */
+
+/* --- סרגל סינון: שורה אחת עקבית — כל הפקדים בגובה 42px ואותו רדיוס --- */
+.filter-bar {
+  gap: var(--space-3);
+  align-items: center;
+}
+.filter-bar .filter-search,
+.filter-bar .filter-select {
+  height: 42px;
+  padding-block: 0;
+  border-radius: var(--radius-sm);
+}
+.filter-bar .filter-ms .ms-control {
+  height: 42px;
+  min-height: 42px;
+  padding-block: 0;
+  border-radius: var(--radius-sm);
+}
+@media (max-width: 560px) {
+  /* מובייל: החיפוש תופס שורה מלאה, הקטגוריה והגילאים מתחלקים בשורה הבאה */
+  .filter-bar .filter-search {
+    flex-basis: 100%;
+  }
+}
+
+/* --- שגיאת טעינה: הודעה + כפתור "נסה שוב" באותה שורה (עוטף במסך צר) --- */
+.lib-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.lib-error .btn-ghost {
+  flex-shrink: 0;
+}
+
+/* --- מצב ריק "קל" לתוצאת סינון ריקה — פחות דרמטי ממצב ספרייה ריקה --- */
+.empty-state--soft {
+  padding: var(--space-6) var(--space-4);
+  background: transparent;
+  border-color: var(--border);
+}
+.empty-state--soft .empty-ic {
+  width: 44px;
+  height: 44px;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+/* --- דירוג בכוכבים: מצב "עסוק" בזמן שהדירוג נשלח --- */
+.stars[aria-busy="true"] .star {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* --- הרחבת ה-stagger של card-enter עד 8 כרטיסי תרגיל (היה עד 4) --- */
+.drill-card:nth-child(5) { animation-delay: 240ms; }
+.drill-card:nth-child(6) { animation-delay: 290ms; }
+.drill-card:nth-child(7) { animation-delay: 340ms; }
+.drill-card:nth-child(8) { animation-delay: 390ms; }
+
+/* --- טופס תרגיל: סקשנים כמו בטופס הפרופיל (form-section) --- */
+.drill-form .form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.drill-form .form-section-title {
+  margin-block-end: 0; /* הריווח מגיע מה-gap של הסקשן */
+}

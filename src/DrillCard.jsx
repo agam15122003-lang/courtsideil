@@ -6,6 +6,7 @@ import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
 import TacticsBoard from './TacticsBoard'
 import NotebookPage from './NotebookPage'
+import Button from './ui/Button'
 
 // כרטיס תרגיל לשימוש חוזר — מציג תרגיל אחד עם דירוג, שמירה, מחיקה ותגובות.
 // בשימוש גם ב-DrillLibrary וגם ב-CoachProfile.
@@ -25,6 +26,19 @@ export default function DrillCard({
   onDelete,
   onTagClick,
 }) {
+  // ----- פעולות אסינכרוניות (דירוג/שמירה/מחיקה) -----
+  // busyAction מסמן איזו פעולה רצה כרגע — מונע דאבל-קליק ושליחה כפולה
+  const [busyAction, setBusyAction] = useState(null) // null | 'rate' | 'save' | 'delete'
+  const runAction = async (name, fn) => {
+    if (busyAction) return
+    setBusyAction(name)
+    try {
+      await fn()
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   // ----- תגובות -----
   const [expanded, setExpanded] = useState(false) // תצוגה מלאה (מחברת + אנימציה) או קומפקטית
   const [showComments, setShowComments] = useState(false)
@@ -223,7 +237,11 @@ export default function DrillCard({
         </div>
         <div className="rating-mine">
           <span className="muted small">{L('הדירוג שלי:', 'My rating:')}</span>
-          <StarRating value={myRating} onRate={(n) => onRate(drill.id, n)} />
+          <StarRating
+            value={myRating}
+            disabled={busyAction === 'rate'}
+            onRate={(n) => runAction('rate', () => onRate(drill.id, n))}
+          />
         </div>
       </div>
 
@@ -232,13 +250,15 @@ export default function DrillCard({
           {authorName ? L(`נוסף ע״י ${authorName}`, `Added by ${authorName}`) : L('מאמן לא ידוע', 'Unknown coach')}
         </span>
         <div className="drill-actions">
-          <button
-            className={isSaved ? 'btn-ghost save saved' : 'btn-ghost save'}
-            onClick={() => onToggleSave(drill.id, isSaved)}
+          <Button
+            variant="ghost"
+            className={isSaved ? 'save saved' : 'save'}
+            loading={busyAction === 'save'}
+            onClick={() => runAction('save', () => onToggleSave(drill.id, isSaved))}
           >
             <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} />
             {isSaved ? L('נשמר', 'Saved') : L('שמירה', 'Save')}
-          </button>
+          </Button>
           {safeUrl(drill.video_url) && (
             <a
               className="btn-ghost"
@@ -250,9 +270,14 @@ export default function DrillCard({
             </a>
           )}
           {isMine && (
-            <button className="btn-ghost danger" onClick={onDelete}>
+            <Button
+              variant="ghost"
+              className="danger"
+              loading={busyAction === 'delete'}
+              onClick={() => runAction('delete', () => onDelete())}
+            >
               {L('מחק', 'Delete')}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -318,15 +343,22 @@ export default function DrillCard({
 }
 
 // שורת כוכבים שאפשר ללחוץ עליה (1 עד 5)
-function StarRating({ value, onRate }) {
+// disabled — בזמן שהדירוג נשלח (מונע לחיצה כפולה)
+function StarRating({ value, onRate, disabled = false }) {
   return (
-    <div className="stars" role="group" aria-label={L('הדירוג שלי', 'My rating')}>
+    <div
+      className="stars"
+      role="group"
+      aria-label={L('הדירוג שלי', 'My rating')}
+      aria-busy={disabled || undefined}
+    >
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           type="button"
           key={n}
           className={n <= value ? 'star on' : 'star'}
           onClick={() => onRate(n)}
+          disabled={disabled}
           aria-label={L(`${n} כוכבים`, `${n} stars`)}
         >
           <Star size={18} fill={n <= value ? 'currentColor' : 'none'} />
