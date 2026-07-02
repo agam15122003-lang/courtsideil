@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
@@ -7,6 +7,10 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
+import Modal from './ui/Modal'
+import Button from './ui/Button'
+import EmptyState from './ui/EmptyState'
+import { SkeletonCards } from './Skeleton'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
@@ -65,6 +69,7 @@ export default function Teams({ session, profile }) {
   const [games, setGames] = useState([])
   const [iba, setIba] = useState(null) // קישור שמור לליגה באיגוד
   const [loading, setLoading] = useState(true)
+  const [loadErr, setLoadErr] = useState(null)
 
   // הוספת שחקן / משחק / צוות
   const [pName, setPName] = useState('')
@@ -77,6 +82,14 @@ export default function Teams({ session, profile }) {
   const [pEdit, setPEdit] = useState(null)
   const [gEdit, setGEdit] = useState(null)
   const [sEdit, setSEdit] = useState(null)
+
+  // אישור מחיקה במודאל (החליף את window.confirm)
+  const [confirmDel, setConfirmDel] = useState(null) // { type: 'player'|'staff'|'game', id, name }
+  const [deleting, setDeleting] = useState(false)
+
+  // פוקוס לשדות ההוספה מתוך מצבי ריק
+  const pNameRef = useRef(null)
+  const sNameRef = useRef(null)
 
   // מטרות — בורר שבוע/חודש
   const [gWeek, setGWeek] = useState(sundayOf(new Date()))
@@ -92,21 +105,30 @@ export default function Teams({ session, profile }) {
   async function load() {
     if (!team) { setLoading(false); return }
     setLoading(true)
-    const [pl, gl, gm, im, st] = await Promise.all([
-      supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
-      supabase.from('team_goals').select('*').eq('coach_id', me).eq('team', team),
-      supabase.from('team_games').select('*').eq('coach_id', me).eq('team', team).order('game_date'),
-      supabase.from('team_iba').select('*').eq('coach_id', me).eq('team', team).maybeSingle(),
-      supabase.from('team_staff').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
-    ])
-    setStaff(st && !st.error ? st.data || [] : [])
-    setPlayers(pl.error ? [] : pl.data || [])
-    const map = {}
-    ;(gl.error ? [] : gl.data || []).forEach((r) => { map[`${r.period}|${r.period_key || ''}`] = r.content || '' })
-    setGoalsMap(map)
-    setGames(gm.error ? [] : gm.data || [])
-    setIba(im && !im.error ? im.data : null)
-    setLoading(false)
+    setLoadErr(null)
+    try {
+      const [pl, gl, gm, im, st] = await Promise.all([
+        supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
+        supabase.from('team_goals').select('*').eq('coach_id', me).eq('team', team),
+        supabase.from('team_games').select('*').eq('coach_id', me).eq('team', team).order('game_date'),
+        supabase.from('team_iba').select('*').eq('coach_id', me).eq('team', team).maybeSingle(),
+        supabase.from('team_staff').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
+      ])
+      // שגיאה באחת השאילתות המרכזיות — מצב שגיאה עם "נסה שוב" (הטבלאות האופציונליות נסבלות)
+      const core = pl.error || gl.error || gm.error
+      if (core) setLoadErr(L('טעינת נתוני הקבוצה נכשלה: ', 'Failed to load team data: ') + core.message)
+      setStaff(st && !st.error ? st.data || [] : [])
+      setPlayers(pl.error ? [] : pl.data || [])
+      const map = {}
+      ;(gl.error ? [] : gl.data || []).forEach((r) => { map[`${r.period}|${r.period_key || ''}`] = r.content || '' })
+      setGoalsMap(map)
+      setGames(gm.error ? [] : gm.data || [])
+      setIba(im && !im.error ? im.data : null)
+    } catch (e) {
+      setLoadErr(L('טעינת נתוני הקבוצה נכשלה: ', 'Failed to load team data: ') + (e?.message || ''))
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [team])
 
@@ -137,9 +159,26 @@ export default function Teams({ session, profile }) {
     if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
     toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load()
   }
-  const delPlayer = async (id) => {
-    if (!window.confirm(L('להסיר את השחקן?', 'Remove this player?'))) return
-    await supabase.from('team_players').delete().eq('id', id); setPEdit(null); load()
+
+  // ---------- מחיקה בפועל — אחרי אישור במודאל (החליף את window.confirm) ----------
+  const confirmDelete = async () => {
+    if (!confirmDel) return
+    const table = { player: 'team_players', staff: 'team_staff', game: 'team_games' }[confirmDel.type]
+    setDeleting(true)
+    const { error } = await supabase.from(table).delete().eq('id', confirmDel.id)
+    setDeleting(false)
+    if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return }
+    setConfirmDel(null)
+    // סוגרים גם את מודאל העריכה שממנו נפתח האישור
+    if (confirmDel.type === 'player') setPEdit(null)
+    if (confirmDel.type === 'game') setGEdit(null)
+    if (confirmDel.type === 'staff') setSEdit(null)
+    toast.success(
+      confirmDel.type === 'game' ? L('המשחק נמחק', 'Game deleted')
+        : confirmDel.type === 'staff' ? L('איש הצוות הוסר', 'Staff member removed')
+          : L('השחקן הוסר', 'Player removed')
+    )
+    load()
   }
 
   // ---------- צוות מקצועי ----------
@@ -154,10 +193,6 @@ export default function Teams({ session, profile }) {
     const { error } = await supabase.from('team_staff').update({ name: (s.name || '').trim(), role: s.role, phone: s.phone || null, notes: s.notes || null }).eq('id', s.id)
     if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
     toast.success(L('פרטי הצוות נשמרו', 'Staff saved')); setSEdit(null); load()
-  }
-  const delStaff = async (id) => {
-    if (!window.confirm(L('להסיר מאיש הצוות?', 'Remove this staff member?'))) return
-    await supabase.from('team_staff').delete().eq('id', id); setSEdit(null); load()
   }
 
   // ---------- מטרות ----------
@@ -189,10 +224,6 @@ export default function Teams({ session, profile }) {
     }).eq('id', g.id)
     if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
     toast.success(L('המשחק עודכן', 'Game updated')); setGEdit(null); load()
-  }
-  const delGame = async (id) => {
-    if (!window.confirm(L('למחוק את המשחק?', 'Delete this game?'))) return
-    await supabase.from('team_games').delete().eq('id', id); load()
   }
 
   // ---------- ייבוא מהאיגוד (קטגוריה → אזור/ליגה → קבוצה → משחקים) ----------
@@ -266,13 +297,13 @@ export default function Teams({ session, profile }) {
       <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
       <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
 
-      <div className="chips" style={{ marginTop: 12 }}>
+      <div className="chips teams-chips">
         {teams.map((tm) => (
           <button key={tm} className={team === tm ? 'chip selected' : 'chip'} onClick={() => setTeam(tm)}>{trTeam(tm)}</button>
         ))}
       </div>
 
-      <div className="tabs" style={{ marginTop: 14 }}>
+      <div className="tabs teams-tabs">
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><CalendarClock size={15} /> {L('משחקים', 'Games')}</button>
@@ -280,7 +311,12 @@ export default function Teams({ session, profile }) {
       </div>
 
       {loading ? (
-        <p className="muted" style={{ marginTop: 16 }}>{L('טוען...', 'Loading...')}</p>
+        <SkeletonCards count={3} />
+      ) : loadErr ? (
+        <div className="alert alert-error teams-error" role="alert">
+          <span>{loadErr}</span>
+          <Button variant="ghost" onClick={load}>{L('נסה שוב', 'Try again')}</Button>
+        </div>
       ) : tab === 'roster' ? (
         /* ===================== סגל ===================== */
         <div className="team-section">
@@ -290,13 +326,19 @@ export default function Teams({ session, profile }) {
             {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
           </p>
           <div className="roster-add">
-            <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
-              placeholder={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
-            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)} placeholder={L('מס׳', '#')} dir="ltr" />
-            <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer}><Plus size={16} /></button>
+            <input ref={pNameRef} className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
+              placeholder={L('שם השחקן', 'Player name')} aria-label={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
+            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)} placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
+            <button className="btn-primary" onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
           {players.length === 0 ? (
-            <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין שחקנים בסגל.', 'No players in the roster yet.')}</p>
+            <EmptyState
+              className="teams-empty"
+              icon={Users2}
+              title={L('עדיין אין שחקנים בסגל', 'No players in the roster yet')}
+              desc={L('התחל לבנות את הקבוצה — שם, מספר חולצה, וזהו.', 'Start building your team — a name, a jersey number, done.')}
+              action={<Button onClick={() => pNameRef.current?.focus()}><Plus size={16} /> {L('הוסף שחקן ראשון', 'Add your first player')}</Button>}
+            />
           ) : (
             <ul className="roster-list">
               {players.map((p) => (
@@ -324,14 +366,19 @@ export default function Teams({ session, profile }) {
             <h3 className="staff-head"><Briefcase size={16} /> {L('צוות מקצועי', 'Professional staff')}</h3>
             <p className="muted small">{L('עוזר מאמן, מאמן גופני, פיזיותרפיסט, מנהל קבוצה ועוד — לחיצה לעריכה.', 'Assistant, fitness coach, physio, team manager and more — tap to edit.')}</p>
             <div className="staff-add">
-              <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
-              <select className="finder-input staff-role-sel" value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
+              <input ref={sNameRef} className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} aria-label={L('שם איש הצוות', 'Staff member name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
+              <select className="finder-input staff-role-sel" value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))} aria-label={L('תפקיד', 'Role')}>
                 {STAFF_ROLES.map((r) => <option key={r.key} value={r.key}>{L(r.he, r.en)}</option>)}
               </select>
-              <button className="btn-primary" style={{ marginTop: 0 }} onClick={addStaff}><Plus size={16} /></button>
+              <button className="btn-primary" onClick={addStaff} aria-label={L('הוספת איש צוות', 'Add staff member')}><Plus size={16} /></button>
             </div>
             {staff.length === 0 ? (
-              <p className="muted small" style={{ marginTop: 10 }}>{L('עדיין לא הוסף צוות מקצועי.', 'No staff added yet.')}</p>
+              <EmptyState
+                className="teams-empty es-compact"
+                icon={Briefcase}
+                title={L('עדיין לא הוסף צוות מקצועי', 'No staff added yet')}
+                action={<Button variant="soft" onClick={() => sNameRef.current?.focus()}><Plus size={16} /> {L('הוסף איש צוות ראשון', 'Add your first staff member')}</Button>}
+              />
             ) : (
               <ul className="roster-list">
                 {staff.map((s) => (
@@ -339,7 +386,7 @@ export default function Teams({ session, profile }) {
                     <span className="staff-ic"><Briefcase size={16} /></span>
                     <span className="roster-name">
                       {s.name}
-                      <span className="roster-sub muted small">{roleLabel(s.role)}{s.phone ? ` · ${s.phone}` : ''}</span>
+                      <span className="roster-sub muted small">{roleLabel(s.role)}{s.phone ? <> {'· '}<span dir="ltr">{s.phone}</span></> : ''}</span>
                     </span>
                     {s.phone && <a className="icon-btn" href={`tel:${s.phone}`} onClick={(e) => e.stopPropagation()} aria-label={L('חיוג', 'Call')}><Phone size={15} /></a>}
                     <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setSEdit({ ...s }) }} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
@@ -352,7 +399,7 @@ export default function Teams({ session, profile }) {
       ) : tab === 'goals' ? (
         /* ===================== מטרות (בורר שבוע/חודש) ===================== */
         <div className="team-section">
-          <p className="muted small" style={{ marginBottom: 12 }}>{L('תכנן מטרות לכל שבוע וחודש — גם קדימה. דפדף בין התקופות ושמור.', 'Plan goals for any week and month — even ahead. Browse periods and save.')}</p>
+          <p className="muted small goals-intro">{L('תכנן מטרות לכל שבוע וחודש — גם קדימה. דפדף בין התקופות ושמור.', 'Plan goals for any week and month — even ahead. Browse periods and save.')}</p>
           <div className="goals-grid2">
             {/* שבוע */}
             <div className="goal-card-v2 gc-week">
@@ -383,7 +430,7 @@ export default function Teams({ session, profile }) {
             {/* עונה */}
             <div className="goal-card-v2 gc-season">
               <div className="goal-card-top"><span className="goal-ic"><Target size={17} /></span><h3>{L('מטרות העונה', 'Season goals')}</h3></div>
-              <p className="muted small" style={{ margin: '0 0 8px' }}>{L('היעדים הגדולים של העונה כולה.', 'The big targets for the whole season.')}</p>
+              <p className="muted small gc-note">{L('היעדים הגדולים של העונה כולה.', 'The big targets for the whole season.')}</p>
               <textarea className="finder-input goal-text" rows={6} value={sText} onChange={(e) => setSText(e.target.value)} placeholder={L('יעדי העונה...', 'Season targets...')} />
               <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירת מטרות העונה', 'Save season goals')}</button>
             </div>
@@ -393,7 +440,7 @@ export default function Teams({ session, profile }) {
         /* ===================== משחקים ===================== */
         <div className="team-section">
           <div className="games-cta">
-            <button className="btn-primary games-import-btn" style={{ marginTop: 0 }} onClick={openImport}>
+            <button className="btn-primary games-import-btn" onClick={openImport}>
               <Download size={16} /> {L('ייבוא משחקים + טבלה מהאיגוד', 'Import games + table from the association')}
             </button>
             <button className="manual-toggle" onClick={() => setManualOpen((v) => !v)}>
@@ -407,7 +454,7 @@ export default function Teams({ session, profile }) {
               <div className="form-grid-2">
                 <label className="pf-label">{L('תאריך', 'Date')}
                   <input className="finder-input" type="date" dir="ltr" value={gForm.date} onChange={(e) => setGForm((f) => ({ ...f, date: e.target.value }))} />
-                  {gForm.date && <span className="muted small date-preview">{ilFull(gForm.date)}</span>}
+                  {gForm.date && <span className="muted small date-preview" dir="ltr">{ilFull(gForm.date)}</span>}
                 </label>
                 <label className="pf-label">{L('שעה', 'Time')}
                   <input className="finder-input" type="time" dir="ltr" value={gForm.time} onChange={(e) => setGForm((f) => ({ ...f, time: e.target.value }))} />
@@ -420,7 +467,13 @@ export default function Teams({ session, profile }) {
           )}
 
           {games.length === 0 ? (
-            <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין משחקים. הוסף ידנית או ייבא מהאיגוד.', 'No games yet. Add manually or import.')}</p>
+            <EmptyState
+              className="teams-empty"
+              icon={CalendarClock}
+              title={L('עדיין אין משחקים', 'No games yet')}
+              desc={L('ייבא את לוח המשחקים מאיגוד הכדורסל בלחיצה, או הוסף משחק ידנית.', 'Import the fixture list from the association in one click, or add a game manually.')}
+              action={<Button onClick={openImport}><Download size={16} /> {L('ייבוא מהאיגוד', 'Import from the association')}</Button>}
+            />
           ) : (
             <ul className="game-list">
               {games.map((gm) => (
@@ -434,7 +487,7 @@ export default function Teams({ session, profile }) {
                     {gm.location && <span className="game-loc"><MapPin size={12} /> {gm.location}</span>}
                   </div>
                   <button className="icon-btn" onClick={() => setGEdit({ ...gm })} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
-                  <button className="icon-btn" onClick={() => delGame(gm.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
+                  <button className="icon-btn" onClick={() => setConfirmDel({ type: 'game', id: gm.id, name: gm.opponent || ilNum(gm.game_date) })} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
                 </li>
               ))}
             </ul>
@@ -565,7 +618,7 @@ export default function Teams({ session, profile }) {
             </label>
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              <button className="btn-ghost danger" onClick={() => delPlayer(pEdit.id)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
+              <button className="btn-ghost danger" onClick={() => setConfirmDel({ type: 'player', id: pEdit.id, name: pEdit.name })}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
             </div>
           </div>
         </div>
@@ -592,7 +645,7 @@ export default function Teams({ session, profile }) {
             <input className="finder-input" value={gEdit.location || ''} onChange={(e) => setGEdit((g) => ({ ...g, location: e.target.value }))} placeholder={L('מיקום', 'Location')} style={{ marginTop: 10 }} />
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={saveGame}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              <button className="btn-ghost danger" onClick={() => { delGame(gEdit.id); setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
+              <button className="btn-ghost danger" onClick={() => setConfirmDel({ type: 'game', id: gEdit.id, name: gEdit.opponent || ilNum(gEdit.game_date) })}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
             </div>
           </div>
         </div>
@@ -622,11 +675,34 @@ export default function Teams({ session, profile }) {
             </label>
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={saveStaff}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              <button className="btn-ghost danger" onClick={() => delStaff(sEdit.id)}><Trash2 size={15} /> {L('הסר', 'Remove')}</button>
+              <button className="btn-ghost danger" onClick={() => setConfirmDel({ type: 'staff', id: sEdit.id, name: sEdit.name })}><Trash2 size={15} /> {L('הסר', 'Remove')}</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ===================== מודאל: אישור מחיקה (החליף את window.confirm) ===================== */}
+      <Modal
+        open={!!confirmDel}
+        onClose={() => setConfirmDel(null)}
+        title={L('אישור מחיקה', 'Confirm deletion')}
+        size="sm"
+        footer={
+          <>
+            <Button variant="danger" loading={deleting} onClick={confirmDelete}>
+              <Trash2 size={15} /> {L('מחיקה', 'Delete')}
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
+          </>
+        }
+      >
+        <p className="confirm-del-text">
+          {confirmDel?.type === 'game' ? L('למחוק את המשחק מול', 'Delete the game against') : L('להסיר את', 'Remove')}{' '}
+          <strong>{confirmDel?.name || ''}</strong>?
+          <br />
+          <span className="muted small">{L('אי אפשר לבטל את הפעולה.', 'This action cannot be undone.')}</span>
+        </p>
+      </Modal>
     </div>
   )
 }

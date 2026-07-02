@@ -7764,3 +7764,16 @@ a:focus:not(:focus-visible) {
     margin-top: 0;
   }
 }
+
+/* ===== ליטוש 2026 — הקבוצות שלי (Teams) ===== */
+.teams-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-block-start: var(--space-4);
+}
+.teams-empty { margin-block-start: var(--space-4); }
+.empty-state.es-compact { padding: var(--space-6) var(--space-4); }
+.confirm-del-text { font-size: var(--text-ui); line-height: 1.6; }
