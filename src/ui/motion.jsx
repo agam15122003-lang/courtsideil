@@ -4,6 +4,11 @@ import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from '
 
 export { m, AnimatePresence, useReducedMotion }
 
+// מתג "ביטול אנימציות" של ווידג'ט הנגישות (html.a11y-motion) — משלים את הגדרת ה-OS.
+// ה-CSS מנוטרל ע"י המחלקה עצמה; JS (framer/rAF) חייב לבדוק אותה במפורש.
+export const motionOff = () =>
+  typeof document !== 'undefined' && document.documentElement.classList.contains('a11y-motion')
+
 export function MotionRoot({ children }) {
   return (
     <LazyMotion features={domAnimation} strict>

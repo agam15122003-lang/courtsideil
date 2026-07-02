@@ -169,7 +169,7 @@ export default function Messages({ session }) {
           <Button variant="danger" loading={deleting} onClick={confirmDeleteMsg}>
             <Trash2 size={15} /> {L('מחיקה', 'Delete')}
           </Button>
-          <Button variant="ghost" onClick={() => setConfirmDelMsg(null)}>{L('ביטול', 'Cancel')}</Button>
+          <Button variant="ghost" disabled={deleting} onClick={() => setConfirmDelMsg(null)}>{L('ביטול', 'Cancel')}</Button>
         </>
       }
     >

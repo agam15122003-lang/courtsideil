@@ -1,6 +1,7 @@
 // אנימציית count-up למספרים בדשבורד — מכבדת prefers-reduced-motion.
 // שימוש: const shown = useCountUp(stats.drills)
 import { useEffect, useRef, useState } from 'react'
+import { motionOff } from './motion'
 
 export default function useCountUp(target, { duration = 900, enabled = true } = {}) {
   const final = Number(target) || 0
@@ -9,7 +10,7 @@ export default function useCountUp(target, { duration = 900, enabled = true } = 
 
   useEffect(() => {
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
-    if (!enabled || reduced || final <= 0) {
+    if (!enabled || reduced || motionOff() || final <= 0) {
       setVal(final)
       return
     }

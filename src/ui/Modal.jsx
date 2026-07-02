@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
-import { m, AnimatePresence, useReducedMotion, EASE_OUT, DUR_BASE, DUR_FAST } from './motion'
+import { m, AnimatePresence, useReducedMotion, motionOff, EASE_OUT, DUR_BASE, DUR_FAST } from './motion'
 import { L } from '../i18n'
 
 const FOCUSABLE =
@@ -14,6 +14,13 @@ export default function Modal({ open, onClose, title, children, footer, size = '
   const boxRef = useRef(null)
   const lastActive = useRef(null)
   const reduced = useReducedMotion()
+
+  // onClose נשמר ב-ref — כך האפקט תלוי רק ב-open, ולכידת הפוקוס לא נקרעת
+  // ומתאתחלת בכל רינדור של ההורה (למשל כשמצב loading של כפתור המחיקה משתנה)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     if (!open) return
@@ -30,7 +37,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (e.key !== 'Tab') return
@@ -60,10 +67,11 @@ export default function Modal({ open, onClose, title, children, footer, size = '
       document.body.style.overflow = prevOverflow
       lastActive.current?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
-  const durIn = reduced ? 0 : DUR_BASE
-  const durOut = reduced ? 0 : DUR_FAST
+  const noMotion = reduced || motionOff()
+  const durIn = noMotion ? 0 : DUR_BASE
+  const durOut = noMotion ? 0 : DUR_FAST
 
   return createPortal(
     <AnimatePresence>

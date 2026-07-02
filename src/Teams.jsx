@@ -58,7 +58,7 @@ const weekLabel = (sun) => { const sat = addDays(sun, 6); return `${sun.getDate(
 const monthLabel = (d) => `${HE_MONTHS[d.getMonth()]} ${d.getFullYear()}`
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 
-export default function Teams({ session, profile }) {
+export default function Teams({ session, profile, onNavigate }) {
   const me = session.user.id
   const teams = profile?.age_groups || []
   const [team, setTeam] = useState(teams[0] || '')
@@ -280,11 +280,15 @@ export default function Teams({ session, profile }) {
       <div className="welcome-card">
         <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
         <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
-        <div className="empty-state">
-          <span className="empty-ic"><Users2 size={26} /></span>
-          <div className="empty-title">{L('עדיין לא הגדרת קבוצות', 'No teams yet')}</div>
-          <p className="muted small">{L('הוסף קבוצות בפרופיל ("הקבוצות שאני מאמן") כדי לנהל אותן כאן.', 'Add teams in your profile to manage them here.')}</p>
-        </div>
+        <EmptyState
+          className="teams-empty"
+          icon={Users2}
+          title={L('עדיין לא הגדרת קבוצות', 'No teams yet')}
+          desc={L('הוסף קבוצות בפרופיל ("הקבוצות שאני מאמן") כדי לנהל אותן כאן.', 'Add teams in your profile to manage them here.')}
+          action={onNavigate && (
+            <Button onClick={() => onNavigate('profile')}>{L('לעריכת הפרופיל', 'Edit profile')}</Button>
+          )}
+        />
       </div>
     )
   }
@@ -692,7 +696,7 @@ export default function Teams({ session, profile }) {
             <Button variant="danger" loading={deleting} onClick={confirmDelete}>
               <Trash2 size={15} /> {L('מחיקה', 'Delete')}
             </Button>
-            <Button variant="ghost" onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
+            <Button variant="ghost" disabled={deleting} onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
           </>
         }
       >

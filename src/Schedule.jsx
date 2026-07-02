@@ -704,7 +704,7 @@ export default function Schedule({ session }) {
             <Button variant="danger" loading={deleting} onClick={confirmDelete}>
               <Trash2 size={15} /> {L('מחיקה', 'Delete')}
             </Button>
-            <Button variant="ghost" onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
+            <Button variant="ghost" disabled={deleting} onClick={() => setConfirmDel(null)}>{L('ביטול', 'Cancel')}</Button>
           </>
         }
       >

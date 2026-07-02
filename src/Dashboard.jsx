@@ -1,6 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
-import { m, AnimatePresence, useReducedMotion } from './ui/motion'
 import ProfileForm from './ProfileForm'
 import MyStats from './MyStats'
 import ThemeToggle from './ThemeToggle'
@@ -52,7 +51,6 @@ const TABBAR_NAV = NAV.filter((item) => TABBAR_IDS.includes(item.id))
 
 export default function Dashboard({ session }) {
   const { t } = useLang()
-  const reducedMotion = useReducedMotion()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -172,13 +170,12 @@ export default function Dashboard({ session }) {
       </aside>
 
       <main className="main-content" id="main">
-        {/* key={view} — מרנדר מחדש בכל החלפת מסך; הכניסה מונפשת ב-CSS (fade-rise),
-            היציאה ב-framer (CSS לא יכול להנפיש unmount). mode=wait מונע חפיפה. */}
-        <AnimatePresence mode="wait">
-        <m.div
+        {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה (CSS fade-rise) תתנגן.
+            בכוונה בלי AnimatePresence על מעברי מסך: exit מבוסס-rAF נתקע בטאב ברקע
+            (mode=wait היה משהה את המסך החדש עד שחוזרים לטאב). */}
+        <div
           className="main-inner"
           key={showForm ? 'profile-form' : view}
-          exit={{ opacity: 0, y: -6, transition: { duration: reducedMotion ? 0 : 0.14, ease: 'easeIn' } }}
         >
           {!loading && !showForm && <QuoteStrip />}
           <Suspense
@@ -220,7 +217,7 @@ export default function Dashboard({ session }) {
           ) : view === 'schedule' ? (
             <Schedule session={session} />
           ) : view === 'teams' ? (
-            <Teams session={session} profile={profile} />
+            <Teams session={session} profile={profile} onNavigate={setView} />
           ) : view === 'admin' && profile?.is_admin ? (
             <Admin session={session} profile={profile} />
           ) : view === 'media' ? (
@@ -295,8 +292,7 @@ export default function Dashboard({ session }) {
             </div>
           )}
           </Suspense>
-        </m.div>
-        </AnimatePresence>
+        </div>
       </main>
 
       {/* טאב-בר תחתון — מובייל בלבד: 4 יעדים מרכזיים + "עוד" שפותח את המגירה המלאה */}
