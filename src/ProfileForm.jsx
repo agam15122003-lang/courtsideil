@@ -69,9 +69,12 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       if (!orderedTeams.includes(t)) orderedTeams.push(t)
     }
 
+    // upsert ולא update: אם שורת הפרופיל חסרה (טריגר ההרשמה נכשל),
+    // update על 0 שורות "מצליח" בלי לשמור — ויוצר לולאת שמירה אינסופית.
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: session.user.id,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         club: club.trim(),
@@ -81,7 +84,6 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
         age_groups: orderedTeams,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', session.user.id)
 
     setSaving(false)
 

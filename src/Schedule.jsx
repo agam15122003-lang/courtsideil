@@ -1,5 +1,5 @@
 import { toast } from './toast'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
@@ -88,6 +88,7 @@ export default function Schedule({ session }) {
   const hours = []
   for (let h = START_HOUR; h <= END_HOUR; h++) hours.push(h)
   const todayStr = ymd(new Date())
+  const calRef = useRef(null)
 
   async function load() {
     setLoading(true)
@@ -274,6 +275,13 @@ export default function Schedule({ session }) {
     )
   }
 
+  // גלילה אוטומטית לעמודת היום במובייל (RTL עלול להסתיר אותה)
+  useEffect(() => {
+    if (loading) return
+    calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [loading, weekStart])
+
+
   return (
     <div className="welcome-card">
       <div className="welcome-badge">{L('לו"ז', 'Schedule')}</div>
@@ -315,7 +323,7 @@ export default function Schedule({ session }) {
       ) : error ? (
         <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
       ) : (
-        <div className="cal-scroll">
+        <div className="cal-scroll" ref={calRef}>
           <div className="cal-grid">
             <div className="cal-corner" />
             {days.map((d, i) => {

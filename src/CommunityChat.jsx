@@ -66,10 +66,10 @@ export default function CommunityChat({ session }) {
     setSending(false)
     if (error) {
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
-      return
+      return false
     }
-    toast.success(L('ההודעה נשלחה', 'Message sent'))
     load()
+    return true
   }
 
   const remove = async (id) => {

@@ -128,17 +128,17 @@ export default function Messages({ session }) {
     setSending(false)
     if (error) {
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
-      return
+      return false
     }
-    toast.success(L('ההודעה נשלחה', 'Message sent'))
     loadMessages()
+    return true
   }
 
   const deleteMessage = async (id) => {
     if (!window.confirm(L('למחוק את ההודעה? פעולה זו אינה הפיכה.', 'Delete this message? This cannot be undone.'))) return
-    const { error } = await supabase.from('messages').delete().eq('id', id)
-    if (error) {
-      toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message)
+    const { data, error } = await supabase.from('messages').delete().eq('id', id).select('id')
+    if (error || !data || data.length === 0) {
+      toast.error(L('המחיקה נכשלה — נסה שוב', 'Failed to delete — try again'))
       return
     }
     toast.success(L('ההודעה נמחקה', 'Message deleted'))

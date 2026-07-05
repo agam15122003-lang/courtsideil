@@ -7,7 +7,7 @@ import LanguageToggle from './LanguageToggle'
 import Home from './Home'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
-import { useLang } from './i18n'
+import { useLang, L } from './i18n'
 
 // מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
 const CoachFinder = lazy(() => import('./CoachFinder'))
@@ -55,18 +55,25 @@ export default function Dashboard({ session }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
 
+  const [loadError, setLoadError] = useState(false)
+
   async function loadProfile() {
     setLoading(true)
+    setLoadError(false)
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
       .single()
 
-    if (error) {
+    // PGRST116 = אין שורה (פרופיל חדש שטרם מולא) — זה מצב תקין, לא שגיאה.
+    // כל שגיאה אחרת (רשת/timeout, נפוץ במובייל) לא מתחזה ל"פרופיל ריק"
+    // כדי לא להציג טופס הרשמה שידרוס פרופיל קיים.
+    if (error && error.code !== 'PGRST116') {
       console.error('שגיאה בטעינת הפרופיל:', error.message)
+      setLoadError(true)
     } else {
-      setProfile(data)
+      setProfile(data || null)
     }
     setLoading(false)
   }
@@ -81,6 +88,19 @@ export default function Dashboard({ session }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setDrawerOpen(false)
   }, [view])
+
+  // מגירת מובייל פתוחה: נועלים גלילת רקע וסוגרים ב-Escape
+  useEffect(() => {
+    if (!drawerOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [drawerOpen])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -183,6 +203,14 @@ export default function Dashboard({ session }) {
                 <div className="loader" />
                 <p className="muted small" style={{ margin: 0 }}>{t('common.loadingProfile')}</p>
               </div>
+            </div>
+          ) : loadError ? (
+            <div className="welcome-card" style={{ textAlign: 'center' }}>
+              <h2 style={{ marginTop: 0 }}>{L('לא הצלחנו לטעון את הפרופיל', "Couldn't load your profile")}</h2>
+              <p className="muted">{L('כנראה בעיית רשת רגעית. נסה שוב.', 'Probably a temporary network issue. Try again.')}</p>
+              <button className="btn-primary" style={{ marginTop: 12 }} onClick={loadProfile}>
+                {L('נסה שוב', 'Try again')}
+              </button>
             </div>
           ) : showForm ? (
             <ProfileForm

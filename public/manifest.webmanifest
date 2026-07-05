@@ -1,0 +1,16 @@
+{
+  "name": "CourtSide — הפנקס הדיגיטלי של מאמן הכדורסל",
+  "short_name": "CourtSide",
+  "description": "ספריית תרגילים, בונה אימונים, לוח טקטיקה, לו״ז וקהילת מאמנים — בעברית.",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141E36",
+  "theme_color": "#141E36",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
