@@ -7358,9 +7358,8 @@ a:focus:not(:focus-visible) {
 
 /* ---- גרעין עדין על הסייד-בר הברודקאסטי (חומר במקום פלסטיק) ---- */
 /* ===== PREMIUM POLISH — grain על הסייד-בר ===== */
-.sidebar {
-  position: relative;
-}
+/* בלי position כאן! הסייד-בר כבר sticky בדסקטופ ו-fixed במובייל (המגירה),
+   ושניהם מכילים את ה-::after. דריסת position שברה את מגירת המובייל. */
 .sidebar::after {
   content: '';
   position: absolute;
