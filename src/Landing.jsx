@@ -197,7 +197,13 @@ export default function Landing({ onEnter }) {
 
       <footer className="land-footer">
         <span>{L('CourtSide — הפלטפורמה המקצועית למאמני כדורסל בעברית.', 'CourtSide — the professional platform for basketball coaches.')}</span>
-        <span className="muted small">© {new Date().getFullYear()} · {L('כל הזכויות שמורות', 'All rights reserved')}</span>
+        <span className="land-footer-links muted small">
+          <a href="/privacy.html">{L('מדיניות פרטיות', 'Privacy')}</a>
+          <span aria-hidden="true"> · </span>
+          <a href="/terms.html">{L('תנאי שימוש', 'Terms')}</a>
+          <span aria-hidden="true"> · </span>
+          © {new Date().getFullYear()} {L('כל הזכויות שמורות', 'All rights reserved')}
+        </span>
       </footer>
     </div>
   )

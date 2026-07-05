@@ -7369,3 +7369,62 @@ a:focus:not(:focus-visible) {
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+
+/* ================================================================ */
+/* ===== LAUNCH MOBILE POLISH — תיקוני מובייל להשקה ===== */
+/* ================================================================ */
+
+/* יעדי מגע: כוכבי דירוג, חצים, X-ים — לפחות 40px */
+.star { min-width: 40px; min-height: 40px; padding: 0; }
+.vstar-btn { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+.period-arrow { width: 40px; height: 40px; }
+.ms-tag-x { width: 28px; height: 28px; }
+.ms-tag { padding: 8px 8px 8px 12px; }
+.onboard-close { min-width: 40px; min-height: 40px; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+
+@media (max-width: 768px) {
+  /* מגירה: גובה דינמי (iOS Safari), safe-area, בלי גלישה מעבר לרקע */
+  .sidebar {
+    height: 100dvh;
+    padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+    border-inline-start: none;
+  }
+  /* כפתור סגירת המגירה — נראה על הנייבי הכהה, יעד מגע 40px */
+  .drawer-close {
+    width: 40px;
+    height: 40px;
+    color: rgba(226, 234, 246, 0.85);
+  }
+  .drawer-close:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+}
+
+@media (max-width: 480px) {
+  /* hero קומפקטי בטלפון — לא בולע את המסך הראשון */
+  .hero {
+    min-height: 250px;
+    padding: var(--space-8) var(--space-5);
+  }
+  .hero-sub { font-size: var(--text-base); margin-bottom: var(--space-5); }
+  .hero-actions .btn-hero,
+  .hero-actions .btn-hero-outline { flex: 1 1 100%; }
+
+  /* לו"ז: עמודת שעות דביקה + עמודות רחבות יותר לשמות + snap */
+  .cal-corner,
+  .cal-gutter {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 3;
+    background: var(--surface);
+  }
+  .cal-grid { grid-template-columns: 44px repeat(7, minmax(96px, 1fr)); min-width: 716px; }
+  .cal-scroll { scroll-snap-type: x proximity; }
+  .cal-daycol { scroll-snap-align: start; }
+}
+
+/* ---- קישורי תקנון/פרטיות ושורת הסכמה ---- */
+.land-footer-links a { color: var(--text-muted); text-decoration: none; }
+.land-footer-links a:hover { color: var(--accent-strong); text-decoration: underline; }
+.auth-consent { text-align: center; margin-top: 14px; line-height: 1.6; }
+.auth-consent a { color: var(--accent-strong); font-weight: 600; }

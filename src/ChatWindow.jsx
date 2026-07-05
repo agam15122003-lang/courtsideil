@@ -92,16 +92,17 @@ export default function ChatWindow({
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, loading])
 
-  const submit = () => {
+  const submit = async () => {
     const ta = taRef.current
     const val = (ta?.value || '').trim()
     if (!val || sending) return
-    onSend(val)
-    if (ta) {
+    // מנקים את התיבה רק אחרי שהשליחה הצליחה — כדי לא לאבד הודעה בכשל רשת
+    const ok = await onSend(val)
+    if (ok !== false && ta) {
       ta.value = ''
       ta.style.height = 'auto'
+      setHasText(false)
     }
-    setHasText(false)
   }
 
   const onKeyDown = (e) => {

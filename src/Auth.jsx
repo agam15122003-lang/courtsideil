@@ -59,9 +59,16 @@ export default function Auth({ onBack }) {
         setLoading(false)
         return
       }
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError(translateError(error.message))
-      else setMessage(L('נרשמת בהצלחה! בדוק את תיבת המייל לאישור החשבון, ואז התחבר.', 'Signed up successfully! Check your inbox to confirm your account, then log in.'))
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setError(translateError(error.message))
+      } else if (data.user && (data.user.identities || []).length === 0) {
+        // Supabase מחזיר "הצלחה" מזויפת למייל שכבר רשום (הגנת enumeration) —
+        // מזהים לפי identities ריק ומכוונים להתחברות במקום להמתין למייל שלא יגיע.
+        setError(L('המייל הזה כבר רשום. נסה להתחבר או לאפס סיסמה.', 'This email is already registered. Try logging in or resetting your password.'))
+      } else {
+        setMessage(L('נרשמת בהצלחה! בדוק את תיבת המייל לאישור החשבון, ואז התחבר.', 'Signed up successfully! Check your inbox to confirm your account, then log in.'))
+      }
     } else if (mode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(translateError(error.message))
@@ -227,6 +234,15 @@ export default function Auth({ onBack }) {
                     ? L('שליחת קישור איפוס', 'Send reset link')
                     : L('כניסה', 'Log in')}
             </button>
+
+            {mode === 'signup' && (
+              <p className="auth-consent muted small">
+                {L('בהרשמה אתה מאשר את ', 'By signing up you agree to our ')}
+                <a href="/terms.html" target="_blank" rel="noopener noreferrer">{L('תנאי השימוש', 'Terms')}</a>
+                {L(' ו', ' and ')}
+                <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{L('מדיניות הפרטיות', 'Privacy Policy')}</a>.
+              </p>
+            )}
           </form>
         )}
 
