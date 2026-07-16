@@ -8307,3 +8307,725 @@ a:focus:not(:focus-visible) {
 /* ===== PLANS POLISH — בנאי חכם: צ'יפים לזמן יעד ===== */
 .duration-quick { margin-top: -6px; }
 .duration-quick .chip bdi { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+
+/* ================================================================ */
+/* ===== ELEVATION LAYER 2 — forms/tactics/landing/consistency ===== */
+/* ================================================================ */
+
+/* ---- CSS מרקיזת הציטוטים — שתי שורות בכיוונים הפוכים, fade בקצוות, עצירה ב-hover ---- */
+/* ===== ציטוטים מהמגרש — מרקיזה כפולה ב-CSS בלבד (השראת 21st.dev) =====
+   נשען על הסקיל: gsap→'Don't animate width/height' — מאנמטים transform בלבד;
+   ux→Reduced Motion — עצירה מלאה + גלילה ידנית תחת prefers-reduced-motion.
+   להוסיף בסוף src/index.css: */
+.land-quotes {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+.land-quotes-row {
+  overflow: hidden;
+  /* fade בשני הקצוות — הרצועה 'נמוגה' אל הרקע */
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to left, transparent, #000 8%, #000 92%, transparent);
+}
+.land-quotes-track {
+  display: flex;
+  width: max-content;
+  animation: land-marquee 58s linear infinite;
+  will-change: transform;
+}
+/* שורה שנייה — כיוון הפוך וקצב מעט שונה, תחושה אורגנית */
+.land-quotes-row.is-reverse .land-quotes-track {
+  animation-direction: reverse;
+  animation-duration: 66s;
+}
+/* עצירה ב-hover וגם בפוקוס מקלדת בתוך הרצועה */
+.land-quotes-row:hover .land-quotes-track,
+.land-quotes-row:focus-within .land-quotes-track {
+  animation-play-state: paused;
+}
+.land-quotes-list {
+  display: flex;
+  flex: none;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* הרווח 'הפנימי' בקצה כל עותק — כך translateX(50%) נסגר בלולאה חלקה בלי קפיצה */
+  padding-inline-end: var(--space-4);
+}
+.land-quote-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: max-content;
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border); /* hairline — שפת הכרטיסים הקיימת */
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  text-align: start;
+}
+.land-quote-card svg {
+  color: var(--accent-strong); /* כתום מילוי נגיש (5.78:1) — כלל AA מהסקיל */
+  flex-shrink: 0;
+}
+.land-quote-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+.land-quote-author {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.land-quote-author::before {
+  content: '— ';
+}
+@keyframes land-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(50%); } /* RTL: הרצועה נעה ימינה; העותק הכפול סוגר לולאה חלקה */
+}
+/* reduced motion: בלי תנועה אינסופית — גלילה ידנית, בלי עותק כפול ובלי מסכה */
+@media (prefers-reduced-motion: reduce) {
+  .land-quotes-track { animation: none; }
+  .land-quotes-row {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .land-quotes-list[aria-hidden="true"] { display: none; }
+}
+@media (max-width: 640px) {
+  .land-quote-text { font-size: 13px; }
+  .land-quote-card { padding: var(--space-2) var(--space-4); }
+}
+
+/* ---- CSS אקורדיון FAQ — details נייטיב עם אנימציית גובה פרוגרסיבית ---- */
+/* ===== שאלות נפוצות — אקורדיון details/summary נייטיב =====
+   נשען על הסקיל: ux→'יעדי מגע ≥44px' (min-height על summary), MASTER→'Invisible focus states' אסור
+   (focus-visible מפורש), 'אנימציות 150-300ms' (var(--dur-base)=220ms + var(--ease-out)).
+   אנימציית הגובה: interpolate-size + ::details-content — חלקה בדפדפנים תומכים (Chrome 129+),
+   נפתח מיידית (fallback תקין) באחרים, בלי לאנמט height ידנית ב-JS. להוסיף בסוף src/index.css: */
+.land-faq {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 720px;
+  margin: var(--space-8) auto 0;
+  text-align: start;
+}
+.land-faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border); /* hairline — שפת הכרטיסים הקיימת */
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  interpolate-size: allow-keywords; /* מאפשר מעבר חלק אל block-size:auto */
+}
+.land-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px; /* יעד מגע ≥44px — כלל ברזל מהסקיל */
+  padding: var(--space-4) var(--space-5);
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: var(--text);
+  cursor: pointer; /* MASTER: לכל אלמנט לחיץ */
+  list-style: none;
+  border-radius: var(--radius-md);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.land-faq-q::-webkit-details-marker { display: none; }
+.land-faq-q:hover { color: var(--accent-strong); }
+.land-faq-q:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+.land-faq-chev {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.land-faq-item[open] .land-faq-chev { transform: rotate(180deg); }
+.land-faq-item[open] .land-faq-q { color: var(--accent-strong); }
+.land-faq-item::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition: block-size var(--dur-base) var(--ease-out), content-visibility var(--dur-base) allow-discrete;
+}
+.land-faq-item[open]::details-content { block-size: auto; }
+.land-faq-a {
+  padding: 0 var(--space-5) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--text-muted); /* עומד ב-AA על --surface בשני המצבים */
+}
+.land-faq-a a {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .land-faq-item::details-content,
+  .land-faq-chev,
+  .land-faq-q { transition: none; }
+}
+
+/* ---- CSS רצועת 'למה CourtSide' + פוטר עשיר בעמודות ---- */
+/* ===== "למה CourtSide" — 3 עמודות ערך עם פס-כתום עליון (המשך שפת הקיקר .welcome-badge) =====
+   נשען על הסקיל: style→Soft UI Evolution (עומק עדין, בלי צל כבד), ux→Contrast AA (--accent-strong לאייקון).
+   להוסיף בסוף src/index.css: */
+.land-why-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+  text-align: start;
+}
+.land-why-item {
+  position: relative;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border); /* hairline */
+}
+.land-why-item::before {
+  /* פס-כתום קצר — אותה שפה של קיקר הכותרות */
+  content: '';
+  position: absolute;
+  top: -1px;
+  inset-inline-start: 0;
+  width: 48px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--orange-500), var(--orange-700));
+}
+.land-why-ic {
+  display: inline-flex;
+  color: var(--accent-strong);
+  margin-bottom: var(--space-3);
+}
+
+/* ===== פוטר עשיר — עמודות מוצר/משפטי/הצטרפות =====
+   ux→'יעדי מגע ≥44px' נאכף במגע דרך pointer:coarse; tabular-nums לשנה בשורת הזכויות. */
+.land-footer.land-footer-rich {
+  display: block;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-4);
+}
+.land-footer-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: var(--space-6);
+  text-align: start;
+}
+.land-footer-tag {
+  margin-top: var(--space-3);
+  max-width: 260px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.land-footer-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.land-footer-col h3 {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin-bottom: var(--space-2);
+}
+.land-footer-col a {
+  display: inline-flex;
+  align-items: center;
+  padding-block: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.land-footer-col a:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+.land-footer-col a:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.land-footer-cta {
+  background: none;
+  border: none;
+  padding: 0;
+  padding-block: 6px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent-strong);
+  text-align: start;
+  cursor: pointer;
+}
+.land-footer-cta:hover { text-decoration: underline; }
+.land-footer-cta:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* במסכי מגע — יעד ≥44px (כלל ברזל מהסקיל) */
+@media (pointer: coarse) {
+  .land-footer-col a,
+  .land-footer-cta { min-height: 44px; }
+}
+.land-footer-bottom {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums; /* שפת המספרים של המערכת */
+}
+@media (max-width: 720px) {
+  .land-footer-grid { grid-template-columns: repeat(2, 1fr); }
+  .land-footer-brand { grid-column: 1 / -1; }
+}
+
+/* ---- CSS טפסים: כרטיסי סקשן עם edge-highlight, req-star, ולידציה ב-blur וספינר ---- */
+/* ================================================================ */
+/* ===== FORMS POLISH — כרטיסי סקשן, שדות חובה, ולידציה, טעינה ===== */
+/* ================================================================ */
+
+/* כרטיס סקשן — hairline + edge-highlight עליון (שפת הכרטיסים של הפרויקט) */
+.form-section {
+  position: relative;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) var(--ease-out);
+}
+.form-section:focus-within {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] .form-section {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .form-section:focus-within {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* כותרת סקשן — Heebo כבד, כמו שאר הכותרות */
+.form-section-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-normal);
+}
+
+/* סקשנים של DrillForm יושבים בתוך .auth-form — מחזירים להם ריווח פנימי אנכי */
+.auth-form > .form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* כשה-field-group הוא הילד היחיד בסקשן (לוח הטקטיקה) — התווית שלו משמשת ככותרת */
+.form-section > .field-group:only-child > .field-label {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 800;
+}
+
+/* תג "לא חובה" ליד כותרת סקשן */
+.form-section-hint {
+  margin-inline-start: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+/* כוכבית שדה חובה — אקצנט נגיש (5.78:1 בבהיר, כתום בהיר בכהה) */
+.req-star {
+  color: var(--accent-strong);
+  font-weight: 800;
+  margin-inline-start: 2px;
+}
+
+/* ולידציה בזמן יציאה מהשדה — :user-invalid נדלק רק אחרי אינטראקציה (לא בטעינה) */
+.auth-form input:user-invalid,
+.auth-form textarea:user-invalid,
+.pf-label input:user-invalid,
+.finder-input:user-invalid {
+  border-color: var(--error);
+}
+.auth-form input:user-invalid:focus,
+.pf-label input:user-invalid:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 15%, transparent);
+}
+
+/* ספינר בכפתורי שמירה — currentColor, עובד על כל צבע כפתור */
+.btn-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+  margin-inline-end: 8px;
+  border-radius: var(--radius-full);
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* משוב טעינה הוא פונקציונלי — מאטים במקום לעצור */
+  .btn-spinner { animation-duration: 1.6s; }
+}
+
+/* ---- CSS סרגל טקטיקה: toolbar דביק עם זכוכית, קבוצות שקועות ומצב נבחר נייבי ---- */
+/* ================================================================ */
+/* ===== TACTICS TOOLBAR — סרגל כלים צף עם קבוצות ===== */
+/* ================================================================ */
+.tb-toolbar {
+  position: sticky;
+  top: 8px;
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .tb-toolbar {
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  }
+}
+[data-theme="dark"] .tb-toolbar {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* קבוצת כלים — מגש שקוע */
+.tb-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+}
+
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-2sm);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.tb-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+.tb-btn:hover {
+  background: var(--surface);
+}
+/* מצב נבחר — מילוי נייבי ברודקאסט (האקצנט הכתום נשאר נדיר) */
+.tb-btn.on {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.tb-btn.on svg {
+  opacity: 1;
+}
+
+/* יעדי מגע במסכי מגע — לפחות 44px (כלל הסקיל: Touch Target Size) */
+@media (pointer: coarse) {
+  .tb-btn {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+}
+
+/* בהדפסת דף מחברת אין צורך בסרגל */
+@media print {
+  .tb-toolbar {
+    display: none;
+  }
+}
+
+/* ---- CSS MultiSelect: צ'יפים עם פופ-כניסה קפיצי, צ'קבוקס חי ויעדי מגע ---- */
+/* ================================================================ */
+/* ===== MULTISELECT POLISH — צ'יפים חיים וקומפקטיים ===== */
+/* ================================================================ */
+/* צ'יפ נבחר — עומק edge-highlight + פופ עדין בכניסה */
+.ms-tag {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-sm);
+  animation: ms-tag-in var(--dur-base) var(--ease-spring) both;
+}
+@keyframes ms-tag-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* צ'קבוקס האופציה — מעבר חלק במקום קפיצת מצב */
+.ms-check {
+  transition:
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-spring);
+}
+.ms-option.on .ms-check {
+  transform: scale(1.06);
+}
+
+/* אופציות — יעד מגע נוח, וגלילת פאנל שלא בורחת לדף */
+.ms-option {
+  min-height: 40px;
+}
+@media (pointer: coarse) {
+  .ms-option {
+    min-height: 44px;
+  }
+}
+.ms-panel {
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-tag { animation: none; }
+  .ms-option.on .ms-check { transform: none; }
+}
+
+/* ---- CSS מחברת: קיקר מועדון עם פס כתום, כותרות-קו, מפרידי נקודה וספרות טבלאיות ---- */
+/* ================================================================ */
+/* ===== NOTEBOOK TYPE — טיפוגרפיית "דף מחברת" אלגנטית ===== */
+/* ================================================================ */
+/* שם המועדון — קיקר עם פס כתום, כמו .welcome-badge */
+.nb-club {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.nb-club::before {
+  content: '';
+  flex-shrink: 0;
+  width: 18px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--orange-500);
+}
+.nb-header .nb-title {
+  letter-spacing: var(--tracking-snug);
+}
+.nb-date {
+  font-variant-numeric: tabular-nums;
+}
+
+/* שם התרגיל/התוכנית — display צמוד וגדול יותר */
+.nb-content .nb-drill-name,
+.nb-content .nb-plan-name {
+  font-size: 23px;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-snug);
+}
+
+/* שורת מטא — מספרים טבלאיים ומפרידי נקודה כתומים בין פריטים */
+.nb-meta {
+  font-variant-numeric: tabular-nums;
+}
+.nb-meta-item {
+  display: inline-flex;
+  align-items: center;
+}
+.nb-meta-item:not(:first-child)::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--orange-500);
+  margin-inline-end: 10px;
+}
+
+/* כותרות בלוקי כתיבה — קיקר קטן עם קו ממשיך, במקום bold רגיל */
+.nb-writeblock-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  color: #41598C; /* נייבי-500 על נייר — 6.7:1 */
+}
+.nb-writeblock-h::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e6ee;
+}
+
+/* טקסט על השורות — מעט גדול וכהה יותר לקריאות "כתב-יד" */
+.nb-lines {
+  font-size: 15.5px;
+  color: #22314f;
+}
+
+/* מילת מפתח (מטרה:) — אקצנט כתום נגיש על נייר */
+.nb-field-k {
+  color: #A8491A; /* 5.7:1 על #fdfdfb */
+}
+
+/* תגיות שכבת גיל — hairline עדין */
+.nb-tag {
+  border: 1px solid #dbe0ea;
+  background: #f4f6fa;
+}
+
+/* ---- CSS מודאלים (tm-modal): כותרת עם hairline, טיפוגרפיית display וכפתור ראשי דומיננטי ---- */
+/* ================================================================ */
+/* ===== MODAL POLISH — כותרת tm-modal ופעולות ===== */
+/* ================================================================ */
+.tm-modal-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.tm-modal-head strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-normal);
+}
+/* כפתור הסגירה — יעד מגע מספק */
+.tm-modal .icon-btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+/* הפעולה הראשית תופסת את רוב השורה — היררכיה ברורה */
+.tm-modal-actions .btn-primary {
+  flex: 1;
+}
+
+/* ---- דפוס PageHeader אחיד — קיקר + כותרת + תיאור + פעולות (append לסוף הקובץ) ---- */
+/* ================================================================
+   אחידות רוחבית 1: PageHeader — דפוס כותרת-עמוד אחיד לכל המסכים.
+   קיקר (.welcome-badge הקיים, עם פס-כתום) + h2 + תיאור + כפתורי פעולה.
+   skill: ux/Accessibility/Heading Hierarchy — היררכיית כותרות רציפה;
+   pro-rules: Touch Target ≥44px, Readable text measure, Section spacing.
+   ================================================================ */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.page-header-text {
+  min-width: 0;
+  flex: 1 1 280px;
+}
+.page-header h2 {
+  margin: 6px 0 0;
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: var(--tracking-snug);
+}
+.page-desc {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 60ch; /* pro-rules: Readable text measure */
+}
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-inline-start: auto; /* RTL-safe — לוגי, לא פיזי */
+  padding-top: var(--space-1);
+}
+.page-header-actions .btn-primary,
+.page-header-actions .btn-soft,
+.page-header-actions .btn-ghost {
+  margin-top: 0;
+  min-height: 44px; /* pro-rules: יעד מגע ≥44px לפעולה הראשית */
+  white-space: nowrap;
+}
+/* .library-header הקיים (DrillLibrary/Videos/Messages) מיושר לאותה התנהגות */
+.library-header {
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+}
+/* כותרת עם אייקון — יישור flex במקום hack של verticalAlign (Admin) */
+.h2-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.h2-icon svg {
+  flex-shrink: 0;
+  color: var(--accent-strong); /* 5.78:1 בהיר; הטוקן מתחלף אוטומטית במצב כהה */
+}
+/* מובייל 375-640px: הפעולות יורדות לשורה מלאה מתחת לכותרת (בלי גלילה אופקית) */
+@media (max-width: 640px) {
+  .page-header-actions {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+  .page-header-actions .btn-primary {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---- Empty-state CTA + יישור אייקוני Check (מחליפי ✓ טקסטואלי) — append לסוף הקובץ ---- */
+/* ================================================================
+   אחידות רוחבית 2: CTA במצבי-ריק + תשתית להחלפת תווי ✓ ב-lucide.
+   skill: ux/Feedback/Empty States — "Show helpful message and action";
+   MASTER.md Anti-Patterns — בלי אימוג'י/תווים כאייקונים.
+   ================================================================ */
+.empty-state .empty-cta {
+  margin-top: var(--space-4);
+  min-height: 44px; /* pro-rules: יעד מגע ≥44px */
+}
+/* תג סטטוס פגישה בלו"ז — inline-flex ליישור אייקון Check (החליף ✓ טקסטואלי) */
+.cal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cal-status svg { flex-shrink: 0; }
+/* אינדיקטור התאמת סיסמאות (ResetPassword) — כנ"ל */
+.pw-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pw-match svg { flex-shrink: 0; }

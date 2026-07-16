@@ -237,13 +237,13 @@ export default function Dashboard({ session }) {
           ) : view === 'schedule' ? (
             <Schedule session={session} />
           ) : view === 'teams' ? (
-            <Teams session={session} profile={profile} />
+            <Teams session={session} profile={profile} onNavigate={setView} />
           ) : view === 'admin' && profile?.is_admin ? (
             <Admin session={session} profile={profile} />
           ) : view === 'media' ? (
             <Media session={session} profile={profile} />
           ) : view === 'messages' ? (
-            <Messages session={session} />
+            <Messages session={session} onNavigate={setView} />
           ) : (
             <div className="welcome-card">
               <div className="welcome-badge">{t('profile.myProfile')}</div>

@@ -11,9 +11,15 @@ export default function Media({ session, profile }) {
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('מדיה', 'Media')}</div>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('מדיה', 'Media')}</div>
+          <h2>{L('מדיה ותוכן', 'Media & content')}</h2>
+          <p className="page-desc">{L('פודקסטים נבחרים וספריית סרטוני אימון משותפת, מדורגת על ידי הקהילה.', 'Selected podcasts and a shared training-video library, rated by the community.')}</p>
+        </div>
+      </header>
 
-      <div className="tabs" style={{ marginTop: 12 }}>
+      <div className="tabs">
         <button
           className={mode === 'podcasts' ? 'tab active' : 'tab'}
           onClick={() => setMode('podcasts')}

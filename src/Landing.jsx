@@ -9,9 +9,14 @@ import {
   PlayCircle,
   Star,
   ArrowLeft,
+  Languages,
+  Zap,
+  Quote,
+  ChevronDown,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
+import { COACHING_QUOTES } from './constants'
 
 // reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
 function useReveal() {
@@ -99,6 +104,34 @@ export default function Landing({ onEnter }) {
     { num: L('חינם', 'Free'), label: L('לכל מאמן', 'for every coach') },
   ]
 
+  // "למה CourtSide" — רצועת ערך בין ההירו לפיצ'רים (דפוס ההמרה מהסקיל: Hero → Value → Features → Social Proof → CTA)
+  const WHY = [
+    { Icon: Languages, title: L('עברית ו-RTL מהיסוד', 'Hebrew & RTL from the ground up'), desc: L('לא תרגום של מוצר זר — כל מסך, כל טופס וכל תרגיל תוכננו קודם כול לעברית ולכיוון ימין-לשמאל.', 'Not a translated foreign product — every screen, form and drill was designed Hebrew-first, right-to-left.') },
+    { Icon: Zap, title: L('מהיר תוך כדי אימון', 'Fast in mid-practice'), desc: L('פותחים את התוכנית, מסמנים תרגיל שהסתיים וממשיכים — בלי לעצור את הקבוצה ובלי מחשב.', 'Open the plan, tick off a finished drill and move on — without stopping the team or needing a laptop.') },
+    { Icon: Users, title: L('ידע של קהילה שלמה', 'The knowledge of a whole community'), desc: L('תרגילים, דירוגים ותוכניות ששיתפו מאמנים פעילים — במקום להמציא כל אימון מאפס.', 'Drills, ratings and plans shared by active coaches — instead of inventing every practice from scratch.') },
+  ]
+
+  // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
+  const FAQ = [
+    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל שבעת הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. All seven tools — the drill library, practice builder, tactics board, schedule and community — are open to every coach at no cost. Sign up and start.') },
+    { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
+    { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
+    {
+      q: L('מה קורה עם הנתונים שלי?', 'What happens to my data?'),
+      a: (
+        <>
+          {L('התרגילים והתוכניות שלך שמורים בחשבון האישי שלך וזמינים מכל מכשיר. אתה בוחר מה לשתף עם הקהילה ומה נשאר פרטי. לפרטים המלאים ראו את ', 'Your drills and plans are stored in your personal account and available on any device. You choose what to share with the community and what stays private. For full details see the ')}
+          <a href="/privacy.html">{L('מדיניות הפרטיות', 'privacy policy')}</a>.
+        </>
+      ),
+    },
+    { q: L('איך מצטרפים?', 'How do I join?'), a: L('לוחצים "התחל עכשיו", נרשמים עם אימייל ומקימים פרופיל מאמן — מועדון, שכבות גיל ופרטים. כל התהליך לוקח פחות משלוש דקות.', 'Click "Start now", sign up with your email and set up a coach profile — club, age groups and details. The whole thing takes under three minutes.') },
+    { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
+  ]
+
+  // "ציטוטים מהמגרש" — ציטוטי אימון מפורסמים שכבר קיימים ב-constants.js. אסור להמציא המלצות/שמות.
+  const QUOTE_ROWS = [COACHING_QUOTES.slice(0, 11), COACHING_QUOTES.slice(11)]
+
   return (
     <div className="land">
       <header className="land-nav">
@@ -155,6 +188,22 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
+      <section className="land-section land-why reveal">
+        <span className="land-kicker">{L('למה CourtSide', 'Why CourtSide')}</span>
+        <h2 className="land-h2">{L('נבנה למגרש, לא למשרד', 'Built for the court, not the office')}</h2>
+        <div className="land-why-grid">
+          {WHY.map((w) => (
+            <div key={w.title} className="land-why-item">
+              <span className="land-why-ic">
+                <w.Icon size={22} />
+              </span>
+              <h3 className="land-feature-title">{w.title}</h3>
+              <p className="land-feature-desc">{w.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="land-section reveal" id="features">
         <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
         <h2 className="land-h2">{L('כל מה שמאמן צריך', 'Everything a coach needs')}</h2>
@@ -172,7 +221,7 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
-      <section className="land-section land-steps-wrap reveal">
+      <section className="land-section land-steps-wrap reveal" id="how">
         <span className="land-kicker">{L('איך זה עובד', 'How It Works')}</span>
         <h2 className="land-h2">{L('מתחילים בשלוש דקות', 'Get started in three minutes')}</h2>
         <div className="land-steps">
@@ -186,6 +235,47 @@ export default function Landing({ onEnter }) {
         </div>
       </section>
 
+      <section className="land-section land-quotes-wrap reveal">
+        <span className="land-kicker">{L('השראה', 'Inspiration')}</span>
+        <h2 className="land-h2">{L('ציטוטים מהמגרש', 'Quotes from the court')}</h2>
+        <p className="land-lead">{L('מהפילוסופיה של גדולי המאמנים — ישר אל האימון הבא שלך.', 'From the philosophy of the great coaches — straight into your next practice.')}</p>
+        <div className="land-quotes">
+          {QUOTE_ROWS.map((row, i) => (
+            <div key={i} className={`land-quotes-row${i === 1 ? ' is-reverse' : ''}`}>
+              <div className="land-quotes-track">
+                {[0, 1].map((copy) => (
+                  <ul key={copy} className="land-quotes-list" aria-hidden={copy === 1 || undefined}>
+                    {row.map((q) => (
+                      <li key={q.text_en} className="land-quote-card">
+                        <Quote size={15} aria-hidden="true" />
+                        <p className="land-quote-text">{L(q.text, q.text_en)}</p>
+                        <span className="land-quote-author">{L(q.author, q.author_en)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="land-section land-faq-wrap reveal" id="faq">
+        <span className="land-kicker">{L('שאלות נפוצות', 'FAQ')}</span>
+        <h2 className="land-h2">{L('יש שאלות? יש תשובות', 'Questions? Answers')}</h2>
+        <div className="land-faq">
+          {FAQ.map((f, i) => (
+            <details key={i} className="land-faq-item">
+              <summary className="land-faq-q">
+                {f.q}
+                <ChevronDown size={18} className="land-faq-chev" aria-hidden="true" />
+              </summary>
+              <div className="land-faq-a">{f.a}</div>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <section className="land-band reveal">
         <h2 className="land-band-title">{L('מוכן לסדר את עולם האימון שלך?', 'Ready to organize your coaching world?')}</h2>
         <p className="land-band-sub">{L('הצטרף לקהילת מאמני הכדורסל — בחינם, בעברית, מהמכשיר שכבר בכיס שלך.', 'Join the basketball coaching community — free, and right from the device already in your pocket.')}</p>
@@ -195,15 +285,40 @@ export default function Landing({ onEnter }) {
         </button>
       </section>
 
-      <footer className="land-footer">
-        <span>{L('CourtSide — הפלטפורמה המקצועית למאמני כדורסל בעברית.', 'CourtSide — the professional platform for basketball coaches.')}</span>
-        <span className="land-footer-links muted small">
-          <a href="/privacy.html">{L('מדיניות פרטיות', 'Privacy')}</a>
-          <span aria-hidden="true"> · </span>
-          <a href="/terms.html">{L('תנאי שימוש', 'Terms')}</a>
-          <span aria-hidden="true"> · </span>
-          © {new Date().getFullYear()} {L('כל הזכויות שמורות', 'All rights reserved')}
-        </span>
+      <footer className="land-footer land-footer-rich">
+        <div className="land-footer-grid">
+          <div className="land-footer-brand">
+            <div className="land-brand">
+              <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
+                <circle cx="42" cy="55" r="22" fill="var(--accent)" />
+                <circle cx="42" cy="55" r="9" fill="#fff" />
+                <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--accent)" />
+                <circle cx="78" cy="30" r="6" fill="var(--accent)" />
+              </svg>
+              <span>CourtSide</span>
+            </div>
+            <p className="land-footer-tag">{L('הפלטפורמה המקצועית למאמני כדורסל בעברית — תרגילים, אימונים, טקטיקה וקהילה.', 'The professional platform for basketball coaches — drills, practices, tactics and community.')}</p>
+          </div>
+          <nav className="land-footer-col" aria-label={L('מוצר', 'Product')}>
+            <h3>{L('מוצר', 'Product')}</h3>
+            <a href="#features">{L('הכלים', 'The tools')}</a>
+            <a href="#how">{L('איך זה עובד', 'How it works')}</a>
+            <a href="#faq">{L('שאלות נפוצות', 'FAQ')}</a>
+          </nav>
+          <nav className="land-footer-col" aria-label={L('משפטי', 'Legal')}>
+            <h3>{L('משפטי', 'Legal')}</h3>
+            <a href="/privacy.html">{L('מדיניות פרטיות', 'Privacy Policy')}</a>
+            <a href="/terms.html">{L('תנאי שימוש', 'Terms of Use')}</a>
+          </nav>
+          <nav className="land-footer-col" aria-label={L('הצטרפות', 'Get started')}>
+            <h3>{L('הצטרפות', 'Get started')}</h3>
+            <button type="button" className="land-footer-cta" onClick={onEnter}>{L('הצטרפות חינם', 'Join free')}</button>
+            <a href="#features">{L('סיור בכלים', 'Tour the tools')}</a>
+          </nav>
+        </div>
+        <div className="land-footer-bottom">
+          © {new Date().getFullYear()} CourtSide · {L('כל הזכויות שמורות', 'All rights reserved')}
+        </div>
       </footer>
     </div>
   )

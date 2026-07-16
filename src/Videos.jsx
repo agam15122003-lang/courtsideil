@@ -195,6 +195,11 @@ export default function Videos({ session, profile }) {
           <span className="empty-ic"><PlayCircle size={26} /></span>
           <div className="empty-title">{L('אין סרטונים מתאימים', 'No matching videos')}</div>
           <p className="muted small">{L('הוסף את הסרטון הראשון, או נסה סינון אחר.', 'Add the first video, or try a different filter.')}</p>
+          {!adding && (
+            <button type="button" className="btn-primary empty-cta" onClick={() => setAdding(true)}>
+              <Plus size={18} aria-hidden="true" /> {L('הוסף סרטון', 'Add video')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="video-grid">

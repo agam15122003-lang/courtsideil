@@ -38,7 +38,7 @@ function formatTime(ts) {
 // טאב "הודעות" — מתג בין שיחות פרטיות (1-על-1) לבין צ'אט קבוצתי.
 // props:
 //   session - המשתמש המחובר
-export default function Messages({ session }) {
+export default function Messages({ session, onNavigate }) {
   const myId = session.user.id
   const [mode, setMode] = useState('private') // 'private' | 'community'
   const [messages, setMessages] = useState([])
@@ -190,9 +190,15 @@ export default function Messages({ session }) {
   // ---------- מסך ראשי: מתג + תוכן ----------
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('הודעות', 'Messages')}</div>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('הודעות', 'Messages')}</div>
+          <h2>{L('הודעות ושיחות', 'Messages & chats')}</h2>
+          <p className="page-desc">{L('שיחות אישיות עם מאמנים וצ׳אט קבוצתי פתוח לכל הקהילה.', 'Private conversations with coaches and an open group chat for the whole community.')}</p>
+        </div>
+      </header>
 
-      <div className="tabs" style={{ marginTop: 12 }}>
+      <div className="tabs">
         <button
           className={mode === 'private' ? 'tab active' : 'tab'}
           onClick={() => setMode('private')}

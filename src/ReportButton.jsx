@@ -61,7 +61,7 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
               <textarea className="finder-input" rows={3} value={details} onChange={(e) => setDetails(e.target.value)} placeholder={L('ספר לנו מה קרה...', 'Tell us what happened...')} />
             </label>
             <div className="tm-modal-actions">
-              <button className="btn-primary" onClick={submit} disabled={busy}>{busy ? L('שולח...', 'Sending...') : L('שליחת דיווח', 'Send report')}</button>
+              <button className="btn-primary" onClick={submit} disabled={busy} aria-busy={busy}>{busy && <span className="btn-spinner" aria-hidden="true" />}{busy ? L('שולח...', 'Sending...') : L('שליחת דיווח', 'Send report')}</button>
               <button className="btn-ghost" onClick={() => setOpen(false)}>{L('ביטול', 'Cancel')}</button>
             </div>
           </div>

@@ -54,7 +54,7 @@ const weekLabel = (sun) => { const sat = addDays(sun, 6); return `${sun.getDate(
 const monthLabel = (d) => `${HE_MONTHS[d.getMonth()]} ${d.getFullYear()}`
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 
-export default function Teams({ session, profile }) {
+export default function Teams({ session, profile, onNavigate }) {
   const me = session.user.id
   const teams = profile?.age_groups || []
   const [team, setTeam] = useState(teams[0] || '')
@@ -247,12 +247,21 @@ export default function Teams({ session, profile }) {
   if (teams.length === 0) {
     return (
       <div className="welcome-card">
-        <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-        <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+        <header className="page-header">
+          <div className="page-header-text">
+            <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
+            <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+          </div>
+        </header>
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={26} /></span>
           <div className="empty-title">{L('עדיין לא הגדרת קבוצות', 'No teams yet')}</div>
           <p className="muted small">{L('הוסף קבוצות בפרופיל ("הקבוצות שאני מאמן") כדי לנהל אותן כאן.', 'Add teams in your profile to manage them here.')}</p>
+          {onNavigate && (
+            <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('profile')}>
+              {L('לעריכת הפרופיל', 'Edit profile')}
+            </button>
+          )}
         </div>
       </div>
     )
@@ -263,8 +272,13 @@ export default function Teams({ session, profile }) {
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-      <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
+          <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+          <p className="page-desc">{L('סגל, מטרות, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, goals, games and league table — for every team you coach.')}</p>
+        </div>
+      </header>
 
       <div className="chips" style={{ marginTop: 12 }}>
         {teams.map((tm) => (

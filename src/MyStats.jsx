@@ -59,7 +59,7 @@ export default function MyStats({ session }) {
   return (
     <div className="mystats welcome-card">
       <span className="welcome-badge">{L('הסטטיסטיקות שלי', 'My stats')}</span>
-      <h2 className="section-title">{L('האזור שלי', 'My area')}</h2>
+      <h3 className="section-title">{L('האזור שלי', 'My area')}</h3>
       <p className="muted small">{L('סיכום הפעילות שלך במערכת.', 'A summary of your activity in the app.')}</p>
 
       {error ? (
