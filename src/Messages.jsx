@@ -238,6 +238,11 @@ export default function Messages({ session, onNavigate }) {
                 <p className="muted small">
                   {L('כדי לשלוח הודעה — היכנס לטאב "מאמנים", פתח פרופיל של מאמן ולחץ "שלח הודעה".', 'To send a message — go to the "Coaches" tab, open a coach profile and tap "Send message".')}
                 </p>
+                {onNavigate && (
+                  <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('finder')}>
+                    {L('למציאת מאמנים', 'Find coaches')}
+                  </button>
+                )}
               </div>
             ) : (
               conversations.map((c) => (

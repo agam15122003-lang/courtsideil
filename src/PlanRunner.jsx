@@ -111,7 +111,7 @@ export default function PlanRunner({ items, planName, onExit }) {
           <p>{current.note}</p>
         </div>
       )}
-      {d.description && <p className="drill-desc">{d.description}</p>}
+      {(d.description || current?.description) && <p className="drill-desc">{d.description || current.description}</p>}
 
       <div className="runner-controls">
         <button className="btn-ghost" onClick={prev} disabled={index === 0}>
