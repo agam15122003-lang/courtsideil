@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
-  Briefcase, Phone, CalendarRange, CalendarDays,
+  Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -306,7 +306,10 @@ export default function Teams({ session, profile }) {
                     {p.name}
                     {(p.position || p.injury_note) && (
                       <span className="roster-sub muted small">
-                        {p.position || ''}{p.position && p.injury_note ? ' · ' : ''}{p.injury_note ? `🩹 ${p.injury_note}` : ''}
+                        {p.position || ''}{p.position && p.injury_note ? ' · ' : ''}
+                        {p.injury_note && (
+                          <span className="injury-flag"><Bandage size={12} /> {p.injury_note}</span>
+                        )}
                       </span>
                     )}
                   </span>
@@ -362,7 +365,7 @@ export default function Teams({ session, profile }) {
                 <span className="period-text" dir="ltr">{weekLabel(gWeek)}</span>
                 <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, 7))} aria-label={L('שבוע הבא', 'Next week')}><ChevronLeft size={17} /></button>
               </div>
-              <button className="period-today2" onClick={() => setGWeek(sundayOf(new Date()))}>{L('↻ חזרה לשבוע הנוכחי', '↻ Back to this week')}</button>
+              <button className="period-today2" onClick={() => setGWeek(sundayOf(new Date()))}><RotateCcw size={13} /> {L('חזרה לשבוע הנוכחי', 'Back to this week')}</button>
               <textarea className="finder-input goal-text" rows={6} value={wText} onChange={(e) => setWText(e.target.value)} placeholder={L('מה רוצים להשיג השבוע...', 'What to achieve this week...')} />
               <button className="btn-primary goal-save" onClick={() => saveGoal('week', ymd(gWeek), wText)}><Save size={15} /> {L('שמירת מטרות השבוע', 'Save weekly goals')}</button>
             </div>
@@ -375,7 +378,7 @@ export default function Teams({ session, profile }) {
                 <span className="period-text">{monthLabel(gMonth)}</span>
                 <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, 1))} aria-label={L('חודש הבא', 'Next month')}><ChevronLeft size={17} /></button>
               </div>
-              <button className="period-today2" onClick={() => setGMonth(addMonths(new Date(), 0))}>{L('↻ חזרה לחודש הנוכחי', '↻ Back to this month')}</button>
+              <button className="period-today2" onClick={() => setGMonth(addMonths(new Date(), 0))}><RotateCcw size={13} /> {L('חזרה לחודש הנוכחי', 'Back to this month')}</button>
               <textarea className="finder-input goal-text" rows={6} value={mText} onChange={(e) => setMText(e.target.value)} placeholder={L('מה רוצים להשיג החודש...', 'What to achieve this month...')} />
               <button className="btn-primary goal-save" onClick={() => saveGoal('month', monthKey(gMonth), mText)}><Save size={15} /> {L('שמירת מטרות החודש', 'Save monthly goals')}</button>
             </div>
