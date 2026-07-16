@@ -189,7 +189,7 @@ export default function Dashboard({ session }) {
       <main className="main-content" id="main">
         {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
         <div className="main-inner" key={showForm ? 'profile-form' : view}>
-          {!loading && !showForm && <QuoteStrip />}
+          {!loading && !showForm && view === 'home' && <QuoteStrip />}
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>

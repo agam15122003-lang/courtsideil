@@ -6311,6 +6311,9 @@ body {
 .sidebar {
   background: linear-gradient(180deg, #1B2A4A 0%, #101B33 100%);
   border-inline-end: none;
+  box-shadow: -4px 0 24px rgba(10, 14, 24, 0.14);
+}
+[dir='ltr'] .sidebar {
   box-shadow: 4px 0 24px rgba(10, 14, 24, 0.14);
 }
 .sidebar .sidebar-brand {
@@ -7379,7 +7382,7 @@ a:focus:not(:focus-visible) {
 .vstar-btn { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
 .period-arrow { width: 40px; height: 40px; }
 .ms-tag-x { width: 28px; height: 28px; }
-.ms-tag { padding: 8px 8px 8px 12px; }
+.ms-tag { padding-block: 8px; padding-inline: 12px 8px; }
 .onboard-close { min-width: 40px; min-height: 40px; }
 .topbar-actions { display: flex; align-items: center; gap: 6px; }
 
@@ -7499,7 +7502,7 @@ a:focus:not(:focus-visible) {
   color: var(--orange-300);
 }
 
-// הערה: .stat-card/.stats-grid בשימוש גם ב-Skeleton.jsx — לכן הכל מקושר תחת .mystats (הראפר הקיים ב-MyStats.jsx שורה 60) ולא משפיע על מסכים אחרים. הסלקטור המקונן מנצח את הדריסות בשורות 3357–3374 בקסקדה.
+/* הערה: .stat-card/.stats-grid בשימוש גם ב-Skeleton.jsx — לכן הכל מקושר תחת .mystats (הראפר הקיים ב-MyStats.jsx שורה 60) ולא משפיע על מסכים אחרים. הסלקטור המקונן מנצח את הדריסות בשורות 3357–3374 בקסקדה. */
 
 /* ---- כרטיסי וידאו עשירים: scrim לתמונה, overlay נגינה גלאסי שקופץ לכתום, זום עדין ---- */
 /* ===== MEDIA POLISH — כרטיסי וידאו: thumbnail עם overlay נגינה ומטא ===== */
@@ -7575,7 +7578,7 @@ a:focus:not(:focus-visible) {
   .video-card:hover .video-play { transform: none; }
 }
 
-// הערה: z-index:1 ל-.video-play ול-.video-rank-badge חובה — ה-::after (scrim) נצבע אחרון בעץ ואחרת יכסה אותם.
+/* הערה: z-index:1 ל-.video-play ול-.video-rank-badge חובה — ה-::after (scrim) נצבע אחרון בעץ ואחרת יכסה אותם. */
 
 /* ---- CoachProfile כ"כרטיס שחקן": באנד נייבי ברודקאסט + אריחי-מטא לפרטים ---- */
 /* ===== PROFILE POLISH — פרופיל מאמן כ"כרטיס שחקן" ברודקאסט ===== */
@@ -7634,7 +7637,7 @@ a:focus:not(:focus-visible) {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-// נשען על הסקיל: style/dark — hairline rgba על משטח כהה במקום מסגרות אפורות; ux/contrast — לבן על navy-900 עומד ב-AA.
+/* נשען על הסקיל: style/dark — hairline rgba על משטח כהה במקום מסגרות אפורות; ux/contrast — לבן על navy-900 עומד ב-AA. */
 
 /* ---- פודקאסטים: עטיפת-אלבום עם edge-highlight, פס אקצנט ב-hover, מיקרו-מושן RTL ---- */
 /* ===== MEDIA POLISH — כרטיסי פודקאסט: עטיפת-אלבום + מיקרו-מושן ===== */
@@ -7686,7 +7689,7 @@ a:focus:not(:focus-visible) {
   .podcast-card:hover .podcast-open svg { transform: none; }
 }
 
-// הערה: צבע .podcast-open כבר תוקן ל---accent-strong בשורה 3913 (AA) — לא נוגעים בו. אנימציות 140-220ms בטוקני המוֹשֶׁן של הפרויקט (כלל הסקיל: 150-300ms + reduced-motion).
+/* הערה: צבע .podcast-open כבר תוקן ל---accent-strong בשורה 3913 (AA) — לא נוגעים בו. אנימציות 140-220ms בטוקני המוֹשֶׁן של הפרויקט (כלל הסקיל: 150-300ms + reduced-motion). */
 
 /* ---- Admin: אריחי סקירה ברודקאסט + רשימה נקייה כטבלה עם מפרידי hairline וסטטוס-פילים ---- */
 /* ===== ADMIN POLISH — סקירה ברודקאסט, "טבלה" נקייה, סטטוס-פילים ===== */
@@ -7773,7 +7776,7 @@ a:focus:not(:focus-visible) {
 [data-theme="dark"] .admin-status.st-open { background: rgba(232, 118, 58, 0.14); color: var(--orange-300); }
 [data-theme="dark"] .admin-status.st-resolved { background: rgba(95, 207, 155, 0.14); color: var(--success); }
 
-// risk=medium כי הדריסות מבטלות סגנונות קיימים (מסגרת .admin-coach.banned משורה 6000, opacity משורה 6017) ומחליפות אותם בסימון עקבי חדש — לבדוק ויזואלית את שני הטאבים.
+/* risk=medium כי הדריסות מבטלות סגנונות קיימים (מסגרת .admin-coach.banned משורה 6000, opacity משורה 6017) ומחליפות אותם בסימון עקבי חדש — לבדוק ויזואלית את שני הטאבים. */
 
 /* ---- מאמן השבוע: תיקון AA ל-CTA (2.5:1 → 7.1:1) + חץ חי ב-hover ---- */
 /* ===== COW POLISH — תיקון ניגודיות ל-CTA על הנייבי + חץ חי ===== */
@@ -8387,6 +8390,11 @@ a:focus:not(:focus-visible) {
 .land-quote-author::before {
   content: '— ';
 }
+@keyframes land-marquee-ltr {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+[dir='ltr'] .land-quotes-track { animation-name: land-marquee-ltr; }
 @keyframes land-marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(50%); } /* RTL: הרצועה נעה ימינה; העותק הכפול סוגר לולאה חלקה */
@@ -9029,3 +9037,110 @@ a:focus:not(:focus-visible) {
   gap: 4px;
 }
 .pw-match svg { flex-shrink: 0; }
+
+/* ================================================================ */
+/* ===== COURT EDITION — כיוון אמנותי: קנבס חם, עמודים חשופים ===== */
+/* ================================================================ */
+
+/* ---- 1. הקנבס: מגוון "פרקט" חם — במצב בהיר בלבד! ---- */
+/* html:not([data-theme='dark']) — ספציפיות גבוהה מ-:root אך לא נוגעת במצב כהה */
+:root:where(:not([data-theme='dark'])) {
+  --bg: #F4EFE6;                    /* חול חם — הד לפרקט המגרש */
+  --surface-alt: #ECE5D6;
+  --border: #E2D9C6;
+  --border-hover: #CDBFA4;
+  --paper: var(--bg);
+  --line: var(--border);
+}
+/* קווי-האלפא הנייביים ממשיכים לעבוד יפה כדיו-על-נייר */
+
+/* ---- 2. עמודים חשופים: המסך הוא הקנבס, לא כרטיס-ענק ---- */
+/* הכרטיס-העוטף הופך שקוף; כרטיסי הפריטים שבפנים נושאים את העומק */
+.main-content .welcome-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+/* חריגים שנשארים כרטיס אמיתי: טפסים מלאים ומצבי טעינה/שגיאה קצרים */
+.main-content .welcome-card.profile-form,
+.main-content .welcome-card.runner-live {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-6);
+}
+/* תוכן רחב יותר כשהעמוד חשוף */
+.main-inner { max-width: 1000px; }
+
+/* אלמנטים שהניחו רקע-כרטיס ועכשיו יושבים על הקנבס — מקבלים משטח משלהם */
+.main-content .tabs {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.main-content .finder-input,
+.main-content .filter-bar .finder-input,
+.main-content select.finder-input {
+  background: var(--surface);
+}
+.main-content .empty-state { background: var(--surface); border-style: solid; }
+.main-content .form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), var(--shadow-sm);
+  padding: var(--space-5);
+}
+.main-content .chat { background: var(--surface); }
+.main-content .cal-scroll { background: var(--surface); }
+.main-content .stat-card,
+.main-content .goal-card-v2,
+.main-content .msg-conv,
+.main-content .roster-row { background: var(--surface); }
+
+/* ---- 3. כותרת עמוד אדיטוריאלית — ישר על הקנבס ---- */
+.page-header { margin-bottom: var(--space-6); }
+.page-header h2 { font-size: clamp(30px, 3.6vw, 42px); }
+.page-header::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(-90deg, var(--border-hover), transparent 70%);
+}
+[dir='ltr'] .page-header::after {
+  background: linear-gradient(90deg, var(--border-hover), transparent 70%);
+  margin-top: var(--space-4);
+  flex-basis: 100%;
+}
+
+/* ---- 4. מצב כהה: הקנבס נשאר נייבי — רק הכרטיס הענק נעלם גם שם ---- */
+html[data-theme='dark'] {
+  --paper: var(--bg);
+}
+html[data-theme='dark'] .main-content .welcome-card.profile-form,
+html[data-theme='dark'] .main-content .welcome-card.runner-live {
+  background: var(--surface);
+  border-color: rgba(255,255,255,.09);
+  box-shadow: none;
+}
+html[data-theme='dark'] .main-content .form-section {
+  background: var(--surface);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+html[data-theme='dark'] .main-content .tabs,
+html[data-theme='dark'] .main-content .empty-state,
+html[data-theme='dark'] .main-content .cal-scroll,
+html[data-theme='dark'] .main-content .chat { background: var(--surface); }
+
+/* ---- 5. הטופבר במובייל רוכב על הטוקנים החדשים ---- */
+.mobile-topbar { background: var(--bg); }
+
+/* ---- תיקוני LTR מהביקורת: כיווני hover-nudge ---- */
+@media (hover: hover) {
+  [dir='ltr'] .podcast-card:hover .podcast-open svg { transform: translateX(2px); }
+  [dir='ltr'] .cow-win:hover .cow-cta svg { transform: translateX(3px); }
+}
