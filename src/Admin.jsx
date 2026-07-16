@@ -114,7 +114,9 @@ export default function Admin({ session, profile }) {
                     <div className="admin-dup-coaches">
                       {arr.map((c) => (
                         <span key={c.id} className={c.verified ? 'chip selected static' : 'chip static'}>
-                          {c.first_name} {c.last_name}{c.verified ? ' ✓' : ''}{c.banned ? ' ⛔' : ''}
+                          {c.first_name} {c.last_name}
+                          {c.verified && <ShieldCheck size={12} />}
+                          {c.banned && <Ban size={12} />}
                         </span>
                       ))}
                     </div>
@@ -170,7 +172,12 @@ export default function Admin({ session, profile }) {
                       <span className={`report-reason reason-${r.reason}`}>{REASON_HE[r.reason] ? L(REASON_HE[r.reason], r.reason) : r.reason}</span>
                       <strong>{r.target_label || (tgt ? `${tgt.first_name} ${tgt.last_name}` : r.target_type)}</strong>
                       {r.details && <span className="muted small">{r.details}</span>}
-                      <span className="muted small" dir="ltr">{(r.created_at || '').split('T')[0]} · {L('סטטוס', 'status')}: {r.status}</span>
+                      <span className="admin-report-meta">
+                        <span className={`status-pill admin-status st-${r.status}`}>
+                          {r.status === 'open' ? L('פתוח', 'Open') : r.status === 'resolved' ? L('טופל', 'Resolved') : L('נדחה', 'Dismissed')}
+                        </span>
+                        <span className="muted small" dir="ltr">{(r.created_at || '').split('T')[0]}</span>
+                      </span>
                     </div>
                     <div className="admin-report-actions">
                       {tgt && !tgt.banned && (

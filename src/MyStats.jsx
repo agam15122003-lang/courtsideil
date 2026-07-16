@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Star } from 'lucide-react'
+import { Star, Dumbbell, Bookmark, ClipboardList } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonStats } from './Skeleton'
 import { L } from './i18n'
@@ -71,27 +71,22 @@ export default function MyStats({ session }) {
       ) : (
         <div className="stats-grid">
           <div className="stat-card">
+            <span className="stat-ic"><Dumbbell size={17} /></span>
             <div className="stat-num">{stats.drillCount}</div>
             <div className="stat-label">{L('תרגילים שהוספתי', 'Drills I added')}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-num">
-              {stats.ratingN ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Star size={20} className="stat-star" strokeWidth={0} />
-                  {stats.avgRating.toFixed(1)}
-                </span>
-              ) : (
-                '—'
-              )}
-            </div>
+            <span className="stat-ic"><Star size={17} /></span>
+            <div className="stat-num">{stats.ratingN ? stats.avgRating.toFixed(1) : '—'}</div>
             <div className="stat-label">{L('דירוג ממוצע שלי', 'My average rating')}</div>
           </div>
           <div className="stat-card">
+            <span className="stat-ic"><Bookmark size={17} /></span>
             <div className="stat-num">{stats.favCount}</div>
             <div className="stat-label">{L('מועדפים', 'Favorites')}</div>
           </div>
           <div className="stat-card">
+            <span className="stat-ic"><ClipboardList size={17} /></span>
             <div className="stat-num">{stats.planCount}</div>
             <div className="stat-label">{L('תוכניות אימון', 'Training plans')}</div>
           </div>

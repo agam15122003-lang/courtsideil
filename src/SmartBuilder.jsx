@@ -161,6 +161,19 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
             onChange={(e) => setTargetMinutes(e.target.value)}
           />
         </label>
+        {/* בחירה מהירה של משך אימון נפוץ — הקשה אחת במקום הקלדה */}
+        <div className="chips duration-quick">
+          {[45, 60, 75, 90].map((m) => (
+            <button
+              type="button"
+              key={m}
+              className={Number(targetMinutes) === m ? 'chip selected' : 'chip'}
+              onClick={() => setTargetMinutes(String(m))}
+            >
+              <bdi>{m}</bdi> {L('דק׳', 'min')}
+            </button>
+          ))}
+        </div>
 
         <div className="field-group">
           <span className="field-label">{L('שכבת גיל (לא חובה)', 'Age group (optional)')}</span>

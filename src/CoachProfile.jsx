@@ -151,7 +151,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
   const fullName = `${coach.first_name || ''} ${coach.last_name || ''}`.trim()
 
   return (
-    <div className="welcome-card">
+    <div className="welcome-card coach-profile">
       <button className="link-button" onClick={onBack}>
         <ArrowRight size={15} className="back-ic" /> {L('חזרה למאתר המאמנים', 'Back to Coach Finder')}
       </button>

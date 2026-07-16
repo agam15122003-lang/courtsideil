@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil } from 'lucide-react'
+import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
@@ -266,12 +266,26 @@ export default function TrainingPlans({ session }) {
             const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
             return (
               <div key={p.id} className="coach-card">
-                <h3 className="coach-name">{p.name}</h3>
-                <p className="coach-club">
-                  {items.length} {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
-                  {total > 0 ? L(` · ${total} דקות`, ` · ${total} min`) : ''}
-                  {p.is_public ? L(' · משותף', ' · shared') : ''}
-                </p>
+                <div className="drill-card-top">
+                  <h3 className="coach-name">{p.name}</h3>
+                  {p.is_public && (
+                    <span className="plan-shared-badge">
+                      <Globe2 size={12} /> {L('משותף', 'Shared')}
+                    </span>
+                  )}
+                </div>
+                <div className="plan-meta">
+                  <span className="meta-item">
+                    <ListChecks size={14} />
+                    <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+                  </span>
+                  {total > 0 && (
+                    <span className="meta-item">
+                      <Clock size={14} />
+                      <bdi>{total}</bdi> {L('דקות', 'min')}
+                    </span>
+                  )}
+                </div>
                 <div className="coach-card-actions">
                   <button
                     className="btn-primary"
@@ -313,10 +327,18 @@ export default function TrainingPlans({ session }) {
                     <h3 className="coach-name">{p.name}</h3>
                     {mine && <span className="cat-badge">{L('שלך', 'Yours')}</span>}
                   </div>
-                  <p className="coach-club">
-                    {items.length} {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
-                    {total > 0 ? L(` · ${total} דקות`, ` · ${total} min`) : ''}
-                  </p>
+                  <div className="plan-meta">
+                    <span className="meta-item">
+                      <ListChecks size={14} />
+                      <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+                    </span>
+                    {total > 0 && (
+                      <span className="meta-item">
+                        <Clock size={14} />
+                        <bdi>{total}</bdi> {L('דקות', 'min')}
+                      </span>
+                    )}
+                  </div>
                   <div className="coach-card-actions">
                     <button
                       className="btn-primary"
@@ -579,10 +601,18 @@ function PlanBuilder({ planId, plan, onBack }) {
         {L('תוכנית אימון', 'Training Plan')}
       </div>
       <h2>{plan?.name || L('תוכנית', 'Plan')}</h2>
-      <p className="muted small">
-        {items.length} {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
-        {total > 0 ? L(` · סה"כ ${total} דקות`, ` · ${total} min total`) : ''}
-      </p>
+      <div className="builder-stats">
+        <span className="builder-stat">
+          <ListChecks size={15} />
+          <strong><bdi>{items.length}</bdi></strong> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+        </span>
+        {total > 0 && (
+          <span className="builder-stat">
+            <Clock size={15} />
+            <strong><bdi>{total}</bdi></strong> {L('דקות סה"כ', 'min total')}
+          </span>
+        )}
+      </div>
 
       {/* גרסה להדפסה / שמירה כ-PDF (מוסתרת על המסך, מופיעה רק בהדפסה) */}
       <div className="print-area" dir="rtl">
