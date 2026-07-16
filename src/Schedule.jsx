@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
 import NotebookPage from './NotebookPage'
@@ -284,8 +284,13 @@ export default function Schedule({ session }) {
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('לו"ז', 'Schedule')}</div>
-      <h2>{L('הלו"ז השבועי', 'Weekly schedule')}</h2>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('לו"ז', 'Schedule')}</div>
+          <h2>{L('הלו"ז השבועי', 'Weekly schedule')}</h2>
+          <p className="page-desc">{L('כל האימונים והפגישות שלך בתצוגה שבועית אחת.', 'All your practices and meetings in one weekly view.')}</p>
+        </div>
+      </header>
 
       <div className="cal-toolbar">
         <div className="cal-nav">
@@ -455,7 +460,7 @@ export default function Schedule({ session }) {
             {selected.status === 'pending'
               ? L('ממתין לאישור', 'Pending')
               : selected.status === 'accepted'
-                ? L('אושר ✓', 'Accepted ✓')
+                ? <><Check size={14} aria-hidden="true" /> {L('אושר', 'Accepted')}</>
                 : L('נדחה', 'Declined')}
           </div>
           {selected.note && <p className="muted small" style={{ marginTop: 8 }}>{selected.note}</p>}

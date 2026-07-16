@@ -77,9 +77,13 @@ export default function Admin({ session, profile }) {
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('ניהול מערכת', 'Administration')}</div>
-      <h2><ShieldCheck size={20} style={{ verticalAlign: '-3px' }} /> {L('לוח ניהול', 'Admin panel')}</h2>
-      <p className="muted small">{L('מאמנים, אימות (אנטי-התחזות) ודיווחים.', 'Coaches, verification (anti-impersonation), and reports.')}</p>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('ניהול מערכת', 'Administration')}</div>
+          <h2 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h2>
+          <p className="page-desc">{L('מאמנים, אימות (אנטי-התחזות) ודיווחים.', 'Coaches, verification (anti-impersonation), and reports.')}</p>
+        </div>
+      </header>
 
       <div className="tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'overview' ? 'tab active' : 'tab'} onClick={() => setTab('overview')}><BarChart3 size={15} /> {L('סקירה', 'Overview')}</button>

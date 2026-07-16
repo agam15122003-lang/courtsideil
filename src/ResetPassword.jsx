@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Check, Eye, EyeOff } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 
@@ -110,7 +110,11 @@ export default function ResetPassword() {
             />
             {matchState && (
               <span className={`pw-match ${matchState}`}>
-                {matchState === 'ok' ? L('הסיסמאות תואמות ✓', 'Passwords match ✓') : L('הסיסמאות אינן תואמות', "Passwords don't match")}
+                {matchState === 'ok' ? (
+                  <><Check size={13} aria-hidden="true" /> {L('הסיסמאות תואמות', 'Passwords match')}</>
+                ) : (
+                  L('הסיסמאות אינן תואמות', "Passwords don't match")
+                )}
               </span>
             )}
           </label>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Camera, X, BookOpen, Printer, Pencil, Check } from 'lucide-react'
+import { Camera, X, BookOpen, Printer, Pencil, Check, ClipboardList, SlidersHorizontal, Globe2 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
@@ -169,8 +169,9 @@ export default function DrillForm({ onSaved, onCancel }) {
           <button type="button" className="btn-ghost" onClick={() => setPreview(false)}>
             <Pencil size={16} /> {L('חזרה לעריכה', 'Back to editing')}
           </button>
-          <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={handleSubmit} disabled={saving}>
-            <Check size={16} /> {saving ? L('שומר...', 'Saving...') : L('שמירת התרגיל', 'Save drill')}
+          <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={handleSubmit} disabled={saving} aria-busy={saving}>
+            {saving ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={16} />}
+            {saving ? L('שומר...', 'Saving...') : L('שמירת התרגיל', 'Save drill')}
           </button>
           <button type="button" className="btn-soft" onClick={() => window.print()}>
             <Printer size={16} /> {L('הדפסה', 'Print')}
@@ -198,9 +199,13 @@ export default function DrillForm({ onSaved, onCancel }) {
       </p>
 
       <form onSubmit={handleSubmit} className="auth-form" style={{ marginTop: 24 }}>
-        {/* ===== בסיס ===== */}
+        {/* ===== בסיס — כרטיס סקשן (אותה שפה כמו ProfileForm) ===== */}
+        <section className="form-section">
+        <h3 className="form-section-title">
+          <ClipboardList size={16} /> {L('פרטי בסיס', 'Basics')}
+        </h3>
         <label>
-          {L('שם התרגיל *', 'Drill name *')}
+          {L('שם התרגיל', 'Drill name')} <span className="req-star" aria-hidden="true">*</span>
           <input
             type="text"
             value={title}
@@ -221,8 +226,8 @@ export default function DrillForm({ onSaved, onCancel }) {
         </label>
 
         <div className="field-group">
-          <span className="field-label">{L('קטגוריה *', 'Category *')}</span>
-          <select className="finder-input" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <span className="field-label">{L('קטגוריה', 'Category')} <span className="req-star" aria-hidden="true">*</span></span>
+          <select className="finder-input" value={category} onChange={(e) => setCategory(e.target.value)} required>
             <option value="">{L('— בחר קטגוריה —', '— Choose a category —')}</option>
             {DRILL_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>{tr(cat)}</option>
@@ -279,8 +284,14 @@ export default function DrillForm({ onSaved, onCancel }) {
           </div>
         </div>
 
-        {/* ===== פרטים נוספים ===== */}
-        <div className="form-divider">{L('פרטים נוספים (לא חובה)', 'Additional details (optional)')}</div>
+        </section>
+
+        {/* ===== פרטים נוספים — כרטיס סקשן ===== */}
+        <section className="form-section">
+        <h3 className="form-section-title">
+          <SlidersHorizontal size={16} /> {L('פרטים נוספים', 'Additional details')}
+          <span className="form-section-hint">{L('לא חובה', 'optional')}</span>
+        </h3>
 
         <div className="field-group">
           <span className="field-label">{L('רמת קושי', 'Difficulty')}</span>
@@ -397,10 +408,19 @@ export default function DrillForm({ onSaved, onCancel }) {
           )}
         </div>
 
-        <TacticsBoard value={board} onChange={setBoard} />
+        </section>
 
+        {/* ===== לוח טקטיקה — כרטיס סקשן ===== */}
+        <section className="form-section">
+          <TacticsBoard value={board} onChange={setBoard} />
+        </section>
+
+        {/* ===== נראות — כרטיס סקשן ===== */}
+        <section className="form-section">
+        <h3 className="form-section-title">
+          <Globe2 size={16} /> {L('נראות', 'Visibility')}
+        </h3>
         <div className="field-group">
-          <span className="field-label">{L('נראות', 'Visibility')}</span>
           <div className="chips">
             <button
               type="button"
@@ -418,9 +438,11 @@ export default function DrillForm({ onSaved, onCancel }) {
             </button>
           </div>
         </div>
+        </section>
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary" disabled={saving}>
+          <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
+            {saving && <span className="btn-spinner" aria-hidden="true" />}
             {saving ? L('שומר...', 'Saving...') : L('הוספת התרגיל', 'Add drill')}
           </button>
           <button

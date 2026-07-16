@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play } from 'lucide-react'
 import { L } from './i18n'
 
 const HALF = { w: 500, h: 470 }
@@ -533,84 +534,57 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
     <div className="field-group">
       {!readOnly && <span className="field-label">{L('לוח טקטיקה (לא חובה)', 'Tactics board (optional)')}</span>}
 
-      <div className="chips" style={{ marginBottom: 8 }}>
+      {/* סרגל כלים צף — קבוצות: מגרש | תצוגה | כלי ציור */}
+      <div className="tb-toolbar" role="toolbar" aria-label={L('כלי לוח הטקטיקה', 'Tactics board tools')}>
         {!readOnly && (
-          <>
-            <button
-              type="button"
-              className={!fullCourt ? 'chip selected' : 'chip'}
-              onClick={() => setCourt(false)}
-            >
+          <div className="tb-group" role="group" aria-label={L('סוג מגרש', 'Court type')}>
+            <button type="button" className={!fullCourt ? 'tb-btn on' : 'tb-btn'} aria-pressed={!fullCourt} onClick={() => setCourt(false)}>
               {L('חצי מגרש', 'Half court')}
             </button>
-            <button
-              type="button"
-              className={fullCourt ? 'chip selected' : 'chip'}
-              onClick={() => setCourt(true)}
-            >
+            <button type="button" className={fullCourt ? 'tb-btn on' : 'tb-btn'} aria-pressed={fullCourt} onClick={() => setCourt(true)}>
               {L('מגרש שלם', 'Full court')}
             </button>
-          </>
+          </div>
         )}
-        <button
-          type="button"
-          className={layout === 'single' ? 'chip selected' : 'chip'}
-          onClick={() => setLayout('single')}
-        >
-          {L('שלב בודד', 'Single step')}
-        </button>
-        <button
-          type="button"
-          className={layout === 'all' ? 'chip selected' : 'chip'}
-          onClick={() => setLayout('all')}
-        >
-          {L('כל השלבים', 'All steps')}
-        </button>
-        <button
-          type="button"
-          className={layout === 'play' ? 'chip selected' : 'chip'}
-          onClick={() => {
-            setFrame({ idx: 0, p: 0 })
-            setPaused(false)
-            setLayout('play')
-          }}
-        >
-          {L('נגן אנימציה', 'Play animation')}
-        </button>
-      </div>
 
-      {!readOnly && (
-        <div className="chips" style={{ marginBottom: 8 }}>
-          <button
-            type="button"
-            className={tool === 'select' ? 'chip selected' : 'chip'}
-            onClick={() => setTool('select')}
-          >
-            {L('גרירה', 'Drag')}
+        <div className="tb-group" role="group" aria-label={L('תצוגה', 'View')}>
+          <button type="button" className={layout === 'single' ? 'tb-btn on' : 'tb-btn'} aria-pressed={layout === 'single'} onClick={() => setLayout('single')}>
+            <Square size={15} /> {L('שלב בודד', 'Single step')}
+          </button>
+          <button type="button" className={layout === 'all' ? 'tb-btn on' : 'tb-btn'} aria-pressed={layout === 'all'} onClick={() => setLayout('all')}>
+            <LayoutGrid size={15} /> {L('כל השלבים', 'All steps')}
           </button>
           <button
             type="button"
-            className={tool === 'arrow-move' ? 'chip selected' : 'chip'}
-            onClick={() => setTool('arrow-move')}
+            className={layout === 'play' ? 'tb-btn on' : 'tb-btn'}
+            aria-pressed={layout === 'play'}
+            onClick={() => {
+              setFrame({ idx: 0, p: 0 })
+              setPaused(false)
+              setLayout('play')
+            }}
           >
-            {L('חץ תנועה', 'Movement arrow')}
-          </button>
-          <button
-            type="button"
-            className={tool === 'arrow-pass' ? 'chip selected' : 'chip'}
-            onClick={() => setTool('arrow-pass')}
-          >
-            {L('חץ מסירה', 'Pass arrow')}
-          </button>
-          <button
-            type="button"
-            className={tool === 'arrow-shot' ? 'chip selected' : 'chip'}
-            onClick={() => setTool('arrow-shot')}
-          >
-            {L('זריקה לסל', 'Shot')}
+            <Play size={15} /> {L('נגן אנימציה', 'Play animation')}
           </button>
         </div>
-      )}
+
+        {!readOnly && (
+          <div className="tb-group" role="group" aria-label={L('כלי ציור', 'Drawing tools')}>
+            <button type="button" className={tool === 'select' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'select'} onClick={() => setTool('select')}>
+              <MousePointer2 size={15} /> {L('גרירה', 'Drag')}
+            </button>
+            <button type="button" className={tool === 'arrow-move' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'arrow-move'} onClick={() => setTool('arrow-move')}>
+              <ArrowUpRight size={15} /> {L('חץ תנועה', 'Movement arrow')}
+            </button>
+            <button type="button" className={tool === 'arrow-pass' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'arrow-pass'} onClick={() => setTool('arrow-pass')}>
+              <Send size={15} /> {L('חץ מסירה', 'Pass arrow')}
+            </button>
+            <button type="button" className={tool === 'arrow-shot' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'arrow-shot'} onClick={() => setTool('arrow-shot')}>
+              <Target size={15} /> {L('זריקה לסל', 'Shot')}
+            </button>
+          </div>
+        )}
+      </div>
 
       {layout !== 'play' &&
         shown.map(([s, i]) => (
@@ -644,7 +618,7 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
               readOnly
               tool="select"
               headerLabel={L(
-                `מנגן · שלב ${frame.idx + 1} → ${frame.idx + 2}`,
+                `מנגן · מעבר משלב ${frame.idx + 1} לשלב ${frame.idx + 2}`,
                 `Playing · step ${frame.idx + 1} → ${frame.idx + 2}`
               )}
               onAdd={() => {}}

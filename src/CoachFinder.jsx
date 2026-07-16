@@ -97,9 +97,15 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
+          <h2>{L('קהילת המאמנים', 'Coaches community')}</h2>
+          <p className="page-desc">{L('חפשו מאמנים לפי מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by club or age group, view their drills, and get in touch.')}</p>
+        </div>
+      </header>
 
-      <div className="tabs" style={{ marginTop: 12 }}>
+      <div className="tabs">
         <button
           className={mode === 'coaches' ? 'tab active' : 'tab'}
           onClick={() => setMode('coaches')}
@@ -118,10 +124,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
         <GamesBoard session={session} />
       ) : (
         <>
-          <h2>{L('מצא מאמנים לתיאום', 'Find coaches to connect with')}</h2>
-          <p className="muted small">
-            {L('חפשו מאמנים לפי מועדון או שכבת גיל, צפו בתרגילים שלהם, וצרו קשר.', 'Search coaches by club or age group, view their drills, and get in touch.')}
-          </p>
+          <h3 className="section-title" style={{ marginTop: 4 }}>{L('מצא מאמנים לתיאום', 'Find coaches to connect with')}</h3>
 
           {/* סינון לפי מועדון */}
           <div className="field-group" style={{ marginTop: 20 }}>

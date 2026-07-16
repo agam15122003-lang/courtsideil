@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { Dumbbell, X } from 'lucide-react'
+import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
@@ -169,15 +169,18 @@ export default function DrillLibrary({ session }) {
 
   return (
     <div className="welcome-card">
-      <div className="library-header">
-        <div>
+      <header className="page-header">
+        <div className="page-header-text">
           <div className="welcome-badge">{L('ספריית תרגילים', 'Drill library')}</div>
           <h2>{L('מאגר התרגילים', 'Drill collection')}</h2>
+          <p className="page-desc">{L('חיפוש, דירוג ושמירת תרגילים מכל קהילת המאמנים.', 'Search, rate and save drills from the whole coaching community.')}</p>
         </div>
-        <button className="btn-primary library-add" onClick={() => setAdding(true)}>
-          {L('הוספת תרגיל', 'Add drill')}
-        </button>
-      </div>
+        <div className="page-header-actions">
+          <button className="btn-primary" onClick={() => setAdding(true)}>
+            <Plus size={18} aria-hidden="true" /> {L('הוספת תרגיל', 'Add drill')}
+          </button>
+        </div>
+      </header>
 
       {/* סרגל סינון אופקי — חיפוש, קטגוריה וגיל בשורה אחת */}
       <div className="filter-bar">
@@ -279,6 +282,15 @@ export default function DrillLibrary({ session }) {
                 ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
                 : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}
             </p>
+            {drills.length === 0 ? (
+              <button type="button" className="btn-primary empty-cta" onClick={() => setAdding(true)}>
+                <Plus size={18} aria-hidden="true" /> {L('הוספת תרגיל', 'Add drill')}
+              </button>
+            ) : (
+              <button type="button" className="btn-soft empty-cta" onClick={clearFilters}>
+                {L('נקה סינון', 'Clear filters')}
+              </button>
+            )}
           </div>
         ) : (
           <>

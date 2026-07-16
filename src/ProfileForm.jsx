@@ -143,7 +143,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
           <div className="form-grid-2">
             <label className="pf-label">
-              {L('שם פרטי', 'First name')}
+              {L('שם פרטי', 'First name')} <span className="req-star" aria-hidden="true">*</span>
               <input
                 type="text"
                 value={firstName}
@@ -153,7 +153,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               />
             </label>
             <label className="pf-label">
-              {L('שם משפחה', 'Last name')}
+              {L('שם משפחה', 'Last name')} <span className="req-star" aria-hidden="true">*</span>
               <input
                 type="text"
                 value={lastName}
@@ -171,7 +171,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             <Building2 size={16} /> {L('המועדון שלי', 'My club')}
           </h3>
           <label className="pf-label">
-            {L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')}
+            {L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')} <span className="req-star" aria-hidden="true">*</span>
             <input
               type="text"
               list="clubs-list"
@@ -241,7 +241,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
         </section>
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary" disabled={saving}>
+          <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
+            {saving && <span className="btn-spinner" aria-hidden="true" />}
             {saving ? L('שומר...', 'Saving...') : L('שמירת הפרופיל', 'Save profile')}
           </button>
           {onCancel && (

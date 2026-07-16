@@ -212,8 +212,13 @@ export default function TrainingPlans({ session }) {
 
   return (
     <div className="welcome-card">
-      <div className="welcome-badge">{L('תוכניות אימון', 'Training Plans')}</div>
-      <h2>{L('התוכניות שלי', 'My Plans')}</h2>
+      <header className="page-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('תוכניות אימון', 'Training Plans')}</div>
+          <h2>{L('התוכניות שלי', 'My Plans')}</h2>
+          <p className="page-desc">{L('בנו תוכניות אימון מהתרגילים בספרייה, שתפו עם הקהילה וצרפו ללו"ז.', 'Build practice plans from library drills, share with the community and attach to your schedule.')}</p>
+        </div>
+      </header>
 
       {/* יצירת תוכנית חדשה */}
       <div className="field-group" style={{ marginTop: 18 }}>
