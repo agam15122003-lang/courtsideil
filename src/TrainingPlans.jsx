@@ -566,6 +566,20 @@ function PlanBuilder({ planId, plan, onBack }) {
 
   const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
 
+  // פירוק זמן לפי קטגוריית התרגיל (למסך הסיכום, בסגנון מסך היעד)
+  const catTotals = {}
+  for (const it of items) {
+    const cat = it.drill?.category || it.category
+    if (!cat) continue
+    catTotals[cat] = (catTotals[cat] || 0) + (it.duration_minutes || 0)
+  }
+  const CAT_COLORS = ['#E8763A', '#4663A0', '#1D7A4C', '#A97B12', '#8E5BB5']
+  const breakdown = Object.entries(catTotals)
+    .filter(([, m]) => m > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, min], i) => ({ cat, min, color: CAT_COLORS[i % CAT_COLORS.length] }))
+  const breakdownMax = breakdown.reduce((m, b) => Math.max(m, b.min), 0)
+
   // מצב הרצת אימון — מסך טיימר נפרד
   if (running) {
     return (
@@ -606,16 +620,32 @@ function PlanBuilder({ planId, plan, onBack }) {
         {L('תוכנית אימון', 'Training Plan')}
       </div>
       <h2>{plan?.name || L('תוכנית', 'Plan')}</h2>
-      <div className="builder-stats">
-        <span className="builder-stat">
-          <ListChecks size={15} />
-          <strong><bdi>{items.length}</bdi></strong> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
-        </span>
-        {total > 0 && (
-          <span className="builder-stat">
-            <Clock size={15} />
-            <strong><bdi>{total}</bdi></strong> {L('דקות סה"כ', 'min total')}
+      <div className="pb-summary">
+        <div className="pb-summary-head">
+          <span className="pb-summary-label"><Clock size={14} /> {L('סה"כ זמן אימון', 'Total practice time')}</span>
+          <span className="pb-summary-num">
+            <bdi>{total}</bdi> <span className="pb-summary-unit">{L('דק׳', 'min')}</span>
           </span>
+        </div>
+        <div className="pb-summary-meta">
+          <span className="builder-stat">
+            <ListChecks size={14} />
+            <strong><bdi>{items.length}</bdi></strong> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+          </span>
+        </div>
+        {breakdown.length > 0 && (
+          <ul className="pb-breakdown">
+            {breakdown.map((b) => (
+              <li key={b.cat} className="pb-breakdown-row">
+                <span className="pb-dot" style={{ background: b.color }} aria-hidden="true" />
+                <span className="pb-breakdown-cat">{tr(b.cat)}</span>
+                <span className="pb-breakdown-track" aria-hidden="true">
+                  <span style={{ width: `${breakdownMax ? Math.round((b.min / breakdownMax) * 100) : 0}%`, background: b.color }} />
+                </span>
+                <span className="pb-breakdown-min" dir="ltr"><bdi>{b.min}</bdi> {L('דק׳', 'min')}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
