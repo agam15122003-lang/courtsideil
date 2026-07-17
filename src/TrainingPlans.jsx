@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap } from 'lucide-react'
+import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap, PlayCircle, Save, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
@@ -656,10 +656,25 @@ function PlanBuilder({ planId, plan, onBack }) {
         <ArrowRight size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
 
-      <div className="welcome-badge" style={{ marginTop: 14 }}>
-        {L('תוכנית אימון', 'Training Plan')}
-      </div>
-      <h2>{plan?.name || L('תוכנית', 'Plan')}</h2>
+      <header className="pb-header">
+        <div className="page-header-text">
+          <div className="welcome-badge">{L('בונה האימונים · טיוטה נשמרת אוטומטית', 'Practice builder · draft saved automatically')}</div>
+          <h2>{plan?.name || L('תוכנית', 'Plan')}</h2>
+        </div>
+        <div className="pb-header-actions">
+          {items.length > 0 && (
+            <button className="btn-primary pb-run" onClick={() => setRunning(true)}>
+              <PlayCircle size={17} /> {L('הרץ אימון', 'Run practice')}
+            </button>
+          )}
+          <button className="btn-soft" onClick={() => toast.success(L('התוכנית נשמרת אוטומטית ✓', 'The plan is saved automatically ✓'))}>
+            <Save size={16} /> {L('שמור', 'Save')}
+          </button>
+        </div>
+      </header>
+
+      <div className="pb-layout">
+      <aside className="pb-aside">
       <div className="pb-summary">
         <div className="pb-summary-head">
           <span className="pb-summary-label"><Clock size={14} /> {L('סה"כ זמן אימון', 'Total practice time')}</span>
@@ -705,6 +720,20 @@ function PlanBuilder({ planId, plan, onBack }) {
         </div>
       )}
 
+      {items.length > 0 && (
+        <div className="pb-aside-actions">
+          <button className="btn-soft" onClick={() => setNotebookView(true)}>
+            <BookOpen size={16} /> {L('תצוגה כמערך', 'Practice sheet')}
+          </button>
+          <button className="btn-soft" onClick={printPlan}>
+            <Printer size={16} /> {L('ייצוא PDF', 'Export PDF')}
+          </button>
+        </div>
+      )}
+      </aside>
+
+      <div className="pb-main">
+
       {/* גרסה להדפסה / שמירה כ-PDF (מוסתרת על המסך, מופיעה רק בהדפסה) */}
       <div className="print-area" dir="rtl">
         <h1>{plan?.name || L('תוכנית אימון', 'Training Plan')}</h1>
@@ -726,40 +755,6 @@ function PlanBuilder({ planId, plan, onBack }) {
             )
           })}
         </ol>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-        <button className="btn-primary" style={{ marginTop: 0 }} onClick={openPicker}>
-          {L('הוספת תרגיל מהספרייה', 'Add drill from library')}
-        </button>
-        <button
-          className="btn-ghost"
-          onClick={() => setCreatingDrill(true)}
-        >
-          {L('תרגיל חדש', 'New drill')}
-        </button>
-        {items.length > 0 && (
-          <button
-            className="btn-soft"
-            onClick={() => setNotebookView(true)}
-          >
-            <BookOpen size={16} /> {L('תצוגה כמערך אימון', 'View as practice sheet')}
-          </button>
-        )}
-        {items.length > 0 && (
-          <button
-            className="btn-primary"
-            style={{ marginTop: 0 }}
-            onClick={() => setRunning(true)}
-          >
-            {L('הרצת אימון', 'Run practice')}
-          </button>
-        )}
-        {items.length > 0 && (
-          <button className="btn-ghost" onClick={printPlan}>
-            {L('הדפסה / PDF', 'Print / PDF')}
-          </button>
-        )}
       </div>
 
       {/* יצירת תרגיל חדש בתוך האימון */}
@@ -994,6 +989,18 @@ function PlanBuilder({ planId, plan, onBack }) {
             )
           })
         )}
+        {!loading && !error && (
+          <div className="pb-add-row">
+            <button className="pb-add-dashed" onClick={openPicker}>
+              <Plus size={17} /> {L('הוסף תרגיל מהספרייה', 'Add drill from library')}
+            </button>
+            <button className="btn-ghost" onClick={() => setCreatingDrill(true)}>
+              {L('תרגיל חדש', 'New drill')}
+            </button>
+          </div>
+        )}
+      </div>
+      </div>
       </div>
     </div>
   )

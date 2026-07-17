@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronRight, MessageSquare } from 'lucide-react'
+import { ChevronRight, MessageSquare, Search } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import CommunityChat from './CommunityChat'
 import ChatWindow from './ChatWindow'
@@ -47,6 +47,7 @@ export default function Messages({ session, onNavigate }) {
   const [error, setError] = useState(null)
   const [activeCoachId, setActiveCoachId] = useState(null)
   const [sending, setSending] = useState(false)
+  const [convSearch, setConvSearch] = useState('')
 
   async function loadMessages() {
     setLoading(true)
@@ -73,7 +74,7 @@ export default function Messages({ session, onNavigate }) {
     if (otherIds.length > 0) {
       const { data: profs } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, club')
         .in('id', otherIds)
       const map = {}
       for (const p of profs || []) map[p.id] = p
@@ -182,14 +183,34 @@ export default function Messages({ session, onNavigate }) {
                   <ChevronRight size={20} />
                 </button>
                 <Avatar name={nameOf(activeCoachId)} size={38} />
-                <h2 className="chat-title">{nameOf(activeCoachId)}</h2>
+                <span className="chat-header-text">
+                  <h2 className="chat-title">{nameOf(activeCoachId)}</h2>
+                  <span className="chat-status">
+                    <span className="chat-status-dot" aria-hidden="true" />
+                    {L('מאמן', 'Coach')}
+                    {profilesById[activeCoachId]?.club ? `, ${profilesById[activeCoachId].club}` : ''}
+                  </span>
+                </span>
               </>
             }
           />
         </div>
         {/* רשימת השיחות — מוצגת לצד הצ'אט במסך רחב, נסתרת במובייל */}
         <aside className="msg-split-list">
-          {conversations.map((c) => (
+          <div className="msg-search-wrap">
+            <Search size={16} aria-hidden="true" />
+            <input
+              className="finder-input msg-search"
+              type="search"
+              value={convSearch}
+              onChange={(e) => setConvSearch(e.target.value)}
+              placeholder={L('חיפוש מאמן...', 'Search coach...')}
+              aria-label={L('חיפוש שיחה', 'Search conversation')}
+            />
+          </div>
+          {conversations
+            .filter((c) => !convSearch.trim() || nameOf(c.coachId).toLowerCase().includes(convSearch.trim().toLowerCase()))
+            .map((c) => (
             <button
               key={c.coachId}
               className={c.coachId === activeCoachId ? 'msg-conv active' : 'msg-conv'}
