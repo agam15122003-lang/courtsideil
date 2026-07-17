@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './supabaseClient'
+import { supabase, supabaseConfigured } from './supabaseClient'
 import Auth from './Auth'
 import Dashboard from './Dashboard'
 import ResetPassword from './ResetPassword'
@@ -17,6 +17,12 @@ export default function App() {
     // החלת מצב תצוגה שמור (כהה/בהיר) — גם לפני התחברות
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark')
+    }
+
+    // ללא הגדרות Supabase אין טעם לנסות להתחבר — מפסיקים את הטעינה ומציגים הודעה
+    if (!supabaseConfigured) {
+      setLoading(false)
+      return
     }
 
     // בודק אם הגענו מקישור איפוס סיסמה (יש "?reset=true" בכתובת)
@@ -44,6 +50,27 @@ export default function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // חסרים פרטי חיבור ל-Supabase — מסך הסבר במקום מסך ריק
+  if (!supabaseConfigured) {
+    return (
+      <div className="center-screen">
+        <div className="config-error" role="alert">
+          <h1>CourtSide</h1>
+          <h2>האתר כמעט מוכן — חסרה הגדרה אחת</h2>
+          <p>
+            לא הוגדר מפתח החיבור לבסיס הנתונים (<code>VITE_SUPABASE_ANON_KEY</code>).
+            בלעדיו האתר לא יכול להתחבר לנתונים.
+          </p>
+          <p className="config-error-fix">
+            <strong>לתיקון:</strong> Netlify → Site settings → Environment variables →
+            הוסף את <code>VITE_SUPABASE_ANON_KEY</code> (המפתח <em>anon public</em> מ-Supabase),
+            ואז Deploys → Trigger deploy → <em>Clear cache and deploy site</em>.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
