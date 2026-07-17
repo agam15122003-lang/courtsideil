@@ -9566,12 +9566,12 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   --bg: #0D1424;
   --surface: #141E33;
   --surface-alt: #1C2740;
-  --text: #F3F5FA;
-  --text-muted: #A9B3C6;
-  --border: #29344E;
-  --border-hover: #3C4A6B;
-  --accent-strong: #F0A878;
-  --quote-color: #8AB4F8;
+  --text: #F4F6FB;
+  --text-muted: #C6CEDC;                 /* הובהר לניגודיות טובה יותר (AA על רקע כהה) */
+  --border: #313D59;
+  --border-hover: #46557A;
+  --accent-strong: #F4B183;              /* כתום בהיר יותר לטקסט/אייקון על כהה */
+  --quote-color: #A9C6F9;
   --court-soft: #2A1E16;
   --success: #5FCF9B;
   --error: #F2918F;
@@ -10001,3 +10001,21 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   background: #131C30;
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* ---- דף הבית: האימון הבא ברוחב מלא (הוסר כרטיס הווידאו) ---- */
+.home-duo--single { grid-template-columns: 1fr; }
+.home-duo--single .np-card { min-height: 190px; }
+.home-duo--single .np-card .np-actions { max-width: 520px; }
+
+/* ---- ניגודיות כהה: טקסט מעומעם קריא יותר בכל מקום ---- */
+[data-theme='dark'] .muted,
+[data-theme='dark'] .home-card-desc,
+[data-theme='dark'] .stat-tile-label,
+[data-theme='dark'] .drill-compact-desc,
+[data-theme='dark'] .page-desc,
+[data-theme='dark'] .news-meta { color: #C6CEDC; }
+[data-theme='dark'] .np-meta span { color: rgba(255, 255, 255, 0.82); }
+[data-theme='dark'] .np-count-label { color: rgba(255, 255, 255, 0.72); }
+[data-theme='dark'] .video-cap .muted { color: rgba(255, 255, 255, 0.78); }
+/* פלייסהולדרים בקלט */
+[data-theme='dark'] ::placeholder { color: rgba(246, 249, 255, 0.55); }
