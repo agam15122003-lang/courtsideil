@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
@@ -25,6 +25,7 @@ export default function DrillCard({
   onDelete,
   onTagClick,
   onAddToPlan,
+  onEdit,
 }) {
   // ----- תגובות -----
   const [expanded, setExpanded] = useState(false) // תצוגה מלאה (מחברת + אנימציה) או קומפקטית
@@ -96,7 +97,7 @@ export default function DrillCard({
   const hasBoard = drill.board && drill.board.steps && drill.board.steps.length > 0
 
   return (
-    <div className="drill-card">
+    <div className={expanded ? 'drill-card is-expanded' : 'drill-card'}>
       {/* תגיות + סטטוס פרטי (הכותרת והפרטים כבר בתוך המחברת) */}
       {(drill.is_public === false || (drill.tags && drill.tags.length > 0)) && (
         <div className="drill-toprow">
@@ -265,6 +266,11 @@ export default function DrillCard({
             >
               {L('סרטון', 'Video')}
             </a>
+          )}
+          {isMine && onEdit && (
+            <button className="btn-ghost" onClick={() => onEdit(drill)}>
+              <Pencil size={15} /> {L('עריכה', 'Edit')}
+            </button>
           )}
           {isMine && (
             <button className="btn-ghost danger" onClick={onDelete}>
