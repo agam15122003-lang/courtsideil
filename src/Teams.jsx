@@ -312,8 +312,9 @@ export default function Teams({ session, profile, onNavigate }) {
       {loading ? (
         <p className="muted" style={{ marginTop: 16 }}>{L('טוען...', 'Loading...')}</p>
       ) : tab === 'roster' ? (
-        /* ===================== סגל ===================== */
-        <div className="team-section">
+        /* ===================== סגל (פריסת מסך היעד 09: טבלה + פאנל צד) ===================== */
+        <div className="team-split">
+        <div className="team-section team-split-main">
           <p className="muted small">
             {L(`${players.length} שחקנים`, `${players.length} players`)}
             {injured > 0 ? L(` · ${injured} לא זמינים`, ` · ${injured} unavailable`) : ''}
@@ -328,6 +329,13 @@ export default function Teams({ session, profile, onNavigate }) {
           {players.length === 0 ? (
             <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין שחקנים בסגל.', 'No players in the roster yet.')}</p>
           ) : (
+            <>
+            <div className="roster-cols" aria-hidden="true">
+              <span className="rc-num">{L('מס׳', '#')}</span>
+              <span className="rc-name">{L('שחקן', 'Player')}</span>
+              <span className="rc-att">{L('נוכחות עונתית', 'Season attendance')}</span>
+              <span className="rc-status">{L('סטטוס', 'Status')}</span>
+            </div>
             <ul className="roster-list">
               {players.map((p) => (
                 <li key={p.id} className="roster-row roster-clickable" onClick={() => setPEdit({ ...p })}>
@@ -362,6 +370,7 @@ export default function Teams({ session, profile, onNavigate }) {
                 </li>
               ))}
             </ul>
+            </>
           )}
 
           {/* ---- צוות מקצועי ---- */}
@@ -393,6 +402,50 @@ export default function Teams({ session, profile, onNavigate }) {
               </ul>
             )}
           </div>
+        </div>
+
+        {/* ---- פאנל צד: המשחק הבא + טבלת הליגה (מסך היעד 09) ---- */}
+        <aside className="team-side">
+          {(() => {
+            const today = ymd(new Date())
+            const next = games.find((g) => g.game_date >= today)
+            return (
+              <div className="next-game-card">
+                <span className="ng-eyebrow"><Trophy size={14} /> {L('המשחק הבא', 'Next game')}</span>
+                {next ? (
+                  <>
+                    <h4 className="ng-title">{next.opponent ? L(`נגד ${next.opponent}`, `vs ${next.opponent}`) : L('משחק', 'Game')}</h4>
+                    <div className="ng-meta">
+                      <span><CalendarClock size={13} /> {ilFull(next.game_date)}{next.game_time ? ` · ${String(next.game_time).slice(0, 5)}` : ''}</span>
+                      {next.location && <span>{next.location}</span>}
+                    </div>
+                    <button className="btn-primary ng-cta" onClick={() => setTab('games')}>
+                      {L('לפרטי המשחק', 'Game details')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="muted small" style={{ margin: '6px 0 10px' }}>{L('אין משחק קרוב ביומן.', 'No upcoming game.')}</p>
+                    <button className="btn-soft ng-cta" onClick={() => setTab('games')}>
+                      {L('הוספת משחק', 'Add a game')}
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+          {iba?.league_id ? (
+            <div className="pr-card team-side-league">
+              <h3 className="pr-card-title"><Trophy size={15} /> {L('טבלת הליגה', 'League table')}</h3>
+              <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || profile?.club} compact />
+            </div>
+          ) : (
+            <div className="pr-card team-side-league">
+              <h3 className="pr-card-title"><Trophy size={15} /> {L('טבלת הליגה', 'League table')}</h3>
+              <p className="muted small" style={{ margin: 0 }}>{L('חבר את הקבוצה לליגת האיגוד בלשונית "טבלה" — והטבלה תופיע כאן.', 'Connect the team to its league in the "Table" tab — and the standings will show here.')}</p>
+            </div>
+          )}
+        </aside>
         </div>
       ) : tab === 'attendance' ? (
         /* ===================== נוכחות ===================== */

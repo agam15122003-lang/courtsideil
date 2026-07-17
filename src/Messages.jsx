@@ -145,7 +145,7 @@ export default function Messages({ session, onNavigate }) {
     loadMessages()
   }
 
-  // ---------- תצוגת שיחה פרטית פתוחה ----------
+  // ---------- תצוגת שיחה פרטית פתוחה — צ'אט + רשימת שיחות זו לצד זו (מסך היעד 07) ----------
   if (activeCoachId) {
     const threadMsgs = thread.map((m) => ({
       id: m.id,
@@ -155,35 +155,59 @@ export default function Messages({ session, onNavigate }) {
       senderName: nameOf(m.sender_id),
     }))
     return (
-      <ChatWindow
-        messages={threadMsgs}
-        myId={myId}
-        onSend={sendMessage}
-        onDelete={deleteMessage}
-        sending={sending}
-        loading={false}
-        error={null}
-        empty={
-          <p className="muted" style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-            {L('אין הודעות עדיין — כתוב את הראשונה', 'No messages yet — write the first one')}
-          </p>
-        }
-        header={
-          <>
+      <div className="msg-split">
+        <div className="msg-split-chat">
+          <ChatWindow
+            messages={threadMsgs}
+            myId={myId}
+            onSend={sendMessage}
+            onDelete={deleteMessage}
+            sending={sending}
+            loading={false}
+            error={null}
+            empty={
+              <p className="muted" style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
+                {L('אין הודעות עדיין — כתוב את הראשונה', 'No messages yet — write the first one')}
+              </p>
+            }
+            header={
+              <>
+                <button
+                  type="button"
+                  className="chat-back"
+                  onClick={() => setActiveCoachId(null)}
+                  aria-label={L('חזרה לכל ההודעות', 'Back to all messages')}
+                  title={L('חזרה', 'Back')}
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <Avatar name={nameOf(activeCoachId)} size={38} />
+                <h2 className="chat-title">{nameOf(activeCoachId)}</h2>
+              </>
+            }
+          />
+        </div>
+        {/* רשימת השיחות — מוצגת לצד הצ'אט במסך רחב, נסתרת במובייל */}
+        <aside className="msg-split-list">
+          {conversations.map((c) => (
             <button
-              type="button"
-              className="chat-back"
-              onClick={() => setActiveCoachId(null)}
-              aria-label={L('חזרה לכל ההודעות', 'Back to all messages')}
-              title={L('חזרה', 'Back')}
+              key={c.coachId}
+              className={c.coachId === activeCoachId ? 'msg-conv active' : 'msg-conv'}
+              onClick={() => openConversation(c.coachId)}
             >
-              <ChevronRight size={20} />
+              <Avatar name={nameOf(c.coachId)} size={40} />
+              <span className="msg-conv-main">
+                <span className="msg-conv-head">
+                  <span className="msg-conv-name">{nameOf(c.coachId)}</span>
+                  <span className="msg-time">{formatTime(c.lastMessage.created_at)}</span>
+                </span>
+                <span className="msg-conv-preview">{c.lastMessage.content}</span>
+              </span>
+              {c.unread > 0 && <span className="msg-unread">{c.unread}</span>}
             </button>
-            <Avatar name={nameOf(activeCoachId)} size={38} />
-            <h2 className="chat-title">{nameOf(activeCoachId)}</h2>
-          </>
-        }
-      />
+          ))}
+        </aside>
+      </div>
     )
   }
 

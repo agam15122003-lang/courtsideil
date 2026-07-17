@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Star, Dumbbell, Bookmark, ClipboardList } from 'lucide-react'
+import { Star, Dumbbell, Bookmark, ClipboardList, Medal } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { SkeletonStats } from './Skeleton'
 import { L } from './i18n'
 
-// "האזור שלי" — סיכום אישי של המאמן (מהנתונים הקיימים, בלי טבלה חדשה).
+// רמות "מאמן פעיל" — לפי תרומה לקהילה (תרגילים + תוכניות ששותפו)
+const LEVELS = [0, 2, 5, 10, 20] // סף כניסה לכל רמה (רמה 1 = 0, רמה 5 = 20+)
+
+// "המספרים שלך" + כרטיס רמה — צד שמאל של מסך הפרופיל (מסך היעד 11).
 // props:
 //   session - המשתמש המחובר
 export default function MyStats({ session }) {
@@ -56,42 +59,54 @@ export default function MyStats({ session }) {
     load()
   }, [me])
 
-  return (
-    <div className="mystats welcome-card">
-      <span className="welcome-badge">{L('הסטטיסטיקות שלי', 'My stats')}</span>
-      <h3 className="section-title">{L('האזור שלי', 'My area')}</h3>
-      <p className="muted small">{L('סיכום הפעילות שלך במערכת.', 'A summary of your activity in the app.')}</p>
+  if (error) return <div className="alert alert-error">{error}</div>
+  if (!stats) return <div className="pr-card"><SkeletonStats count={4} /></div>
 
-      {error ? (
-        <div className="alert alert-error" style={{ marginTop: 16 }}>
-          {error}
+  // חישוב רמת מאמן פעיל
+  const score = stats.drillCount + stats.planCount
+  let level = 1
+  for (let i = 0; i < LEVELS.length; i++) if (score >= LEVELS[i]) level = i + 1
+  const maxLevel = level >= LEVELS.length
+  const nextAt = maxLevel ? null : LEVELS[level]
+  const prevAt = LEVELS[level - 1]
+  const progress = maxLevel ? 100 : Math.round(((score - prevAt) / (nextAt - prevAt)) * 100)
+  const missing = maxLevel ? 0 : nextAt - score
+
+  return (
+    <>
+      <section className="pr-card">
+        <h3 className="pr-card-title">{L('המספרים שלך', 'Your numbers')}</h3>
+        <div className="pr-stats-grid">
+          <div className="pr-stat">
+            <span className="pr-stat-num">
+              {stats.ratingN ? <><Star size={15} className="stat-star" aria-hidden="true" /> <bdi>{stats.avgRating.toFixed(1)}</bdi></> : '—'}
+            </span>
+            <span className="pr-stat-label">{L('דירוג ממוצע', 'Average rating')}</span>
+          </div>
+          <div className="pr-stat">
+            <span className="pr-stat-num"><bdi>{stats.drillCount}</bdi></span>
+            <span className="pr-stat-label">{L('תרגילים שיצרת', 'Drills you created')}</span>
+          </div>
+          <div className="pr-stat">
+            <span className="pr-stat-num"><bdi>{stats.favCount}</bdi></span>
+            <span className="pr-stat-label">{L('תרגילים במועדפים', 'Saved favorites')}</span>
+          </div>
+          <div className="pr-stat">
+            <span className="pr-stat-num"><bdi>{stats.planCount}</bdi></span>
+            <span className="pr-stat-label">{L('תוכניות שיצרת', 'Plans you created')}</span>
+          </div>
         </div>
-      ) : !stats ? (
-        <SkeletonStats count={4} />
-      ) : (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <span className="stat-ic"><Dumbbell size={17} /></span>
-            <div className="stat-num">{stats.drillCount}</div>
-            <div className="stat-label">{L('תרגילים שהוספתי', 'Drills I added')}</div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-ic"><Star size={17} /></span>
-            <div className="stat-num">{stats.ratingN ? stats.avgRating.toFixed(1) : '—'}</div>
-            <div className="stat-label">{L('דירוג ממוצע שלי', 'My average rating')}</div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-ic"><Bookmark size={17} /></span>
-            <div className="stat-num">{stats.favCount}</div>
-            <div className="stat-label">{L('מועדפים', 'Favorites')}</div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-ic"><ClipboardList size={17} /></span>
-            <div className="stat-num">{stats.planCount}</div>
-            <div className="stat-label">{L('תוכניות אימון', 'Training plans')}</div>
-          </div>
-        </div>
-      )}
-    </div>
+      </section>
+
+      <section className="pr-level">
+        <span className="pr-level-head"><Medal size={17} /> {L(`מאמן פעיל · רמה ${level}`, `Active coach · level ${level}`)}</span>
+        <p className="pr-level-text">
+          {maxLevel
+            ? L('הגעת לרמה הגבוהה ביותר — כל הכבוד! הפרופיל שלך מקודם במאתר המאמנים.', 'You reached the top level — well done! Your profile is boosted in the coach finder.')
+            : L(`עוד ${missing} ${missing === 1 ? 'תרגיל או תוכנית' : 'תרגילים או תוכניות'} ותגיע לרמה ${level + 1} — והפרופיל שלך יקודם במאתר המאמנים.`, `${missing} more ${missing === 1 ? 'drill or plan' : 'drills or plans'} to reach level ${level + 1} — and your profile gets boosted in the coach finder.`)}
+        </p>
+        <span className="pr-level-bar" aria-hidden="true"><span style={{ width: `${progress}%` }} /></span>
+      </section>
+    </>
   )
 }
