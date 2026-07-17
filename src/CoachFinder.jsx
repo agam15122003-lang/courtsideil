@@ -71,13 +71,13 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
   }
 
   const results = coaches.filter((c) => {
-    const clubOk =
-      clubQuery.trim() === '' ||
-      c.club.toLowerCase().includes(clubQuery.trim().toLowerCase())
+    const q = clubQuery.trim().toLowerCase()
+    const haystack = `${c.first_name || ''} ${c.last_name || ''} ${c.club || ''}`.toLowerCase()
+    const queryOk = q === '' || haystack.includes(q)
     const ageOk =
       ageFilter.length === 0 ||
       (c.age_groups || []).some((g) => ageFilter.includes(ageOf(g)))
-    return clubOk && ageOk
+    return queryOk && ageOk
   })
 
   // אם נבחר מאמן — מציגים את הפרופיל שלו
@@ -101,7 +101,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
         <div className="page-header-text">
           <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
           <h2>{L('קהילת המאמנים', 'Coaches community')}</h2>
-          <p className="page-desc">{L('חפשו מאמנים לפי מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by club or age group, view their drills, and get in touch.')}</p>
+          <p className="page-desc">{L('חפשו מאמנים לפי שם, מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by name, club or age group, view their drills, and get in touch.')}</p>
         </div>
       </header>
 
@@ -126,15 +126,15 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
         <>
           <h3 className="section-title" style={{ marginTop: 4 }}>{L('מצא מאמנים לתיאום', 'Find coaches to connect with')}</h3>
 
-          {/* סינון לפי מועדון */}
+          {/* חיפוש חופשי — שם או מועדון */}
           <div className="field-group" style={{ marginTop: 20 }}>
-            <span className="field-label">{L('חיפוש לפי מועדון', 'Search by club')}</span>
+            <span className="field-label">{L('חיפוש', 'Search')}</span>
             <input
               className="finder-input"
-              type="text"
+              type="search"
               value={clubQuery}
               onChange={(e) => setClubQuery(e.target.value)}
-              placeholder={L('הקלד שם מועדון...', 'Type a club name...')}
+              placeholder={L('חיפוש לפי שם או מועדון...', 'Search by name or club...')}
             />
           </div>
 
