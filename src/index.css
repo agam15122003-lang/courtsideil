@@ -10139,8 +10139,9 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(700px 500px at 20% 80%, rgba(232, 118, 58, 0.22), transparent 60%),
-    linear-gradient(to top, rgba(10, 14, 24, 0.96), rgba(10, 14, 24, 0.35) 55%, rgba(10, 14, 24, 0.6));
+    radial-gradient(700px 500px at 20% 82%, rgba(232, 118, 58, 0.3), transparent 58%),
+    linear-gradient(to top, rgba(9, 13, 22, 0.97), rgba(9, 13, 22, 0.66) 52%, rgba(9, 13, 22, 0.8)),
+    rgba(9, 13, 22, 0.28);
 }
 .auth-hero-content {
   position: relative;
