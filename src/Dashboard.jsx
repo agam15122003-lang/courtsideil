@@ -177,6 +177,27 @@ export default function Dashboard({ session }) {
           ))}
         </nav>
 
+        {profile?.first_name && (
+          <button
+            className="sidebar-user"
+            onClick={() => { setEditing(false); setView('profile'); setDrawerOpen(false) }}
+            title={t('action.editProfile')}
+          >
+            <Avatar
+              name={`${profile.first_name} ${profile.last_name || ''}`}
+              url={profile.avatar_url}
+              size={38}
+            />
+            <span className="sidebar-user-info">
+              <strong>{profile.first_name} {profile.last_name}</strong>
+              <span>
+                {L('מאמן', 'Coach')}
+                {(profile.age_groups?.[0] || profile.club) ? ` · ${profile.age_groups?.[0] || profile.club}` : ''}
+              </span>
+            </span>
+          </button>
+        )}
+
         <div className="sidebar-footer">
           <LanguageToggle />
           <ThemeToggle />

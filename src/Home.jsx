@@ -7,6 +7,12 @@ import {
   ExternalLink,
   Newspaper,
   X,
+  Star,
+  CalendarDays,
+  Plus,
+  PlayCircle,
+  Bookmark,
+  ChevronLeft,
 } from 'lucide-react'
 import {
   NEWS_SOURCES,
@@ -15,8 +21,45 @@ import {
   NEWS_CACHE_KEY,
   NEWS_FALLBACK_IMAGES,
   CONTENT_LINKS, safeUrl } from './constants'
+import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import CoachOfWeek from './CoachOfWeek'
+import NextPractice from './NextPractice'
+
+const pad2 = (n) => String(n).padStart(2, '0')
+const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+// סטטיסטיקות דף הבית — נשלפות פעם אחת, עם ברירת מחדל 0 אם אין נתונים.
+function useHomeStats(userId) {
+  const [s, setS] = useState({ rating: null, week: 0, plans: 0, saved: 0 })
+  useEffect(() => {
+    if (!userId) return
+    let alive = true
+    ;(async () => {
+      const now = new Date()
+      const day = now.getDay() // 0=ראשון
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - day)
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6)
+      const [saved, plans, week, myDrills] = await Promise.all([
+        supabase.from('saved_drills').select('drill_id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('training_plans').select('id', { count: 'exact', head: true }).eq('created_by', userId),
+        supabase.from('schedule_entries').select('id', { count: 'exact', head: true }).gte('date', ymdLocal(weekStart)).lte('date', ymdLocal(weekEnd)),
+        supabase.from('drills').select('drill_ratings(rating)').eq('created_by', userId),
+      ])
+      if (!alive) return
+      let sum = 0, cnt = 0
+      for (const d of myDrills.data || []) for (const r of d.drill_ratings || []) { sum += r.rating; cnt++ }
+      setS({
+        rating: cnt ? (sum / cnt) : null,
+        week: week.count || 0,
+        plans: plans.count || 0,
+        saved: saved.count || 0,
+      })
+    })()
+    return () => { alive = false }
+  }, [userId])
+  return s
+}
 
 // ===== אגרגטור כתבות כדורסל (חוקי) =====
 // כותרת מקורית + תמונה כשיש + שם המקור + קישור לכתבה המקורית. בלי העתקת תוכן.
@@ -170,6 +213,19 @@ function formatDate(d) {
 export default function Home({ profile, onNavigate, onOpenCoach }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
+  const stats = useHomeStats(profile?.id)
+
+  const today = new Date()
+  const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
+  const hour = today.getHours()
+  const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
+
+  const STAT_TILES = [
+    { key: 'rating', Icon: Star, num: stats.rating != null ? stats.rating.toFixed(1) : '—', label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true },
+    { key: 'week', Icon: CalendarDays, num: stats.week, label: L('אימונים השבוע', 'Practices this week') },
+    { key: 'plans', Icon: ClipboardList, num: stats.plans, label: L('תוכניות אימון', 'Practice plans') },
+    { key: 'saved', Icon: Bookmark, num: stats.saved, label: L('תרגילים שמורים', 'Saved drills') },
+  ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -203,26 +259,50 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
 
   return (
     <div className="home">
-      <section className="hero hero--image">
-        <div className="hero-content">
-          <span className="hero-eyebrow">CourtSide</span>
-          <h1 className="hero-title">
-            {L('שלום, ', 'Hi, ')}
-            <span className="hero-title-accent">{name}</span>
+      {/* ברכה */}
+      <header className="home-greet">
+        <div className="home-greet-text">
+          <span className="home-greet-date">{dateLabel}</span>
+          <h1 className="home-greet-title">
+            {greet}, <span className="hero-title-accent">{name}</span>
           </h1>
-          <p className="hero-sub">
-            {L('המרחב המקצועי שלך לניהול תרגילים, בניית אימונים וחיבור לקהילת המאמנים — הכול במקום אחד.', 'Your professional space to manage drills, build practices and connect with the coaching community — all in one place.')}
-          </p>
-          <div className="hero-actions">
-            <button className="btn-hero" onClick={() => onNavigate('drills')}>
-              {L('ספריית התרגילים', 'Drill library')}
-            </button>
-            <button className="btn-hero-outline" onClick={() => onNavigate('plans')}>
-              {L('בניית אימון', 'Practice builder')}
-            </button>
-          </div>
         </div>
-      </section>
+        <div className="home-greet-actions">
+          <button className="btn-soft" onClick={() => onNavigate('schedule')}>
+            <CalendarDays size={17} /> {L('לו"ז השבוע', 'This week')}
+          </button>
+          <button className="btn-primary" onClick={() => onNavigate('plans')}>
+            <Plus size={17} /> {L('אימון חדש', 'New practice')}
+          </button>
+        </div>
+      </header>
+
+      {/* וידאו + האימון הבא */}
+      <div className="home-duo">
+        <button className="video-card" onClick={() => onNavigate('media')}>
+          <span className="video-badge"><span className="np-dot" /> {L('הטיפ השבועי בווידאו', 'Weekly tip on video')}</span>
+          <span className="video-play"><PlayCircle size={30} /></span>
+          <span className="video-cap">
+            <strong>{L('איך בונים אימון מלא ב-5 דקות', 'Build a full practice in 5 minutes')}</strong>
+            <span className="muted small">{L('מדריך וידאו · צפייה במדיה', 'Video guide · watch in Media')}</span>
+          </span>
+        </button>
+        <NextPractice onNavigate={onNavigate} />
+      </div>
+
+      {/* סטטיסטיקות */}
+      <div className="home-stats">
+        {STAT_TILES.map((t) => (
+          <div key={t.key} className="stat-tile">
+            <span className="stat-tile-ic"><t.Icon size={16} /></span>
+            <span className="stat-tile-num">
+              {t.star && <Star size={15} className="stat-star" aria-hidden="true" />}
+              <bdi>{t.num}</bdi>
+            </span>
+            <span className="stat-tile-label">{t.label}</span>
+          </div>
+        ))}
+      </div>
 
       <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
 
@@ -266,6 +346,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
             </span>
             <span className="home-card-title">{s.title}</span>
             <span className="home-card-desc">{s.desc}</span>
+            <ChevronLeft size={16} className="home-card-chev" aria-hidden="true" />
           </button>
         ))}
       </div>
