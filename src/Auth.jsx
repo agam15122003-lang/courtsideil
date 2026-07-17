@@ -127,21 +127,9 @@ export default function Auth({ onBack }) {
 
   return (
     <div className="auth-page auth-split">
-      {/* פאנל קולנועי — תמונת מגרש (SVG עצמאי), באדג', ציטוט וקפסולות */}
+      {/* פאנל קולנועי — תמונת מגרש אמיתית + שכבת כהות, באדג', ציטוט וקפסולות */}
       <aside className="auth-hero-panel" aria-hidden="true">
-        <svg className="auth-hero-court" viewBox="0 0 400 500" fill="none" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <radialGradient id="ahg" cx="0.35" cy="0.28" r="0.8">
-              <stop offset="0" stopColor="#2A3D63" />
-              <stop offset="1" stopColor="#0A0E18" />
-            </radialGradient>
-          </defs>
-          <rect width="400" height="500" fill="url(#ahg)" />
-          <circle cx="140" cy="120" r="70" stroke="rgba(232,118,58,0.5)" strokeWidth="10" fill="none" />
-          <path d="M80 120 Q140 250 200 130" stroke="rgba(255,255,255,0.14)" strokeWidth="2" fill="none" />
-          <circle cx="90" cy="360" r="26" fill="#E8763A" opacity="0.9" />
-          <path d="M70 360 H110 M90 334 V386 M74 344 Q90 360 74 376 M106 344 Q90 360 106 376" stroke="rgba(10,14,24,0.85)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        </svg>
+        <img className="auth-hero-court" src="/auth-court.jpg" alt="" loading="eager" />
         <div className="auth-hero-overlay" />
         <div className="auth-hero-content">
           <span className="auth-hero-badge"><span className="np-dot" /> {L('קהילת המאמנים של ישראל', "Israel's coaching community")}</span>
