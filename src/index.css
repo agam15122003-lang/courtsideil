@@ -9144,3 +9144,145 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   [dir='ltr'] .podcast-card:hover .podcast-open svg { transform: translateX(2px); }
   [dir='ltr'] .cow-win:hover .cow-cta svg { transform: translateX(3px); }
 }
+
+/* ============================================================
+   ATTENDANCE — נוכחות באימונים (טאב חדש במסך הקבוצות)
+   ============================================================ */
+.att-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.att-period { flex: 0 1 320px; }
+.att-period .period-text { font-weight: 700; }
+
+.att-day-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 14px 0 12px;
+  padding: 10px 14px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.att-day-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.att-day-count svg { color: var(--accent-strong); flex-shrink: 0; }
+.att-markall { margin: 0; }
+
+.att-row { flex-wrap: wrap; }
+.att-jersey-empty { background: var(--surface-alt); color: var(--text-muted); }
+
+/* בקרת שלושה מצבים: נוכח / איחר / חסר */
+.att-seg {
+  display: inline-flex;
+  margin-inline-start: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--surface);
+}
+.att-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 13px;
+  min-height: 38px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.att-btn + .att-btn { border-inline-start: 1px solid var(--border); }
+@media (hover: hover) {
+  .att-btn:hover { background: var(--surface-alt); color: var(--text); }
+}
+.att-btn.att-on-present { background: #1D7A4C; color: #fff; }
+.att-btn.att-on-late { background: #A97B12; color: #fff; }
+.att-btn.att-on-absent { background: #B3382E; color: #fff; }
+.att-btn.att-on-present:hover,
+.att-btn.att-on-late:hover,
+.att-btn.att-on-absent:hover { color: #fff; }
+.att-btn.att-on-present:hover { background: #1D7A4C; }
+.att-btn.att-on-late:hover { background: #A97B12; }
+.att-btn.att-on-absent:hover { background: #B3382E; }
+
+/* שורה מסומנת — פס צבע עדין בצד */
+.att-marked-present { border-inline-start: 3px solid #1D7A4C; }
+.att-marked-late { border-inline-start: 3px solid #A97B12; }
+.att-marked-absent { border-inline-start: 3px solid #B3382E; }
+
+/* ---- סיכום עונתי ---- */
+.att-stats {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.att-stat-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.att-stat-row:last-child { border-bottom: none; }
+.att-stat-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att-bar {
+  display: block;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.att-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--accent-fill), #1D7A4C);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+[dir='ltr'] .att-bar > span { background: linear-gradient(-90deg, var(--accent-fill), #1D7A4C); }
+.att-stat-pct {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  min-width: 76px;
+  text-align: end;
+}
+.att-stat-frac { font-weight: 500; color: var(--text-muted); font-size: 12px; }
+
+/* מובייל: הבקרה יורדת לשורה מלאה מתחת לשם */
+@media (max-width: 560px) {
+  .att-seg { margin-inline-start: 0; width: 100%; }
+  .att-btn { flex: 1; justify-content: center; }
+  .att-day-bar { flex-direction: column; align-items: stretch; }
+  .att-markall { width: 100%; justify-content: center; }
+  .att-stat-row { grid-template-columns: minmax(70px, 110px) 1fr auto; gap: 8px; }
+}
+
+/* מצב כהה: הצבעים הקבועים נשארים קריאים — רק רקעי הבסיס מגיעים מהמשתנים */
