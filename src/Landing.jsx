@@ -155,7 +155,7 @@ export default function Landing({ onEnter }) {
       <section className="land-hero">
         <div className="land-hero-text">
           <span className="land-eyebrow">
-            <Star size={14} /> {L('הפנקס הדיגיטלי של מאמן הכדורסל', "The basketball coach's digital playbook")}
+            <Star size={14} /> {L('הבית הדיגיטלי של מאמן הכדורסל', "The basketball coach's digital home")}
           </span>
           <h1 className="land-title">
             {L('כל הידע של האימון שלך —', 'All your coaching knowledge —')}<br />
