@@ -9701,3 +9701,223 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 /* ---- פס גלילה עדין ---- */
 [data-theme='dark'] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); }
 [data-theme='dark'] ::-webkit-scrollbar-thumb:hover { background: rgba(232, 118, 58, 0.4); }
+
+/* ============================================================
+   HOME DASHBOARD 2.0 — greeting, video + next-practice, stats
+   (מתאים למסכי היעד "שידור באנרגיה"; עובד בבהיר ובכהה)
+   ============================================================ */
+.home-greet {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+.home-greet-date {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-strong);
+  margin-bottom: 4px;
+}
+.home-greet-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: clamp(26px, 3.4vw, 38px);
+  margin: 0;
+  line-height: 1.1;
+}
+.home-greet-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.home-greet-actions .btn-soft,
+.home-greet-actions .btn-primary { min-height: 42px; }
+
+/* ---- וידאו + האימון הבא ---- */
+.home-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 780px) { .home-duo { grid-template-columns: 1fr; } }
+
+.video-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 230px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(232, 118, 58, 0.28), transparent 60%),
+    linear-gradient(160deg, #1E2C4C, #0C1220);
+  color: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: start;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease;
+}
+.video-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.video-badge {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-end: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(232, 118, 58, 0.9);
+  color: #101a30;
+  font-size: 12px;
+  font-weight: 700;
+}
+.video-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  box-shadow: 0 12px 28px -10px rgba(232, 118, 58, 0.8);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.video-card:hover .video-play { transform: scale(1.08); }
+.video-cap { display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
+.video-cap strong { font-size: 17px; font-weight: 700; }
+.video-cap .muted { color: rgba(255, 255, 255, 0.66); }
+
+/* ---- כרטיס האימון הבא ---- */
+.np-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(232, 118, 58, 0.35);
+  background: linear-gradient(155deg, #22314F, #0E1626);
+  color: #fff;
+  min-height: 230px;
+}
+.np-skeleton { background: var(--surface-alt); border-color: var(--border); animation: pulse 1.2s ease-in-out infinite; }
+.np-eyebrow, .video-badge .np-dot { }
+.np-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--orange-300);
+}
+.np-dot, .np-live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--orange-500);
+  box-shadow: 0 0 0 0 rgba(232, 118, 58, 0.6);
+  animation: blPulse 2.2s ease-in-out infinite;
+}
+.np-title { font-family: var(--font-display); font-weight: 800; font-size: 21px; margin: 2px 0 0; }
+.np-meta { display: flex; flex-wrap: wrap; gap: 14px; color: rgba(255, 255, 255, 0.72); font-size: 13.5px; }
+.np-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.np-count-label { font-size: 12.5px; color: rgba(255, 255, 255, 0.6); margin-top: 4px; }
+.np-timer {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(36px, 5vw, 46px);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange-300);
+  line-height: 1;
+}
+.np-live { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--orange-300); font-size: 18px; margin: 6px 0; }
+.np-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+.np-actions .btn-primary { background: linear-gradient(135deg, #F0883F, #D15F23); color: #fff; box-shadow: 0 10px 24px -12px rgba(232, 118, 58, 0.8); }
+.np-actions .btn-soft { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; }
+.np-actions .btn-soft:hover { background: rgba(255, 255, 255, 0.14); }
+.np-empty { align-items: flex-start; }
+.np-empty-title { font-family: var(--font-display); font-weight: 800; font-size: 19px; margin: 4px 0; }
+.np-empty .muted { color: rgba(255, 255, 255, 0.66); }
+.np-cta { margin-top: 8px; }
+
+/* ---- שורת סטטיסטיקות ---- */
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 720px) { .home-stats { grid-template-columns: repeat(2, 1fr); } }
+.stat-tile {
+  position: relative;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-tile-ic {
+  position: absolute;
+  inset-block-start: 14px;
+  inset-inline-end: 14px;
+  color: var(--accent-strong);
+  opacity: 0.85;
+}
+.stat-tile-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.stat-star { color: var(--orange-500); }
+.stat-tile-label { font-size: 13px; color: var(--text-muted); }
+
+/* chevron בכרטיסי קיצור דרך */
+.home-card { position: relative; }
+.home-card-chev {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 16px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  opacity: 0.6;
+  transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) ease;
+}
+.home-card:hover .home-card-chev { opacity: 1; transform: translateY(-50%) translateX(-3px); color: var(--accent-strong); }
+
+/* ---- פוטר משתמש בסיידבר ---- */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  margin-top: auto;
+  border: none;
+  background: transparent;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+  text-align: start;
+  transition: background var(--dur-fast) ease;
+}
+.sidebar-user:hover { background: var(--surface-alt); }
+.sidebar-user-info { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-user-info strong { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-user-info span { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* מצב כהה — כרטיסי הווידאו/האימון-הבא כבר כהים; אריחי הסטטיסטיקה מקבלים זכוכית */
+[data-theme='dark'] .stat-tile { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.09); }
+[data-theme='dark'] .sidebar-user:hover { background: rgba(255, 255, 255, 0.05); }
