@@ -27,6 +27,66 @@ export default function DrillLibrary({ session }) {
   const [onlySaved, setOnlySaved] = useState(false) // הצג רק מועדפים
   const [sortBy, setSortBy] = useState('new') // 'new' = חדשים, 'rating' = מדורגים
 
+  // בורר "הוספה לתוכנית"
+  const [planPicker, setPlanPicker] = useState(null) // התרגיל שנבחר להוספה
+  const [myPlans, setMyPlans] = useState([])
+  const [newPlanName, setNewPlanName] = useState('')
+  const [addingToPlan, setAddingToPlan] = useState(false)
+
+  const openPlanPicker = async (drill) => {
+    setPlanPicker(drill)
+    setNewPlanName('')
+    const { data } = await supabase
+      .from('training_plans')
+      .select('id, name')
+      .eq('created_by', session.user.id)
+      .order('created_at', { ascending: false })
+    setMyPlans(data || [])
+  }
+
+  const insertItem = async (planId, drill) => {
+    const { data: last } = await supabase
+      .from('plan_items')
+      .select('position')
+      .eq('plan_id', planId)
+      .order('position', { ascending: false })
+      .limit(1)
+    const nextPos = last && last[0] ? last[0].position + 1 : 0
+    return supabase.from('plan_items').insert({
+      plan_id: planId,
+      drill_id: drill.id,
+      position: nextPos,
+      duration_minutes: drill.duration_minutes || null,
+      note: null,
+    })
+  }
+
+  const addDrillToPlan = async (planId) => {
+    if (!planPicker) return
+    setAddingToPlan(true)
+    const { error } = await insertItem(planId, planPicker)
+    setAddingToPlan(false)
+    if (error) { toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + error.message); return }
+    toast.success(L('התרגיל נוסף לתוכנית', 'Drill added to the plan'))
+    setPlanPicker(null)
+  }
+
+  const createPlanWithDrill = async () => {
+    if (!newPlanName.trim() || !planPicker) return
+    setAddingToPlan(true)
+    const { data: plan, error } = await supabase
+      .from('training_plans')
+      .insert({ name: newPlanName.trim(), created_by: session.user.id })
+      .select('id')
+      .single()
+    if (error || !plan) { setAddingToPlan(false); toast.error(L('יצירת התוכנית נכשלה: ', 'Failed to create plan: ') + (error?.message || '')); return }
+    const { error: e2 } = await insertItem(plan.id, planPicker)
+    setAddingToPlan(false)
+    if (e2) { toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + e2.message); return }
+    toast.success(L('נוצרה תוכנית עם התרגיל', 'Plan created with the drill'))
+    setPlanPicker(null)
+  }
+
   // טוען את כל התרגילים, יחד עם: שם המאמן, הדירוגים, והאם שמרתי אותם
   async function loadDrills() {
     setLoading(true)
@@ -293,7 +353,7 @@ export default function DrillLibrary({ session }) {
             )}
           </div>
         ) : (
-          <>
+          <div className="drill-grid">
             <p className="muted small results-count">
               {results.length === 1 ? L('תרגיל אחד', '1 drill') : L(`${results.length} תרגילים`, `${results.length} drills`)}
             </p>
@@ -307,11 +367,51 @@ export default function DrillLibrary({ session }) {
                 onToggleSave={handleToggleSave}
                 onDelete={() => handleDelete(drill.id)}
                 onTagClick={setTagFilter}
+                onAddToPlan={openPlanPicker}
               />
             ))}
-          </>
+          </div>
         )}
       </div>
+
+      {/* בורר תוכנית — הוספת תרגיל לתוכנית אימון קיימת או חדשה */}
+      {planPicker && (
+        <div className="tm-overlay" onClick={() => setPlanPicker(null)}>
+          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="tm-head">
+              <h3>{L('הוספה לתוכנית', 'Add to a plan')}</h3>
+              <button className="tm-close" onClick={() => setPlanPicker(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+            </div>
+            <p className="muted small" style={{ margin: '0 0 12px' }}>
+              {L('בחר תוכנית קיימת, או צור חדשה עם התרגיל הזה.', 'Pick an existing plan, or create a new one with this drill.')}
+            </p>
+            <div className="plan-pick-new">
+              <input
+                className="finder-input"
+                value={newPlanName}
+                onChange={(e) => setNewPlanName(e.target.value)}
+                placeholder={L('שם תוכנית חדשה...', 'New plan name...')}
+                onKeyDown={(e) => e.key === 'Enter' && createPlanWithDrill()}
+              />
+              <button className="btn-primary" style={{ marginTop: 0 }} onClick={createPlanWithDrill} disabled={addingToPlan}>
+                <Plus size={16} /> {L('צור', 'Create')}
+              </button>
+            </div>
+            {myPlans.length > 0 && (
+              <ul className="plan-pick-list">
+                {myPlans.map((p) => (
+                  <li key={p.id}>
+                    <button className="plan-pick-item" onClick={() => addDrillToPlan(p.id)} disabled={addingToPlan}>
+                      <span>{p.name}</span>
+                      <Plus size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

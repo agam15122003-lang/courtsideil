@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
@@ -24,6 +24,7 @@ export default function DrillCard({
   onToggleSave,
   onDelete,
   onTagClick,
+  onAddToPlan,
 }) {
   // ----- תגובות -----
   const [expanded, setExpanded] = useState(false) // תצוגה מלאה (מחברת + אנימציה) או קומפקטית
@@ -171,10 +172,24 @@ export default function DrillCard({
           {(drill.description || drill.goal) && (
             <p className="drill-compact-desc">{drill.description || drill.goal}</p>
           )}
-          <button className="btn-soft drill-expand-btn" onClick={() => setExpanded(true)}>
-            <BookOpen size={15} /> {L('פתח תרגיל מלא', 'Open full drill')}
-            {hasBoard && L(' + אנימציה', ' + animation')}
-          </button>
+          <div className="drill-foot">
+            {onAddToPlan && (
+              <button className="btn-toplan" onClick={() => onAddToPlan(drill)}>
+                <Plus size={15} /> {L('לתוכנית', 'To plan')}
+              </button>
+            )}
+            <button className="btn-soft btn-details" onClick={() => setExpanded(true)}>
+              {L('פרטים מלאים', 'Full details')}{hasBoard && L(' + אנימציה', ' + animation')}
+            </button>
+            <button
+              className={isSaved ? 'drill-bookmark on' : 'drill-bookmark'}
+              onClick={() => onToggleSave(drill.id, isSaved)}
+              aria-label={isSaved ? L('הסר ממועדפים', 'Remove from favorites') : L('שמירה למועדפים', 'Save to favorites')}
+              title={isSaved ? L('נשמר', 'Saved') : L('שמירה', 'Save')}
+            >
+              <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
       ) : (
         /* תצוגה מלאה — מחברת המאמן (ימין) + מגרש מונפש (שמאל) */
@@ -205,6 +220,8 @@ export default function DrillCard({
         </>
       )}
 
+      {expanded && (
+      <>
       {/* דירוג: ממוצע + הדירוג האישי שלי */}
       <div className="drill-rating">
         <div className="rating-summary">
@@ -313,6 +330,8 @@ export default function DrillCard({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }
