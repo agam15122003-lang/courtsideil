@@ -10,7 +10,6 @@ import {
   Star,
   CalendarDays,
   Plus,
-  PlayCircle,
   Bookmark,
   ChevronLeft,
 } from 'lucide-react'
@@ -277,16 +276,8 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         </div>
       </header>
 
-      {/* וידאו + האימון הבא */}
-      <div className="home-duo">
-        <button className="video-card" onClick={() => onNavigate('media')}>
-          <span className="video-badge"><span className="np-dot" /> {L('הטיפ השבועי בווידאו', 'Weekly tip on video')}</span>
-          <span className="video-play"><PlayCircle size={30} /></span>
-          <span className="video-cap">
-            <strong>{L('איך בונים אימון מלא ב-5 דקות', 'Build a full practice in 5 minutes')}</strong>
-            <span className="muted small">{L('מדריך וידאו · צפייה במדיה', 'Video guide · watch in Media')}</span>
-          </span>
-        </button>
+      {/* האימון הבא */}
+      <div className="home-duo home-duo--single">
         <NextPractice onNavigate={onNavigate} />
       </div>
 
