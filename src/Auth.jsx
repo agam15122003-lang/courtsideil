@@ -126,15 +126,36 @@ export default function Auth({ onBack }) {
   }
 
   return (
-    <div className="auth-page">
-      {/* ציטוט מתחלף — רצועה בראש העמוד, מעל הכל */}
-      <div className="auth-topquote" key={qi}>
-        <span className="quote-strip-mark" aria-hidden="true">"</span>
-        <span className="quote-strip-text">{L(quote.text, quote.text_en)}</span>
-        <span className="quote-strip-author">— {L(quote.author, quote.author_en)}</span>
-      </div>
+    <div className="auth-page auth-split">
+      {/* פאנל קולנועי — תמונת מגרש (SVG עצמאי), באדג', ציטוט וקפסולות */}
+      <aside className="auth-hero-panel" aria-hidden="true">
+        <svg className="auth-hero-court" viewBox="0 0 400 500" fill="none" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <radialGradient id="ahg" cx="0.35" cy="0.28" r="0.8">
+              <stop offset="0" stopColor="#2A3D63" />
+              <stop offset="1" stopColor="#0A0E18" />
+            </radialGradient>
+          </defs>
+          <rect width="400" height="500" fill="url(#ahg)" />
+          <circle cx="140" cy="120" r="70" stroke="rgba(232,118,58,0.5)" strokeWidth="10" fill="none" />
+          <path d="M80 120 Q140 250 200 130" stroke="rgba(255,255,255,0.14)" strokeWidth="2" fill="none" />
+          <circle cx="90" cy="360" r="26" fill="#E8763A" opacity="0.9" />
+          <path d="M70 360 H110 M90 334 V386 M74 344 Q90 360 74 376 M106 344 Q90 360 106 376" stroke="rgba(10,14,24,0.85)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+        </svg>
+        <div className="auth-hero-overlay" />
+        <div className="auth-hero-content">
+          <span className="auth-hero-badge"><span className="np-dot" /> {L('קהילת המאמנים של ישראל', "Israel's coaching community")}</span>
+          <blockquote className="auth-hero-quote" key={qi}>“{L(quote.text, quote.text_en)}”</blockquote>
+          <span className="auth-hero-cite">— {L('מתוך ציטוטי המגרש בקהילה', 'from the court quotes in the community')}</span>
+          <ul className="auth-hero-caps">
+            <li>{L('7 כלים מקצועיים', '7 pro tools')}</li>
+            <li>{L('עברית ו-RTL מהיסוד', 'Hebrew & RTL native')}</li>
+            <li>{L('חינם לכל מאמן', 'Free for every coach')}</li>
+          </ul>
+        </div>
+      </aside>
 
-      <div className="auth-center">
+      <div className="auth-form-panel">
         <div className="auth-card">
           {onBack && (
             <button type="button" className="link-button auth-back" onClick={onBack}>
@@ -151,7 +172,7 @@ export default function Auth({ onBack }) {
             </svg>
           </div>
           <h1>CourtSide</h1>
-          <p className="tagline">{L('הבית הדיגיטלי של מאמני הכדורסל', 'The digital home for basketball coaches')}</p>
+          <p className="tagline auth-welcome">{L('ברוך שובך למגרש — התחבר כדי להמשיך מאיפה שעצרת.', 'Welcome back to the court — log in to pick up where you left off.')}</p>
         </div>
 
         {(mode === 'signin' || mode === 'signup') && (
@@ -355,6 +376,7 @@ export default function Auth({ onBack }) {
     </div>
   )
 }
+
 
 function translateError(msg) {
   msg = String(msg || '')
