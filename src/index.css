@@ -10699,3 +10699,19 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .chat-header-text { display: flex; flex-direction: column; min-width: 0; }
 .chat-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #5FCF9B; font-weight: 600; }
 .chat-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #5FCF9B; box-shadow: 0 0 0 3px rgba(95, 207, 155, 0.18); }
+
+/* ---- מסך "חסרה הגדרה" (כשאין מפתח Supabase) — במקום מסך ריק ---- */
+.config-error {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px;
+  text-align: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.config-error h1 { font-family: var(--font-display); font-weight: 800; color: var(--accent-strong); margin: 0 0 4px; }
+.config-error h2 { font-size: 19px; margin: 0 0 14px; }
+.config-error p { color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; font-size: 14.5px; }
+.config-error code { background: var(--surface-alt); padding: 2px 6px; border-radius: 5px; font-size: 13px; direction: ltr; display: inline-block; }
+.config-error-fix { text-align: start; background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); }
