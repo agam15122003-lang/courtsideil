@@ -10019,3 +10019,46 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 [data-theme='dark'] .video-cap .muted { color: rgba(255, 255, 255, 0.78); }
 /* פלייסהולדרים בקלט */
 [data-theme='dark'] ::placeholder { color: rgba(246, 249, 255, 0.55); }
+
+/* ---- סגל: עמודת נוכחות עונתית (מסך היעד 09) ---- */
+.roster-att {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  min-width: 118px;
+  flex-shrink: 0;
+}
+.roster-att-bar {
+  flex: 1;
+  min-width: 54px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.roster-att-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.35);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.roster-att-bar.hi > span { background: var(--accent-fill); }
+[data-theme='dark'] .roster-att-bar { background: rgba(255, 255, 255, 0.1); }
+[data-theme='dark'] .roster-att-bar > span { background: rgba(255, 255, 255, 0.32); }
+[data-theme='dark'] .roster-att-bar.hi > span { background: linear-gradient(90deg, #F0883F, #D15F23); }
+.roster-att-pct {
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+  text-align: end;
+  color: var(--text-muted);
+}
+.roster-att-bar.hi ~ .roster-att-pct { color: var(--accent-strong); }
+/* במסך צר — מסתירים את הבר, משאירים אחוז בלבד */
+@media (max-width: 560px) {
+  .roster-att { min-width: 0; }
+  .roster-att-bar { display: none; }
+}
