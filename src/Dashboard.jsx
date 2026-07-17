@@ -31,6 +31,11 @@ import {
   ShieldCheck,
   Menu,
   X,
+  Pencil,
+  Moon,
+  Languages,
+  LogOut,
+  ChevronLeft,
 } from 'lucide-react'
 
 const NAV = [
@@ -266,70 +271,84 @@ export default function Dashboard({ session }) {
           ) : view === 'messages' ? (
             <Messages session={session} onNavigate={setView} />
           ) : (
-            <div className="welcome-card">
-              <div className="welcome-badge">{t('profile.myProfile')}</div>
-              <div className="profile-head">
-                <Avatar
-                  name={`${profile.first_name} ${profile.last_name}`}
-                  url={profile.avatar_url}
-                  size={64}
-                />
-                <h2 style={{ margin: 0 }}>
-                  {profile.first_name} {profile.last_name}
-                </h2>
-              </div>
+            <div className="profile-page">
+              <header className="page-header">
+                <div className="page-header-text">
+                  <div className="welcome-badge">{L('החשבון שלי', 'My account')}</div>
+                  <h2>{L('הפרופיל שלי', 'My profile')}</h2>
+                </div>
+                <div className="page-header-actions">
+                  <button className="btn-soft" onClick={() => setEditing(true)}>
+                    <Pencil size={15} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
+                  </button>
+                </div>
+              </header>
 
-              <div className="profile-details">
-                <div className="detail-row">
-                  <span className="detail-label">{t('profile.club')}</span>
-                  <span className="detail-value">{profile.club}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">{t('profile.email')}</span>
-                  <span className="detail-value" dir="ltr">
-                    {session.user.email}
-                  </span>
-                </div>
-                {profile.phone && (
-                  <div className="detail-row">
-                    <span className="detail-label">{t('profile.phone')}</span>
-                    <span className="detail-value" dir="ltr">
-                      {profile.phone}
-                      <span className="phone-tag">
-                        {profile.phone_public
-                          ? t('profile.shownToCoaches')
-                          : t('profile.private')}
-                      </span>
-                    </span>
+              <div className="profile-grid">
+                {/* עמודה ראשית — כרטיס פרטי המאמן */}
+                <section className="pr-card pr-main">
+                  <div className="pr-head">
+                    <Avatar
+                      name={`${profile.first_name} ${profile.last_name}`}
+                      url={profile.avatar_url}
+                      size={72}
+                    />
+                    <div className="pr-head-text">
+                      <h3>{profile.first_name} {profile.last_name}</h3>
+                      <p className="muted">{profile.club} · {L('מאמן', 'Coach')}</p>
+                      {profile.age_groups && profile.age_groups.length > 0 && (
+                        <div className="chips pr-chips">
+                          {profile.age_groups.map((g, i) => (
+                            <span key={g} className={i === 0 ? 'chip selected static' : 'chip static'}>{g}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="detail-row">
-                  <span className="detail-label">{t('profile.groups')}</span>
-                  <span className="detail-value">
-                    {profile.age_groups && profile.age_groups.length > 0 ? (
-                      <span className="chips">
-                        {profile.age_groups.map((g) => (
-                          <span key={g} className="chip selected static">
-                            {g}
+
+                  <div className="pr-rows">
+                    <div className="pr-row">
+                      <span className="pr-label">{t('profile.email')}</span>
+                      <span className="pr-value" dir="ltr">{session.user.email}</span>
+                    </div>
+                    {profile.phone && (
+                      <div className="pr-row">
+                        <span className="pr-label">{t('profile.phone')}</span>
+                        <span className="pr-value" dir="ltr">
+                          {profile.phone}
+                          <span className="phone-tag">
+                            {profile.phone_public ? t('profile.shownToCoaches') : t('profile.private')}
                           </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="muted">{t('profile.notSpecified')}</span>
+                        </span>
+                      </div>
                     )}
-                  </span>
-                </div>
+                    <div className="pr-row">
+                      <span className="pr-label">{t('profile.club')}</span>
+                      <span className="pr-value">{profile.club}</span>
+                    </div>
+                  </div>
+                </section>
+
+                {/* עמודת צד — מספרים, רמה והגדרות */}
+                <aside className="pr-side">
+                  <MyStats session={session} />
+                  <section className="pr-card pr-settings">
+                    <h3 className="pr-card-title">{L('הגדרות', 'Settings')}</h3>
+                    <div className="pr-row pr-setting-row">
+                      <span className="pr-label"><Moon size={15} aria-hidden="true" /> {L('מצב כהה', 'Dark mode')}</span>
+                      <ThemeToggle />
+                    </div>
+                    <div className="pr-row pr-setting-row">
+                      <span className="pr-label"><Languages size={15} aria-hidden="true" /> {L('שפה', 'Language')}</span>
+                      <LanguageToggle />
+                    </div>
+                    <button type="button" className="pr-row pr-setting-row pr-signout" onClick={handleSignOut}>
+                      <span className="pr-label"><LogOut size={15} aria-hidden="true" /> {t('action.signout')}</span>
+                      <ChevronLeft size={16} aria-hidden="true" />
+                    </button>
+                  </section>
+                </aside>
               </div>
-
-              <button
-                className="btn-ghost"
-                style={{ marginTop: 24 }}
-                onClick={() => setEditing(true)}
-              >
-                {t('action.editProfile')}
-              </button>
-
-              <MyStats session={session} />
             </div>
           )}
           </Suspense>

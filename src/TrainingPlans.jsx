@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2 } from 'lucide-react'
+import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
@@ -565,6 +565,46 @@ function PlanBuilder({ planId, plan, onBack }) {
   }
 
   const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
+  const TARGET_MIN = 90 // יעד ברירת מחדל לאימון מלא
+  const missingMin = Math.max(0, TARGET_MIN - total)
+
+  // "הבנאי החכם" — משלים את האימון בתרגילים מהספרייה עד היעד
+  const [completing, setCompleting] = useState(false)
+  const autoComplete = async () => {
+    setCompleting(true)
+    let pool = allDrills
+    if (pool.length === 0) {
+      const { data } = await supabase
+        .from('drills')
+        .select('id, title, category, duration_minutes')
+        .order('title', { ascending: true })
+      pool = data || []
+      setAllDrills(pool)
+    }
+    const inPlan = new Set(items.map((i) => i.drill_id).filter(Boolean))
+    const candidates = pool.filter((d) => !inPlan.has(d.id) && d.duration_minutes && d.duration_minutes <= missingMin)
+    // ערבוב קל כדי לגוון בין הפעלות
+    candidates.sort(() => Math.random() - 0.5)
+    let remaining = missingMin
+    let pos = items.length > 0 ? Math.max(...items.map((i) => i.position)) + 1 : 0
+    const rows = []
+    for (const d of candidates) {
+      if (d.duration_minutes > remaining) continue
+      rows.push({ plan_id: planId, drill_id: d.id, position: pos++, duration_minutes: d.duration_minutes, note: null })
+      remaining -= d.duration_minutes
+      if (remaining < 8) break
+    }
+    if (rows.length === 0) {
+      toast.error(L('לא נמצאו תרגילים מתאימים בספרייה להשלמת הזמן.', 'No suitable drills found in the library to fill the time.'))
+      setCompleting(false)
+      return
+    }
+    const { error } = await supabase.from('plan_items').insert(rows)
+    setCompleting(false)
+    if (error) { toast.error(L('ההשלמה נכשלה: ', 'Auto-complete failed: ') + error.message); return }
+    toast.success(L(`נוספו ${rows.length} תרגילים מהספרייה`, `Added ${rows.length} drills from the library`))
+    loadItems()
+  }
 
   // פירוק זמן לפי קטגוריית התרגיל (למסך הסיכום, בסגנון מסך היעד)
   const catTotals = {}
@@ -624,9 +664,12 @@ function PlanBuilder({ planId, plan, onBack }) {
         <div className="pb-summary-head">
           <span className="pb-summary-label"><Clock size={14} /> {L('סה"כ זמן אימון', 'Total practice time')}</span>
           <span className="pb-summary-num">
-            <bdi>{total}</bdi> <span className="pb-summary-unit">{L('דק׳', 'min')}</span>
+            <bdi>{total}</bdi> <span className="pb-summary-unit">/ {TARGET_MIN} {L('דק׳', 'min')}</span>
           </span>
         </div>
+        <span className="pb-target-bar" aria-hidden="true">
+          <span style={{ width: `${Math.min(100, Math.round((total / TARGET_MIN) * 100))}%` }} />
+        </span>
         <div className="pb-summary-meta">
           <span className="builder-stat">
             <ListChecks size={14} />
@@ -648,6 +691,19 @@ function PlanBuilder({ planId, plan, onBack }) {
           </ul>
         )}
       </div>
+
+      {/* "הבנאי החכם" — כרטיס אנרגיה שמשלים את האימון עד היעד (מסך היעד 04) */}
+      {missingMin > 0 && (
+        <div className="pb-smart">
+          <span className="pb-smart-head"><Zap size={17} /> {L('הבנאי החכם', 'Smart builder')}</span>
+          <p className="pb-smart-text">
+            {L(`חסרות ${missingMin} דקות ליעד. תן לבנאי להשלים את האימון בתרגילים מהספרייה.`, `${missingMin} minutes missing to target. Let the builder fill the practice with library drills.`)}
+          </p>
+          <button className="pb-smart-btn" onClick={autoComplete} disabled={completing} aria-busy={completing}>
+            {completing ? L('משלים...', 'Completing...') : L('השלם לי את האימון', 'Complete my practice')}
+          </button>
+        </div>
+      )}
 
       {/* גרסה להדפסה / שמירה כ-PDF (מוסתרת על המסך, מופיעה רק בהדפסה) */}
       <div className="print-area" dir="rtl">
