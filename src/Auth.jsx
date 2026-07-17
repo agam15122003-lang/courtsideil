@@ -149,7 +149,6 @@ export default function Auth({ onBack }) {
           <span className="auth-hero-cite">— {L('מתוך ציטוטי המגרש בקהילה', 'from the court quotes in the community')}</span>
           <ul className="auth-hero-caps">
             <li>{L('7 כלים מקצועיים', '7 pro tools')}</li>
-            <li>{L('עברית ו-RTL מהיסוד', 'Hebrew & RTL native')}</li>
             <li>{L('חינם לכל מאמן', 'Free for every coach')}</li>
           </ul>
         </div>

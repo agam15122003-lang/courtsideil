@@ -9,7 +9,7 @@ import {
   PlayCircle,
   Star,
   ArrowLeft,
-  Languages,
+  LayoutGrid,
   Zap,
   Quote,
   ChevronDown,
@@ -106,7 +106,7 @@ export default function Landing({ onEnter }) {
 
   // "למה CourtSide" — רצועת ערך בין ההירו לפיצ'רים (דפוס ההמרה מהסקיל: Hero → Value → Features → Social Proof → CTA)
   const WHY = [
-    { Icon: Languages, title: L('עברית ו-RTL מהיסוד', 'Hebrew & RTL from the ground up'), desc: L('לא תרגום של מוצר זר — כל מסך, כל טופס וכל תרגיל תוכננו קודם כול לעברית ולכיוון ימין-לשמאל.', 'Not a translated foreign product — every screen, form and drill was designed Hebrew-first, right-to-left.') },
+    { Icon: LayoutGrid, title: L('הכול במקום אחד', 'Everything in one place'), desc: L('תרגילים, תוכניות, לוח טקטיקה, לו"ז וקבוצות — במקום פתקים, וואטסאפ ואקסלים מפוזרים.', 'Drills, plans, a tactics board, a schedule and teams — instead of scattered notes, WhatsApp and spreadsheets.') },
     { Icon: Zap, title: L('מהיר תוך כדי אימון', 'Fast in mid-practice'), desc: L('פותחים את התוכנית, מסמנים תרגיל שהסתיים וממשיכים — בלי לעצור את הקבוצה ובלי מחשב.', 'Open the plan, tick off a finished drill and move on — without stopping the team or needing a laptop.') },
     { Icon: Users, title: L('ידע של קהילה שלמה', 'The knowledge of a whole community'), desc: L('תרגילים, דירוגים ותוכניות ששיתפו מאמנים פעילים — במקום להמציא כל אימון מאפס.', 'Drills, ratings and plans shared by active coaches — instead of inventing every practice from scratch.') },
   ]
@@ -162,7 +162,7 @@ export default function Landing({ onEnter }) {
             <span className="land-title-accent">{L('במקום אחד.', 'in one place.')}</span>
           </h1>
           <p className="land-sub">
-            {L('תרגילים, תוכניות אימון, לוח טקטיקה, לו"ז וקהילת מאמנים. פלטפורמה מקצועית שנבנתה לעברית מהיסוד — מהירה מספיק לשימוש תוך כדי אימון על המגרש.', 'Drills, practice plans, a tactics board, a schedule and a coaching community. A professional platform built Hebrew-first — fast enough to use right on the court during practice.')}
+            {L('תרגילים, תוכניות אימון, לוח טקטיקה, לו"ז וקהילת מאמנים. פלטפורמה מקצועית אחת — מהירה מספיק לשימוש תוך כדי אימון על המגרש.', 'Drills, practice plans, a tactics board, a schedule and a coaching community. One professional platform — fast enough to use right on the court during practice.')}
           </p>
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>

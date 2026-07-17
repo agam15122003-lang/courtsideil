@@ -181,7 +181,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
                 </p>
               </div>
             ) : (
-              <>
+              <div className="coach-grid">
                 <p className="muted small results-count">
                   {results.length === 1
                     ? L('נמצא מאמן אחד', 'Found 1 coach')
@@ -245,7 +245,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
                     </div>
                   </div>
                 ))}
-              </>
+              </div>
             )}
           </div>
         </>
