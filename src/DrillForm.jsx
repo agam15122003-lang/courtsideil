@@ -9,17 +9,19 @@ import TacticsBoard from './TacticsBoard'
 import NotebookPage from './NotebookPage'
 import MultiSelect from './MultiSelect'
 
-// טופס להוספת תרגיל חדש לספרייה.
+// טופס להוספת/עריכת תרגיל בספרייה.
 // props:
-//   onSaved  - מופעל אחרי הוספה מוצלחת (חוזרים לרשימה)
+//   onSaved  - מופעל אחרי שמירה מוצלחת (חוזרים לרשימה)
 //   onCancel - מופעל בלחיצה על "ביטול"
-export default function DrillForm({ onSaved, onCancel }) {
-  // שדות הבסיס
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [ageGroups, setAgeGroups] = useState([])
-  const [tags, setTags] = useState([])
+//   drill    - (אופציונלי) תרגיל קיים לעריכה. אם קיים — הטופס נטען מלא ומעדכן במקום להוסיף.
+export default function DrillForm({ onSaved, onCancel, drill }) {
+  const editing = !!drill?.id
+  // שדות הבסיס — נטענים מהתרגיל הקיים בעריכה
+  const [title, setTitle] = useState(drill?.title || '')
+  const [description, setDescription] = useState(drill?.description || '')
+  const [category, setCategory] = useState(drill?.category || '')
+  const [ageGroups, setAgeGroups] = useState(drill?.age_groups || [])
+  const [tags, setTags] = useState(drill?.tags || [])
   const [tagInput, setTagInput] = useState('')
 
   const addTag = () => {
@@ -29,18 +31,18 @@ export default function DrillForm({ onSaved, onCancel }) {
   }
   const removeTag = (t) => setTags(tags.filter((x) => x !== t))
 
-  // פרטים נוספים (אופציונליים)
-  const [difficulty, setDifficulty] = useState('')
-  const [duration, setDuration] = useState('')
-  const [goal, setGoal] = useState('')
-  const [equipment, setEquipment] = useState('')
-  const [players, setPlayers] = useState('')
-  const [reps, setReps] = useState('')
-  const [videoUrl, setVideoUrl] = useState('')
-  const [coachNotes, setCoachNotes] = useState('')
-  const [isPublic, setIsPublic] = useState(true) // שיתוף לקהילה / פרטי
-  const [board, setBoard] = useState(null) // שלבי לוח הטקטיקה
-  const [imageUrl, setImageUrl] = useState('')
+  // פרטים נוספים (אופציונליים) — נטענים מהתרגיל הקיים בעריכה
+  const [difficulty, setDifficulty] = useState(drill?.difficulty || '')
+  const [duration, setDuration] = useState(drill?.duration_minutes != null ? String(drill.duration_minutes) : '')
+  const [goal, setGoal] = useState(drill?.goal || '')
+  const [equipment, setEquipment] = useState(drill?.equipment || '')
+  const [players, setPlayers] = useState(drill?.players || '')
+  const [reps, setReps] = useState(drill?.reps || '')
+  const [videoUrl, setVideoUrl] = useState(drill?.video_url || '')
+  const [coachNotes, setCoachNotes] = useState(drill?.coach_notes || '')
+  const [isPublic, setIsPublic] = useState(drill?.is_public !== false) // שיתוף לקהילה / פרטי
+  const [board, setBoard] = useState(drill?.board || null) // שלבי לוח הטקטיקה
+  const [imageUrl, setImageUrl] = useState(drill?.image_url || '')
   const [uploadingImage, setUploadingImage] = useState(false)
 
   const [saving, setSaving] = useState(false)
@@ -148,7 +150,10 @@ export default function DrillForm({ onSaved, onCancel }) {
       board: board,
     }
 
-    const { error } = await supabase.from('drills').insert(payload)
+    // עריכה → עדכון הרשומה הקיימת (RLS מתיר רק לבעל התרגיל); אחרת → הוספה חדשה
+    const { error } = editing
+      ? await supabase.from('drills').update(payload).eq('id', drill.id)
+      : await supabase.from('drills').insert(payload)
 
     setSaving(false)
 
@@ -156,7 +161,7 @@ export default function DrillForm({ onSaved, onCancel }) {
       setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
       toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
     } else {
-      toast.success(L('התרגיל נשמר בספרייה', 'Drill saved to the library'))
+      toast.success(editing ? L('התרגיל עודכן', 'Drill updated') : L('התרגיל נשמר בספרייה', 'Drill saved to the library'))
       onSaved()
     }
   }
@@ -171,7 +176,7 @@ export default function DrillForm({ onSaved, onCancel }) {
           </button>
           <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={handleSubmit} disabled={saving} aria-busy={saving}>
             {saving ? <span className="btn-spinner" aria-hidden="true" /> : <Check size={16} />}
-            {saving ? L('שומר...', 'Saving...') : L('שמירת התרגיל', 'Save drill')}
+            {saving ? L('שומר...', 'Saving...') : editing ? L('שמירת השינויים', 'Save changes') : L('שמירת התרגיל', 'Save drill')}
           </button>
           <button type="button" className="btn-soft" onClick={() => window.print()}>
             <Printer size={16} /> {L('הדפסה', 'Print')}
@@ -193,7 +198,7 @@ export default function DrillForm({ onSaved, onCancel }) {
 
   return (
     <div className="welcome-card">
-      <h2>{L('הוספת תרגיל חדש', 'Add a new drill')}</h2>
+      <h2>{editing ? L('עריכת תרגיל', 'Edit drill') : L('הוספת תרגיל חדש', 'Add a new drill')}</h2>
       <p className="muted small">
         {L('רק שם וקטגוריה הם חובה — שאר הפרטים אופציונליים.', 'Only name and category are required — everything else is optional.')}
       </p>

@@ -18,6 +18,7 @@ export default function DrillLibrary({ session }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [adding, setAdding] = useState(false) // האם מציגים את טופס ההוספה
+  const [editingDrill, setEditingDrill] = useState(null) // תרגיל שנבחר לעריכה
 
   // ערכי הסינון
   const [search, setSearch] = useState('')
@@ -214,15 +215,17 @@ export default function DrillLibrary({ session }) {
         })
       : filtered
 
-  // אם פתחנו את טופס ההוספה — מציגים רק אותו
-  if (adding) {
+  // אם פתחנו את טופס ההוספה/העריכה — מציגים רק אותו
+  if (adding || editingDrill) {
     return (
       <DrillForm
+        drill={editingDrill}
         onSaved={() => {
           setAdding(false)
+          setEditingDrill(null)
           loadDrills()
         }}
-        onCancel={() => setAdding(false)}
+        onCancel={() => { setAdding(false); setEditingDrill(null) }}
       />
     )
   }
@@ -368,6 +371,7 @@ export default function DrillLibrary({ session }) {
                 onDelete={() => handleDelete(drill.id)}
                 onTagClick={setTagFilter}
                 onAddToPlan={openPlanPicker}
+                onEdit={setEditingDrill}
               />
             ))}
           </div>
