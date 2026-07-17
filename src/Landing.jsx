@@ -190,7 +190,7 @@ export default function Landing({ onEnter }) {
 
       <section className="land-section land-why reveal">
         <span className="land-kicker">{L('למה CourtSide', 'Why CourtSide')}</span>
-        <h2 className="land-h2">{L('נבנה למגרש, לא למשרד', 'Built for the court, not the office')}</h2>
+        <h2 className="land-h2">{L('בנוי לעבודה האמיתית של המאמן', "Built for a coach's real work")}</h2>
         <div className="land-why-grid">
           {WHY.map((w) => (
             <div key={w.title} className="land-why-item">
