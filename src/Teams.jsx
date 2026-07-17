@@ -62,6 +62,7 @@ export default function Teams({ session, profile, onNavigate }) {
   const [team, setTeam] = useState(teams[0] || '')
   const [tab, setTab] = useState('roster')
   const [players, setPlayers] = useState([])
+  const [attByPlayer, setAttByPlayer] = useState({})
   const [staff, setStaff] = useState([])
   const [goalsMap, setGoalsMap] = useState({}) // 'period|key' -> content
   const [games, setGames] = useState([])
@@ -94,15 +95,27 @@ export default function Teams({ session, profile, onNavigate }) {
   async function load() {
     if (!team) { setLoading(false); return }
     setLoading(true)
-    const [pl, gl, gm, im, st] = await Promise.all([
+    const [pl, gl, gm, im, st, at] = await Promise.all([
       supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
       supabase.from('team_goals').select('*').eq('coach_id', me).eq('team', team),
       supabase.from('team_games').select('*').eq('coach_id', me).eq('team', team).order('game_date'),
       supabase.from('team_iba').select('*').eq('coach_id', me).eq('team', team).maybeSingle(),
       supabase.from('team_staff').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
+      supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team),
     ])
     setStaff(st && !st.error ? st.data || [] : [])
     setPlayers(pl.error ? [] : pl.data || [])
+    // נוכחות עונתית לכל שחקן: נוכח/איחר מתוך סך האימונים שסומנו
+    const att = {}
+    if (at && !at.error) {
+      for (const r of at.data || []) {
+        const a = att[r.player_id] || { present: 0, total: 0 }
+        a.total += 1
+        if (r.status !== 'absent') a.present += 1
+        att[r.player_id] = a
+      }
+    }
+    setAttByPlayer(att)
     const map = {}
     ;(gl.error ? [] : gl.data || []).forEach((r) => { map[`${r.period}|${r.period_key || ''}`] = r.content || '' })
     setGoalsMap(map)
@@ -330,6 +343,18 @@ export default function Teams({ session, profile, onNavigate }) {
                       </span>
                     )}
                   </span>
+                  {(() => {
+                    const a = attByPlayer[p.id]
+                    const pct = a && a.total ? Math.round((a.present / a.total) * 100) : null
+                    return (
+                      <span className="roster-att" title={pct == null ? L('אין נתוני נוכחות', 'No attendance data') : L(`נוכחות עונתית ${pct}%`, `Season attendance ${pct}%`)}>
+                        <span className={`roster-att-bar${pct != null && pct >= 85 ? ' hi' : ''}`} aria-hidden="true">
+                          <span style={{ width: `${pct ?? 0}%` }} />
+                        </span>
+                        <span className="roster-att-pct" dir="ltr">{pct == null ? '—' : `${pct}%`}</span>
+                      </span>
+                    )
+                  })()}
                   <button className={`status-pill status-${p.status}`} onClick={(e) => { e.stopPropagation(); cycleStatus(p) }} title={L('שנה סטטוס', 'Change status')}>
                     {statusLabel(p.status)}
                   </button>
