@@ -3,6 +3,7 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
+  UserCheck,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -10,6 +11,7 @@ import Avatar from './Avatar'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
+import Attendance from './Attendance'
 
 // ---- סטטוס שחקן ----
 const STATUSES = [
@@ -288,6 +290,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       <div className="tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
+        <button className={tab === 'attendance' ? 'tab active' : 'tab'} onClick={() => setTab('attendance')}><UserCheck size={15} /> {L('נוכחות', 'Attendance')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><CalendarClock size={15} /> {L('משחקים', 'Games')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
@@ -366,6 +369,9 @@ export default function Teams({ session, profile, onNavigate }) {
             )}
           </div>
         </div>
+      ) : tab === 'attendance' ? (
+        /* ===================== נוכחות ===================== */
+        <Attendance session={session} team={team} players={players} />
       ) : tab === 'goals' ? (
         /* ===================== מטרות (בורר שבוע/חודש) ===================== */
         <div className="team-section">
