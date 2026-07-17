@@ -10715,3 +10715,16 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .config-error p { color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; font-size: 14.5px; }
 .config-error code { background: var(--surface-alt); padding: 2px 6px; border-radius: 5px; font-size: 13px; direction: ltr; display: inline-block; }
 .config-error-fix { text-align: start; background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); }
+
+/* ---- מאתר מאמנים: גריד 2 טורים (מסך היעד 12) ---- */
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 6px;
+}
+@media (max-width: 820px) { .coach-grid { grid-template-columns: 1fr; } }
+.coach-grid .results-count { grid-column: 1 / -1; margin: 0; }
+.coach-grid .coach-card { margin: 0; height: 100%; display: flex; flex-direction: column; }
+.coach-grid .coach-card-actions { margin-top: auto; }
