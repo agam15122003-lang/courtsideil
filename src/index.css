@@ -9921,3 +9921,83 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 /* מצב כהה — כרטיסי הווידאו/האימון-הבא כבר כהים; אריחי הסטטיסטיקה מקבלים זכוכית */
 [data-theme='dark'] .stat-tile { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.09); }
 [data-theme='dark'] .sidebar-user:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* ============================================================
+   MOCKUP POLISH — התאמות עדינות למסכי היעד (כרטיסי תרגיל, כללי)
+   ============================================================ */
+/* כרטיס תרגיל — כותרת גדולה, תג קטגוריה ודירוג בקצוות */
+.drill-compact-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.drill-compact-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18.5px;
+  letter-spacing: -0.01em;
+  order: 2;
+  flex: 1;
+  min-width: 140px;
+  margin: 0;
+}
+.drill-compact-head .cat-badge { order: 1; }
+.drill-compact-head .drill-rating-pill { order: 0; margin-inline-start: auto; }
+.drill-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+.drill-rating-pill svg { color: var(--orange-500); }
+.drill-expand-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 12px;
+}
+/* דירוג אישי + שמירה — קו מפריד עדין מעל הפוטר */
+.drill-card-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.drill-actions .btn-ghost.save.saved {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent-strong) 45%, transparent);
+}
+[data-theme='dark'] .drill-card { background: rgba(255, 255, 255, 0.035); border-color: rgba(255, 255, 255, 0.09); }
+[data-theme='dark'] .drill-card:hover { border-color: rgba(232, 118, 58, 0.4); }
+
+/* תג קטגוריה — קפסולה נקייה */
+.cat-badge {
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 11px;
+}
+[data-theme='dark'] .cat-badge { background: rgba(255, 255, 255, 0.08); color: var(--orange-300); }
+[data-theme='dark'] .cat-badge.private-badge { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+
+/* מיני-תגיות גיל */
+[data-theme='dark'] .mini-tag { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); }
+
+/* טבלת ליגה — שורת הקבוצה שלנו מודגשת בכתום (מצב כהה) */
+[data-theme='dark'] .league-table tr.is-mine,
+[data-theme='dark'] .lt-row.is-mine {
+  background: rgba(232, 118, 58, 0.14);
+}
+
+/* משחק הבא / שורות משחק — קצה כתום עדין */
+[data-theme='dark'] .game-row { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.09); }
+
+/* מודאלים — משטח כהה עקבי */
+[data-theme='dark'] .tm-modal,
+[data-theme='dark'] .modal,
+[data-theme='dark'] .sheet {
+  background: #131C30;
+  border-color: rgba(255, 255, 255, 0.1);
+}
