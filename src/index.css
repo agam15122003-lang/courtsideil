@@ -10108,3 +10108,117 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   .pb-breakdown-row { grid-template-columns: auto 1fr auto; }
   .pb-breakdown-track { display: none; }
 }
+
+/* ============================================================
+   AUTH SPLIT — מסך התחברות קולנועי (מסך היעד 08)
+   ============================================================ */
+.auth-split {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+/* פאנל קולנועי — תמיד כהה (זהו "התמונה") */
+.auth-hero-panel {
+  position: relative;
+  overflow: hidden;
+  background: #0A0E18;
+  display: flex;
+  align-items: flex-end;
+}
+.auth-hero-court {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: kenburns 22s ease-in-out infinite alternate;
+}
+@keyframes kenburns { from { transform: scale(1.05); } to { transform: scale(1.16) translate(-1.5%, -1.5%); } }
+.auth-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(700px 500px at 20% 80%, rgba(232, 118, 58, 0.22), transparent 60%),
+    linear-gradient(to top, rgba(10, 14, 24, 0.96), rgba(10, 14, 24, 0.35) 55%, rgba(10, 14, 24, 0.6));
+}
+.auth-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: clamp(28px, 5vw, 64px);
+  color: #fff;
+  max-width: 560px;
+}
+.auth-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(232, 118, 58, 0.9);
+  color: #101a30;
+  font-weight: 700;
+  font-size: 12.5px;
+  margin-bottom: 20px;
+}
+.auth-hero-quote {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: clamp(22px, 2.7vw, 34px);
+  line-height: 1.22;
+  margin: 0;
+  animation: fadeRise 0.6s var(--ease-out);
+}
+.auth-hero-cite { display: block; margin-top: 12px; color: rgba(255, 255, 255, 0.66); font-size: 14px; }
+.auth-hero-caps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 26px 0 0;
+  padding: 0;
+}
+.auth-hero-caps li {
+  padding: 9px 15px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  font-weight: 600;
+}
+@keyframes fadeRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* פאנל הטופס */
+.auth-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vw, 48px);
+  background: var(--bg);
+  overflow-y: auto;
+}
+.auth-split .auth-card {
+  width: 100%;
+  max-width: 420px;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+.auth-welcome { font-size: 14.5px; line-height: 1.5; }
+
+/* מובייל — הפאנל הקולנועי הופך לרצועה עליונה נמוכה */
+@media (max-width: 860px) {
+  .auth-split { grid-template-columns: 1fr; }
+  .auth-hero-panel { min-height: 210px; max-height: 32vh; }
+  .auth-hero-content { padding: 20px; }
+  .auth-hero-caps { display: none; }
+  .auth-hero-quote { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-hero-court { animation: none; }
+}
+
+/* Auth split — הטופס מימין והפאנל הקולנועי משמאל (כמו מסך היעד) */
+.auth-form-panel { order: -1; }
