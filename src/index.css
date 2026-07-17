@@ -10222,3 +10222,92 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 
 /* Auth split — הטופס מימין והפאנל הקולנועי משמאל (כמו מסך היעד) */
 .auth-form-panel { order: -1; }
+
+/* ============================================================
+   FINAL POLISH — הודעות/צ'אט (07), לו"ז (06), מדיה (10) לפי המוקאפים
+   (ממוקד מצב כהה — מצב בהיר לא מושפע)
+   ============================================================ */
+
+/* ---- בועות צ'אט: יוצאת = גרדיאנט כתום, נכנסת = זכוכית ---- */
+[data-theme='dark'] .chat-bubble {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px 16px 16px 5px;
+}
+[data-theme='dark'] .mine .chat-bubble {
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  border: none;
+  border-radius: 16px 16px 5px 16px;
+  box-shadow: 0 8px 20px -10px rgba(232, 118, 58, 0.6);
+}
+[data-theme='dark'] .mine .chat-time { color: rgba(255, 255, 255, 0.75); }
+[data-theme='dark'] .chat-composer {
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+[data-theme='dark'] .btn-send {
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  box-shadow: 0 8px 20px -10px rgba(232, 118, 58, 0.7);
+}
+
+/* ---- רשימת שיחות: שורה, לא-נקרא בכתום ---- */
+[data-theme='dark'] .msg-conv { border-color: rgba(255, 255, 255, 0.08); }
+[data-theme='dark'] .msg-conv:hover,
+[data-theme='dark'] .msg-conv.active {
+  background: rgba(232, 118, 58, 0.1);
+  border-color: rgba(232, 118, 58, 0.45);
+}
+.msg-unread {
+  background: var(--orange-500);
+  color: #101a30;
+  font-weight: 800;
+}
+
+/* ---- לו"ז: אירוע קבוצתי = כתום, אישי = נייבי + פס, משחק = נייבי עמוק ---- */
+[data-theme='dark'] .cal-event {
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 16px -10px rgba(232, 118, 58, 0.7);
+}
+[data-theme='dark'] .cal-event .cal-event-time { color: rgba(255, 255, 255, 0.85); }
+[data-theme='dark'] .cal-event.personal {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-inline-start: 3px solid var(--orange-500);
+  box-shadow: none;
+}
+[data-theme='dark'] .cal-event.personal .cal-event-time { color: var(--text-muted); }
+[data-theme='dark'] .cal-event.meeting {
+  background: linear-gradient(160deg, #22314F, #101A2E);
+  color: #fff;
+  border: 1px solid rgba(232, 118, 58, 0.4);
+}
+.cal-event-plan {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 26, 48, 0.28);
+  font-size: 11px;
+  font-weight: 700;
+}
+[data-theme='dark'] .cal-event.personal .cal-event-plan,
+[data-theme='dark'] .cal-event.meeting .cal-event-plan {
+  background: rgba(232, 118, 58, 0.16);
+  color: var(--orange-300);
+}
+/* עמודת היום — הדגשה כתומה */
+[data-theme='dark'] .cal-daycol.today {
+  border-color: rgba(232, 118, 58, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(232, 118, 58, 0.3);
+}
+[data-theme='dark'] .cal-dayhead.today { color: var(--orange-300); }
+[data-theme='dark'] .cal-dayhead.today .cal-daynum { color: var(--orange-300); }
+
+/* ---- מדיה: כרטיסי פודקסט/וידאו ---- */
+[data-theme='dark'] .podcast-card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.09); }
+[data-theme='dark'] .podcast-card:hover { border-color: rgba(232, 118, 58, 0.45); }
