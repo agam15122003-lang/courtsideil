@@ -24,6 +24,7 @@ export const DICT = {
     'nav.plans': 'תוכניות',
     'nav.schedule': 'לו"ז',
     'nav.media': 'מדיה',
+    'nav.video': 'עריכת וידאו',
     'nav.messages': 'הודעות',
     'nav.admin': 'ניהול',
     // פעולות כלליות
@@ -86,6 +87,7 @@ export const DICT = {
     'nav.plans': 'Plans',
     'nav.schedule': 'Schedule',
     'nav.media': 'Media',
+    'nav.video': 'Video editor',
     'nav.messages': 'Messages',
     'nav.admin': 'Admin',
     'action.signout': 'Sign out',

@@ -18,6 +18,7 @@ const Schedule = lazy(() => import('./Schedule'))
 const Teams = lazy(() => import('./Teams'))
 const Admin = lazy(() => import('./Admin'))
 const Media = lazy(() => import('./Media'))
+const VideoEditor = lazy(() => import('./VideoEditor'))
 import {
   Home as HomeIcon,
   User,
@@ -27,6 +28,7 @@ import {
   MessageSquare,
   CalendarDays,
   MonitorPlay,
+  Clapperboard,
   Shield,
   ShieldCheck,
   Menu,
@@ -47,6 +49,7 @@ const NAV = [
   { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
+  { id: 'video', key: 'nav.video', Icon: Clapperboard },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
@@ -268,6 +271,8 @@ export default function Dashboard({ session }) {
             <Admin session={session} profile={profile} />
           ) : view === 'media' ? (
             <Media session={session} profile={profile} />
+          ) : view === 'video' ? (
+            <VideoEditor />
           ) : view === 'messages' ? (
             <Messages session={session} onNavigate={setView} />
           ) : (
