@@ -53,10 +53,31 @@ function pickMime() {
   return null
 }
 
+// המתנה לסיום seek — מנקה את המאזין בכל מסלול (אירוע או timeout גיבוי)
+function awaitSeek(v, t, timeout = 2500) {
+  return new Promise((resolve) => {
+    let done = false
+    let timer = null
+    const finish = () => {
+      if (done) return
+      done = true
+      v.removeEventListener('seeked', finish)
+      if (timer) clearTimeout(timer)
+      resolve()
+    }
+    v.addEventListener('seeked', finish)
+    timer = setTimeout(finish, timeout)
+    v.currentTime = Math.max(0, t)
+  })
+}
+
 export default function VideoEditor() {
   const videoRef = useRef(null)
   const cancelRef = useRef(false)
   const tickRef = useRef(null)
+  // כתובות ה-blob נשמרות גם ב-ref — כדי שניקוי ה-unmount יראה את הערכים העדכניים
+  const srcUrlRef = useRef(null)
+  const resultUrlRef = useRef(null)
 
   const [srcUrl, setSrcUrl] = useState(null)
   const [fileName, setFileName] = useState('')
@@ -69,33 +90,50 @@ export default function VideoEditor() {
 
   const [exporting, setExporting] = useState(false)
   const [exportIndex, setExportIndex] = useState(0)
-  const [result, setResult] = useState(null) // {url, ext, size}
+  const [result, setResult] = useState(null) // {url, ext, size, blob}
 
-  // ניקוי כתובות blob ביציאה
+  // עצירת דגימת ההשמעה הפעילה (אם יש)
+  const stopTick = () => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current)
+      tickRef.current = null
+    }
+  }
+
+  // ניקוי ביציאה מהעמוד — דרך refs (ה-state של הרינדור הראשון תמיד ריק)
   useEffect(() => {
     return () => {
-      if (srcUrl) URL.revokeObjectURL(srcUrl)
-      if (result?.url) URL.revokeObjectURL(result.url)
-      if (tickRef.current) clearInterval(tickRef.current)
+      stopTick()
+      if (srcUrlRef.current) URL.revokeObjectURL(srcUrlRef.current)
+      if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const setSource = (url) => {
+    srcUrlRef.current = url
+    setSrcUrl(url)
+  }
+  const setResultClip = (r) => {
+    resultUrlRef.current = r?.url || null
+    setResult(r)
+  }
+
   const loadFile = (file) => {
-    if (!file) return
+    if (!file || exporting) return
     if (!file.type.startsWith('video/')) {
       toast.error(L('הקובץ שנבחר אינו סרטון.', 'The selected file is not a video.'))
       return
     }
-    if (srcUrl) URL.revokeObjectURL(srcUrl)
-    if (result?.url) URL.revokeObjectURL(result.url)
-    setResult(null)
+    stopTick()
+    if (srcUrlRef.current) URL.revokeObjectURL(srcUrlRef.current)
+    if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
+    setResultClip(null)
     setSegments([])
     setPendingStart(null)
     setDuration(0)
     setCurrentTime(0)
     setFileName(file.name)
-    setSrcUrl(URL.createObjectURL(file))
+    setSource(URL.createObjectURL(file))
   }
 
   const onDrop = (e) => {
@@ -106,15 +144,25 @@ export default function VideoEditor() {
   // --- שליטה בנגן ---
   const seekTo = (t) => {
     const v = videoRef.current
-    if (!v || !duration) return
+    if (!v || !duration || exporting) return
     v.currentTime = Math.min(Math.max(0, t), duration)
   }
 
   const togglePlay = () => {
     const v = videoRef.current
-    if (!v) return
+    if (!v || exporting) return
     if (v.paused) v.play().catch(() => {})
     else v.pause()
+  }
+
+  // מקלדת על ציר הזמן — חיצים לדילוג, רווח לניגון (נגישות)
+  const onTrackKey = (e) => {
+    if (exporting) return
+    if (e.key === 'ArrowRight') { e.preventDefault(); seekTo(currentTime + 5) }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); seekTo(currentTime - 5) }
+    else if (e.key === 'Home') { e.preventDefault(); seekTo(0) }
+    else if (e.key === 'End') { e.preventDefault(); seekTo(duration) }
+    else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); togglePlay() }
   }
 
   // --- סימון קטעים ---
@@ -160,49 +208,43 @@ export default function VideoEditor() {
       })
     )
 
-  // השמעת טווח: seek → play → עצירה בנקודת הסוף (דגימה כל 40ms)
-  const playRange = useCallback((start, end) => {
+  // ניגון עד נקודת סוף — כל קריאה עוצרת קודם את הדגימה הקודמת, ומזהה את
+  // האינטרוול שלה עצמה (כדי שדגימה "יתומה" לא תוכל לחסל דגימה חדשה)
+  const playUntil = useCallback((end) => {
     const v = videoRef.current
     if (!v) return Promise.resolve()
+    stopTick()
     return new Promise((resolve) => {
-      let started = false
-      const begin = () => {
-        if (started) return
-        started = true
-        v.play()
-          .then(() => {
-            tickRef.current = setInterval(() => {
-              if (cancelRef.current || v.currentTime >= end - 0.04 || v.ended) {
-                clearInterval(tickRef.current)
-                tickRef.current = null
-                v.pause()
-                resolve()
-              }
-            }, 40)
-          })
-          .catch(() => resolve())
-      }
-      const onSeeked = () => {
-        v.removeEventListener('seeked', onSeeked)
-        begin()
-      }
-      v.addEventListener('seeked', onSeeked)
-      v.currentTime = Math.max(0, start)
-      // גיבוי אם אירוע seeked לא נורה (כשכבר עומדים על הנקודה)
-      setTimeout(begin, 600)
+      v.play()
+        .then(() => {
+          const my = setInterval(() => {
+            if (cancelRef.current || v.currentTime >= end - 0.04 || v.ended) {
+              clearInterval(my)
+              if (tickRef.current === my) tickRef.current = null
+              v.pause()
+              resolve()
+            }
+          }, 40)
+          tickRef.current = my
+        })
+        .catch(() => resolve())
     })
   }, [])
 
+  // תצוגה מקדימה של קטע — לחיצה על קטע אחר פשוט מחליפה אותו
   const previewSegment = async (seg) => {
-    if (exporting) return
+    const v = videoRef.current
+    if (!v || exporting) return
     cancelRef.current = false
-    await playRange(seg.start, seg.end)
+    stopTick()
+    await awaitSeek(v, seg.start)
+    await playUntil(seg.end)
   }
 
   // --- ייצוא: הקלטת השמעת כל הקטעים ברצף לקובץ אחד ---
   const exportClip = async () => {
     const v = videoRef.current
-    if (!v || segments.length === 0) return
+    if (!v || segments.length === 0 || exporting) return
     const capture = v.captureStream || v.mozCaptureStream
     const mime = pickMime()
     if (!capture || !mime) {
@@ -210,15 +252,20 @@ export default function VideoEditor() {
       return
     }
 
+    // עוצרים כל תצוגה מקדימה פעילה לפני שמתחילים
+    stopTick()
+    v.pause()
     cancelRef.current = false
     setExporting(true)
     setExportIndex(0)
-    if (result?.url) {
-      URL.revokeObjectURL(result.url)
-      setResult(null)
-    }
+    if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
+    setResultClip(null)
 
     try {
+      // קופצים לתחילת הקטע הראשון *לפני* תחילת ההקלטה —
+      // כדי שהקפיצה והפריים הישן לא ייכנסו לקליפ
+      await awaitSeek(v, segments[0].start)
+
       const stream = capture.call(v)
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 })
       const chunks = []
@@ -230,28 +277,19 @@ export default function VideoEditor() {
       })
 
       rec.start(250)
-      for (let i = 0; i < segments.length; i++) {
+      await playUntil(segments[0].end)
+
+      for (let i = 1; i < segments.length; i++) {
         if (cancelRef.current) break
         setExportIndex(i)
-        // בין קטעים — משהים את ההקלטה כדי שהקפיצה (seek) לא תיכנס לקליפ
-        if (i > 0 && rec.state === 'recording') rec.pause()
-        const seg = segments[i]
-        if (i > 0) {
-          await new Promise((res) => {
-            const onSeeked = () => {
-              v.removeEventListener('seeked', onSeeked)
-              res()
-            }
-            v.addEventListener('seeked', onSeeked)
-            v.currentTime = Math.max(0, seg.start)
-            setTimeout(res, 600)
-          })
-          if (rec.state === 'paused') rec.resume()
-          await playRange(seg.start, seg.end)
-        } else {
-          await playRange(seg.start, seg.end)
-        }
+        // בין קטעים: משהים את ההקלטה, מחכים שה-seek באמת יסתיים, וממשיכים
+        if (rec.state === 'recording') rec.pause()
+        await awaitSeek(v, segments[i].start)
+        if (cancelRef.current) break
+        if (rec.state === 'paused') rec.resume()
+        await playUntil(segments[i].end)
       }
+
       rec.stop()
       v.pause()
       await stopped
@@ -261,12 +299,13 @@ export default function VideoEditor() {
       } else {
         const blob = new Blob(chunks, { type: rec.mimeType || mime })
         const ext = (rec.mimeType || mime).includes('mp4') ? 'mp4' : 'webm'
-        setResult({ url: URL.createObjectURL(blob), ext, size: blob.size, blob })
+        setResultClip({ url: URL.createObjectURL(blob), ext, size: blob.size, blob })
         toast.success(L('הקליפ מוכן!', 'Your clip is ready!'))
       }
     } catch (err) {
       toast.error(L('הייצוא נכשל: ', 'Export failed: ') + (err?.message || err))
     } finally {
+      stopTick()
       setExporting(false)
     }
   }
@@ -305,9 +344,9 @@ export default function VideoEditor() {
         </div>
         {srcUrl && (
           <div className="page-header-actions">
-            <label className="btn-soft ve-replace">
+            <label className={exporting ? 'btn-soft ve-replace is-disabled' : 'btn-soft ve-replace'} aria-disabled={exporting}>
               <Upload size={16} /> {L('החלפת סרטון', 'Replace video')}
-              <input type="file" accept="video/*" hidden onChange={(e) => loadFile(e.target.files?.[0])} />
+              <input type="file" accept="video/*" hidden disabled={exporting} onChange={(e) => loadFile(e.target.files?.[0])} />
             </label>
           </div>
         )}
@@ -376,11 +415,14 @@ export default function VideoEditor() {
               )}
             </div>
 
-            {/* ציר זמן — LTR כמו בכל נגן וידאו */}
+            {/* ציר זמן — LTR כמו בכל נגן וידאו; נגיש גם במקלדת */}
             <div
-              className="ve-track"
+              className={exporting ? 've-track is-disabled' : 've-track'}
               dir="ltr"
+              tabIndex={0}
+              onKeyDown={onTrackKey}
               onClick={(e) => {
+                if (exporting) return
                 const r = e.currentTarget.getBoundingClientRect()
                 seekTo(((e.clientX - r.left) / r.width) * duration)
               }}
@@ -389,6 +431,7 @@ export default function VideoEditor() {
               aria-valuemin={0}
               aria-valuemax={Math.round(duration)}
               aria-valuenow={Math.round(currentTime)}
+              aria-disabled={exporting}
             >
               {segments.map((s, i) => (
                 <span
@@ -471,13 +514,13 @@ export default function VideoEditor() {
                           <em>({fmt(s.end - s.start)})</em>
                         </span>
                         <span className="ve-seg-nudges" dir="ltr">
-                          <button onClick={() => nudge(s.id, 'start', -0.5)} disabled={exporting} title={L('התחלה מוקדם יותר', 'Start earlier')}><Minus size={12} /></button>
+                          <button onClick={() => nudge(s.id, 'start', -0.5)} disabled={exporting} title={L('התחלה מוקדם יותר', 'Start earlier')} aria-label={L('הקדם התחלה', 'Start earlier')}><Minus size={13} /></button>
                           <b>{L('התחלה', 'start')}</b>
-                          <button onClick={() => nudge(s.id, 'start', 0.5)} disabled={exporting} title={L('התחלה מאוחר יותר', 'Start later')}><Plus size={12} /></button>
+                          <button onClick={() => nudge(s.id, 'start', 0.5)} disabled={exporting} title={L('התחלה מאוחר יותר', 'Start later')} aria-label={L('אחר התחלה', 'Start later')}><Plus size={13} /></button>
                           <i />
-                          <button onClick={() => nudge(s.id, 'end', -0.5)} disabled={exporting} title={L('סוף מוקדם יותר', 'End earlier')}><Minus size={12} /></button>
+                          <button onClick={() => nudge(s.id, 'end', -0.5)} disabled={exporting} title={L('סוף מוקדם יותר', 'End earlier')} aria-label={L('הקדם סוף', 'End earlier')}><Minus size={13} /></button>
                           <b>{L('סוף', 'end')}</b>
-                          <button onClick={() => nudge(s.id, 'end', 0.5)} disabled={exporting} title={L('סוף מאוחר יותר', 'End later')}><Plus size={12} /></button>
+                          <button onClick={() => nudge(s.id, 'end', 0.5)} disabled={exporting} title={L('סוף מאוחר יותר', 'End later')} aria-label={L('אחר סוף', 'End later')}><Plus size={13} /></button>
                         </span>
                       </div>
                       <div className="ve-seg-acts">
@@ -529,8 +572,8 @@ export default function VideoEditor() {
                   <button
                     className="btn-ghost"
                     onClick={() => {
-                      URL.revokeObjectURL(result.url)
-                      setResult(null)
+                      if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
+                      setResultClip(null)
                     }}
                   >
                     <RotateCcw size={15} /> {L('עריכה מחדש', 'Edit again')}

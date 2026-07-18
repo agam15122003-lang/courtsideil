@@ -10808,7 +10808,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 /* ציר זמן */
 .ve-track {
   position: relative;
-  height: 18px;
+  height: 24px;
   margin-top: 12px;
   border-radius: var(--radius-full);
   background: var(--surface-alt);
@@ -10880,8 +10880,8 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .ve-seg-nudges i { width: 8px; }
 .ve-seg-nudges button {
   display: grid; place-items: center;
-  width: 20px; height: 20px;
-  border-radius: 5px;
+  width: 30px; height: 30px;
+  border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
@@ -10899,3 +10899,14 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .ve-result-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .ve-result-acts .btn-primary { margin-top: 0; }
 .ve-size { font-size: 12px; opacity: 0.85; margin-inline-start: 4px; }
+
+
+/* מצבי נטרול בזמן ייצוא + פוקוס מקלדת על ציר הזמן */
+.ve-track.is-disabled { cursor: default; opacity: 0.75; }
+.ve-track:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
+.ve-replace.is-disabled { opacity: 0.55; pointer-events: none; }
+@media (max-width: 560px) {
+  .ve-seg-nudges button { width: 34px; height: 34px; }
+  .ve-seg-acts { flex-direction: row; }
+  .ve-seg { flex-wrap: wrap; }
+}
