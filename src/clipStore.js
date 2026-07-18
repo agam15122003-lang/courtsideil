@@ -39,7 +39,7 @@ function tx(db, mode, fn) {
 }
 
 // שמירת קליפ חדש — מחזיר את הרשומה שנשמרה (בלי ה-blob, לתצוגה)
-export async function saveClip({ name, blob, ext, duration }) {
+export async function saveClip({ name, blob, ext, duration, tags }) {
   const db = await openDB()
   const rec = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -48,6 +48,7 @@ export async function saveClip({ name, blob, ext, duration }) {
     ext,
     size: blob.size,
     duration: Number.isFinite(duration) ? duration : null,
+    tags: Array.isArray(tags) ? tags : [],
     createdAt: Date.now(),
   }
   await tx(db, 'readwrite', (s) => s.put(rec))

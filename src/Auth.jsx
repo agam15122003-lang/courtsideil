@@ -358,7 +358,6 @@ export default function Auth({ onBack }) {
           </ul>
         </div>
 
-        <footer className="auth-footer">{L('נבנה למען קהילת המאמנים', 'Built for the coaching community')}</footer>
       </div>
     </div>
   )

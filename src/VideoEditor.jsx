@@ -24,6 +24,9 @@ import {
   FolderOpen,
   PlaySquare,
   Keyboard,
+  Maximize2,
+  Minimize2,
+  Tag,
 } from 'lucide-react'
 import { toast } from './toast'
 import { L } from './i18n'
@@ -80,6 +83,9 @@ function awaitSeek(v, t, timeout = 2500) {
   })
 }
 
+// תגיות מוכנות לקטעים — שפת המגרש של המאמן
+const SEGMENT_TAGS = ['התקפה', 'הגנה', 'ריבאונד', 'זריקה', 'אסיסט', 'מעבר מהיר', 'נק׳ שיא', 'לתיקון']
+
 // צעד "עגול" לסרגל ציר הזמן — בערך 10 תוויות לכל אורך
 function rulerStep(duration) {
   const target = duration / 10
@@ -88,7 +94,7 @@ function rulerStep(duration) {
   return 600
 }
 
-export default function VideoEditor() {
+export default function VideoEditor({ active = true }) {
   const videoRef = useRef(null)
   const cancelRef = useRef(false)
   const tickRef = useRef(null)
@@ -106,8 +112,9 @@ export default function VideoEditor() {
   const [thumbs, setThumbs] = useState([])
 
   const [pendingStart, setPendingStart] = useState(null)
-  const [segments, setSegments] = useState([]) // [{id, start, end}]
+  const [segments, setSegments] = useState([]) // [{id, start, end, label, tags}]
   const [selectedId, setSelectedId] = useState(null)
+  const [fullscreen, setFullscreen] = useState(false)
 
   const [exporting, setExporting] = useState(false)
   const [exportIndex, setExportIndex] = useState(0)
@@ -165,6 +172,7 @@ export default function VideoEditor() {
     setDuration(0)
     setCurrentTime(0)
     setThumbs([])
+    draftRestored.current = false
     setFileName(file.name)
     const base = file.name.replace(/\.[^.]+$/, '')
     setClipName(L(`${base} — קליפ`, `${base} — clip`))
@@ -244,12 +252,25 @@ export default function VideoEditor() {
         return ps
       }
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-      setSegments((cur) => [...cur, { id, start: ps, end: t }])
+      setSegments((cur) => [...cur, { id, start: ps, end: t, label: '', tags: [] }])
       setSelectedId(id)
-      toast.success(L('הקטע נוסף לקליפ', 'Segment added to the clip'))
+      toast.success(L('הקטע נוסף — אפשר לתת לו שם ותגית בפאנל הצד', 'Segment added — name and tag it in the side panel'))
       return null
     })
   }, [exporting])
+
+  // עדכון שם/תגיות של קטע
+  const updateSeg = (id, patch) =>
+    setSegments((cur) => cur.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+
+  const toggleSegTag = (id, tag) =>
+    setSegments((cur) =>
+      cur.map((s) => {
+        if (s.id !== id) return s
+        const tags = s.tags || []
+        return { ...s, tags: tags.includes(tag) ? tags.filter((x) => x !== tag) : [...tags, tag] }
+      })
+    )
 
   const removeSegment = (id) => {
     setSegments((cur) => cur.filter((s) => s.id !== id))
@@ -402,7 +423,8 @@ export default function VideoEditor() {
         return
       }
       const totalClipNow = segments.reduce((s, x) => s + (x.end - x.start), 0)
-      await saveClip({ name: exportName, blob: result.blob, ext: result.ext, duration: totalClipNow })
+      const clipTags = [...new Set(segments.flatMap((s) => s.tags || []))]
+      await saveClip({ name: exportName, blob: result.blob, ext: result.ext, duration: totalClipNow, tags: clipTags })
       setResult((r) => (r ? { ...r, saved: true } : r))
       toast.success(L('הקליפ נשמר לספרייה', 'Clip saved to the library'))
       refreshLibrary()
@@ -460,9 +482,9 @@ export default function VideoEditor() {
     refreshLibrary()
   }
 
-  // --- קיצורי מקלדת: רווח, I, O, חיצים (לא בתוך שדות טקסט) ---
+  // --- קיצורי מקלדת: רווח, I, O, חיצים (לא בתוך שדות טקסט, רק כשהעמוד פעיל) ---
   useEffect(() => {
-    if (!srcUrl) return
+    if (!srcUrl || !active) return
     const h = (e) => {
       const t = e.target
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
@@ -477,13 +499,62 @@ export default function VideoEditor() {
         case 'ArrowLeft': e.preventDefault(); seekTo(v.currentTime - (e.shiftKey ? 1 : 5)); break
         case 'Home': e.preventDefault(); seekTo(0); break
         case 'End': e.preventDefault(); seekTo(duration); break
-        case 'Escape': setPendingStart(null); break
+        case 'Escape':
+          // קודם מבטלים סימון פתוח; אם אין — יוצאים ממסך מלא
+          setPendingStart((ps) => {
+            if (ps != null) return null
+            setFullscreen(false)
+            return ps
+          })
+          break
         default: break
       }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [srcUrl, exporting, duration, togglePlay, markStart, markEnd, seekTo])
+  }, [srcUrl, active, exporting, duration, togglePlay, markStart, markEnd, seekTo])
+
+  // כשעוברים לעמוד אחר — משהים ניגון (העריכה נשמרת; רק העמוד מוסתר)
+  useEffect(() => {
+    if (!active) {
+      videoRef.current?.pause?.()
+      stopTick()
+    }
+  }, [active])
+
+  // נעילת גלילת הרקע במסך מלא
+  useEffect(() => {
+    if (!fullscreen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [fullscreen])
+
+  // --- טיוטה אוטומטית: הקטעים והשם נשמרים מקומית לפי הקובץ ---
+  const draftKey = fileName && duration && Number.isFinite(duration)
+    ? `ve-draft|${fileName}|${Math.round(duration)}`
+    : null
+  const draftRestored = useRef(false)
+  useEffect(() => {
+    if (!draftKey || draftRestored.current) return
+    draftRestored.current = true
+    try {
+      const d = JSON.parse(localStorage.getItem(draftKey) || 'null')
+      if (d?.segments?.length) {
+        setSegments(d.segments.map((s) => ({ label: '', tags: [], ...s })))
+        if (d.clipName) setClipName(d.clipName)
+        toast.success(L('הטיוטה שוחזרה — המשך מאיפה שהפסקת', 'Draft restored — pick up where you left off'))
+      }
+    } catch { /* טיוטה פגומה — מתעלמים */ }
+  }, [draftKey])
+  useEffect(() => {
+    if (!draftKey) return
+    try {
+      if (segments.length > 0 || (clipName || '').trim()) {
+        localStorage.setItem(draftKey, JSON.stringify({ segments, clipName }))
+      }
+    } catch { /* אחסון מלא — לא קריטי */ }
+  }, [draftKey, segments, clipName])
 
   // גרירת playhead (scrubber + ציר זמן) עם pointer capture
   const scrubFrom = (e, el) => {
@@ -548,7 +619,7 @@ export default function VideoEditor() {
           )}
         </>
       ) : (
-        <div className="ve2-shell">
+        <div className={fullscreen ? 've2-shell is-fs' : 've2-shell'}>
           {/* ---- שורת-על: שם הקליפ + פעולות ---- */}
           <div className="ve2-top">
             <input
@@ -561,6 +632,15 @@ export default function VideoEditor() {
               disabled={exporting}
             />
             <span className="ve2-src muted small" title={fileName}>{fileName}</span>
+            <button
+              className="btn-soft ve2-fs"
+              onClick={() => setFullscreen((f) => !f)}
+              aria-label={fullscreen ? L('יציאה ממסך מלא', 'Exit fullscreen') : L('מסך מלא', 'Fullscreen')}
+              title={fullscreen ? L('יציאה ממסך מלא (Esc)', 'Exit fullscreen (Esc)') : L('עריכה במסך מלא', 'Edit fullscreen')}
+            >
+              {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              <span className="ve2-top-lbl">{fullscreen ? L('יציאה', 'Exit') : L('מסך מלא', 'Fullscreen')}</span>
+            </button>
             <label className={exporting ? 'btn-soft ve-replace is-disabled' : 'btn-soft ve-replace'} aria-disabled={exporting}>
               <Upload size={15} /> <span className="ve2-top-lbl">{L('החלפה', 'Replace')}</span>
               <input type="file" accept="video/*" hidden disabled={exporting} onChange={(e) => loadFile(e.target.files?.[0])} />
@@ -710,9 +790,10 @@ export default function VideoEditor() {
                         style={{ left: `${posPct(s.start)}%`, width: `${posPct(s.end - s.start)}%` }}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); setSelectedId(s.id); seekTo(s.start) }}
-                        title={`${i + 1} · ${fmt(s.end - s.start)}`}
+                        title={`${s.label || i + 1} · ${fmt(s.end - s.start)}`}
                       >
                         <b>{i + 1}</b>
+                        {s.label && <span className="ve2-tl-label">{s.label}</span>}
                       </span>
                     ))}
                     {pendingStart != null && (
@@ -743,9 +824,32 @@ export default function VideoEditor() {
                         <li key={s.id} className={selectedId === s.id ? 've-seg is-selected' : 've-seg'} onClick={() => { setSelectedId(s.id); seekTo(s.start) }}>
                           <span className="ve-seg-num">{i + 1}</span>
                           <div className="ve-seg-body">
+                            <input
+                              className="ve2-seg-name"
+                              type="text"
+                              value={s.label || ''}
+                              placeholder={L('שם הקטע (למשל: סל של אורי)', 'Segment name (e.g. Ori scores)')}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => updateSeg(s.id, { label: e.target.value })}
+                              disabled={exporting}
+                              aria-label={L(`שם קטע ${i + 1}`, `Segment ${i + 1} name`)}
+                            />
                             <span className="ve-seg-times" dir="ltr">
                               <bdi>{fmt(s.start)}</bdi> → <bdi>{fmt(s.end)}</bdi>
                               <em>({fmt(s.end - s.start)})</em>
+                            </span>
+                            <span className="ve2-seg-tags" onClick={(e) => e.stopPropagation()}>
+                              {SEGMENT_TAGS.map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className={(s.tags || []).includes(tag) ? 've2-tag on' : 've2-tag'}
+                                  onClick={() => toggleSegTag(s.id, tag)}
+                                  disabled={exporting}
+                                >
+                                  {tag}
+                                </button>
+                              ))}
                             </span>
                             <span className="ve-seg-nudges" dir="ltr">
                               <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'start', -0.5) }} disabled={exporting} aria-label={L('הקדם התחלה', 'Start earlier')}><Minus size={13} /></button>
@@ -867,6 +971,12 @@ function LibraryList({ clips, storageUsed, renamingId, renameVal, setRenamingId,
                   {c.duration != null && <><bdi>{fmt(c.duration)}</bdi> · </>}
                   {Math.max(1, Math.round((c.size || 0) / 1024 / 1024))}MB · {new Date(c.createdAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
                 </span>
+                {(c.tags || []).length > 0 && (
+                  <span className="ve2-clip-tags">
+                    <Tag size={11} aria-hidden="true" />
+                    {c.tags.map((t) => <em key={t}>{t}</em>)}
+                  </span>
+                )}
               </div>
               <div className="ve2-clip-acts">
                 <button className="icon-btn" onClick={() => onPlay(c)} aria-label={L('נגן', 'Play')}><Play size={14} /></button>
