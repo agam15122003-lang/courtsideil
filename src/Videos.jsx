@@ -2,7 +2,7 @@ import { toast } from './toast'
 import { useState, useEffect } from 'react'
 import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY } from './constants'
+import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
 import { searchYouTube, ytConfigured } from './youtube'
 import { SkeletonCards } from './Skeleton'
 import { L, tr } from './i18n'
@@ -208,7 +208,7 @@ export default function Videos({ session, profile }) {
             const r = ratings[v.id] || { avg: 0, count: 0, mine: 0 }
             return (
               <div key={v.id} className="video-card">
-                <a className="video-thumb" href={v.url} target="_blank" rel="noreferrer" aria-label={L(`צפייה בסרטון: ${v.title}`, `Watch video: ${v.title}`)}>
+                <a className="video-thumb" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer" aria-label={L(`צפייה בסרטון: ${v.title}`, `Watch video: ${v.title}`)}>
                   {id ? <img src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" /> : <PlayCircle size={28} />}
                   <span className="video-play"><PlayCircle size={18} /></span>
                   {r.count > 0 && <span className="video-rank-badge"><Star size={11} /> {r.avg.toFixed(1)}</span>}
@@ -234,7 +234,7 @@ export default function Videos({ session, profile }) {
                   </div>
 
                   <div className="video-actions">
-                    <a className="btn-soft video-watch" href={v.url} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {L('צפה ביוטיוב', 'Watch on YouTube')}</a>
+                    <a className="btn-soft video-watch" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {L('צפה ביוטיוב', 'Watch on YouTube')}</a>
                     {v.created_by === me && (
                       <button type="button" className="msg-del" onClick={() => remove(v.id)} aria-label={L('מחיקת סרטון', 'Delete video')} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={16} /></button>
                     )}

@@ -89,10 +89,12 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
+  // טוענים פרופיל רק כשמשתמש מתחלף — לא בכל רענון-טוקן אוטומטי (כל ~שעה),
+  // שאחרת היה מפעיל loading=true ומאפס את המסך והעבודה שבתהליך.
   useEffect(() => {
     loadProfile()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session])
+  }, [session.user.id])
 
   // גלילה לראש העמוד וסגירת המגירה בכל מעבר מסך
   useEffect(() => {

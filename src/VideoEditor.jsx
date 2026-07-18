@@ -243,21 +243,18 @@ export default function VideoEditor({ active = true }) {
   }, [exporting])
 
   const markEnd = useCallback(() => {
-    if (exporting) return
+    if (exporting || pendingStart == null) return
     const t = videoRef.current?.currentTime ?? 0
-    setPendingStart((ps) => {
-      if (ps == null) return ps
-      if (t <= ps + 0.2) {
-        toast.error(L('נקודת הסוף חייבת להיות אחרי ההתחלה.', 'The end point must come after the start.'))
-        return ps
-      }
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-      setSegments((cur) => [...cur, { id, start: ps, end: t, label: '', tags: [] }])
-      setSelectedId(id)
-      toast.success(L('הקטע נוסף — אפשר לתת לו שם ותגית בפאנל הצד', 'Segment added — name and tag it in the side panel'))
-      return null
-    })
-  }, [exporting])
+    if (t <= pendingStart + 0.2) {
+      toast.error(L('נקודת הסוף חייבת להיות אחרי ההתחלה.', 'The end point must come after the start.'))
+      return
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    setSegments((cur) => [...cur, { id, start: pendingStart, end: t, label: '', tags: [] }])
+    setSelectedId(id)
+    setPendingStart(null)
+    toast.success(L('הקטע נוסף — אפשר לתת לו שם ותגית בפאנל הצד', 'Segment added — name and tag it in the side panel'))
+  }, [exporting, pendingStart])
 
   // עדכון שם/תגיות של קטע
   const updateSeg = (id, patch) =>
@@ -489,6 +486,8 @@ export default function VideoEditor({ active = true }) {
       const t = e.target
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
       if (exporting) return
+      // מודאל פתוח? הקיצורים שייכים לו — לא לנגן/לחתוך את הווידאו שמאחור
+      if (result || playModal) return
       const v = videoRef.current
       if (!v) return
       switch (e.code) {
@@ -512,15 +511,16 @@ export default function VideoEditor({ active = true }) {
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [srcUrl, active, exporting, duration, togglePlay, markStart, markEnd, seekTo])
+  }, [srcUrl, active, exporting, duration, result, playModal, togglePlay, markStart, markEnd, seekTo])
 
-  // כשעוברים לעמוד אחר — משהים ניגון (העריכה נשמרת; רק העמוד מוסתר)
+  // כשעוברים לעמוד אחר — משהים ניגון (העריכה נשמרת; רק העמוד מוסתר).
+  // חשוב: לא לגעת בזמן ייצוא — עצירת הטיימר באמצע ייצוא הייתה תוקעת אותו.
   useEffect(() => {
-    if (!active) {
+    if (!active && !exporting) {
       videoRef.current?.pause?.()
       stopTick()
     }
-  }, [active])
+  }, [active, exporting])
 
   // נעילת גלילת הרקע במסך מלא
   useEffect(() => {
@@ -895,7 +895,7 @@ export default function VideoEditor({ active = true }) {
 
       {/* ---- מודאל תוצאת ייצוא ---- */}
       {result && (
-        <div className="tm-overlay" onClick={() => { /* נשאר פתוח — סגירה מפורשת */ }}>
+        <div className="tm-overlay ve2-overlay" onClick={() => { /* נשאר פתוח — סגירה מפורשת */ }}>
           <div className="tm-modal ve2-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-head">
               <h3>{L('הקליפ מוכן!', 'Your clip is ready!')}</h3>
@@ -925,7 +925,7 @@ export default function VideoEditor({ active = true }) {
 
       {/* ---- מודאל ניגון קליפ שמור ---- */}
       {playModal && (
-        <div className="tm-overlay" onClick={closeModal}>
+        <div className="tm-overlay ve2-overlay" onClick={closeModal}>
           <div className="tm-modal ve2-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-head">
               <h3>{playModal.name}</h3>

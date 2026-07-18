@@ -260,6 +260,13 @@ export default function Schedule({ session }) {
     ' – ' +
     `${weekEnd.getDate()}.${weekEnd.getMonth() + 1}.${weekEnd.getFullYear()}`
 
+  // גלילה אוטומטית לעמודת היום במובייל (RTL עלול להסתיר אותה)
+  // חייב להיות לפני כל return מוקדם — אחרת מספר ה-hooks משתנה בין רינדורים ו-React קורס.
+  useEffect(() => {
+    if (loading || planView) return
+    calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [loading, weekStart, planView])
+
   if (planView) {
     return (
       <div className="welcome-card">
@@ -274,13 +281,6 @@ export default function Schedule({ session }) {
       </div>
     )
   }
-
-  // גלילה אוטומטית לעמודת היום במובייל (RTL עלול להסתיר אותה)
-  useEffect(() => {
-    if (loading) return
-    calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [loading, weekStart])
-
 
   return (
     <div className="welcome-card">

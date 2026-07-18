@@ -125,10 +125,14 @@ export default function Teams({ session, profile, onNavigate }) {
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [team])
 
-  // סנכרון תיבות המטרות עם השבוע/חודש הנבחר
-  useEffect(() => { setWText(goalsMap[`week|${ymd(gWeek)}`] || '') }, [goalsMap, gWeek])
-  useEffect(() => { setMText(goalsMap[`month|${monthKey(gMonth)}`] || '') }, [goalsMap, gMonth])
-  useEffect(() => { setSText(goalsMap[`season|`] || '') }, [goalsMap])
+  // סנכרון תיבות המטרות — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
+  // טעינה מהמסד). תלות בערך הספציפי ולא באובייקט כולו — כדי ששמירת תיבה אחת
+  // לא תדרוס טקסט שטרם נשמר בתיבות האחרות.
+  const wKey = `week|${ymd(gWeek)}`
+  const mKey = `month|${monthKey(gMonth)}`
+  useEffect(() => { setWText(goalsMap[wKey] || '') }, [goalsMap[wKey], wKey])
+  useEffect(() => { setMText(goalsMap[mKey] || '') }, [goalsMap[mKey], mKey])
+  useEffect(() => { setSText(goalsMap['season|'] || '') }, [goalsMap['season|']])
 
   // ---------- שחקנים ----------
   const addPlayer = async () => {

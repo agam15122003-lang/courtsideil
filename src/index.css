@@ -9886,13 +9886,14 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 
 /* chevron בכרטיסי קיצור דרך */
 .home-card { position: relative; }
+.home-card { position: relative; padding-inline-end: 34px; }
 .home-card-chev {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-start: 16px;
+  inset-inline-end: 14px;   /* בקצה הקריאה (שמאל ב-RTL) — לא על הטקסט המיושר לימין */
   transform: translateY(-50%);
   color: var(--text-muted);
-  opacity: 0.6;
+  opacity: 0.55;
   transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) ease;
 }
 .home-card:hover .home-card-chev { opacity: 1; transform: translateY(-50%) translateX(-3px); color: var(--accent-strong); }
@@ -11255,3 +11256,6 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   color: var(--accent-strong);
 }
 @media (max-width: 640px) { .ve2-fs { display: none; } } /* במובייל אין צורך — העמוד ממילא מלא */
+
+/* מודאלים של עורך הווידאו — מעל שכבת המסך-המלא (z 1200) */
+.ve2-overlay { z-index: 1300; }
