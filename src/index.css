@@ -9886,13 +9886,14 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 
 /* chevron בכרטיסי קיצור דרך */
 .home-card { position: relative; }
+.home-card { position: relative; padding-inline-end: 34px; }
 .home-card-chev {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-start: 16px;
+  inset-inline-end: 14px;   /* בקצה הקריאה (שמאל ב-RTL) — לא על הטקסט המיושר לימין */
   transform: translateY(-50%);
   color: var(--text-muted);
-  opacity: 0.6;
+  opacity: 0.55;
   transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) ease;
 }
 .home-card:hover .home-card-chev { opacity: 1; transform: translateY(-50%) translateX(-3px); color: var(--accent-strong); }
@@ -11175,3 +11176,86 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .ve2-storage { margin: 10px 0 0; text-align: center; }
 .ve2-modal { max-width: 560px; width: min(560px, 92vw); }
 .ve2-modal .ve-result-player { max-height: 50vh; }
+
+/* ---- VE2: מסך מלא, שם+תגיות לקטע, תגיות בספרייה ---- */
+.ve2-shell.is-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  overflow-y: auto;
+  background: var(--bg);
+}
+[data-theme='dark'] .ve2-shell.is-fs { background: #0A0E18; }
+.ve2-shell.is-fs .ve-player { max-height: calc(100dvh - 380px); }
+.ve2-shell.is-fs .ve2-side { max-height: none; }
+@media (max-width: 920px) { .ve2-shell.is-fs .ve-player { max-height: 44dvh; } }
+
+.ve2-seg-name {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 4px 6px;
+  margin: -2px -6px 2px;
+  border-radius: 6px;
+}
+.ve2-seg-name:hover { border-color: var(--border); }
+.ve2-seg-name:focus-visible { outline: none; border-color: var(--accent-strong); background: var(--surface); }
+[data-theme='dark'] .ve2-seg-name:focus-visible { background: rgba(255,255,255,0.05); }
+.ve2-seg-name::placeholder { color: var(--text-muted); font-weight: 500; }
+
+.ve2-seg-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+.ve2-tag {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+.ve2-tag:hover:not(:disabled) { border-color: var(--accent-strong); color: var(--accent-strong); }
+.ve2-tag.on {
+  background: color-mix(in srgb, var(--accent-fill) 22%, transparent);
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+.ve2-tl-label {
+  position: absolute;
+  bottom: 4px;
+  left: 26px;
+  right: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: left;
+}
+.ve2-clip-tags { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; color: var(--text-muted); }
+.ve2-clip-tags em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent-fill) 15%, transparent);
+  color: var(--accent-strong);
+}
+@media (max-width: 640px) { .ve2-fs { display: none; } } /* במובייל אין צורך — העמוד ממילא מלא */
+
+/* מודאלים של עורך הווידאו — מעל שכבת המסך-המלא (z 1200) */
+.ve2-overlay { z-index: 1300; }

@@ -256,7 +256,7 @@ export default function Auth({ onBack }) {
 
         {/* ===== טופס OTP ===== */}
         {mode === 'otp' && (
-          <div className="auth-form">
+          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); otpStep === 'request' ? sendCode() : verifyCode() }}>
             {otpStep === 'request' ? (
               <>
                 <label>
@@ -271,7 +271,7 @@ export default function Auth({ onBack }) {
                   />
                 </label>
 
-                <button type="button" className="btn-primary" disabled={loading} onClick={sendCode}>
+                <button type="submit" className="btn-primary" disabled={loading}>
                   {loading ? L('שולח...', 'Sending...') : L('שליחת קוד למייל', 'Send code to email')}
                 </button>
               </>
@@ -291,10 +291,9 @@ export default function Auth({ onBack }) {
                   />
                 </label>
                 <button
-                  type="button"
+                  type="submit"
                   className="btn-primary"
                   disabled={loading || code.length < 4}
-                  onClick={verifyCode}
                 >
                   {loading ? L('מאמת...', 'Verifying...') : L('אימות וכניסה', 'Verify & log in')}
                 </button>
@@ -321,7 +320,7 @@ export default function Auth({ onBack }) {
                 </div>
               </>
             )}
-          </div>
+          </form>
         )}
 
         {/* ===== מעבר בין שיטות ===== */}
@@ -358,7 +357,6 @@ export default function Auth({ onBack }) {
           </ul>
         </div>
 
-        <footer className="auth-footer">{L('נבנה למען קהילת המאמנים', 'Built for the coaching community')}</footer>
       </div>
     </div>
   )

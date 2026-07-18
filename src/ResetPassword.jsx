@@ -1,7 +1,17 @@
 import { useState } from 'react'
-import { Check, Eye, EyeOff } from 'lucide-react'
+import { Check, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+
+// קורא שגיאה מקישור איפוס פגום/מנוצל: Supabase מחזיר
+// "...#error=access_denied&error_code=otp_expired&error_description=..."
+function readLinkError() {
+  try {
+    const h = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
+    if (h.get('error')) return h.get('error_description') || h.get('error_code') || h.get('error')
+  } catch { /* ללא hash */ }
+  return null
+}
 
 // מסך זה מוצג כשהמשתמש מגיע מקישור איפוס הסיסמה במייל.
 export default function ResetPassword() {
@@ -12,6 +22,7 @@ export default function ResetPassword() {
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
+  const [linkError] = useState(readLinkError)
 
   const goHome = () => {
     window.location.href = window.location.origin
@@ -63,6 +74,18 @@ export default function ResetPassword() {
           <h1>CourtSide</h1>
         </div>
 
+        {linkError ? (
+          <div className="forgot-header">
+            <div className="empty-ic" style={{ margin: '0 auto 8px', color: 'var(--accent-strong)' }}><AlertTriangle size={26} /></div>
+            <h2>{L('קישור האיפוס פג תוקף', 'The reset link has expired')}</h2>
+            <p className="muted small">
+              {L('קישורי איפוס תקפים לזמן מוגבל ולשימוש חד-פעמי. חזור לדף ההתחברות ולחץ "שכחתי סיסמה?" כדי לקבל קישור חדש.', 'Reset links are time-limited and single-use. Go back to the login page and tap "Forgot password?" to get a fresh link.')}
+            </p>
+            <button type="button" className="btn-primary" style={{ marginTop: 14 }} onClick={goHome}>
+              {L('חזרה לדף ההתחברות', 'Back to login')}
+            </button>
+          </div>
+        ) : (<>
         <div className="forgot-header">
           <h2>{L('בחירת סיסמה חדשה', 'Choose a new password')}</h2>
           <p className="muted small">{L('הזן סיסמה חדשה לחשבון שלך.', 'Enter a new password for your account.')}</p>
@@ -136,6 +159,7 @@ export default function ResetPassword() {
 
         {error && <div className="alert alert-error" role="alert">{error}</div>}
         {message && <div className="alert alert-success" role="status">{message}</div>}
+        </>)}
         </div>
 
         <footer className="auth-footer">{L('נבנה למען קהילת המאמנים', 'Built for the coaching community')}</footer>

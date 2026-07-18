@@ -16,16 +16,16 @@ export default function CommunityChat({ session }) {
   const [error, setError] = useState(null)
   const [sending, setSending] = useState(false)
 
-  async function load() {
-    setLoading(true)
+  async function load(opts = {}) {
+    // רענון אחרי שליחה/מחיקה — בלי שלד, כדי שהשיחה לא תיעלם ותופיע כל פעם מחדש
+    if (!opts.silent) setLoading(true)
     const { data, error } = await supabase
       .from('community_messages')
       .select('*')
       .order('created_at', { ascending: true })
 
     if (error) {
-      setError(L("שגיאה בטעינת הצ'אט: ", 'Failed to load chat: ') + error.message)
-      setLoading(false)
+      if (!opts.silent) { setError(L("שגיאה בטעינת הצ'אט: ", 'Failed to load chat: ') + error.message); setLoading(false) }
       return
     }
 
@@ -45,7 +45,7 @@ export default function CommunityChat({ session }) {
       setProfilesById(map)
     }
 
-    setLoading(false)
+    if (!opts.silent) setLoading(false)
   }
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function CommunityChat({ session }) {
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
       return false
     }
-    load()
+    load({ silent: true })
     return true
   }
 
@@ -83,7 +83,7 @@ export default function CommunityChat({ session }) {
       return
     }
     toast.success(L('ההודעה נמחקה', 'Message deleted'))
-    load()
+    load({ silent: true })
   }
 
   const norm = messages.map((m) => ({

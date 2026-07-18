@@ -260,6 +260,24 @@ export default function Schedule({ session }) {
     ' – ' +
     `${weekEnd.getDate()}.${weekEnd.getMonth() + 1}.${weekEnd.getFullYear()}`
 
+  // גלילה אוטומטית לעמודת היום במובייל (RTL עלול להסתיר אותה)
+  // חייב להיות לפני כל return מוקדם — אחרת מספר ה-hooks משתנה בין רינדורים ו-React קורס.
+  useEffect(() => {
+    if (loading || planView) return
+    calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [loading, weekStart, planView])
+
+  // כשנפתח פאנל פרטים/הוספה מתחת ללוח הגבוה — מגלגלים אליו (במובייל אחרת נראה
+  // כאילו הלחיצה לא עשתה כלום, כי הפאנל מופיע הרחק מתחת לאזור הנראה).
+  useEffect(() => {
+    if (planView) return
+    if (selected || adding || inviting) {
+      requestAnimationFrame(() => {
+        document.querySelector('.cal-detail, .sched-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  }, [selected, adding, inviting, planView])
+
   if (planView) {
     return (
       <div className="welcome-card">
@@ -274,13 +292,6 @@ export default function Schedule({ session }) {
       </div>
     )
   }
-
-  // גלילה אוטומטית לעמודת היום במובייל (RTL עלול להסתיר אותה)
-  useEffect(() => {
-    if (loading) return
-    calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [loading, weekStart])
-
 
   return (
     <div className="welcome-card">

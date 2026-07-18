@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Camera, X, BookOpen, Printer, Pencil, Check, ClipboardList, SlidersHorizontal, Globe2 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
@@ -47,6 +47,50 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+
+  // ---- טיוטה אוטומטית (תרגיל חדש בלבד): יציאה מהעמוד לא מוחקת את מה שכתבת ----
+  const DRAFT_KEY = 'drill-draft-v1'
+  const draftLoaded = useRef(false)
+  useEffect(() => {
+    if (editing || draftLoaded.current) return
+    draftLoaded.current = true
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null')
+      if (d && (d.title || d.description || d.category)) {
+        setTitle(d.title || '')
+        setDescription(d.description || '')
+        setCategory(d.category || '')
+        setAgeGroups(d.ageGroups || [])
+        setTags(d.tags || [])
+        setDifficulty(d.difficulty || '')
+        setDuration(d.duration || '')
+        setGoal(d.goal || '')
+        setEquipment(d.equipment || '')
+        setPlayers(d.players || '')
+        setReps(d.reps || '')
+        setVideoUrl(d.videoUrl || '')
+        setCoachNotes(d.coachNotes || '')
+        if (typeof d.isPublic === 'boolean') setIsPublic(d.isPublic)
+        if (d.board) setBoard(d.board)
+        if (d.imageUrl) setImageUrl(d.imageUrl)
+        toast.success(L('הטיוטה שוחזרה — המשך מאיפה שהפסקת', 'Draft restored — pick up where you left off'))
+      }
+    } catch { /* טיוטה פגומה — מתעלמים */ }
+  }, [editing])
+  useEffect(() => {
+    if (editing) return
+    const t = setTimeout(() => {
+      try {
+        if (title.trim() || description.trim() || category) {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            title, description, category, ageGroups, tags, difficulty, duration,
+            goal, equipment, players, reps, videoUrl, coachNotes, isPublic, board, imageUrl,
+          }))
+        }
+      } catch { /* אחסון מלא — לא קריטי */ }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [editing, title, description, category, ageGroups, tags, difficulty, duration, goal, equipment, players, reps, videoUrl, coachNotes, isPublic, board, imageUrl])
 
   // תצוגת "דף מחברת" + פרטי המאמן לכותרת הדף
   const [preview, setPreview] = useState(false)
@@ -161,6 +205,9 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
       setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
       toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
     } else {
+      if (!editing) {
+        try { localStorage.removeItem(DRAFT_KEY) } catch { /* לא קריטי */ }
+      }
       toast.success(editing ? L('התרגיל עודכן', 'Drill updated') : L('התרגיל נשמר בספרייה', 'Drill saved to the library'))
       onSaved()
     }

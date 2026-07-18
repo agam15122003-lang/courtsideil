@@ -159,6 +159,7 @@ export default function Messages({ session, onNavigate }) {
       <div className="msg-split">
         <div className="msg-split-chat">
           <ChatWindow
+            key={activeCoachId}
             messages={threadMsgs}
             myId={myId}
             onSend={sendMessage}

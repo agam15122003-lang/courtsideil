@@ -268,7 +268,7 @@ export default function TrainingPlans({ session }) {
         ) : (
           myPlans.map((p) => {
             const items = p.plan_items || []
-            const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
+            const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
             return (
               <div key={p.id} className="coach-card">
                 <div className="drill-card-top">
@@ -324,7 +324,7 @@ export default function TrainingPlans({ session }) {
           <div className="finder-results">
             {communityPlans.map((p) => {
               const items = p.plan_items || []
-              const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
+              const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
               const mine = p.created_by === me
               return (
                 <div key={p.id} className="coach-card">
@@ -495,7 +495,7 @@ function PlanBuilder({ planId, plan, onBack }) {
     )
   }
 
-  // שמירה למסד כשהשדה מאבד פוקוס
+  // שמירה למסד כשהשדה מאבד פוקוס — אם השמירה נכשלה, מודיעים למאמן (לא בולעים בשקט)
   const persist = async (id, field, value) => {
     const v =
       field === 'duration_minutes'
@@ -503,7 +503,8 @@ function PlanBuilder({ planId, plan, onBack }) {
           ? null
           : Number(value)
         : value
-    await supabase.from('plan_items').update({ [field]: v }).eq('id', id)
+    const { error } = await supabase.from('plan_items').update({ [field]: v }).eq('id', id)
+    if (error) toast.error(L('השמירה נכשלה — בדוק חיבור ונסה שוב', 'Save failed — check your connection and try again'))
   }
 
   // הזזת פריט מעלה/מטה (החלפת position עם השכן)
@@ -519,7 +520,7 @@ function PlanBuilder({ planId, plan, onBack }) {
 
   // הדפסה / שמירה כ-PDF: פותח חלון נקי עם התוכנית בלבד ומדפיס אותו
   const printPlan = () => {
-    const totalMin = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
+    const totalMin = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
     const durTotal = totalMin > 0 ? L(` · סה"כ ${totalMin} דקות`, ` · ${totalMin} min total`) : ''
     const name = escapeHtml(plan?.name || L('תוכנית אימון', 'Training Plan'))
 
@@ -564,7 +565,8 @@ function PlanBuilder({ planId, plan, onBack }) {
     setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
-  const total = items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
+  // Number() חשוב — קלט מהמשתמש נשמר כמחרוזת, ו-"15"+"20" היה משרשר ל-"1520"
+  const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
   const TARGET_MIN = 90 // יעד ברירת מחדל לאימון מלא
   const missingMin = Math.max(0, TARGET_MIN - total)
 
@@ -611,7 +613,7 @@ function PlanBuilder({ planId, plan, onBack }) {
   for (const it of items) {
     const cat = it.drill?.category || it.category
     if (!cat) continue
-    catTotals[cat] = (catTotals[cat] || 0) + (it.duration_minutes || 0)
+    catTotals[cat] = (catTotals[cat] || 0) + (Number(it.duration_minutes) || 0)
   }
   const CAT_COLORS = ['#E8763A', '#4663A0', '#1D7A4C', '#A97B12', '#8E5BB5']
   const breakdown = Object.entries(catTotals)

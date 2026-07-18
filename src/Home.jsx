@@ -30,7 +30,9 @@ const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.g
 
 // סטטיסטיקות דף הבית — נשלפות פעם אחת, עם ברירת מחדל 0 אם אין נתונים.
 function useHomeStats(userId) {
-  const [s, setS] = useState({ rating: null, week: 0, plans: 0, saved: 0 })
+  // null = עדיין נטען / לא זמין (מוצג כ-"—"), מספר = ערך אמיתי.
+  // כך שגיאת רשת חולפת לא מציגה אפסים מזויפים כאילו אין נתונים.
+  const [s, setS] = useState({ rating: null, week: null, plans: null, saved: null })
   useEffect(() => {
     if (!userId) return
     let alive = true
@@ -50,9 +52,10 @@ function useHomeStats(userId) {
       for (const d of myDrills.data || []) for (const r of d.drill_ratings || []) { sum += r.rating; cnt++ }
       setS({
         rating: cnt ? (sum / cnt) : null,
-        week: week.count || 0,
-        plans: plans.count || 0,
-        saved: saved.count || 0,
+        // בשגיאה משאירים null (—) במקום 0 מזויף
+        week: week.error ? null : (week.count || 0),
+        plans: plans.error ? null : (plans.count || 0),
+        saved: saved.error ? null : (saved.count || 0),
       })
     })()
     return () => { alive = false }
@@ -221,9 +224,9 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
 
   const STAT_TILES = [
     { key: 'rating', Icon: Star, num: stats.rating != null ? stats.rating.toFixed(1) : '—', label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true },
-    { key: 'week', Icon: CalendarDays, num: stats.week, label: L('אימונים השבוע', 'Practices this week') },
-    { key: 'plans', Icon: ClipboardList, num: stats.plans, label: L('תוכניות אימון', 'Practice plans') },
-    { key: 'saved', Icon: Bookmark, num: stats.saved, label: L('תרגילים שמורים', 'Saved drills') },
+    { key: 'week', Icon: CalendarDays, num: stats.week ?? '—', label: L('אימונים השבוע', 'Practices this week') },
+    { key: 'plans', Icon: ClipboardList, num: stats.plans ?? '—', label: L('תוכניות אימון', 'Practice plans') },
+    { key: 'saved', Icon: Bookmark, num: stats.saved ?? '—', label: L('תרגילים שמורים', 'Saved drills') },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר

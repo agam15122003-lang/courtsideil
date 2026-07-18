@@ -62,6 +62,9 @@ export default function Dashboard({ session }) {
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
+  // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
+  const [videoVisited, setVideoVisited] = useState(false)
+  useEffect(() => { if (view === 'video') setVideoVisited(true) }, [view])
 
   const [loadError, setLoadError] = useState(false)
 
@@ -86,10 +89,12 @@ export default function Dashboard({ session }) {
     setLoading(false)
   }
 
+  // טוענים פרופיל רק כשמשתמש מתחלף — לא בכל רענון-טוקן אוטומטי (כל ~שעה),
+  // שאחרת היה מפעיל loading=true ומאפס את המסך והעבודה שבתהליך.
   useEffect(() => {
     loadProfile()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session])
+  }, [session.user.id])
 
   // גלילה לראש העמוד וסגירת המגירה בכל מעבר מסך
   useEffect(() => {
@@ -272,7 +277,7 @@ export default function Dashboard({ session }) {
           ) : view === 'media' ? (
             <Media session={session} profile={profile} />
           ) : view === 'video' ? (
-            <VideoEditor />
+            null /* מרונדר בנפרד למטה כדי לשמור על מצב העריכה */
           ) : view === 'messages' ? (
             <Messages session={session} onNavigate={setView} />
           ) : (
@@ -358,6 +363,20 @@ export default function Dashboard({ session }) {
           )}
           </Suspense>
         </div>
+        {/* עורך הווידאו — מחוץ לעטיפה עם key={view}, כדי שמעבר עמוד לא ימחק את העריכה */}
+        {videoVisited && !loading && !showForm && (
+          <div className="main-inner" style={{ display: view === 'video' ? undefined : 'none' }}>
+            <Suspense
+              fallback={
+                <div className="app-loading" style={{ padding: '48px 0' }}>
+                  <div className="loader" />
+                </div>
+              }
+            >
+              <VideoEditor active={view === 'video'} />
+            </Suspense>
+          </div>
+        )}
       </main>
     </div>
   )

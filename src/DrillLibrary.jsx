@@ -63,7 +63,7 @@ export default function DrillLibrary({ session }) {
   }
 
   const addDrillToPlan = async (planId) => {
-    if (!planPicker) return
+    if (!planPicker || addingToPlan) return
     setAddingToPlan(true)
     const { error } = await insertItem(planId, planPicker)
     setAddingToPlan(false)
@@ -73,7 +73,7 @@ export default function DrillLibrary({ session }) {
   }
 
   const createPlanWithDrill = async () => {
-    if (!newPlanName.trim() || !planPicker) return
+    if (!newPlanName.trim() || !planPicker || addingToPlan) return
     setAddingToPlan(true)
     const { data: plan, error } = await supabase
       .from('training_plans')
@@ -88,9 +88,11 @@ export default function DrillLibrary({ session }) {
     setPlanPicker(null)
   }
 
-  // טוען את כל התרגילים, יחד עם: שם המאמן, הדירוגים, והאם שמרתי אותם
-  async function loadDrills() {
-    setLoading(true)
+  // טוען את כל התרגילים, יחד עם: שם המאמן, הדירוגים, והאם שמרתי אותם.
+  // opts.silent — רענון אחרי דירוג/שמירה/מחיקה: לא מציגים שלד (כדי לא לקרוס
+  // כרטיס מורחב), ולא מאבדים את הרשימה על שגיאה חולפת.
+  async function loadDrills(opts = {}) {
+    if (!opts.silent) setLoading(true)
     const { data, error } = await supabase
       .from('drills')
       .select(
@@ -99,11 +101,12 @@ export default function DrillLibrary({ session }) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      setError(L('שגיאה בטעינת התרגילים: ', 'Error loading drills: ') + error.message)
+      if (!opts.silent) setError(L('שגיאה בטעינת התרגילים: ', 'Error loading drills: ') + error.message)
     } else {
       setDrills(data || [])
+      setError(null) // רענון מוצלח מנקה שגיאה קודמת שנתקעה
     }
-    setLoading(false)
+    if (!opts.silent) setLoading(false)
   }
 
   useEffect(() => {
@@ -121,7 +124,7 @@ export default function DrillLibrary({ session }) {
     if (error) {
       toast.error(L('הדירוג נכשל: ', 'Rating failed: ') + error.message)
     } else {
-      loadDrills() // מרענן כדי לעדכן את הממוצע
+      loadDrills({ silent: true }) // מרענן ברקע — בלי לקרוס את הכרטיס המורחב
     }
   }
 
@@ -146,7 +149,7 @@ export default function DrillLibrary({ session }) {
         return
       }
     }
-    loadDrills()
+    loadDrills({ silent: true })
   }
 
   // מחיקת תרגיל (רק תרגיל של המשתמש עצמו — מאובטח גם במסד)
@@ -157,7 +160,7 @@ export default function DrillLibrary({ session }) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
     } else {
       toast.success(L('התרגיל נמחק', 'Drill deleted'))
-      loadDrills()
+      loadDrills({ silent: true })
     }
   }
 
