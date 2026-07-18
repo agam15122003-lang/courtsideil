@@ -72,7 +72,7 @@ function useCommunityTeaser() {
     ;(async () => {
       const { data, error } = await supabase
         .from('community_posts')
-        .select('id, content, image_urls, created_at, author:profiles(first_name, last_name, club, avatar_url)')
+        .select('id, content, image_urls, created_at, author:profiles!user_id(first_name, last_name, club, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(3)
       if (alive && !error && data) setPosts(data)

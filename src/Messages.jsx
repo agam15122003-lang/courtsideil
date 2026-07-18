@@ -2,7 +2,6 @@ import { toast } from './toast'
 import { useState, useEffect } from 'react'
 import { ChevronRight, MessageSquare, Search } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import CommunityChat from './CommunityChat'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
@@ -35,12 +34,12 @@ function formatTime(ts) {
   })
 }
 
-// טאב "הודעות" — מתג בין שיחות פרטיות (1-על-1) לבין צ'אט קבוצתי.
+// טאב "הודעות" — שיחות פרטיות (1-על-1) בין מאמנים.
+// הצ'אטים הקבוצתיים עברו לעמוד "קהילה" (פיד + ערוצים לפי קטגוריה).
 // props:
 //   session - המשתמש המחובר
 export default function Messages({ session, onNavigate }) {
   const myId = session.user.id
-  const [mode, setMode] = useState('private') // 'private' | 'community'
   const [messages, setMessages] = useState([])
   const [profilesById, setProfilesById] = useState({})
   const [loading, setLoading] = useState(true)
@@ -239,43 +238,19 @@ export default function Messages({ session, onNavigate }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('הודעות', 'Messages')}</div>
-          <h2>{L('הודעות ושיחות', 'Messages & chats')}</h2>
-          <p className="page-desc">{L('שיחות אישיות עם מאמנים וצ׳אט קבוצתי פתוח לכל הקהילה.', 'Private conversations with coaches and an open group chat for the whole community.')}</p>
+          <h2>{L('שיחות פרטיות', 'Private chats')}</h2>
+          <p className="page-desc">{L('שיחות אישיות עם מאמנים. לצ׳אטים הקבוצתיים — עמוד הקהילה.', 'Personal conversations with coaches. For group chats — see the Community page.')}</p>
         </div>
+        {onNavigate && (
+          <div className="page-header-actions">
+            <button className="btn-soft" onClick={() => onNavigate('community')}>
+              {L('לצ׳אטים של הקהילה', 'Community chats')}
+            </button>
+          </div>
+        )}
       </header>
 
-      <div className="tabs">
-        <button
-          className={mode === 'private' ? 'tab active' : 'tab'}
-          onClick={() => setMode('private')}
-        >
-          {L('שיחות פרטיות', 'Private chats')}
-        </button>
-        <button
-          className={mode === 'community' ? 'tab active' : 'tab'}
-          onClick={() => setMode('community')}
-        >
-          {L("צ'אט קבוצתי", 'Group chat')}
-        </button>
-      </div>
-
-      {mode === 'community' ? (
-        <>
-          {/* הצ'אט המהיר נשאר — אבל הבית החדש של הקהילה הוא הפיד */}
-          {onNavigate && (
-            <button type="button" className="cm-banner" onClick={() => onNavigate('community')}>
-              <span className="cm-banner-emoji" aria-hidden="true">🏀</span>
-              <span className="cm-banner-text">
-                <strong>{L('חדש! פיד הקהילה', 'New! The community feed')}</strong>
-                <span>{L('שיתופים, תגובות וצילומים מהאימונים — במקום אחד מרכזי.', 'Posts, comments and practice photos — in one central place.')}</span>
-              </span>
-              <span className="cm-banner-cta">{L('לקהילה ←', 'Open →')}</span>
-            </button>
-          )}
-          <CommunityChat session={session} />
-        </>
-      ) : (
-        <>
+      <>
           <div className="library-header">
             <h2 style={{ marginBottom: 0 }}>{L('השיחות שלי', 'My chats')}</h2>
             <button className="btn-ghost library-add" onClick={loadMessages}>
@@ -326,8 +301,7 @@ export default function Messages({ session, onNavigate }) {
               ))
             )}
           </div>
-        </>
-      )}
+      </>
     </div>
   )
 }
