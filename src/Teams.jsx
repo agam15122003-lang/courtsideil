@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
@@ -91,9 +91,12 @@ export default function Teams({ session, profile, onNavigate }) {
   // ייבוא מהאיגוד
   const [imp, setImp] = useState(null) // null=סגור, אחרת אובייקט-מצב
   const [leaguesAll, setLeaguesAll] = useState([])
+  const loadTokenRef = useRef(0) // הגנה מפני מרוץ טעינות בהחלפת קבוצה מהירה
 
   async function load() {
     if (!team) { setLoading(false); return }
+    // מזהה טעינה — החלפת קבוצה מהירה לא תיתן לתוצאה ישנה לדרוס את החדשה
+    const token = ++loadTokenRef.current
     setLoading(true)
     const [pl, gl, gm, im, st, at] = await Promise.all([
       supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
@@ -103,6 +106,9 @@ export default function Teams({ session, profile, onNavigate }) {
       supabase.from('team_staff').select('*').eq('coach_id', me).eq('team', team).order('created_at'),
       supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team),
     ])
+    if (token !== loadTokenRef.current) return // קבוצה אחרת נבחרה בינתיים — מתעלמים
+    // אם קריאה מרכזית נכשלה (רשת) — מודיעים שזו תקלת טעינה, לא קבוצה ריקה
+    if (pl.error || gm.error) toast.error(L('טעינת הקבוצה נכשלה — בדוק חיבור ורענן', 'Failed to load the team — check your connection and refresh'))
     setStaff(st && !st.error ? st.data || [] : [])
     setPlayers(pl.error ? [] : pl.data || [])
     // נוכחות עונתית לכל שחקן: נוכח/איחר מתוך סך האימונים שסומנו
@@ -124,6 +130,7 @@ export default function Teams({ session, profile, onNavigate }) {
     setLoading(false)
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [team])
+  useEffect(() => () => { loadTokenRef.current++ }, []) // ביטול טעינה תלויה בעת יציאה
 
   // סנכרון תיבות המטרות — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
   // טעינה מהמסד). תלות בערך הספציפי ולא באובייקט כולו — כדי ששמירת תיבה אחת
@@ -228,36 +235,47 @@ export default function Teams({ session, profile, onNavigate }) {
   }
   const pickLeague = async (leagueId) => {
     const lg = leaguesAll.find((l) => String(l.id) === String(leagueId))
-    setImp((s) => ({ ...s, leagueId, leagueName: lg?.name || '', busy: true, teams: [], teamId: '', games: null, step: 'team' }))
+    setImp((s) => s && ({ ...s, leagueId, leagueName: lg?.name || '', busy: true, teams: [], teamId: '', games: null, step: 'team' }))
     try {
       const ts = await teamsInLeague(leagueId)
       const core = clubCore(profile?.club)
       ts.sort((a, b) => (b.title.includes(core) ? 1 : 0) - (a.title.includes(core) ? 1 : 0))
-      setImp((s) => ({ ...s, teams: ts, busy: false }))
+      setImp((s) => s && ({ ...s, teams: ts, busy: false }))
     } catch {
-      toast.error(L('שגיאה בטעינת הקבוצות מהאיגוד', 'Error loading teams')); setImp((s) => ({ ...s, busy: false }))
+      toast.error(L('שגיאה בטעינת הקבוצות מהאיגוד', 'Error loading teams')); setImp((s) => s && ({ ...s, busy: false }))
     }
   }
   const pickTeam = async (teamId) => {
     const tName = imp.teams.find((t) => String(t.id) === String(teamId))?.title || ''
-    setImp((s) => ({ ...s, teamId, teamName: tName, busy: true, games: null, step: 'games' }))
+    setImp((s) => s && ({ ...s, teamId, teamName: tName, busy: true, games: null, step: 'games' }))
     try {
       const gs = await leagueGames(imp.leagueId, teamId)
-      setImp((s) => ({ ...s, games: gs, busy: false }))
+      setImp((s) => s && ({ ...s, games: gs, busy: false }))
     } catch {
-      toast.error(L('שגיאה בטעינת המשחקים', 'Error loading games')); setImp((s) => ({ ...s, games: [], busy: false }))
+      toast.error(L('שגיאה בטעינת המשחקים', 'Error loading games')); setImp((s) => s && ({ ...s, games: [], busy: false }))
     }
   }
   const saveIbaLink = async (extra = {}) => {
     const row = { coach_id: me, team, league_id: String(imp.leagueId), league_name: imp.leagueName, iba_team_id: imp.teamId ? String(imp.teamId) : null, iba_team_name: imp.teamName || null, ...extra }
-    await supabase.from('team_iba').upsert(row, { onConflict: 'coach_id,team' })
+    const { error } = await supabase.from('team_iba').upsert(row, { onConflict: 'coach_id,team' })
+    if (error) { toast.error(L('שמירת הליגה נכשלה: ', 'Saving the league failed: ') + error.message); return false }
     setIba(row)
+    return true
   }
   const importGames = async () => {
-    if (!imp.games?.length) { await saveIbaLink(); toast.success(L('הליגה נשמרה לטבלה', 'League saved for the table')); setImp(null); return }
-    const rows = imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null }))
+    if (!imp.games?.length) {
+      if (await saveIbaLink()) { toast.success(L('הליגה נשמרה לטבלה', 'League saved for the table')); setImp(null) }
+      return
+    }
+    // מוחקים משחקים שיובאו קודם לאותה קבוצה, כדי לא לשכפל בייבוא חוזר
+    await supabase.from('team_games').delete().eq('coach_id', me).eq('team', team).eq('source', 'iba')
+    const rows = imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null, source: 'iba' }))
     const { error } = await supabase.from('team_games').insert(rows)
-    if (error) { toast.error(L('הייבוא נכשל (הרצת את ה-SQL?): ', 'Import failed (ran the SQL?): ') + error.message); return }
+    if (error) {
+      // אם עמודת source לא קיימת במסד — נופלים חזרה לייבוא רגיל בלי דדופ
+      const { error: e2 } = await supabase.from('team_games').insert(imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null })))
+      if (e2) { toast.error(L('הייבוא נכשל (הרצת את ה-SQL?): ', 'Import failed (ran the SQL?): ') + e2.message); return }
+    }
     await saveIbaLink()
     toast.success(L(`${rows.length} משחקים יובאו + הליגה נשמרה`, `${rows.length} games imported + league saved`))
     setImp(null); load()
@@ -632,7 +650,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: פרטי שחקן ===================== */}
       {pEdit && (
-        <div className="tm-overlay" onClick={() => setPEdit(null)}>
+        <div className="tm-overlay">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי שחקן', 'Player details')}</strong>
@@ -678,7 +696,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: עריכת משחק ===================== */}
       {gEdit && (
-        <div className="tm-overlay" onClick={() => setGEdit(null)}>
+        <div className="tm-overlay">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('עריכת משחק', 'Edit game')}</strong>
@@ -705,7 +723,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: איש צוות ===================== */}
       {sEdit && (
-        <div className="tm-overlay" onClick={() => setSEdit(null)}>
+        <div className="tm-overlay">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי איש צוות', 'Staff details')}</strong>

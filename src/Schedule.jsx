@@ -267,6 +267,17 @@ export default function Schedule({ session }) {
     calRef.current?.querySelector('.cal-dayhead.today')?.scrollIntoView({ inline: 'center', block: 'nearest' })
   }, [loading, weekStart, planView])
 
+  // כשנפתח פאנל פרטים/הוספה מתחת ללוח הגבוה — מגלגלים אליו (במובייל אחרת נראה
+  // כאילו הלחיצה לא עשתה כלום, כי הפאנל מופיע הרחק מתחת לאזור הנראה).
+  useEffect(() => {
+    if (planView) return
+    if (selected || adding || inviting) {
+      requestAnimationFrame(() => {
+        document.querySelector('.cal-detail, .sched-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    }
+  }, [selected, adding, inviting, planView])
+
   if (planView) {
     return (
       <div className="welcome-card">

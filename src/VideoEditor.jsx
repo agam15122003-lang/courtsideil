@@ -83,8 +83,18 @@ function awaitSeek(v, t, timeout = 2500) {
   })
 }
 
-// תגיות מוכנות לקטעים — שפת המגרש של המאמן
-const SEGMENT_TAGS = ['התקפה', 'הגנה', 'ריבאונד', 'זריקה', 'אסיסט', 'מעבר מהיר', 'נק׳ שיא', 'לתיקון']
+// תגיות מוכנות לקטעים — שפת המגרש של המאמן (נשמר הערך העברי; מתורגם לתצוגה)
+const SEGMENT_TAGS = [
+  { he: 'התקפה', en: 'Offense' },
+  { he: 'הגנה', en: 'Defense' },
+  { he: 'ריבאונד', en: 'Rebound' },
+  { he: 'זריקה', en: 'Shot' },
+  { he: 'אסיסט', en: 'Assist' },
+  { he: 'מעבר מהיר', en: 'Fast break' },
+  { he: 'נק׳ שיא', en: 'Highlight' },
+  { he: 'לתיקון', en: 'To fix' },
+]
+const tagLabel = (he) => { const t = SEGMENT_TAGS.find((x) => x.he === he); return t ? L(t.he, t.en) : he }
 
 // צעד "עגול" לסרגל ציר הזמן — בערך 10 תוויות לכל אורך
 function rulerStep(duration) {
@@ -841,13 +851,13 @@ export default function VideoEditor({ active = true }) {
                             <span className="ve2-seg-tags" onClick={(e) => e.stopPropagation()}>
                               {SEGMENT_TAGS.map((tag) => (
                                 <button
-                                  key={tag}
+                                  key={tag.he}
                                   type="button"
-                                  className={(s.tags || []).includes(tag) ? 've2-tag on' : 've2-tag'}
-                                  onClick={() => toggleSegTag(s.id, tag)}
+                                  className={(s.tags || []).includes(tag.he) ? 've2-tag on' : 've2-tag'}
+                                  onClick={() => toggleSegTag(s.id, tag.he)}
                                   disabled={exporting}
                                 >
-                                  {tag}
+                                  {L(tag.he, tag.en)}
                                 </button>
                               ))}
                             </span>
@@ -974,7 +984,7 @@ function LibraryList({ clips, storageUsed, renamingId, renameVal, setRenamingId,
                 {(c.tags || []).length > 0 && (
                   <span className="ve2-clip-tags">
                     <Tag size={11} aria-hidden="true" />
-                    {c.tags.map((t) => <em key={t}>{t}</em>)}
+                    {c.tags.map((t) => <em key={t}>{tagLabel(t)}</em>)}
                   </span>
                 )}
               </div>

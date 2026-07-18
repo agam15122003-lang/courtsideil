@@ -44,8 +44,11 @@ export default function Attendance({ session, team, players }) {
       .eq('coach_id', me)
       .eq('team', team)
     if (error) {
-      // הטבלה עוד לא קיימת — מציגים הסבר ידידותי במקום שגיאה אדומה
-      setSqlMissing(true)
+      // רק "טבלה לא קיימת" (42P01 / undefined_table) מציג את הסבר ה-SQL.
+      // תקלת רשת/RLS חולפת מציגה שגיאה רגילה עם רענון — לא הוראות מפחידות.
+      const missing = error.code === '42P01' || /relation .* does not exist|could not find the table/i.test(error.message || '')
+      setSqlMissing(missing)
+      if (!missing) toast.error(L('טעינת הנוכחות נכשלה — בדוק חיבור ורענן', 'Failed to load attendance — check your connection and refresh'))
       setSeasonRows([])
     } else {
       setSqlMissing(false)

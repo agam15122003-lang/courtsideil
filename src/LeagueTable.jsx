@@ -6,16 +6,17 @@ import { L } from './i18n'
 // טבלת ליגה חיה מהאיגוד — נבנית מנתונים אמיתיים ומתעדכנת בכל טעינה.
 // props: leagueId, leagueName, highlight (שם/ליבת-שם הקבוצה של המאמן להדגשה)
 export default function LeagueTable({ leagueId, leagueName, highlight }) {
-  const [state, setState] = useState({ loading: true, hasTable: false, title: '', rows: [] })
+  const [state, setState] = useState({ loading: true, hasTable: false, title: '', rows: [], failed: false })
 
   const load = async () => {
     if (!leagueId) return
-    setState((s) => ({ ...s, loading: true }))
+    setState((s) => ({ ...s, loading: true, failed: false }))
     try {
       const r = await leagueStandings(leagueId)
-      setState({ loading: false, ...r })
+      setState({ loading: false, failed: false, ...r })
     } catch {
-      setState({ loading: false, hasTable: false, title: '', rows: [] })
+      // כישלון רשת/פענוח ≠ "אין טבלה" — מבדילים ומציעים רענון
+      setState({ loading: false, hasTable: false, title: '', rows: [], failed: true })
     }
   }
   useEffect(() => {
@@ -42,6 +43,10 @@ export default function LeagueTable({ leagueId, leagueName, highlight }) {
 
       {state.loading ? (
         <p className="muted small" style={{ marginTop: 10 }}>{L('טוען טבלה מהאיגוד...', 'Loading table from the association...')}</p>
+      ) : state.failed ? (
+        <p className="muted small" style={{ marginTop: 10 }}>
+          {L('לא הצלחנו לטעון את הטבלה כרגע — בדוק חיבור ולחץ רענון.', "Couldn't load the table right now — check your connection and tap refresh.")}
+        </p>
       ) : !state.hasTable ? (
         <p className="muted small" style={{ marginTop: 10 }}>
           {L('לליגה הזו אין טבלה מתפרסמת באיגוד (נפוץ בשכבות הצעירות).', 'This league has no published table at the association (common for younger ages).')}

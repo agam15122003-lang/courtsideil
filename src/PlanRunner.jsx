@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArrowRight, Play, Pause, RotateCcw } from 'lucide-react'
 import { L, tr } from './i18n'
 
@@ -17,24 +17,32 @@ export default function PlanRunner({ items, planName, onExit }) {
 
   const current = items[index]
   const d = current?.drill || {}
-  const totalSeconds = (current?.duration_minutes || 0) * 60
+  const totalSeconds = (Number(current?.duration_minutes) || 0) * 60
   const hasDur = totalSeconds > 0
+  const deadlineRef = useRef(null)
 
   // מעבר תרגיל — איפוס הטיימר למשך של התרגיל החדש
   useEffect(() => {
-    setSecondsLeft((items[index]?.duration_minutes || 0) * 60)
+    setSecondsLeft((Number(items[index]?.duration_minutes) || 0) * 60)
     setPaused(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index])
 
-  // טיק כל שנייה (כשלא בהשהיה)
+  // טיימר מבוסס-חותמת-זמן — נשאר מדויק גם כשהטלפון ננעל/הדפדפן ברקע
+  // (setInterval לבדו "קופא" במצב רקע; כאן חישוב הזמן מ-deadline מוחלט).
   useEffect(() => {
-    if (paused) return
-    const id = setInterval(() => {
-      setSecondsLeft((s) => (s <= 0 ? 0 : s - 1))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [paused, index])
+    if (paused || !hasDur) return
+    deadlineRef.current = Date.now() + secondsLeft * 1000
+    const tick = () => {
+      const rem = Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000))
+      setSecondsLeft(rem)
+    }
+    const id = setInterval(tick, 250)
+    const onVis = () => { if (!document.hidden) tick() } // סנכרון מיידי בחזרה למסך
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paused, index, hasDur])
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
   const ss = String(secondsLeft % 60).padStart(2, '0')
