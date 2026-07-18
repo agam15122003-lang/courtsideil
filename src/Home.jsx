@@ -63,6 +63,25 @@ function useHomeStats(userId) {
   return s
 }
 
+// שלושת הפוסטים האחרונים מהקהילה — לטיזר בדף הבית.
+// אם הטבלה עוד לא קיימת או שיש שגיאה — המקטע פשוט לא מוצג.
+function useCommunityTeaser() {
+  const [posts, setPosts] = useState([])
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('community_posts')
+        .select('id, content, image_urls, created_at, author:profiles(first_name, last_name, club, avatar_url)')
+        .order('created_at', { ascending: false })
+        .limit(3)
+      if (alive && !error && data) setPosts(data)
+    })()
+    return () => { alive = false }
+  }, [])
+  return posts
+}
+
 // ===== אגרגטור כתבות כדורסל (חוקי) =====
 // כותרת מקורית + תמונה כשיש + שם המקור + קישור לכתבה המקורית. בלי העתקת תוכן.
 
@@ -216,6 +235,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   const stats = useHomeStats(profile?.id)
+  const communityPosts = useCommunityTeaser()
 
   const today = new Date()
   const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
@@ -247,16 +267,16 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   }
 
   const onboardSteps = [
+    { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
     { id: 'plans', Icon: ClipboardList, title: L('בנה אימון', 'Build a practice'), desc: L('הרכב תוכנית אימון בדקות', 'Put together a practice plan in minutes') },
-    { id: 'finder', Icon: Users, title: L('התחבר לקהילה', 'Connect to the community'), desc: L('מצא מאמנים ושתף ידע', 'Find coaches and share knowledge') },
   ]
 
   const shortcuts = [
+    { id: 'community', Icon: Users, title: L('קהילת המאמנים', 'Coaches community'), desc: L('פיד שיתופים, תגובות וצילומים מהאימונים', 'A feed of posts, comments and practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill library'), desc: L('חיפוש, דירוג ושמירת תרגילים', 'Search, rate and save drills') },
     { id: 'plans', Icon: ClipboardList, title: L('בניית אימון', 'Practice builder'), desc: L('הרכבת אימון מלא בדקות', 'Build a full practice in minutes') },
-    { id: 'finder', Icon: Users, title: L('קהילת מאמנים', 'Coaches community'), desc: L('חיבור ושיתוף ידע מקצועי', 'Connect and share professional knowledge') },
-    { id: 'messages', Icon: MessageSquare, title: L('הודעות', 'Messages'), desc: L('שיחות אישיות וצ׳אט קבוצתי', 'Personal conversations and group chat') },
+    { id: 'messages', Icon: MessageSquare, title: L('הודעות', 'Messages'), desc: L('שיחות אישיות עם מאמנים', 'Personal conversations with coaches') },
   ]
 
   return (
@@ -297,6 +317,35 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           </div>
         ))}
       </div>
+
+      {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
+      {communityPosts.length > 0 && (
+        <>
+          <div className="home-community-head">
+            <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
+            <button type="button" className="link-button" onClick={() => onNavigate('community')}>
+              {L('לכל הפיד', 'Open the feed')} <ChevronLeft size={14} />
+            </button>
+          </div>
+          <div className="home-community-grid">
+            {communityPosts.map((p) => {
+              const author = p.author
+                ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
+                : L('מאמן', 'Coach')
+              const img = p.image_urls?.[0]
+              return (
+                <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
+                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img}")` }} />}
+                  <span className="hc-body">
+                    <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
+                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון 📷', 'Shared practice photos 📷')}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
 
