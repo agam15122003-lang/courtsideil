@@ -10737,3 +10737,176 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 @media (max-width: 720px) {
   .drill-card.is-expanded .drill-notebook-view { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   VIDEO EDITOR — עורך וידאו במכשיר (חיתוך + חיבור קטעים)
+   ============================================================ */
+.ve-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 56px 24px;
+  margin-top: 8px;
+  border: 2px dashed color-mix(in srgb, var(--accent-strong) 50%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-strong) 5%, transparent);
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.ve-drop:hover { background: color-mix(in srgb, var(--accent-strong) 10%, transparent); border-color: var(--accent-strong); }
+.ve-drop-ic {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  box-shadow: 0 12px 28px -12px rgba(232, 118, 58, 0.7);
+  margin-bottom: 6px;
+}
+.ve-drop strong { font-size: 17px; }
+
+.ve-layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 360px);
+  gap: 18px;
+  align-items: start;
+  margin-top: 14px;
+}
+@media (max-width: 920px) { .ve-layout { grid-template-columns: 1fr; } }
+
+.ve-player-wrap { position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; }
+.ve-player { display: block; width: 100%; max-height: 56vh; background: #000; cursor: pointer; }
+.ve-export-shield {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(6, 10, 18, 0.72);
+  color: #fff;
+  text-align: center;
+  padding: 16px;
+  z-index: 2;
+}
+.ve-export-shield .btn-soft { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); color: #fff; margin-top: 4px; }
+.ve-export-spin {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.25);
+  border-top-color: var(--orange-500);
+  animation: veSpin 0.9s linear infinite;
+}
+@keyframes veSpin { to { transform: rotate(360deg); } }
+
+/* ציר זמן */
+.ve-track {
+  position: relative;
+  height: 24px;
+  margin-top: 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  cursor: pointer;
+  overflow: hidden;
+}
+[data-theme='dark'] .ve-track { background: rgba(255, 255, 255, 0.09); }
+.ve-track-seg {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: linear-gradient(180deg, #F0883F, #D15F23);
+  opacity: 0.85;
+  border-radius: 3px;
+}
+.ve-track-pending {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: repeating-linear-gradient(45deg, rgba(232,118,58,0.5) 0 6px, rgba(232,118,58,0.25) 6px 12px);
+  border-radius: 3px;
+}
+.ve-track-head {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--text);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+.ve-transport { display: flex; justify-content: flex-end; margin-top: 6px; }
+.ve-time { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+.ve-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.ve-actions .btn-primary, .ve-actions .btn-soft { margin-top: 0; min-height: 44px; }
+.ve-hint { margin: 10px 2px 0; }
+.ve-replace { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+
+/* רשימת קטעים */
+.ve-side { display: flex; flex-direction: column; gap: 14px; }
+.ve-side-total { margin-inline-start: auto; color: var(--accent-strong); font-variant-numeric: tabular-nums; font-size: 14px; }
+.ve-seglist { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ve-seg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+[data-theme='dark'] .ve-seg { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+.ve-seg-num {
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F0883F, #D15F23);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ve-seg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ve-seg-times { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; }
+.ve-seg-times em { font-style: normal; color: var(--text-muted); font-weight: 600; margin-inline-start: 6px; }
+.ve-seg-nudges { display: inline-flex; align-items: center; gap: 4px; }
+.ve-seg-nudges b { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.ve-seg-nudges i { width: 8px; }
+.ve-seg-nudges button {
+  display: grid; place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.ve-seg-nudges button:hover { color: var(--accent-strong); border-color: var(--accent-strong); }
+[data-theme='dark'] .ve-seg-nudges button { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); }
+.ve-seg-acts { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.ve-seg-acts .icon-btn.danger { color: var(--error); }
+.ve-export-btn { width: 100%; justify-content: center; margin-top: 4px; }
+
+/* תוצאה */
+.ve-result-player { width: 100%; border-radius: var(--radius-sm); background: #000; margin-bottom: 12px; }
+.ve-result-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.ve-result-acts .btn-primary { margin-top: 0; }
+.ve-size { font-size: 12px; opacity: 0.85; margin-inline-start: 4px; }
+
+
+/* מצבי נטרול בזמן ייצוא + פוקוס מקלדת על ציר הזמן */
+.ve-track.is-disabled { cursor: default; opacity: 0.75; }
+.ve-track:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
+.ve-replace.is-disabled { opacity: 0.55; pointer-events: none; }
+@media (max-width: 560px) {
+  .ve-seg-nudges button { width: 34px; height: 34px; }
+  .ve-seg-acts { flex-direction: row; }
+  .ve-seg { flex-wrap: wrap; }
+}
