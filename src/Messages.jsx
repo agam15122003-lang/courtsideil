@@ -260,7 +260,20 @@ export default function Messages({ session, onNavigate }) {
       </div>
 
       {mode === 'community' ? (
-        <CommunityChat session={session} />
+        <>
+          {/* הצ'אט המהיר נשאר — אבל הבית החדש של הקהילה הוא הפיד */}
+          {onNavigate && (
+            <button type="button" className="cm-banner" onClick={() => onNavigate('community')}>
+              <span className="cm-banner-emoji" aria-hidden="true">🏀</span>
+              <span className="cm-banner-text">
+                <strong>{L('חדש! פיד הקהילה', 'New! The community feed')}</strong>
+                <span>{L('שיתופים, תגובות וצילומים מהאימונים — במקום אחד מרכזי.', 'Posts, comments and practice photos — in one central place.')}</span>
+              </span>
+              <span className="cm-banner-cta">{L('לקהילה ←', 'Open →')}</span>
+            </button>
+          )}
+          <CommunityChat session={session} />
+        </>
       ) : (
         <>
           <div className="library-header">

@@ -17,6 +17,7 @@ export const DICT = {
   he: {
     // ניווט
     'nav.home': 'בית',
+    'nav.community': 'קהילה',
     'nav.profile': 'פרופיל',
     'nav.teams': 'הקבוצות שלי',
     'nav.finder': 'מאמנים',
@@ -80,6 +81,7 @@ export const DICT = {
   },
   en: {
     'nav.home': 'Home',
+    'nav.community': 'Community',
     'nav.profile': 'Profile',
     'nav.teams': 'My Teams',
     'nav.finder': 'Coaches',

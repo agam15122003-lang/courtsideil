@@ -14,6 +14,7 @@ const CoachFinder = lazy(() => import('./CoachFinder'))
 const DrillLibrary = lazy(() => import('./DrillLibrary'))
 const TrainingPlans = lazy(() => import('./TrainingPlans'))
 const Messages = lazy(() => import('./Messages'))
+const Community = lazy(() => import('./Community'))
 const Schedule = lazy(() => import('./Schedule'))
 const Teams = lazy(() => import('./Teams'))
 const Admin = lazy(() => import('./Admin'))
@@ -26,6 +27,7 @@ import {
   Dumbbell,
   ClipboardList,
   MessageSquare,
+  MessagesSquare,
   CalendarDays,
   MonitorPlay,
   Clapperboard,
@@ -40,17 +42,19 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 
+// "קהילה תחילה" — הקהילה, המאמנים וההודעות למעלה; כלי העבודה אחריהם
 const NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
-  { id: 'profile', key: 'nav.profile', Icon: User },
-  { id: 'teams', key: 'nav.teams', Icon: Shield },
+  { id: 'community', key: 'nav.community', Icon: MessagesSquare },
   { id: 'finder', key: 'nav.finder', Icon: Users },
+  { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
   { id: 'drills', key: 'nav.drills', Icon: Dumbbell },
   { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
+  { id: 'teams', key: 'nav.teams', Icon: Shield },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
   { id: 'video', key: 'nav.video', Icon: Clapperboard },
-  { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
+  { id: 'profile', key: 'nav.profile', Icon: User },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
 
@@ -262,6 +266,8 @@ export default function Dashboard({ session }) {
               onNavigate={setView}
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
+          ) : view === 'community' ? (
+            <Community session={session} profile={profile} />
           ) : view === 'finder' ? (
             <CoachFinder session={session} initialCoach={initialCoach} onConsumeInitial={() => setInitialCoach(null)} />
           ) : view === 'drills' ? (
