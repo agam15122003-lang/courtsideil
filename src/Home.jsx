@@ -243,10 +243,10 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
   const STAT_TILES = [
-    { key: 'rating', Icon: Star, num: stats.rating != null ? stats.rating.toFixed(1) : '—', label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true },
-    { key: 'week', Icon: CalendarDays, num: stats.week ?? '—', label: L('אימונים השבוע', 'Practices this week') },
-    { key: 'plans', Icon: ClipboardList, num: stats.plans ?? '—', label: L('תוכניות אימון', 'Practice plans') },
-    { key: 'saved', Icon: Bookmark, num: stats.saved ?? '—', label: L('תרגילים שמורים', 'Saved drills') },
+    { key: 'rating', Icon: Star, num: stats.rating != null ? stats.rating.toFixed(1) : '—', label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true, c: 'orange' },
+    { key: 'week', Icon: CalendarDays, num: stats.week ?? '—', label: L('אימונים השבוע', 'Practices this week'), c: 'green' },
+    { key: 'plans', Icon: ClipboardList, num: stats.plans ?? '—', label: L('תוכניות אימון', 'Practice plans'), c: 'purple' },
+    { key: 'saved', Icon: Bookmark, num: stats.saved ?? '—', label: L('תרגילים שמורים', 'Saved drills'), c: 'blue' },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
@@ -273,42 +273,53 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   ]
 
   const shortcuts = [
-    { id: 'community', Icon: Users, title: L('קהילת המאמנים', 'Coaches community'), desc: L('פיד שיתופים, תגובות וצילומים מהאימונים', 'A feed of posts, comments and practice photos') },
-    { id: 'drills', Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill library'), desc: L('חיפוש, דירוג ושמירת תרגילים', 'Search, rate and save drills') },
-    { id: 'plans', Icon: ClipboardList, title: L('בניית אימון', 'Practice builder'), desc: L('הרכבת אימון מלא בדקות', 'Build a full practice in minutes') },
-    { id: 'messages', Icon: MessageSquare, title: L('הודעות', 'Messages'), desc: L('שיחות אישיות עם מאמנים', 'Personal conversations with coaches') },
+    { id: 'community', Icon: Users, grad: 'orange', title: L('קהילת המאמנים', 'Coaches community'), desc: L('פיד שיתופים, תגובות וצילומים מהאימונים', 'A feed of posts, comments and practice photos') },
+    { id: 'drills', Icon: Dumbbell, grad: 'blue', title: L('ספריית תרגילים', 'Drill library'), desc: L('חיפוש, דירוג ושמירת תרגילים', 'Search, rate and save drills') },
+    { id: 'plans', Icon: ClipboardList, grad: 'green', title: L('בניית אימון', 'Practice builder'), desc: L('הרכבת אימון מלא בדקות', 'Build a full practice in minutes') },
+    { id: 'messages', Icon: MessageSquare, grad: 'purple', title: L('הודעות', 'Messages'), desc: L('שיחות אישיות עם מאמנים', 'Personal conversations with coaches') },
   ]
 
   return (
     <div className="home">
-      {/* ברכה */}
-      <header className="home-greet">
-        <div className="home-greet-text">
+      {/* הירו נייבי — ברכה + האימון הבא בכרטיס זכוכית (handoff) */}
+      <header className="home-hero">
+        <svg className="home-hero-court" viewBox="0 0 400 300" aria-hidden="true">
+          <circle cx="60" cy="150" r="90" fill="none" stroke="#fff" strokeWidth="2" />
+          <circle cx="60" cy="150" r="30" fill="none" stroke="#fff" strokeWidth="2" />
+          <line x1="200" y1="0" x2="200" y2="300" stroke="#fff" strokeWidth="2" />
+          <circle cx="200" cy="150" r="45" fill="none" stroke="#fff" strokeWidth="2" />
+          <rect x="310" y="90" width="90" height="120" fill="none" stroke="#fff" strokeWidth="2" />
+        </svg>
+        <span className="home-hero-glow" aria-hidden="true" />
+        <div className="home-hero-text">
           <span className="home-greet-date">{dateLabel}</span>
           <h1 className="home-greet-title">
-            {greet}, <span className="hero-title-accent">{name}</span>
+            {greet}, <span className="hero-title-accent">{name}</span> 🏀
           </h1>
+          <p className="home-hero-sub">
+            {stats.week != null && stats.week > 0
+              ? L(`${stats.week} אימונים בלו"ז השבוע — והקהילה מחכה לשמוע ממך.`, `${stats.week} practices this week — and the community wants to hear from you.`)
+              : L('השבוע עוד פתוח — תכנן אימון והקהילה כבר מחכה לשמוע ממך.', 'The week is wide open — plan a practice; the community is waiting to hear from you.')}
+          </p>
+          <div className="home-greet-actions">
+            <button className="btn-primary" onClick={() => onNavigate('plans')}>
+              <Plus size={17} /> {L('אימון חדש', 'New practice')}
+            </button>
+            <button className="btn-heroghost" onClick={() => onNavigate('schedule')}>
+              <CalendarDays size={17} /> {L('לו"ז השבוע', 'This week')}
+            </button>
+          </div>
         </div>
-        <div className="home-greet-actions">
-          <button className="btn-soft" onClick={() => onNavigate('schedule')}>
-            <CalendarDays size={17} /> {L('לו"ז השבוע', 'This week')}
-          </button>
-          <button className="btn-primary" onClick={() => onNavigate('plans')}>
-            <Plus size={17} /> {L('אימון חדש', 'New practice')}
-          </button>
+        <div className="home-hero-card">
+          <NextPractice onNavigate={onNavigate} />
         </div>
       </header>
 
-      {/* האימון הבא */}
-      <div className="home-duo home-duo--single">
-        <NextPractice onNavigate={onNavigate} />
-      </div>
-
-      {/* סטטיסטיקות */}
+      {/* פס סטטיסטיקות — כרטיס אחד מחולק לארבעה */}
       <div className="home-stats">
         {STAT_TILES.map((t) => (
-          <div key={t.key} className="stat-tile">
-            <span className="stat-tile-ic"><t.Icon size={16} /></span>
+          <div key={t.key} className="stat-tile" data-c={t.c}>
+            <span className="stat-tile-ic"><t.Icon size={17} /></span>
             <span className="stat-tile-num">
               {t.star && <Star size={15} className="stat-star" aria-hidden="true" />}
               <bdi>{t.num}</bdi>
@@ -383,7 +394,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
       </h2>
       <div className="home-grid">
         {shortcuts.map((s) => (
-          <button key={s.id} className="home-card" onClick={() => onNavigate(s.id)}>
+          <button key={s.id} className={`home-card grad-${s.grad}`} onClick={() => onNavigate(s.id)}>
             <span className="home-ic">
               <s.Icon size={20} />
             </span>
