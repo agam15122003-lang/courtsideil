@@ -225,7 +225,7 @@ body {
 .brand h1 {
   font-size: 28px;
   font-weight: 800;
-  color: var(--navy);
+  color: var(--text);
   letter-spacing: -0.5px;
 }
 
@@ -277,7 +277,7 @@ body {
   gap: 7px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--navy);
+  color: var(--text);
 }
 
 .auth-form input {
@@ -12661,4 +12661,140 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   .home-hero-glow {
     animation: none;
   }
+}
+
+/* ============================================================
+   HANDOFF — דף התחברות + נחיתה: ליטוש סופי, עקבי עם האפליקציה
+   ============================================================ */
+/* פאנל הטופס — רקע עדין תלוי-תמה, טקסט חד */
+.auth-form-panel {
+  background: var(--bg);
+}
+[data-theme='dark'] .auth-form-panel {
+  background: linear-gradient(180deg, #10192B, var(--bg));
+}
+.brand h1 {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+.auth-welcome,
+.auth-split .tagline {
+  color: var(--text-muted);
+}
+/* טאבים בהתחברות — אותה שפה כמו הטאבים באפליקציה */
+.auth-card .tabs {
+  background: var(--surface-alt);
+}
+.auth-card .tab {
+  color: var(--text-muted);
+}
+.auth-card .tab.active {
+  background: linear-gradient(180deg, var(--accent-fill), var(--accent-press));
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+/* קלט — עקבי עם שאר האתר */
+.auth-form input {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: 11px;
+}
+.auth-form input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+.auth-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+[data-theme='dark'] .auth-form input {
+  background: rgba(255, 255, 255, 0.04);
+}
+/* רשימת האמון מתחת לטופס — chips קטנים ואחידים */
+.auth-trust-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+}
+.auth-trust-inline li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.auth-trust-inline svg {
+  color: var(--c-green);
+}
+
+/* ---- נחיתה: יישור לטוקנים החדשים ---- */
+.land-nav {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .land-nav {
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+.land-brand span {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.land-hero {
+  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  color: #fff;
+}
+.land-hero .land-title,
+.land-hero .land-sub,
+.land-hero .land-stat-num {
+  color: #fff;
+}
+.land-hero .land-sub {
+  color: rgba(255, 255, 255, 0.78);
+}
+.land-hero .land-stat-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+.land-eyebrow {
+  background: rgba(232, 118, 58, 0.16);
+  border: 1px solid rgba(232, 118, 58, 0.4);
+  color: #FFB88C;
+}
+.land-title-accent {
+  color: var(--accent);
+}
+/* פיצ'רים/צעדים — אייקון בריבוע צבעוני רך */
+.land-feature-ic,
+.land-why-ic {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.land-feature:hover,
+.land-why-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+/* רצועת ה-CTA התחתונה — נייבי כמו ההירו */
+.land-band {
+  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  color: #fff;
+}
+.land-band-title { color: #fff; }
+.land-band-sub { color: rgba(255, 255, 255, 0.78); }
+
+/* reveal — ליתר ביטחון, אם ה-IntersectionObserver לא רץ התוכן עדיין נראה */
+@media (prefers-reduced-motion: reduce) {
+  .land .reveal { opacity: 1 !important; transform: none !important; }
 }
