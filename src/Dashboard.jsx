@@ -42,7 +42,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 
-// "קהילה תחילה" — הקהילה, המאמנים וההודעות למעלה; כלי העבודה אחריהם
+// "קהילה תחילה" (סדר לפי ה-handoff) — הפרופיל יושב בכרטיס המשתמש למטה
 const NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
@@ -54,6 +54,14 @@ const NAV = [
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
   { id: 'video', key: 'nav.video', Icon: Clapperboard },
+]
+
+// התפריט התחתון במובייל — חמשת היעדים המרכזיים
+const BOTTOM_NAV = [
+  { id: 'home', key: 'nav.home', Icon: HomeIcon },
+  { id: 'community', key: 'nav.community', Icon: MessagesSquare },
+  { id: 'drills', key: 'nav.drills', Icon: Dumbbell },
+  { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
   { id: 'profile', key: 'nav.profile', Icon: User },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
@@ -71,6 +79,23 @@ export default function Dashboard({ session }) {
   useEffect(() => { if (view === 'video') setVideoVisited(true) }, [view])
 
   const [loadError, setLoadError] = useState(false)
+
+  // מונה הודעות שלא נקראו — ל-badge בניווט (מתרענן במעבר מסך ואחת לדקה)
+  const [unread, setUnread] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const loadUnread = async () => {
+      const { count, error } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', session.user.id)
+        .is('read_at', null)
+      if (alive && !error) setUnread(count || 0)
+    }
+    loadUnread()
+    const t = setInterval(loadUnread, 60000)
+    return () => { alive = false; clearInterval(t) }
+  }, [session.user.id, view])
 
   async function loadProfile() {
     setLoading(true)
@@ -190,6 +215,9 @@ export default function Dashboard({ session }) {
             >
               <item.Icon size={18} />
               {t(item.key)}
+              {item.id === 'messages' && unread > 0 && (
+                <span className="nav-badge">{unread > 9 ? '9+' : unread}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -267,7 +295,11 @@ export default function Dashboard({ session }) {
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
           ) : view === 'community' ? (
-            <Community session={session} profile={profile} />
+            <Community
+              session={session}
+              profile={profile}
+              onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
+            />
           ) : view === 'finder' ? (
             <CoachFinder session={session} initialCoach={initialCoach} onConsumeInitial={() => setInitialCoach(null)} />
           ) : view === 'drills' ? (
@@ -384,6 +416,25 @@ export default function Dashboard({ session }) {
           </div>
         )}
       </main>
+
+      {/* תפריט תחתון — מובייל בלבד (לפי ה-handoff: 5 יעדים מרכזיים) */}
+      <nav className="bottom-nav" aria-label={L('ניווט תחתון', 'Bottom navigation')}>
+        {BOTTOM_NAV.map((item) => (
+          <button
+            key={item.id}
+            className={view === item.id ? 'bn-item active' : 'bn-item'}
+            onClick={() => { setEditing(false); setView(item.id); setDrawerOpen(false) }}
+          >
+            <span className="bn-ic">
+              <item.Icon size={20} />
+              {item.id === 'messages' && unread > 0 && (
+                <span className="bn-badge">{unread > 9 ? '9+' : unread}</span>
+              )}
+            </span>
+            {t(item.key)}
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }

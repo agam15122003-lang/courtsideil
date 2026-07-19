@@ -55,6 +55,10 @@ alter table public.community_post_comments
   add constraint community_post_comments_user_id_fkey
   foreign key (user_id) references public.profiles(id) on delete cascade;
 
+-- ---------- 1ב. סוג פוסט (שאלה/טיפ/וידאו/משרה) ----------
+alter table public.community_posts
+  add column if not exists post_type text;
+
 -- ---------- 2. ערוצי צ'אט לפי קטגוריה ----------
 -- ההודעות הקיימות מהצ'אט הקבוצתי הישן עוברות אוטומטית לערוץ "כללי".
 alter table public.community_messages

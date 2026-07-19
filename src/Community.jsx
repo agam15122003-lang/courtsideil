@@ -15,12 +15,16 @@ import {
   Trophy,
   Target,
   ChevronRight,
+  ChevronLeft,
+  Search,
+  Share2,
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
 import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
+import CoachOfWeek from './CoachOfWeek'
 import { SkeletonCards } from './Skeleton'
 import { L } from './i18n'
 
@@ -36,6 +40,15 @@ const CHANNELS = [
   { id: 'טקטיקה ואימון', en: 'Tactics & training', desc: ['מערכים, הגנות ושיטות אימון', 'Sets, defenses and training methods'], Icon: Target },
 ]
 const channelName = (c) => L(c.id, c.en)
+
+// סוגי פוסטים — נשמרים בעברית, צבע לפי פלטת הקטגוריות של ה-handoff
+const POST_TYPES = [
+  { id: 'שאלה', en: 'Question', cls: 'blue' },
+  { id: 'טיפ', en: 'Tip', cls: 'green' },
+  { id: 'וידאו', en: 'Video', cls: 'purple' },
+  { id: 'משרה', en: 'Job', cls: 'navy' },
+]
+const typeOf = (id) => POST_TYPES.find((t) => t.id === id) || null
 
 // זמן יחסי בסגנון פיד — "לפני 5 דק'", "לפני שעתיים", ומעבר ליום — תאריך
 function timeAgo(ts) {
@@ -62,9 +75,9 @@ function coachName(p) {
 const isMissingTable = (error) =>
   error.code === '42P01' ||
   /relation .* does not exist|could not find the table/i.test(error.message || '')
-// שגיאת "עמודה חסרה" (למשל channel לפני הרצת ה-SQL)
+// שגיאת "עמודה חסרה" (למשל channel/post_type לפני הרצת ה-SQL)
 const isMissingColumn = (error) =>
-  error.code === '42703' ||
+  error.code === '42703' || error.code === 'PGRST204' ||
   /column .* does not exist|could not find the .* column/i.test(error.message || '')
 
 // כרטיס הsetup — מוצג כשחסר משהו במסד, עם שם הקובץ שצריך להריץ
@@ -171,6 +184,7 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
   const likes = post.likes || []
   const iLiked = likes.some((l) => l.user_id === myId)
   const comments = post.comments || []
+  const ptype = typeOf(post.post_type)
 
   // לייק אופטימי — הלב מגיב מיד, הרענון ברקע
   const [optimistic, setOptimistic] = useState(null) // null | {liked, delta}
@@ -207,6 +221,18 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
     onDeleted()
   }
 
+  const share = async () => {
+    const text = `${coachName(post.author)} — CourtSide:\n${post.content || ''}`.trim()
+    try {
+      if (navigator.share) {
+        await navigator.share({ text })
+      } else {
+        await navigator.clipboard.writeText(text)
+        toast.success(L('הפוסט הועתק — אפשר להדביק בכל מקום', 'Copied — paste it anywhere'))
+      }
+    } catch { /* המשתמש ביטל — לא שגיאה */ }
+  }
+
   const imgs = post.image_urls || []
 
   return (
@@ -220,6 +246,7 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
             {timeAgo(post.created_at)}
           </span>
         </div>
+        {ptype && <span className={`cm-type-tag t-${ptype.cls}`}>{L(ptype.id, ptype.en)}</span>}
         {post.user_id === myId && (
           <button
             type="button"
@@ -270,6 +297,10 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
             ? L(`${comments.length} תגובות`, `${comments.length} comments`)
             : L('תגובה', 'Comment')}
         </button>
+        <button type="button" className="cm-action" onClick={share}>
+          <Share2 size={16} />
+          {L('שיתוף', 'Share')}
+        </button>
       </footer>
 
       {showComments && <Comments post={post} myId={myId} onChanged={onChanged} />}
@@ -287,15 +318,17 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
 }
 
 // ---------- הפיד ----------
-function Feed({ session, profile }) {
+function Feed({ session, profile, search, onCount }) {
   const myId = session.user.id
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [sqlMissing, setSqlMissing] = useState(false)
+  const [filter, setFilter] = useState('') // '' = הכול, אחרת סוג פוסט
 
   // קומפוזר
   const [text, setText] = useState('')
+  const [ptype, setPtype] = useState('') // סוג הפוסט הנבחר (לא חובה)
   const [images, setImages] = useState([]) // [{file, url(preview)}]
   const [posting, setPosting] = useState(false)
   const fileRef = useRef(null)
@@ -325,6 +358,7 @@ function Feed({ session, profile }) {
     setSqlMissing(false)
     setError(null)
     setPosts(data || [])
+    if (onCount) onCount((data || []).length)
     if (!opts.silent) setLoading(false)
   }
 
@@ -363,15 +397,23 @@ function Feed({ session, profile }) {
       for (const img of images) {
         urls.push(await uploadImage(img.file, 'community', myId))
       }
-      const { error } = await supabase.from('community_posts').insert({
+      const row = {
         user_id: myId,
         content: content || null,
         image_urls: urls.length ? urls : null,
-      })
+      }
+      let { error } = await supabase
+        .from('community_posts')
+        .insert(ptype ? { ...row, post_type: ptype } : row)
+      // עמודת post_type עוד לא קיימת במסד — מפרסמים בלעדיה במקום להיכשל
+      if (error && ptype && isMissingColumn(error)) {
+        ;({ error } = await supabase.from('community_posts').insert(row))
+      }
       if (error) throw error
       images.forEach((img) => URL.revokeObjectURL(img.url))
       setImages([])
       setText('')
+      setPtype('')
       if (taRef.current) taRef.current.style.height = 'auto'
       toast.success(L('הפוסט פורסם לקהילה 🎉', 'Posted to the community 🎉'))
       load({ silent: true })
@@ -385,6 +427,17 @@ function Feed({ session, profile }) {
   const firstName = profile?.first_name || L('מאמן', 'Coach')
 
   if (sqlMissing) return <SetupCard file="supabase_community.sql" onRetry={() => load()} />
+
+  // סינון לפי חיפוש (מההירו) ולפי סוג הפוסט
+  const q = (search || '').trim().toLowerCase()
+  const visible = posts.filter((p) => {
+    const typeOk = !filter || p.post_type === filter
+    if (!typeOk) return false
+    if (!q) return true
+    const hay = `${p.content || ''} ${coachName(p.author)} ${p.author?.club || ''}`.toLowerCase()
+    return hay.includes(q)
+  })
+  const countFor = (id) => posts.filter((p) => p.post_type === id).length
 
   return (
     <>
@@ -426,6 +479,19 @@ function Feed({ session, profile }) {
               ))}
             </div>
           )}
+          {/* סוג הפוסט — chips צבעוניים לפי הקטגוריה */}
+          <div className="cm-type-row">
+            {POST_TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={ptype === t.id ? `cm-type-chip t-${t.cls} on` : 'cm-type-chip'}
+                onClick={() => setPtype((cur) => (cur === t.id ? '' : t.id))}
+              >
+                {L(t.id, t.en)}
+              </button>
+            ))}
+          </div>
           <div className="cm-composer-bar">
             <button
               type="button"
@@ -458,6 +524,29 @@ function Feed({ session, profile }) {
         </div>
       </div>
 
+      {/* chips סינון לפי סוג */}
+      {posts.some((p) => p.post_type) && (
+        <div className="cm-filter-row">
+          <button
+            type="button"
+            className={!filter ? 'chip selected' : 'chip'}
+            onClick={() => setFilter('')}
+          >
+            {L('הכל', 'All')} · {posts.length}
+          </button>
+          {POST_TYPES.filter((t) => countFor(t.id) > 0).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={filter === t.id ? 'chip selected' : 'chip'}
+              onClick={() => setFilter((cur) => (cur === t.id ? '' : t.id))}
+            >
+              {L(t.id, t.en)} · {countFor(t.id)}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* הפיד */}
       <div className="cm-feed">
         {loading ? (
@@ -469,16 +558,22 @@ function Feed({ session, profile }) {
               {L('נסה שוב', 'Try again')}
             </button>
           </div>
-        ) : posts.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="empty-state">
             <span className="empty-ic"><UsersRound size={26} /></span>
-            <div className="empty-title">{L('הקהילה מחכה לפוסט הראשון', 'The community is waiting for its first post')}</div>
+            <div className="empty-title">
+              {posts.length === 0
+                ? L('הקהילה מחכה לפוסט הראשון', 'The community is waiting for its first post')
+                : L('אין תוצאות לסינון', 'No results for this filter')}
+            </div>
             <p className="muted small">
-              {L('שתף תובנה מאימון, שאלה מקצועית או תמונה מהמגרש.', 'Share a practice insight, a coaching question or a photo from the court.')}
+              {posts.length === 0
+                ? L('שתף תובנה מאימון, שאלה מקצועית או תמונה מהמגרש.', 'Share a practice insight, a coaching question or a photo from the court.')
+                : L('נסה לשנות את החיפוש או הסינון.', 'Try changing the search or filter.')}
             </p>
           </div>
         ) : (
-          posts.map((p) => (
+          visible.map((p) => (
             <PostCard
               key={p.id}
               post={p}
@@ -494,15 +589,23 @@ function Feed({ session, profile }) {
 }
 
 // ---------- צ'אטים לפי קטגוריה ----------
-function ChatsHub({ session }) {
+function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   const myId = session.user.id
   const [messages, setMessages] = useState([])
   const [profilesById, setProfilesById] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [needsSql, setNeedsSql] = useState(false) // עמודת channel חסרה
-  const [active, setActive] = useState(null) // ערוץ פתוח (id)
+  const [active, setActive] = useState(initialChannel || null) // ערוץ פתוח (id)
   const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (initialChannel) {
+      setActive(initialChannel)
+      if (onConsumeInitial) onConsumeInitial()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChannel])
 
   async function load(opts = {}) {
     if (!opts.silent) setLoading(true)
@@ -676,23 +779,54 @@ function ChatsHub({ session }) {
   )
 }
 
-// ---------- העמוד הראשי: קהילה = פיד + צ'אטים לפי קטגוריה ----------
-// props: session, profile (לאווטאר בקומפוזר)
-export default function Community({ session, profile }) {
+// ---------- העמוד הראשי: הירו + פיד (עם סייד-בר) + צ'אטים ----------
+// props: session, profile (לאווטאר בקומפוזר), onOpenCoach (למאמן השבוע)
+export default function Community({ session, profile, onOpenCoach }) {
   const [tab, setTab] = useState('feed') // 'feed' | 'chats'
+  const [search, setSearch] = useState('')
+  const [postCount, setPostCount] = useState(null)
+  const [coachCount, setCoachCount] = useState(null)
+  const [chatChannel, setChatChannel] = useState(null) // deep-link מהסייד-בר
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+      if (alive && count != null) setCoachCount(count)
+    })()
+    return () => { alive = false }
+  }, [])
+
+  const openChannel = (id) => {
+    setChatChannel(id)
+    setTab('chats')
+  }
 
   return (
-    <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('הקהילה', 'Community')}</div>
-          <h2>{L('קהילת המאמנים', 'Coaches community')}</h2>
-          <p className="page-desc">
-            {L(
-              'המגרש המרכזי של כולנו — פיד שיתופים וצ׳אטים מקצועיים לפי קטגוריה.',
-              "Everyone's home court — a shared feed and topic chats by category."
-            )}
-          </p>
+    <div className="welcome-card cm-page">
+      {/* הירו ממורכז — כותרת, סטטיסטיקות חיות וחיפוש */}
+      <header className="cm-hero">
+        <div className="welcome-badge">{L('הקהילה', 'Community')}</div>
+        <h2>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h2>
+        <p className="cm-hero-sub">{L('שאלות, טיפים, סרטונים וצילומים — הכול במקום אחד.', 'Questions, tips, videos and photos — all in one place.')}</p>
+        <div className="cm-hero-stats" dir="rtl">
+          <span className="cm-stat"><strong>{coachCount ?? '—'}</strong> {L('מאמנים', 'coaches')}</span>
+          <span className="cm-stat-sep" aria-hidden="true" />
+          <span className="cm-stat"><strong>{postCount ?? '—'}</strong> {L('פוסטים', 'posts')}</span>
+          <span className="cm-stat-sep" aria-hidden="true" />
+          <span className="cm-stat"><strong>{CHANNELS.length}</strong> {L("ערוצי צ'אט", 'chat channels')}</span>
+        </div>
+        <div className="cm-hero-search">
+          <Search size={17} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={L('חיפוש בפיד...', 'Search the feed...')}
+            aria-label={L('חיפוש בפיד', 'Search the feed')}
+          />
         </div>
       </header>
 
@@ -706,9 +840,33 @@ export default function Community({ session, profile }) {
       </div>
 
       {tab === 'feed' ? (
-        <Feed session={session} profile={profile} />
+        <div className="cm-layout">
+          <div className="cm-main">
+            <Feed session={session} profile={profile} search={search} onCount={setPostCount} />
+          </div>
+          {/* סייד-בר — נצמד בגלילה בדסקטופ, יורד מתחת במובייל */}
+          <aside className="cm-aside">
+            <div className="cm-aside-card">
+              <h3 className="cm-aside-title">{L("ערוצי צ'אט", 'Chat channels')}</h3>
+              <div className="cm-aside-channels">
+                {CHANNELS.map((c) => (
+                  <button key={c.id} type="button" className="cm-aside-ch" onClick={() => openChannel(c.id)}>
+                    <c.Icon size={15} />
+                    <span>{channelName(c)}</span>
+                    <ChevronLeft size={14} className="cm-aside-chev" />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <CoachOfWeek onOpenCoach={onOpenCoach} />
+          </aside>
+        </div>
       ) : (
-        <ChatsHub session={session} />
+        <ChatsHub
+          session={session}
+          initialChannel={chatChannel}
+          onConsumeInitial={() => setChatChannel(null)}
+        />
       )}
     </div>
   )
