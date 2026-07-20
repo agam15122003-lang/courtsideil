@@ -347,6 +347,9 @@ export default function TrainingPlans({ session }) {
                   <button className="btn-ghost" onClick={() => toggleShare(p)}>
                     {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
                   </button>
+                  <button className="btn-ghost" onClick={() => copyPlan(p)}>
+                    {L('שכפל', 'Duplicate')}
+                  </button>
                   <button
                     className="btn-ghost"
                     onClick={() => waShare(L(

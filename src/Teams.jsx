@@ -156,6 +156,30 @@ export default function Teams({ session, profile, onNavigate }) {
   useEffect(() => { setMText(goalsMap[mKey] || '') }, [goalsMap[mKey], mKey])
   useEffect(() => { setSText(goalsMap['season|'] || '') }, [goalsMap['season|']])
 
+  // ייצוא הסגל לקובץ CSV (נפתח באקסל, כולל BOM לעברית תקינה)
+  const exportRosterCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const header = [
+      L('שם', 'Name'), L('מספר', 'Number'), L('עמדה', 'Position'),
+      L('שנת לידה', 'Birth year'), L('טלפון', 'Phone'), L('סטטוס', 'Status'),
+      L('נוכחות עונתית', 'Season attendance'),
+    ]
+    const rows = players.map((p) => {
+      const a = attByPlayer[p.id]
+      const att = a && a.total ? Math.round((a.present / a.total) * 100) + '%' : ''
+      return [p.name, p.number, p.position, p.birth_year, p.phone, statusLabel(p.status), att]
+    })
+    const csv = '﻿' + [header, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const aEl = document.createElement('a')
+    aEl.href = URL.createObjectURL(blob)
+    aEl.download = `${team || 'roster'}.csv`
+    document.body.appendChild(aEl)
+    aEl.click()
+    aEl.remove()
+    setTimeout(() => URL.revokeObjectURL(aEl.href), 5000)
+  }
+
   // ---------- שחקנים ----------
   const addPlayer = async () => {
     if (!pName.trim()) return
@@ -352,11 +376,18 @@ export default function Teams({ session, profile, onNavigate }) {
         /* ===================== סגל (פריסת מסך היעד 09: טבלה + פאנל צד) ===================== */
         <div className="team-split">
         <div className="team-section team-split-main">
-          <p className="muted small">
-            {L(`${players.length} שחקנים`, `${players.length} players`)}
-            {injured > 0 ? L(` · ${injured} לא זמינים`, ` · ${injured} unavailable`) : ''}
-            {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
-          </p>
+          <div className="roster-meta-row">
+            <p className="muted small" style={{ margin: 0 }}>
+              {L(`${players.length} שחקנים`, `${players.length} players`)}
+              {injured > 0 ? L(` · ${injured} לא זמינים`, ` · ${injured} unavailable`) : ''}
+              {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
+            </p>
+            {players.length > 0 && (
+              <button type="button" className="link-button" onClick={exportRosterCsv}>
+                <Download size={14} /> {L('ייצוא CSV', 'Export CSV')}
+              </button>
+            )}
+          </div>
           <div className="roster-add">
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
               placeholder={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />

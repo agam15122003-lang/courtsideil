@@ -429,6 +429,7 @@ function Feed({ session, profile, search, onCount }) {
   const [error, setError] = useState(null)
   const [sqlMissing, setSqlMissing] = useState(false)
   const [filter, setFilter] = useState('') // '' = הכול, אחרת סוג פוסט
+  const [sortBy, setSortBy] = useState('new') // 'new' | 'top' (לפי לייקים+תגובות)
 
   // קומפוזר
   const [text, setText] = useState('')
@@ -554,15 +555,22 @@ function Feed({ session, profile, search, onCount }) {
 
   if (sqlMissing) return <SetupCard file="supabase_community.sql" onRetry={() => load()} />
 
-  // סינון לפי חיפוש (מההירו) ולפי סוג הפוסט
+  // סינון לפי חיפוש (מההירו) ולפי סוג הפוסט + מיון (חדש/מדובר)
   const q = (search || '').trim().toLowerCase()
-  const visible = posts.filter((p) => {
-    const typeOk = !filter || p.post_type === filter
-    if (!typeOk) return false
-    if (!q) return true
-    const hay = `${p.content || ''} ${coachName(p.author)} ${p.author?.club || ''}`.toLowerCase()
-    return hay.includes(q)
-  })
+  const engagement = (p) => (p.likes?.length || 0) + (p.comments?.length || 0) + (p.poll_votes?.length || 0)
+  const visible = posts
+    .filter((p) => {
+      const typeOk = !filter || p.post_type === filter
+      if (!typeOk) return false
+      if (!q) return true
+      const hay = `${p.content || ''} ${coachName(p.author)} ${p.author?.club || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+    .sort((a, b) =>
+      sortBy === 'top'
+        ? engagement(b) - engagement(a) || new Date(b.created_at) - new Date(a.created_at)
+        : 0
+    )
   const countFor = (id) => posts.filter((p) => p.post_type === id).length
 
   return (
@@ -672,7 +680,27 @@ function Feed({ session, profile, search, onCount }) {
         </div>
       </div>
 
-      {/* chips סינון לפי סוג */}
+      {/* מיון + chips סינון לפי סוג */}
+      {posts.length > 1 && (
+        <div className="cm-filter-row">
+          <button
+            type="button"
+            className={sortBy === 'new' ? 'chip selected' : 'chip'}
+            onClick={() => setSortBy('new')}
+            aria-pressed={sortBy === 'new'}
+          >
+            {L('החדשים', 'Newest')}
+          </button>
+          <button
+            type="button"
+            className={sortBy === 'top' ? 'chip selected' : 'chip'}
+            onClick={() => setSortBy('top')}
+            aria-pressed={sortBy === 'top'}
+          >
+            {L('המדוברים', 'Top')}
+          </button>
+        </div>
+      )}
       {posts.some((p) => p.post_type) && (
         <div className="cm-filter-row">
           <button

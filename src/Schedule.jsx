@@ -1,6 +1,7 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus } from 'lucide-react'
+import { downloadIcs } from './ics'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
 import NotebookPage from './NotebookPage'
@@ -560,6 +561,20 @@ export default function Schedule({ session }) {
             </button>
           )}
           {selected.note && <p className="muted small" style={{ marginTop: 8 }}>{selected.note}</p>}
+          <button
+            className="btn-soft"
+            style={{ marginTop: 12 }}
+            onClick={() => downloadIcs({
+              title: selected.is_personal ? L('אימון אישי', 'Personal practice') : L(`אימון ${selected.team || ''}`, `Practice ${selected.team || ''}`),
+              date: selected.date,
+              start: selected.start_time,
+              end: selected.end_time,
+              location: selected.location,
+              description: selected.note || (selected.plan ? selected.plan.name : ''),
+            })}
+          >
+            <CalendarPlus size={15} /> {L('הוסף ליומן', 'Add to calendar')}
+          </button>
           <button
             className="btn-ghost danger"
             style={{ marginTop: 12 }}
