@@ -13033,3 +13033,387 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   color: var(--accent);
   fill: var(--accent);
 }
+
+/* ============================================================
+   מנוע מעורבות — התראות, סקרים, אירועים, הזמנות, PWA
+   ============================================================ */
+
+/* ---- פעמון התראות ---- */
+.ntf-wrap {
+  position: relative;
+}
+.ntf-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ntf-bell:hover,
+.ntf-bell.open {
+  color: var(--c-orange);
+  border-color: var(--border-hover);
+}
+.ntf-badge {
+  position: absolute;
+  top: -5px;
+  inset-inline-end: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ntf-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  width: min(360px, calc(100vw - 24px));
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 80;
+  animation: rise 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.ntf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+.ntf-head-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--c-green);
+}
+.ntf-empty {
+  margin: 0;
+  padding: 22px 16px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.ntf-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+}
+.ntf-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: start;
+  padding: 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.ntf-item:hover {
+  background: var(--surface-alt);
+}
+.ntf-item.is-new {
+  background: var(--accent-soft);
+}
+.ntf-ic {
+  flex: 0 0 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ntf-ic.t-like { background: var(--c-red-bg); color: var(--c-red); }
+.ntf-ic.t-comment { background: var(--c-blue-bg); color: var(--c-blue); }
+.ntf-ic.t-message { background: var(--c-green-bg); color: var(--c-green); }
+.ntf-ic.t-event { background: var(--c-purple-bg); color: var(--c-purple); }
+.ntf-ic.t-poll { background: var(--c-orange-bg); color: var(--c-orange); }
+.ntf-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ntf-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.ntf-time {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.sidebar-bell {
+  margin-inline-start: auto;
+}
+.sidebar-brand .ntf-bell {
+  width: 34px;
+  height: 34px;
+}
+/* במובייל הפאנל נפתח מהטופ-בר — מוצמד לרוחב המסך */
+@media (max-width: 768px) {
+  .topbar-actions .ntf-panel {
+    position: fixed;
+    top: 60px;
+    inset-inline: 12px;
+    width: auto;
+  }
+  .sidebar-bell { display: none; } /* הפעמון במגירה מיותר — יש בטופ-בר */
+}
+
+/* ---- סקרים ---- */
+.cm-poll {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.cm-poll-opt {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: start;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.cm-poll-opt:hover {
+  border-color: var(--accent);
+}
+.cm-poll-opt.mine {
+  border-color: var(--accent);
+}
+.cm-poll-bar {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  background: var(--accent-soft);
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+  pointer-events: none;
+}
+.cm-poll-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.cm-poll-check {
+  color: var(--c-orange);
+  font-weight: 800;
+}
+.cm-poll-pct {
+  position: relative;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--c-orange);
+  white-space: nowrap;
+}
+.cm-poll-total {
+  margin-top: 2px;
+}
+.cm-poll-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+}
+.cm-type-chip.on.t-orange { background: var(--c-orange-bg); color: var(--c-orange); border-color: currentColor; }
+.cm-type-tag.t-orange { background: var(--c-orange-bg); color: var(--c-orange); }
+
+/* ---- אירועים ---- */
+.cm-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.cm-aside-head .cm-aside-title {
+  margin: 0;
+}
+.cm-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cm-event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cm-event-date {
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--c-orange);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cm-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cm-event-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.cm-event-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cm-event-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cm-event-actions .chip {
+  font-size: 12px;
+  padding: 4px 11px;
+}
+.cm-event-del {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.cm-event-del:hover {
+  color: var(--error);
+}
+.cm-event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cm-event-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ---- הזמנת מאמן ---- */
+.cm-invite-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- כפתור התקנת PWA בסיידבר ---- */
+.install-btn {
+  margin: 0 var(--space-2) var(--space-3);
+}
+
+/* ---- דף תרגיל ציבורי ---- */
+.pd-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.pd-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px clamp(16px, 4vw, 40px);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.pd-main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 36px) 16px 64px;
+}
+.pd-eyebrow {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-orange);
+  margin: 0 0 14px;
+}
+.pd-court {
+  margin-top: 18px;
+}
+.pd-cta {
+  margin-top: 28px;
+  text-align: center;
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28px 20px;
+}
+.pd-cta h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 22px;
+  color: #fff;
+}
+.pd-cta .muted {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+.pd-cta .btn-primary {
+  margin-top: 14px;
+}

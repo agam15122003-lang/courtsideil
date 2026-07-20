@@ -4,7 +4,14 @@ import Auth from './Auth'
 import Dashboard from './Dashboard'
 import ResetPassword from './ResetPassword'
 import Landing from './Landing'
+import PublicDrill from './PublicDrill'
 import { useLang } from './i18n'
+
+// קישור ציבורי לתרגיל: #/drill/<id> — נפתח גם בלי חשבון
+function publicDrillId() {
+  const m = window.location.hash.match(/^#\/drill\/([0-9a-f-]{10,})/i)
+  return m ? m[1] : null
+}
 
 export default function App() {
   useLang() // מנוי לשפה — החלפת שפה מרעננת את כל עץ הרכיבים
@@ -12,6 +19,14 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [isRecoveryMode, setRecoveryMode] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [sharedDrill, setSharedDrill] = useState(publicDrillId)
+
+  // מעקב אחרי שינויי hash (ניווט קדימה/אחורה)
+  useEffect(() => {
+    const onHash = () => setSharedDrill(publicDrillId())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     // החלת מצב תצוגה שמור (כהה/בהיר) — גם לפני התחברות
@@ -94,6 +109,22 @@ export default function App() {
     return (
       <div className="app">
         <ResetPassword />
+      </div>
+    )
+  }
+
+  // קישור ציבורי לתרגיל — נפתח יפה גם למי שאין לו חשבון (ולמחוברים)
+  if (sharedDrill) {
+    return (
+      <div className="app">
+        <PublicDrill
+          drillId={sharedDrill}
+          onJoin={() => {
+            window.location.hash = ''
+            setSharedDrill(null)
+            if (!session) setShowAuth(true)
+          }}
+        />
       </div>
     )
   }

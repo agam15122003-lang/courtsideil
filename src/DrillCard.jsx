@@ -1,6 +1,7 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2 } from 'lucide-react'
+import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
@@ -266,6 +267,18 @@ export default function DrillCard({
             >
               {L('סרטון', 'Video')}
             </a>
+          )}
+          {drill.is_public !== false && (
+            <button
+              className="btn-ghost"
+              onClick={() => waShare(L(
+                `🏀 תרגיל מ-CourtSide: ${drill.title}\n${drillLink(drill.id)}`,
+                `🏀 A drill from CourtSide: ${drill.title}\n${drillLink(drill.id)}`
+              ))}
+              title={L('שיתוף בוואטסאפ', 'Share on WhatsApp')}
+            >
+              <Share2 size={15} /> {L('שיתוף', 'Share')}
+            </button>
           )}
           {isMine && onEdit && (
             <button className="btn-ghost" onClick={() => onEdit(drill)}>
