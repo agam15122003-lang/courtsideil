@@ -81,6 +81,7 @@ export default function Teams({ session, profile, onNavigate }) {
   const [gEdit, setGEdit] = useState(null)
   const [sEdit, setSEdit] = useState(null)
 
+
   // מטרות — בורר שבוע/חודש
   const [gWeek, setGWeek] = useState(sundayOf(new Date()))
   const [gMonth, setGMonth] = useState(addMonths(new Date(), 0))
@@ -90,6 +91,21 @@ export default function Teams({ session, profile, onNavigate }) {
 
   // ייבוא מהאיגוד
   const [imp, setImp] = useState(null) // null=סגור, אחרת אובייקט-מצב
+  // [7] Escape סוגר את המודאל הפתוח (בלי לשמור — כמו לחיצה על X)
+  useEffect(() => {
+    const anyOpen = pEdit || gEdit || sEdit || imp
+    if (!anyOpen) return
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (pEdit) setPEdit(null)
+      else if (gEdit) setGEdit(null)
+      else if (sEdit) setSEdit(null)
+      else if (imp) setImp(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pEdit, gEdit, sEdit, imp])
+
   const [leaguesAll, setLeaguesAll] = useState([])
   const loadTokenRef = useRef(0) // הגנה מפני מרוץ טעינות בהחלפת קבוצה מהירה
 
@@ -145,7 +161,7 @@ export default function Teams({ session, profile, onNavigate }) {
   const addPlayer = async () => {
     if (!pName.trim()) return
     const { error } = await supabase.from('team_players').insert({ coach_id: me, team, name: pName.trim(), number: pNum.trim() || null, status: 'active' })
-    if (error) { toast.error(L('ההוספה נכשלה (הרצת את ה-SQL?): ', 'Add failed (ran the SQL?): ') + error.message); return }
+    if (error) { console.error('teams add:', error.message); toast.error(L('ההוספה נכשלה — נסו שוב בעוד רגע.', 'Add failed — try again in a moment.')); return }
     setPName(''); setPNum(''); load()
   }
   const cycleStatus = async (p) => {
@@ -172,7 +188,7 @@ export default function Teams({ session, profile, onNavigate }) {
   const addStaff = async () => {
     if (!sForm.name.trim()) return
     const { error } = await supabase.from('team_staff').insert({ coach_id: me, team, name: sForm.name.trim(), role: sForm.role, phone: sForm.phone.trim() || null })
-    if (error) { toast.error(L('ההוספה נכשלה (הרצת את ה-SQL?): ', 'Add failed (ran the SQL?): ') + error.message); return }
+    if (error) { console.error('teams add:', error.message); toast.error(L('ההוספה נכשלה — נסו שוב בעוד רגע.', 'Add failed — try again in a moment.')); return }
     setSForm({ name: '', role: sForm.role, phone: '' }); load()
   }
   const saveStaff = async () => {
@@ -192,7 +208,7 @@ export default function Teams({ session, profile, onNavigate }) {
       { coach_id: me, team, period, period_key: key, content, updated_at: new Date().toISOString() },
       { onConflict: 'coach_id,team,period,period_key' }
     )
-    if (error) { toast.error(L('שמירה נכשלה (עדכנת את ה-SQL?): ', 'Save failed (updated the SQL?): ') + error.message); return }
+    if (error) { console.error('teams save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     setGoalsMap((m) => ({ ...m, [`${period}|${key}`]: content }))
     toast.success(L('המטרות נשמרו', 'Goals saved'))
   }
@@ -274,7 +290,7 @@ export default function Teams({ session, profile, onNavigate }) {
     if (error) {
       // אם עמודת source לא קיימת במסד — נופלים חזרה לייבוא רגיל בלי דדופ
       const { error: e2 } = await supabase.from('team_games').insert(imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null })))
-      if (e2) { toast.error(L('הייבוא נכשל (הרצת את ה-SQL?): ', 'Import failed (ran the SQL?): ') + e2.message); return }
+      if (e2) { console.error('games import:', e2.message); toast.error(L('הייבוא נכשל — נסו שוב בעוד רגע.', 'Import failed — try again in a moment.')); return }
     }
     await saveIbaLink()
     toast.success(L(`${rows.length} משחקים יובאו + הליגה נשמרה`, `${rows.length} games imported + league saved`))
@@ -346,7 +362,7 @@ export default function Teams({ session, profile, onNavigate }) {
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
               placeholder={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
             <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)} placeholder={L('מס׳', '#')} dir="ltr" />
-            <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer}><Plus size={16} /></button>
+            <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
           {players.length === 0 ? (
             <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין שחקנים בסגל.', 'No players in the roster yet.')}</p>
@@ -404,7 +420,7 @@ export default function Teams({ session, profile, onNavigate }) {
               <select className="finder-input staff-role-sel" value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
                 {STAFF_ROLES.map((r) => <option key={r.key} value={r.key}>{L(r.he, r.en)}</option>)}
               </select>
-              <button className="btn-primary" style={{ marginTop: 0 }} onClick={addStaff}><Plus size={16} /></button>
+              <button className="btn-primary" style={{ marginTop: 0 }} onClick={addStaff} aria-label={L('הוספת איש צוות', 'Add staff member')}><Plus size={16} /></button>
             </div>
             {staff.length === 0 ? (
               <p className="muted small" style={{ marginTop: 10 }}>{L('עדיין לא הוסף צוות מקצועי.', 'No staff added yet.')}</p>
@@ -519,6 +535,12 @@ export default function Teams({ session, profile, onNavigate }) {
             <button className="btn-primary games-import-btn" style={{ marginTop: 0 }} onClick={openImport}>
               <Download size={16} /> {L('ייבוא משחקים + טבלה מהאיגוד', 'Import games + table from the association')}
             </button>
+            {/* [26] גשר ללוח משחקי האימון בין מאמנים */}
+            {onNavigate && (
+              <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate('finder-games')}>
+                {L('מחפשים משחק אימון? ללוח המשחקים', 'Looking for a scrimmage? Games board')}
+              </button>
+            )}
             <button className="manual-toggle" onClick={() => setManualOpen((v) => !v)}>
               <Plus size={14} /> {L('הוספה ידנית', 'Add manually')}
             </button>
@@ -584,7 +606,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: ייבוא מהאיגוד ===================== */}
       {imp && (
-        <div className="tm-overlay" onClick={() => setImp(null)}>
+        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setImp(null)}>
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('קישור לאיגוד הכדורסל', 'Link to the association')}</strong>
@@ -650,7 +672,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: פרטי שחקן ===================== */}
       {pEdit && (
-        <div className="tm-overlay">
+        <div className="tm-overlay" role="dialog" aria-modal="true">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי שחקן', 'Player details')}</strong>
@@ -664,7 +686,7 @@ export default function Teams({ session, profile, onNavigate }) {
                 <input className="finder-input" dir="ltr" value={pEdit.number || ''} onChange={(e) => setPEdit((p) => ({ ...p, number: e.target.value }))} />
               </label>
               <label className="pf-label">{L('עמדה', 'Position')}
-                <input className="finder-input" value={pEdit.position || ''} onChange={(e) => setPEdit((p) => ({ ...p, position: e.target.value }))} placeholder={L('שולייה / רכז / סנטר...', 'Guard / Forward / Center...')} />
+                <input className="finder-input" value={pEdit.position || ''} onChange={(e) => setPEdit((p) => ({ ...p, position: e.target.value }))} placeholder={L('רכז / קלע / כנף / סנטר...', 'Guard / Forward / Center...')} />
               </label>
               <label className="pf-label">{L('שנת לידה', 'Birth year')}
                 <input className="finder-input" dir="ltr" inputMode="numeric" value={pEdit.birth_year || ''} onChange={(e) => setPEdit((p) => ({ ...p, birth_year: e.target.value }))} placeholder="2012" />
@@ -696,7 +718,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: עריכת משחק ===================== */}
       {gEdit && (
-        <div className="tm-overlay">
+        <div className="tm-overlay" role="dialog" aria-modal="true">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('עריכת משחק', 'Edit game')}</strong>
@@ -723,7 +745,7 @@ export default function Teams({ session, profile, onNavigate }) {
 
       {/* ===================== מודאל: איש צוות ===================== */}
       {sEdit && (
-        <div className="tm-overlay">
+        <div className="tm-overlay" role="dialog" aria-modal="true">
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי איש צוות', 'Staff details')}</strong>

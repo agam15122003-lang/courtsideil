@@ -181,6 +181,16 @@ function Comments({ post, myId, onChanged }) {
 function PostCard({ post, myId, onChanged, onDeleted }) {
   const [showComments, setShowComments] = useState(false)
   const [lightbox, setLightbox] = useState(null) // URL של תמונה מוגדלת
+  const lightboxCloseRef = useRef(null)
+
+  // [35] לייטבוקס נגיש: פוקוס על כפתור הסגירה, Escape סוגר
+  useEffect(() => {
+    if (!lightbox) return
+    lightboxCloseRef.current?.focus()
+    const onKey = (e) => { if (e.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
   const likes = post.likes || []
   const iLiked = likes.some((l) => l.user_id === myId)
   const comments = post.comments || []
@@ -306,8 +316,14 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
       {showComments && <Comments post={post} myId={myId} onChanged={onChanged} />}
 
       {lightbox && (
-        <div className="cm-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label={L('תמונה מוגדלת', 'Enlarged photo')}>
-          <button type="button" className="cm-lightbox-close" aria-label={L('סגירה', 'Close')}>
+        <div className="cm-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label={L('תמונה מוגדלת', 'Enlarged photo')}>
+          <button
+            ref={lightboxCloseRef}
+            type="button"
+            className="cm-lightbox-close"
+            onClick={() => setLightbox(null)}
+            aria-label={L('סגירה', 'Close')}
+          >
             <X size={22} />
           </button>
           <img src={lightbox} alt={L('תמונה מהאימון', 'Practice photo')} onClick={(e) => e.stopPropagation()} />
@@ -568,8 +584,8 @@ function Feed({ session, profile, search, onCount }) {
             </div>
             <p className="muted small">
               {posts.length === 0
-                ? L('שתף תובנה מאימון, שאלה מקצועית או תמונה מהמגרש.', 'Share a practice insight, a coaching question or a photo from the court.')
-                : L('נסה לשנות את החיפוש או הסינון.', 'Try changing the search or filter.')}
+                ? L('שתפו תובנה מאימון, שאלה מקצועית או תמונה מהמגרש.', 'Share a practice insight, a coaching question or a photo from the court.')
+                : L('נסו לשנות את החיפוש או הסינון.', 'Try changing the search or filter.')}
             </p>
           </div>
         ) : (
@@ -651,6 +667,28 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // [2] ערוץ פתוח מתרענן לבד — הודעות חדשות מגיעות בלי רענון ידני
+  useEffect(() => {
+    if (!active) return
+    const t = setInterval(() => load({ silent: true }), 10000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active])
+
+  // [38] "חדשות מאז הביקור האחרון" — נשמר פר-ערוץ ב-localStorage
+  const SEEN_KEY = 'community-chan-seen-v1'
+  const readSeen = () => {
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') } catch { return {} }
+  }
+  useEffect(() => {
+    if (!active) return
+    try {
+      const seen = readSeen()
+      seen[active] = new Date().toISOString()
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seen))
+    } catch { /* אחסון חסום — לא קריטי */ }
+  }, [active, messages.length])
+
   const nameOf = (id) => coachName(profilesById[id])
 
   const send = async (text) => {
@@ -661,7 +699,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     setSending(false)
     if (error) {
       if (isMissingColumn(error)) {
-        toast.error(L('צריך להריץ את supabase_community2.sql כדי להפעיל ערוצים', 'Run supabase_community2.sql to enable channels'))
+        toast.error(L('הערוצים עוד לא הופעלו במערכת — נסו שוב מאוחר יותר.', 'Channels are not enabled yet — try again later.'))
       } else {
         toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
       }
@@ -738,7 +776,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
           <div className="empty-state">
             <span className="empty-ic"><ch.Icon size={26} /></span>
             <div className="empty-title">{L(`עדיין שקט בערוץ ${ch.id}`, `It's quiet in ${ch.en} so far`)}</div>
-            <p className="muted small">{L('כתוב את ההודעה הראשונה.', 'Write the first message.')}</p>
+            <p className="muted small">{L('כתבו את ההודעה הראשונה.', 'Write the first message.')}</p>
           </div>
         }
       />
@@ -752,11 +790,17 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     ;(byChannel[k] = byChannel[k] || []).push(m)
   }
 
+  const seenMap = readSeen()
   return (
     <div className="ch-grid">
       {CHANNELS.map((c) => {
         const list = byChannel[c.id] || []
         const last = list[list.length - 1]
+        // [38] מונה = הודעות חדשות מאז הביקור האחרון בערוץ (לא סך הכול, שמטעה)
+        const seenAt = seenMap[c.id]
+        const fresh = seenAt
+          ? list.filter((m) => new Date(m.created_at) > new Date(seenAt)).length
+          : list.length
         return (
           <button key={c.id} type="button" className="ch-card" onClick={() => setActive(c.id)}>
             <span className="ch-ic"><c.Icon size={22} /></span>
@@ -771,7 +815,11 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
                   : L(c.desc[0], c.desc[1])}
               </span>
             </span>
-            {list.length > 0 && <span className="ch-count">{list.length}</span>}
+            {fresh > 0 && (
+              <span className="ch-count ch-count-new" aria-label={L(`${fresh} הודעות חדשות`, `${fresh} new messages`)}>
+                {fresh > 99 ? '99+' : fresh}
+              </span>
+            )}
           </button>
         )
       })}
@@ -780,9 +828,17 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
 }
 
 // ---------- העמוד הראשי: הירו + פיד (עם סייד-בר) + צ'אטים ----------
-// props: session, profile (לאווטאר בקומפוזר), onOpenCoach (למאמן השבוע)
-export default function Community({ session, profile, onOpenCoach }) {
-  const [tab, setTab] = useState('feed') // 'feed' | 'chats'
+// props: session, profile (לאווטאר בקומפוזר), onOpenCoach (למאמן השבוע),
+//        initialTab/onConsumeInitialTab — ניתוב עומק (למשל "לצ'אטים" מעמוד ההודעות)
+export default function Community({ session, profile, onOpenCoach, initialTab, onConsumeInitialTab }) {
+  const [tab, setTab] = useState(initialTab || 'feed') // 'feed' | 'chats'
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab)
+      if (onConsumeInitialTab) onConsumeInitialTab()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab])
   const [search, setSearch] = useState('')
   const [postCount, setPostCount] = useState(null)
   const [coachCount, setCoachCount] = useState(null)
@@ -818,16 +874,19 @@ export default function Community({ session, profile, onOpenCoach }) {
           <span className="cm-stat-sep" aria-hidden="true" />
           <span className="cm-stat"><strong>{CHANNELS.length}</strong> {L("ערוצי צ'אט", 'chat channels')}</span>
         </div>
-        <div className="cm-hero-search">
-          <Search size={17} aria-hidden="true" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={L('חיפוש בפיד...', 'Search the feed...')}
-            aria-label={L('חיפוש בפיד', 'Search the feed')}
-          />
-        </div>
+        {/* [24] החיפוש מסנן את הפיד — בטאב הצ'אטים הוא מוסתר כדי לא להטעות */}
+        {tab === 'feed' && (
+          <div className="cm-hero-search">
+            <Search size={17} aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={L('חיפוש בפיד...', 'Search the feed...')}
+              aria-label={L('חיפוש בפיד', 'Search the feed')}
+            />
+          </div>
+        )}
       </header>
 
       <div className="tabs">

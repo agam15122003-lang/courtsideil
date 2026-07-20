@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronRight, MessageSquare, Search } from 'lucide-react'
+import { ChevronRight, MessageSquare, Search, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
@@ -48,16 +48,18 @@ export default function Messages({ session, onNavigate }) {
   const [sending, setSending] = useState(false)
   const [convSearch, setConvSearch] = useState('')
 
-  async function loadMessages() {
-    setLoading(true)
+  async function loadMessages(opts = {}) {
+    if (!opts.silent) setLoading(true)
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .order('created_at', { ascending: true })
 
     if (error) {
-      setError(L('שגיאה בטעינת ההודעות: ', 'Failed to load messages: ') + error.message)
-      setLoading(false)
+      if (!opts.silent) {
+        setError(L('שגיאה בטעינת ההודעות: ', 'Failed to load messages: ') + error.message)
+        setLoading(false)
+      }
       return
     }
 
@@ -80,13 +82,21 @@ export default function Messages({ session, onNavigate }) {
       setProfilesById(map)
     }
 
-    setLoading(false)
+    if (!opts.silent) setLoading(false)
   }
 
   useEffect(() => {
     loadMessages()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // [2] שיחה פתוחה מתרעננת לבד — תשובות של הצד השני מגיעות בלי רענון ידני
+  useEffect(() => {
+    if (!activeCoachId) return
+    const t = setInterval(() => loadMessages({ silent: true }), 10000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCoachId])
 
   const nameOf = (coachId) => {
     const p = profilesById[coachId]
@@ -243,7 +253,12 @@ export default function Messages({ session, onNavigate }) {
         </div>
         {onNavigate && (
           <div className="page-header-actions">
-            <button className="btn-soft" onClick={() => onNavigate('community')}>
+            {/* [23] נקודת כניסה קבועה לשיחה חדשה */}
+            <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => onNavigate('finder')}>
+              <Plus size={16} aria-hidden="true" /> {L('שיחה חדשה', 'New chat')}
+            </button>
+            {/* [27] נוחת ישירות על טאב הצ'אטים בקהילה */}
+            <button className="btn-soft" onClick={() => onNavigate('community-chats')}>
               {L('לצ׳אטים של הקהילה', 'Community chats')}
             </button>
           </div>

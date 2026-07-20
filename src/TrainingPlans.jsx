@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap, PlayCircle, Save, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap, PlayCircle, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
@@ -141,9 +141,41 @@ export default function TrainingPlans({ session }) {
     loadPlans()
   }
 
-  // שיתוף/ביטול שיתוף תוכנית לקהילה
+  // שיתוף/ביטול שיתוף תוכנית לקהילה.
+  // [1] תרגילים פרטיים לא מתפרסמים בשקט: מבקשים אישור לפני, וזוכרים אילו
+  // תרגילים אנחנו פרסמנו כדי להחזיר אותם לפרטיים בביטול השיתוף.
+  const SHARED_DRILLS_KEY = 'plan-shared-drills-v1'
   const toggleShare = async (p) => {
     const sharing = !p.is_public
+
+    // אילו תרגילים בתוכנית עדיין פרטיים? (לפני שנוגעים במשהו)
+    let privateIds = []
+    if (sharing) {
+      const { data: pis } = await supabase
+        .from('plan_items')
+        .select('drill_id')
+        .eq('plan_id', p.id)
+      const ids = [...new Set((pis || []).map((x) => x.drill_id).filter(Boolean))]
+      if (ids.length) {
+        const { data: priv } = await supabase
+          .from('drills')
+          .select('id')
+          .in('id', ids)
+          .eq('is_public', false)
+          .eq('created_by', session.user.id)
+        privateIds = (priv || []).map((d) => d.id)
+      }
+      if (privateIds.length > 0) {
+        const ok = window.confirm(
+          L(
+            `שיתוף התוכנית יפרסם לקהילה גם ${privateIds.length === 1 ? 'תרגיל פרטי אחד' : `${privateIds.length} תרגילים פרטיים`} שמופיעים בה. להמשיך?`,
+            `Sharing this plan will also publish ${privateIds.length} private drill(s) it contains. Continue?`
+          )
+        )
+        if (!ok) return
+      }
+    }
+
     const { error } = await supabase
       .from('training_plans')
       .update({ is_public: sharing })
@@ -152,17 +184,29 @@ export default function TrainingPlans({ session }) {
       toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message)
       return
     }
-    // כששיתפנו — מפרסמים גם את התרגילים שבתוכנית (שלי), כדי שהתוכן המלא
-    // (שרטוטים, אנימציה, תיאורים) יעבור למאמנים אחרים. RLS מאפשר לעדכן רק את שלי.
+
     if (sharing) {
-      const { data: pis } = await supabase
-        .from('plan_items')
-        .select('drill_id')
-        .eq('plan_id', p.id)
-      const ids = [...new Set((pis || []).map((x) => x.drill_id).filter(Boolean))]
-      if (ids.length) {
-        await supabase.from('drills').update({ is_public: true }).in('id', ids)
+      // מפרסמים את התרגילים הפרטיים (באישור המשתמש) וזוכרים אותם להחזרה
+      if (privateIds.length) {
+        await supabase.from('drills').update({ is_public: true }).in('id', privateIds)
+        try {
+          const map = JSON.parse(localStorage.getItem(SHARED_DRILLS_KEY) || '{}')
+          map[p.id] = privateIds
+          localStorage.setItem(SHARED_DRILLS_KEY, JSON.stringify(map))
+        } catch { /* אחסון חסום — לא קריטי */ }
       }
+    } else {
+      // ביטול שיתוף — מחזירים לפרטי את התרגילים שאנחנו פרסמנו עבור התוכנית הזו
+      try {
+        const map = JSON.parse(localStorage.getItem(SHARED_DRILLS_KEY) || '{}')
+        const restore = map[p.id] || []
+        if (restore.length) {
+          await supabase.from('drills').update({ is_public: false }).in('id', restore)
+          delete map[p.id]
+          localStorage.setItem(SHARED_DRILLS_KEY, JSON.stringify(map))
+          toast.success(L(`${restore.length === 1 ? 'תרגיל פרטי הוחזר' : `${restore.length} תרגילים פרטיים הוחזרו`} למצב פרטי`, 'Private drills were made private again'))
+        }
+      } catch { /* אחסון חסום — לא קריטי */ }
     }
     toast.success(p.is_public ? L('השיתוף בוטל', 'Sharing turned off') : L('התוכנית שותפה לקהילה', 'Plan shared with the community'))
     loadPlans()
@@ -249,7 +293,7 @@ export default function TrainingPlans({ session }) {
         style={{ marginTop: 12 }}
         onClick={() => setSmartOpen(true)}
       >
-        {L('בנייה אוטומטית של אימון', 'Auto-build a practice')}
+        {L('בנייה אוטומטית של תוכנית אימון', 'Auto-build a practice plan')}
       </button>
 
       <div className="finder-results">
@@ -319,7 +363,7 @@ export default function TrainingPlans({ session }) {
             {L('תוכניות הקהילה', 'Community plans')}
           </h3>
           <p className="muted small">
-            {L('מערכי אימון משותפים — שלך ושל מאמנים אחרים. כאן מאמנים מגלים תוכניות. צפה כמחברת או העתק אליך.', 'Shared practice plans — yours and other coaches’. This is where coaches discover plans. View as a notebook or copy.')}
+            {L('מערכי אימון משותפים — שלך ושל מאמנים אחרים. כאן מאמנים מגלים תוכניות. צפה כמחברת או העתק אלייך.', 'Shared practice plans — yours and other coaches’. This is where coaches discover plans. View as a notebook or copy.')}
           </p>
           <div className="finder-results">
             {communityPlans.map((p) => {
@@ -354,7 +398,7 @@ export default function TrainingPlans({ session }) {
                     </button>
                     {!mine && (
                       <button className="btn-ghost" onClick={() => copyPlan(p)}>
-                        {L('העתק אלי', 'Copy to me')}
+                        {L('העתק אליי', 'Copy to me')}
                       </button>
                     )}
                   </div>
@@ -669,9 +713,7 @@ function PlanBuilder({ planId, plan, onBack }) {
               <PlayCircle size={17} /> {L('הרץ אימון', 'Run practice')}
             </button>
           )}
-          <button className="btn-soft" onClick={() => toast.success(L('התוכנית נשמרת אוטומטית ✓', 'The plan is saved automatically ✓'))}>
-            <Save size={16} /> {L('שמור', 'Save')}
-          </button>
+          {/* [25] כפתור "שמור" הוסר — השמירה אוטומטית באמת, וה-badge בכותרת כבר אומר זאת */}
         </div>
       </header>
 
@@ -1046,7 +1088,7 @@ function PlanViewer({ plan, onBack, onCopy }) {
       </button>
       <div className="nb-actions" style={{ marginTop: 12 }}>
         <button className="btn-primary" style={{ marginTop: 0 }} onClick={onCopy}>
-          {L('העתק אלי', 'Copy to me')}
+          {L('העתק אליי', 'Copy to me')}
         </button>
         <button className="btn-soft" onClick={() => window.print()}>
           <Printer size={16} /> {L('הדפסה', 'Print')}

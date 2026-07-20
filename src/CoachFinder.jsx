@@ -13,8 +13,16 @@ import { Users } from 'lucide-react'
 // טאב "מאמנים" — מתג בין מאתר מאמנים ללוח משחקי אימון.
 // props:
 //   session - המשתמש המחובר (כדי לא להציג אותך בתוצאות שלך עצמך)
-export default function CoachFinder({ session, initialCoach, onConsumeInitial }) {
-  const [mode, setMode] = useState('coaches') // 'coaches' | 'games'
+export default function CoachFinder({ session, initialCoach, onConsumeInitial, initialTab, onConsumeInitialTab }) {
+  const [mode, setMode] = useState(initialTab || 'coaches') // 'coaches' | 'games'
+  // ניתוב עומק — למשל "ללוח המשחקים" מטאב המשחקים בקבוצות
+  useEffect(() => {
+    if (initialTab) {
+      setMode(initialTab)
+      if (onConsumeInitialTab) onConsumeInitialTab()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab])
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -99,8 +107,9 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
     <div className="welcome-card">
       <header className="page-header">
         <div className="page-header-text">
+          {/* [12] שם ייחודי — "קהילת המאמנים" שמור לעמוד הקהילה */}
           <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
-          <h2>{L('קהילת המאמנים', 'Coaches community')}</h2>
+          <h2>{L('חיפוש מאמנים', 'Find coaches')}</h2>
           <p className="page-desc">{L('חפשו מאמנים לפי שם, מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by name, club or age group, view their drills, and get in touch.')}</p>
         </div>
       </header>
@@ -116,7 +125,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial })
           className={mode === 'games' ? 'tab active' : 'tab'}
           onClick={() => setMode('games')}
         >
-          {L('לוח משחקים', 'Games Board')}
+          {L('לוח משחקי אימון', 'Scrimmage board')}
         </button>
       </div>
 

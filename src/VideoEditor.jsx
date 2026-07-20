@@ -496,8 +496,15 @@ export default function VideoEditor({ active = true }) {
       const t = e.target
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
       if (exporting) return
-      // מודאל פתוח? הקיצורים שייכים לו — לא לנגן/לחתוך את הווידאו שמאחור
-      if (result || playModal) return
+      // מודאל פתוח? Escape סוגר אותו; שאר הקיצורים לא נוגעים בווידאו שמאחור
+      if (result || playModal) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          if (playModal) setPlayModal(null)
+          else setResult(null)
+        }
+        return
+      }
       const v = videoRef.current
       if (!v) return
       switch (e.code) {
@@ -864,11 +871,11 @@ export default function VideoEditor({ active = true }) {
                             <span className="ve-seg-nudges" dir="ltr">
                               <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'start', -0.5) }} disabled={exporting} aria-label={L('הקדם התחלה', 'Start earlier')}><Minus size={13} /></button>
                               <b>{L('התחלה', 'start')}</b>
-                              <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'start', 0.5) }} disabled={exporting} aria-label={L('אחר התחלה', 'Start later')}><Plus size={13} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'start', 0.5) }} disabled={exporting} aria-label={L('דחה התחלה', 'Start later')}><Plus size={13} /></button>
                               <i />
                               <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'end', -0.5) }} disabled={exporting} aria-label={L('הקדם סוף', 'End earlier')}><Minus size={13} /></button>
                               <b>{L('סוף', 'end')}</b>
-                              <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'end', 0.5) }} disabled={exporting} aria-label={L('אחר סוף', 'End later')}><Plus size={13} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); nudge(s.id, 'end', 0.5) }} disabled={exporting} aria-label={L('דחה סוף', 'End later')}><Plus size={13} /></button>
                             </span>
                           </div>
                           <div className="ve-seg-acts">

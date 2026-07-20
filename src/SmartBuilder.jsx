@@ -127,7 +127,7 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
       <div className="welcome-badge" style={{ marginTop: 14 }}>
         {L('בנאי אימון חכם', 'Smart Practice Builder')}
       </div>
-      <h2>{L('בנה לי אימון', 'Build me a practice')}</h2>
+      <h2>{L('בנה לי תוכנית אימון', 'Build me a practice plan')}</h2>
       <p className="muted small">
         {L('בחר קריטריונים, והמערכת תרכיב אימון אוטומטית מהתרגילים בספרייה.', 'Pick your criteria and the system will auto-build a practice from your drill library.')}
       </p>
@@ -204,7 +204,7 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
 
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={building}>
-            {building ? L('בונה...', 'Building...') : L('בניית אימון', 'Build practice')}
+            {building ? L('בונה...', 'Building...') : L('בניית תוכנית', 'Build plan')}
           </button>
           <button
             type="button"

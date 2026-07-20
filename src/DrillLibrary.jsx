@@ -383,7 +383,7 @@ export default function DrillLibrary({ session }) {
 
       {/* בורר תוכנית — הוספת תרגיל לתוכנית אימון קיימת או חדשה */}
       {planPicker && (
-        <div className="tm-overlay" onClick={() => setPlanPicker(null)}>
+        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setPlanPicker(null)}>
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-head">
               <h3>{L('הוספה לתוכנית', 'Add to a plan')}</h3>

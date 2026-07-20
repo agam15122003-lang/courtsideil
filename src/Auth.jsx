@@ -229,7 +229,7 @@ export default function Auth({ onBack }) {
 
             {mode === 'signin' && (
               <button type="button" className="link-button" onClick={() => goMode('forgot')}>
-                {L('שכחתי סיסמה?', 'Forgot password?')}
+                {L('שכחת סיסמה?', 'Forgot password?')}
               </button>
             )}
 
@@ -367,13 +367,13 @@ function translateError(msg) {
   msg = String(msg || '')
   // שגיאה ריקה ({} / חסר) = כשל בשליחת מייל מצד Supabase (SMTP/מכסה)
   if (!msg || msg === '{}' || msg === '[object Object]' || msg === 'undefined') {
-    return L('שליחת/אימות הקוד נכשלה. ודא ש-custom SMTP (Resend) מוגדר ושמור ב-Supabase, ושאתה שולח לכתובת של חשבון ה-Resend. ייתכן גם שחרגת ממכסת המיילים — נסה שוב בעוד כמה דקות.', 'Sending or verifying the code failed. Make sure custom SMTP (Resend) is configured and saved in Supabase, and that you are sending to the address on the Resend account. You may also have exceeded the email quota — try again in a few minutes.')
+    return L('שליחת או אימות הקוד נכשלו — נסו שוב בעוד כמה דקות.', 'Sending or verifying the code failed — try again in a few minutes.')
   }
   if (msg.includes('Error sending') || msg.includes('confirmation email') || msg.includes('magic link email')) {
-    return L('המייל לא נשלח — בדוק את הגדרות ה-SMTP (Resend) ב-Supabase, ושאתה שולח לכתובת של חשבון ה-Resend.', 'The email was not sent — check the SMTP (Resend) settings in Supabase, and that you are sending to the address on the Resend account.')
+    return L('המייל לא נשלח — נסו שוב בעוד כמה דקות.', 'The email was not sent — try again in a few minutes.')
   }
   if (msg.includes('Invalid login credentials')) {
-    return L('מייל או סיסמה שגויים. אם שכחת — אפשר לאפס דרך "שכחתי סיסמה?".', 'Incorrect email or password. If you forgot it, you can reset via "Forgot password?".')
+    return L('מייל או סיסמה שגויים. אם שכחת — אפשר לאפס דרך "שכחת סיסמה?".', 'Incorrect email or password. If you forgot it, you can reset via "Forgot password?".')
   }
   if (msg.includes('User already registered')) {
     return L('המייל הזה כבר רשום. נסה להתחבר במקום.', 'This email is already registered. Try logging in instead.')

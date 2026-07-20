@@ -35,7 +35,7 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
       target_label: targetLabel || null, reason, details: details.trim() || null,
     })
     setBusy(false)
-    if (error) { toast.error(L('הדיווח נכשל (הרצת את ה-SQL?): ', 'Report failed (ran the SQL?): ') + error.message); return }
+    if (error) { console.error('report:', error.message); toast.error(L('הדיווח נכשל — נסו שוב בעוד רגע.', 'Report failed — try again in a moment.')); return }
     toast.success(L('הדיווח נשלח לבדיקת המערכת. תודה!', 'Report sent for review. Thanks!'))
     setOpen(false); setDetails('')
   }
@@ -46,7 +46,7 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
         <Flag size={13} /> {L('דיווח', 'Report')}
       </button>
       {open && (
-        <div className="tm-overlay" onClick={() => setOpen(false)}>
+        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
           <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('דיווח', 'Report')}{targetLabel ? ` · ${targetLabel}` : ''}</strong>
