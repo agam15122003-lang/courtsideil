@@ -176,6 +176,7 @@ export default function ChatWindow({
           ref={taRef}
           className="chat-input"
           rows={1}
+          maxLength={2000}
           placeholder={L('כתוב הודעה...', 'Type a message...')}
           onKeyDown={onKeyDown}
           onInput={onInput}
