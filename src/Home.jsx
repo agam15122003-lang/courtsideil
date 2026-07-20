@@ -388,10 +388,10 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
               const author = p.author
                 ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
                 : L('מאמן', 'Coach')
-              const img = p.image_urls?.[0]
+              const img = safeUrl(p.image_urls?.[0])
               return (
                 <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
-                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img}")` }} />}
+                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}
                   <span className="hc-body">
                     <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
                     <span className="hc-text">{p.content || L('שיתף צילומים מהאימון 📷', 'Shared practice photos 📷')}</span>

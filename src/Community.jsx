@@ -29,6 +29,7 @@ import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
 import { SkeletonCards } from './Skeleton'
 import { L } from './i18n'
+import { safeUrl } from './constants'
 
 const MAX_IMAGES = 4
 
@@ -170,6 +171,7 @@ function Comments({ post, myId, onChanged }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
+          maxLength={500}
           placeholder={L('כתוב תגובה...', 'Write a comment...')}
           aria-label={L('כתיבת תגובה', 'Write a comment')}
         />
@@ -324,7 +326,8 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
     } catch { /* המשתמש ביטל — לא שגיאה */ }
   }
 
-  const imgs = post.image_urls || []
+  // רק כתובות http(s) מוצגות — הגנה מפני שורות שהוזרקו ישירות ל-API
+  const imgs = (post.image_urls || []).map((u) => safeUrl(u)).filter(Boolean)
 
   return (
     <article className="cm-post">
@@ -582,6 +585,7 @@ function Feed({ session, profile, search, onCount }) {
               e.target.style.height = 'auto'
               e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
             }}
+            maxLength={2000}
             placeholder={L(`מה קורה באימונים שלך, ${firstName}?`, `What's happening at practice, ${firstName}?`)}
             aria-label={L('כתיבת פוסט', 'Write a post')}
           />
