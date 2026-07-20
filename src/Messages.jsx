@@ -2,6 +2,7 @@ import { toast } from './toast'
 import { useState, useEffect } from 'react'
 import { ChevronRight, MessageSquare, Search, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { sendNotification } from './notify'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
@@ -90,13 +91,26 @@ export default function Messages({ session, onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // [2] שיחה פתוחה מתרעננת לבד — תשובות של הצד השני מגיעות בלי רענון ידני
+  // זמן-אמת: הודעה חדשה מופיעה ברגע שנשלחה (Realtime); polling איטי כגיבוי
   useEffect(() => {
-    if (!activeCoachId) return
-    const t = setInterval(() => loadMessages({ silent: true }), 10000)
-    return () => clearInterval(t)
+    let channel = null
+    try {
+      channel = supabase
+        .channel('messages-live')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          () => loadMessages({ silent: true })
+        )
+        .subscribe()
+    } catch { /* realtime לא זמין — ה-polling מכסה */ }
+    const t = setInterval(() => loadMessages({ silent: true }), 30000)
+    return () => {
+      clearInterval(t)
+      if (channel) supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCoachId])
+  }, [])
 
   const nameOf = (coachId) => {
     const p = profilesById[coachId]
@@ -140,6 +154,13 @@ export default function Messages({ session, onNavigate }) {
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
       return false
     }
+    sendNotification({
+      to: activeCoachId,
+      actor: myId,
+      type: 'message',
+      content: L('שלח לך הודעה פרטית', 'sent you a private message'),
+      nav: 'messages',
+    })
     loadMessages()
     return true
   }

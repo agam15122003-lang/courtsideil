@@ -8,6 +8,7 @@ import LanguageToggle from './LanguageToggle'
 import Home from './Home'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
+import Notifications from './Notifications'
 import { useLang, L } from './i18n'
 
 // מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
@@ -159,6 +160,20 @@ export default function Dashboard({ session }) {
     await supabase.auth.signOut()
   }
 
+  // PWA — כפתור "התקן את האפליקציה" כשהדפדפן מציע התקנה
+  const [installEvt, setInstallEvt] = useState(null)
+  useEffect(() => {
+    const h = (e) => { e.preventDefault(); setInstallEvt(e) }
+    window.addEventListener('beforeinstallprompt', h)
+    return () => window.removeEventListener('beforeinstallprompt', h)
+  }, [])
+  const installApp = async () => {
+    if (!installEvt) return
+    installEvt.prompt()
+    const { outcome } = await installEvt.userChoice
+    if (outcome === 'accepted') setInstallEvt(null)
+  }
+
   const isComplete =
     profile && profile.first_name && profile.last_name && profile.club
   const showForm = editing || (!loading && !isComplete)
@@ -187,6 +202,7 @@ export default function Dashboard({ session }) {
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
+          <Notifications session={session} onNavigate={navigate} />
           <LanguageToggle />
           <ThemeToggle />
         </div>
@@ -205,6 +221,9 @@ export default function Dashboard({ session }) {
             <circle cx="78" cy="30" r="6" fill="#E8763A" />
           </svg>
           <span>CourtSide</span>
+          <span className="sidebar-bell">
+            <Notifications session={session} onNavigate={navigate} />
+          </span>
           <button
             className="drawer-close"
             onClick={() => setDrawerOpen(false)}
@@ -254,6 +273,11 @@ export default function Dashboard({ session }) {
           </button>
         )}
 
+        {installEvt && (
+          <button type="button" className="btn-soft install-btn" onClick={installApp}>
+            📲 {L('התקן את CourtSide בטלפון', 'Install CourtSide')}
+          </button>
+        )}
         <div className="sidebar-footer">
           <LanguageToggle />
           <ThemeToggle />

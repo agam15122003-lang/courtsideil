@@ -22,6 +22,8 @@ import {
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
+import { sendNotification } from './notify'
+import { waShare, copyText, inviteText } from './share'
 import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
@@ -47,6 +49,7 @@ const POST_TYPES = [
   { id: 'טיפ', en: 'Tip', cls: 'green' },
   { id: 'וידאו', en: 'Video', cls: 'purple' },
   { id: 'משרה', en: 'Job', cls: 'navy' },
+  { id: 'סקר', en: 'Poll', cls: 'orange' },
 ]
 const typeOf = (id) => POST_TYPES.find((t) => t.id === id) || null
 
@@ -116,6 +119,13 @@ function Comments({ post, myId, onChanged }) {
       toast.error(L('שליחת התגובה נכשלה: ', 'Failed to comment: ') + error.message)
       return
     }
+    sendNotification({
+      to: post.user_id,
+      actor: myId,
+      type: 'comment',
+      content: L(`הגיב על הפוסט שלך: "${val.slice(0, 60)}"`, `commented on your post: "${val.slice(0, 60)}"`),
+      nav: 'community',
+    })
     setText('')
     onChanged()
   }
@@ -177,6 +187,68 @@ function Comments({ post, myId, onChanged }) {
   )
 }
 
+// ---------- סקר בתוך פוסט ----------
+function Poll({ post, myId, onChanged }) {
+  const opts = post.poll_options || []
+  const votes = post.poll_votes || []
+  const myVote = votes.find((v) => v.user_id === myId)
+  const total = votes.length
+
+  const vote = async (idx) => {
+    if (myVote && myVote.option_idx === idx) {
+      // לחיצה חוזרת על הבחירה שלי — ביטול ההצבעה
+      const { error } = await supabase
+        .from('community_poll_votes')
+        .delete()
+        .eq('post_id', post.id)
+        .eq('user_id', myId)
+      if (error) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + error.message); return }
+    } else {
+      const { error } = await supabase
+        .from('community_poll_votes')
+        .upsert({ post_id: post.id, user_id: myId, option_idx: idx }, { onConflict: 'post_id,user_id' })
+      if (error) { toast.error(L('ההצבעה נכשלה: ', 'Vote failed: ') + error.message); return }
+      if (!myVote) {
+        sendNotification({
+          to: post.user_id, actor: myId, type: 'poll',
+          content: L('הצביע בסקר שלך', 'voted in your poll'), nav: 'community',
+        })
+      }
+    }
+    onChanged()
+  }
+
+  return (
+    <div className="cm-poll" role="group" aria-label={L('סקר', 'Poll')}>
+      {opts.map((opt, i) => {
+        const count = votes.filter((v) => v.option_idx === i).length
+        const pct = total ? Math.round((count / total) * 100) : 0
+        const mine = myVote?.option_idx === i
+        return (
+          <button
+            key={i}
+            type="button"
+            className={mine ? 'cm-poll-opt mine' : 'cm-poll-opt'}
+            onClick={() => vote(i)}
+            aria-pressed={mine}
+          >
+            <span className="cm-poll-bar" style={{ width: `${pct}%` }} aria-hidden="true" />
+            <span className="cm-poll-label">
+              {mine && <span className="cm-poll-check" aria-hidden="true">✓</span>}
+              {opt}
+            </span>
+            <span className="cm-poll-pct">{pct}%</span>
+          </button>
+        )
+      })}
+      <span className="cm-poll-total muted small">
+        {total === 1 ? L('הצבעה אחת', '1 vote') : L(`${total} הצבעות`, `${total} votes`)}
+        {myVote != null && ' · ' + L('לחיצה על הבחירה שלך מבטלת', 'tap your choice to undo')}
+      </span>
+    </div>
+  )
+}
+
 // ---------- פוסט בודד ----------
 function PostCard({ post, myId, onChanged, onDeleted }) {
   const [showComments, setShowComments] = useState(false)
@@ -215,6 +287,15 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
       setOptimistic(null)
       toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + error.message)
       return
+    }
+    if (next) {
+      sendNotification({
+        to: post.user_id,
+        actor: myId,
+        type: 'like',
+        content: L('אהב את הפוסט שלך ❤️', 'liked your post ❤️'),
+        nav: 'community',
+      })
     }
     await onChanged()
     setOptimistic(null)
@@ -271,6 +352,10 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
       </header>
 
       {post.content && <p className="cm-post-text">{post.content}</p>}
+
+      {(post.poll_options || []).length >= 2 && (
+        <Poll post={post} myId={myId} onChanged={onChanged} />
+      )}
 
       {imgs.length > 0 && (
         <div className={`cm-post-imgs n${Math.min(imgs.length, 4)}`}>
@@ -345,6 +430,7 @@ function Feed({ session, profile, search, onCount }) {
   // קומפוזר
   const [text, setText] = useState('')
   const [ptype, setPtype] = useState('') // סוג הפוסט הנבחר (לא חובה)
+  const [pollOpts, setPollOpts] = useState(['', '']) // אפשרויות סקר (עד 4)
   const [images, setImages] = useState([]) // [{file, url(preview)}]
   const [posting, setPosting] = useState(false)
   const fileRef = useRef(null)
@@ -354,13 +440,22 @@ function Feed({ session, profile, search, onCount }) {
     if (!opts.silent) setLoading(true)
     // profiles!user_id — מציין את עמודת הקשר במפורש, כדי למנוע שגיאת
     // "more than one relationship" אם קיימים כמה מפתחות-זר בין הטבלאות
-    const { data, error } = await supabase
+    const baseSelect =
+      '*, author:profiles!user_id(first_name, last_name, club, avatar_url), likes:community_post_likes(user_id), comments:community_post_comments(id, user_id, content, created_at, author:profiles!user_id(first_name, last_name, avatar_url))'
+    let { data, error } = await supabase
       .from('community_posts')
-      .select(
-        '*, author:profiles!user_id(first_name, last_name, club, avatar_url), likes:community_post_likes(user_id), comments:community_post_comments(id, user_id, content, created_at, author:profiles!user_id(first_name, last_name, avatar_url))'
-      )
+      .select(baseSelect + ', poll_votes:community_poll_votes(user_id, option_idx)')
       .order('created_at', { ascending: false })
       .limit(100)
+
+    // טבלת הסקרים עוד לא נוצרה — הפיד ממשיך לעבוד בלעדיה
+    if (error && isMissingTable(error)) {
+      ;({ data, error } = await supabase
+        .from('community_posts')
+        .select(baseSelect)
+        .order('created_at', { ascending: false })
+        .limit(100))
+    }
 
     if (error) {
       if (isMissingTable(error)) {
@@ -404,9 +499,16 @@ function Feed({ session, profile, search, onCount }) {
     })
   }
 
+  const isPoll = ptype === 'סקר'
+  const filledOpts = pollOpts.map((o) => o.trim()).filter(Boolean)
+
   const publish = async () => {
     const content = text.trim()
     if ((!content && images.length === 0) || posting) return
+    if (isPoll && filledOpts.length < 2) {
+      toast.error(L('סקר צריך לפחות שתי אפשרויות', 'A poll needs at least two options'))
+      return
+    }
     setPosting(true)
     try {
       const urls = []
@@ -418,18 +520,23 @@ function Feed({ session, profile, search, onCount }) {
         content: content || null,
         image_urls: urls.length ? urls : null,
       }
+      const extras = {}
+      if (ptype) extras.post_type = ptype
+      if (isPoll) extras.poll_options = filledOpts
       let { error } = await supabase
         .from('community_posts')
-        .insert(ptype ? { ...row, post_type: ptype } : row)
-      // עמודת post_type עוד לא קיימת במסד — מפרסמים בלעדיה במקום להיכשל
-      if (error && ptype && isMissingColumn(error)) {
+        .insert(Object.keys(extras).length ? { ...row, ...extras } : row)
+      // עמודות חדשות עוד לא קיימות במסד — מפרסמים בלעדיהן במקום להיכשל
+      if (error && Object.keys(extras).length && isMissingColumn(error)) {
         ;({ error } = await supabase.from('community_posts').insert(row))
+        if (!error && isPoll) toast.error(L('הסקר פורסם כפוסט רגיל — הפעלת סקרים דורשת עדכון קטן במסד', 'Posted as a regular post — polls need a small DB update'))
       }
       if (error) throw error
       images.forEach((img) => URL.revokeObjectURL(img.url))
       setImages([])
       setText('')
       setPtype('')
+      setPollOpts(['', ''])
       if (taRef.current) taRef.current.style.height = 'auto'
       toast.success(L('הפוסט פורסם לקהילה 🎉', 'Posted to the community 🎉'))
       load({ silent: true })
@@ -495,6 +602,27 @@ function Feed({ session, profile, search, onCount }) {
               ))}
             </div>
           )}
+          {/* אפשרויות סקר — מופיעות כשבוחרים סוג "סקר" */}
+          {isPoll && (
+            <div className="cm-poll-editor">
+              {pollOpts.map((opt, i) => (
+                <input
+                  key={i}
+                  className="finder-input"
+                  value={opt}
+                  onChange={(e) => setPollOpts((cur) => cur.map((o, x) => (x === i ? e.target.value : o)))}
+                  placeholder={L(`אפשרות ${i + 1}${i < 2 ? '' : ' (לא חובה)'}`, `Option ${i + 1}${i < 2 ? '' : ' (optional)'}`)}
+                  maxLength={80}
+                />
+              ))}
+              {pollOpts.length < 4 && (
+                <button type="button" className="link-button" onClick={() => setPollOpts((cur) => [...cur, ''])}>
+                  + {L('הוספת אפשרות', 'Add option')}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* סוג הפוסט — chips צבעוניים לפי הקטגוריה */}
           <div className="cm-type-row">
             {POST_TYPES.map((t) => (
@@ -667,13 +795,26 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // [2] ערוץ פתוח מתרענן לבד — הודעות חדשות מגיעות בלי רענון ידני
+  // זמן-אמת: הודעה חדשה בערוץ מופיעה מיד (Realtime); polling איטי כגיבוי
   useEffect(() => {
-    if (!active) return
-    const t = setInterval(() => load({ silent: true }), 10000)
-    return () => clearInterval(t)
+    let channel = null
+    try {
+      channel = supabase
+        .channel('community-messages-live')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'community_messages' },
+          () => load({ silent: true })
+        )
+        .subscribe()
+    } catch { /* realtime לא זמין — ה-polling מכסה */ }
+    const t = setInterval(() => load({ silent: true }), 30000)
+    return () => {
+      clearInterval(t)
+      if (channel) supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [])
 
   // [38] "חדשות מאז הביקור האחרון" — נשמר פר-ערוץ ב-localStorage
   const SEEN_KEY = 'community-chan-seen-v1'
@@ -827,6 +968,169 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   )
 }
 
+// ---------- אירועים ומפגשים (סייד-בר) ----------
+function EventsCard({ session }) {
+  const myId = session.user.id
+  const [events, setEvents] = useState(null) // null = בטעינה/לא זמין
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ title: '', event_date: '', event_time: '', location: '' })
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const { data, error } = await supabase
+      .from('community_events')
+      .select('*, rsvps:community_event_rsvps(user_id)')
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
+      .limit(5)
+    if (error) { setEvents(null); return } // טבלה חסרה — הכרטיס פשוט לא מוצג
+    setEvents(data || [])
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const toggleRsvp = async (ev) => {
+    const mine = (ev.rsvps || []).some((r) => r.user_id === myId)
+    const { error } = mine
+      ? await supabase.from('community_event_rsvps').delete().eq('event_id', ev.id).eq('user_id', myId)
+      : await supabase.from('community_event_rsvps').insert({ event_id: ev.id, user_id: myId })
+    if (error) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + error.message); return }
+    if (!mine) {
+      sendNotification({
+        to: ev.created_by, actor: myId, type: 'event',
+        content: L(`נרשם לאירוע "${ev.title}"`, `RSVP'd to "${ev.title}"`), nav: 'community',
+      })
+    }
+    load()
+  }
+
+  const addEvent = async () => {
+    if (!form.title.trim() || !form.event_date || saving) return
+    setSaving(true)
+    const { error } = await supabase.from('community_events').insert({
+      created_by: myId,
+      title: form.title.trim(),
+      event_date: form.event_date,
+      event_time: form.event_time || null,
+      location: form.location.trim() || null,
+    })
+    setSaving(false)
+    if (error) { toast.error(L('היצירה נכשלה: ', 'Failed to create: ') + error.message); return }
+    toast.success(L('האירוע פורסם לקהילה', 'Event published'))
+    setForm({ title: '', event_date: '', event_time: '', location: '' })
+    setAdding(false)
+    load()
+  }
+
+  const removeEvent = async (ev) => {
+    if (!window.confirm(L('למחוק את האירוע?', 'Delete this event?'))) return
+    const { error } = await supabase.from('community_events').delete().eq('id', ev.id)
+    if (error) { toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message); return }
+    load()
+  }
+
+  const dateLabel = (d) => {
+    const x = new Date(d + 'T00:00')
+    return isNaN(x) ? d : `${x.getDate()}.${x.getMonth() + 1}`
+  }
+
+  if (events === null) return null
+
+  return (
+    <div className="cm-aside-card">
+      <div className="cm-aside-head">
+        <h3 className="cm-aside-title">{L('אירועים ומפגשים', 'Events & meetups')}</h3>
+        <button type="button" className="link-button" onClick={() => setAdding((v) => !v)}>
+          {adding ? L('ביטול', 'Cancel') : '+ ' + L('אירוע', 'Event')}
+        </button>
+      </div>
+
+      {adding && (
+        <div className="cm-event-form">
+          <input
+            className="finder-input"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            placeholder={L('שם האירוע (השתלמות, טורניר...)', 'Event name (clinic, tournament...)')}
+          />
+          <div className="cm-event-form-row">
+            <input
+              className="finder-input"
+              type="date"
+              value={form.event_date}
+              onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
+              aria-label={L('תאריך', 'Date')}
+            />
+            <input
+              className="finder-input"
+              type="time"
+              value={form.event_time}
+              onChange={(e) => setForm((f) => ({ ...f, event_time: e.target.value }))}
+              aria-label={L('שעה', 'Time')}
+            />
+          </div>
+          <input
+            className="finder-input"
+            value={form.location}
+            onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+            placeholder={L('מיקום (לא חובה)', 'Location (optional)')}
+          />
+          <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={addEvent} disabled={saving || !form.title.trim() || !form.event_date}>
+            {saving ? L('מפרסם...', 'Publishing...') : L('פרסום האירוע', 'Publish event')}
+          </button>
+        </div>
+      )}
+
+      {events.length === 0 ? (
+        !adding && (
+          <p className="muted small" style={{ margin: 0 }}>
+            {L('אין אירועים קרובים — פרסמו השתלמות, מחנה או מפגש מאמנים.', 'No upcoming events — post a clinic, camp or coaches meetup.')}
+          </p>
+        )
+      ) : (
+        <ul className="cm-events">
+          {events.map((ev) => {
+            const going = (ev.rsvps || []).length
+            const mine = (ev.rsvps || []).some((r) => r.user_id === myId)
+            return (
+              <li key={ev.id} className="cm-event">
+                <span className="cm-event-date" aria-hidden="true">{dateLabel(ev.event_date)}</span>
+                <span className="cm-event-body">
+                  <span className="cm-event-title">{ev.title}</span>
+                  <span className="cm-event-meta">
+                    {ev.event_time ? ev.event_time.slice(0, 5) + ' · ' : ''}
+                    {ev.location || ''}
+                    {going > 0 ? (ev.location || ev.event_time ? ' · ' : '') + L(`${going} נרשמו`, `${going} going`) : ''}
+                  </span>
+                </span>
+                <span className="cm-event-actions">
+                  <button
+                    type="button"
+                    className={mine ? 'chip selected' : 'chip'}
+                    onClick={() => toggleRsvp(ev)}
+                    aria-pressed={mine}
+                  >
+                    {mine ? L('רשום ✓', 'Going ✓') : L('אגיע', 'RSVP')}
+                  </button>
+                  {ev.created_by === myId && (
+                    <button type="button" className="cm-event-del" onClick={() => removeEvent(ev)} aria-label={L('מחיקת אירוע', 'Delete event')}>
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ---------- העמוד הראשי: הירו + פיד (עם סייד-בר) + צ'אטים ----------
 // props: session, profile (לאווטאר בקומפוזר), onOpenCoach (למאמן השבוע),
 //        initialTab/onConsumeInitialTab — ניתוב עומק (למשל "לצ'אטים" מעמוד ההודעות)
@@ -905,6 +1209,21 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
           </div>
           {/* סייד-בר — נצמד בגלילה בדסקטופ, יורד מתחת במובייל */}
           <aside className="cm-aside">
+            <EventsCard session={session} />
+            <div className="cm-aside-card cm-invite">
+              <h3 className="cm-aside-title">{L('מכירים מאמן שחייב להיות כאן?', 'Know a coach who belongs here?')}</h3>
+              <p className="muted small" style={{ margin: '0 0 10px' }}>
+                {L('כל מאמן שמצטרף מוסיף תרגילים, ידע וניסיון לקהילה.', 'Every coach who joins adds drills, knowledge and experience.')}
+              </p>
+              <div className="cm-invite-btns">
+                <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={() => waShare(inviteText())}>
+                  {L('הזמנה בוואטסאפ', 'Invite on WhatsApp')}
+                </button>
+                <button type="button" className="btn-soft" onClick={() => copyText(inviteText(), L('טקסט ההזמנה הועתק', 'Invite copied'))}>
+                  {L('העתקת קישור', 'Copy link')}
+                </button>
+              </div>
+            </div>
             <div className="cm-aside-card">
               <h3 className="cm-aside-title">{L("ערוצי צ'אט", 'Chat channels')}</h3>
               <div className="cm-aside-channels">
