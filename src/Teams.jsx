@@ -46,14 +46,13 @@ const ilNum = (str) => {
 const ilFull = (str) => {
   if (!str) return ''
   const d = new Date(str + 'T00:00')
-  return isNaN(d) ? str : d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' })
+  return isNaN(d) ? str : d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' })
 }
-const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const sundayOf = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x }
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n, 1); return x }
 const weekLabel = (sun) => { const sat = addDays(sun, 6); return `${sun.getDate()}.${sun.getMonth() + 1} – ${sat.getDate()}.${sat.getMonth() + 1}.${sat.getFullYear()}` }
-const monthLabel = (d) => `${HE_MONTHS[d.getMonth()]} ${d.getFullYear()}`
+const monthLabel = (d) => d.toLocaleDateString(L('he-IL', 'en-US'), { month: 'long', year: 'numeric' })
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 
 export default function Teams({ session, profile, onNavigate }) {
