@@ -365,6 +365,50 @@ export default function Schedule({ session }) {
             {days.map((d, i) => {
               const ds = ymd(d)
               const dayEntries = entries.filter((e) => e.date === ds)
+              const dayMeetings = meetings.filter((m) => m.date === ds)
+
+              // אירועים חופפים נפרסים זה-לצד-זה (interval partitioning):
+              // מחלקים כל "אשכול" חפיפה לעמודות, כך ששום אירוע לא מוסתר
+              const laneItems = [
+                ...dayEntries.map((e) => {
+                  const s = hoursOf(e.start_time) ?? (e.hour || 18)
+                  return { key: 'e' + e.id, s, en: hoursOf(e.end_time) ?? s + 1 }
+                }),
+                ...dayMeetings.map((m) => {
+                  const s = hoursOf(m.start_time) ?? 18
+                  return { key: 'm' + m.id, s, en: hoursOf(m.end_time) ?? s + 1 }
+                }),
+              ].sort((a, b) => a.s - b.s || a.en - b.en)
+              const lanePos = {}
+              {
+                let cluster = []
+                let laneEnds = []
+                let maxEnd = -Infinity
+                const flush = () => {
+                  for (const c of cluster) lanePos[c.key].lanes = laneEnds.length
+                  cluster = []
+                  laneEnds = []
+                }
+                for (const it of laneItems) {
+                  if (cluster.length && it.s >= maxEnd) { flush(); maxEnd = -Infinity }
+                  let lane = laneEnds.findIndex((end) => end <= it.s)
+                  if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.en) }
+                  else laneEnds[lane] = it.en
+                  lanePos[it.key] = { lane, lanes: 1 }
+                  cluster.push(it)
+                  maxEnd = Math.max(maxEnd, it.en)
+                }
+                flush()
+              }
+              const laneStyle = (key) => {
+                const p = lanePos[key]
+                if (!p || p.lanes <= 1) return {}
+                return {
+                  insetInlineStart: `calc(${(p.lane / p.lanes) * 100}% + 2px)`,
+                  insetInlineEnd: 'auto',
+                  width: `calc(${100 / p.lanes}% - 4px)`,
+                }
+              }
               return (
                 <div
                   key={i}
@@ -386,7 +430,7 @@ export default function Schedule({ session }) {
                       <button
                         key={e.id}
                         className={'cal-event' + (e.is_personal ? ' personal' : '')}
-                        style={{ top, height }}
+                        style={{ top, height, ...laneStyle('e' + e.id) }}
                         onClick={(ev) => {
                           ev.stopPropagation()
                           setSelected(e)
@@ -404,7 +448,7 @@ export default function Schedule({ session }) {
                     )
                   })}
 
-                  {meetings.filter((m) => m.date === ds).map((m) => {
+                  {dayMeetings.map((m) => {
                     const s = hoursOf(m.start_time) ?? 18
                     const en = hoursOf(m.end_time) ?? s + 1
                     const top = (s - START_HOUR) * ROW_H
@@ -414,7 +458,7 @@ export default function Schedule({ session }) {
                       <button
                         key={'m' + m.id}
                         className={'cal-event meeting' + (m.status === 'pending' ? ' pending' : '')}
-                        style={{ top, height }}
+                        style={{ top, height, ...laneStyle('m' + m.id) }}
                         onClick={(ev) => {
                           ev.stopPropagation()
                           setSelected({ ...m, _meeting: true })

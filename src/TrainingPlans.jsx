@@ -8,6 +8,7 @@ import NotebookPage from './NotebookPage'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
+import { waShare } from './share'
 
 // ממיר פריטי תוכנית לפורמט "דף מחברת" (כותרת, פרטים, הערה, ולוח טקטיקה לאנימציה)
 export function planToNotebook(name, items) {
@@ -345,6 +346,15 @@ export default function TrainingPlans({ session }) {
                   </button>
                   <button className="btn-ghost" onClick={() => toggleShare(p)}>
                     {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => waShare(L(
+                      `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${window.location.origin}`,
+                      `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${window.location.origin}`
+                    ))}
+                  >
+                    {L('וואטסאפ', 'WhatsApp')}
                   </button>
                   <button className="btn-ghost danger" onClick={() => deletePlan(p.id)}>
                     {L('מחק', 'Delete')}

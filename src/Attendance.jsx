@@ -13,7 +13,7 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 const ilDay = (str) => {
   const d = new Date(str + 'T00:00')
-  return isNaN(d) ? str : d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' })
+  return isNaN(d) ? str : d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' })
 }
 
 const STATUS_META = [
