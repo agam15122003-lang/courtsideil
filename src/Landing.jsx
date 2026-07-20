@@ -21,6 +21,8 @@ import { COACHING_QUOTES } from './constants'
 // reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
 function useReveal() {
   useEffect(() => {
+    // מפעילים את מצב ה"מוסתר עד גלילה" רק כשה-JS באמת רץ — אחרת הכול גלוי
+    document.querySelector('.land')?.classList.add('js-reveal')
     const els = document.querySelectorAll('.land .reveal')
     const io = new IntersectionObserver(
       (entries) => {
@@ -113,7 +115,7 @@ export default function Landing({ onEnter }) {
 
   // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
   const FAQ = [
-    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל שבעת הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. All seven tools — the drill library, practice builder, tactics board, schedule and community — are open to every coach at no cost. Sign up and start.') },
+    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל שבעת הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז, ניהול הקבוצות, עריכת הווידאו והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. All seven tools — the drill library, practice builder, tactics board, schedule, team management, video editing and the community — are open to every coach at no cost. Sign up and start.') },
     { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
     { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
     {

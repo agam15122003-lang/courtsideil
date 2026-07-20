@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
 import ProfileForm from './ProfileForm'
 import MyStats from './MyStats'
+import MyDrills from './MyDrills'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Home from './Home'
@@ -74,11 +75,21 @@ export default function Dashboard({ session }) {
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
+  const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
+  const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
   const [videoVisited, setVideoVisited] = useState(false)
   useEffect(() => { if (view === 'video') setVideoVisited(true) }, [view])
 
   const [loadError, setLoadError] = useState(false)
+
+  // ניווט עם יעדי-עומק: 'community-chats' פותח את הקהילה על טאב הצ'אטים,
+  // 'finder-games' פותח את המאתר על לוח משחקי האימון
+  const navigate = (id) => {
+    if (id === 'community-chats') { setCommunityTab('chats'); setView('community'); return }
+    if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
+    setView(id)
+  }
 
   // מונה הודעות שלא נקראו — ל-badge בניווט (מתרענן במעבר מסך ואחת לדקה)
   const [unread, setUnread] = useState(0)
@@ -255,7 +266,8 @@ export default function Dashboard({ session }) {
       <main className="main-content" id="main">
         {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
         <div className="main-inner" key={showForm ? 'profile-form' : view}>
-          {!loading && !showForm && view === 'home' && <QuoteStrip />}
+          {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2) */}
+          {!loading && !showForm && view !== 'video' && <QuoteStrip />}
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>
@@ -279,29 +291,45 @@ export default function Dashboard({ session }) {
               </button>
             </div>
           ) : showForm ? (
-            <ProfileForm
-              session={session}
-              profile={profile}
-              onSaved={() => {
-                setEditing(false)
-                loadProfile()
-              }}
-              onCancel={isComplete ? () => setEditing(false) : undefined}
-            />
+            <>
+              {/* [11] פרופיל חדש שטרם הושלם — מסבירים למה כל ניווט מוביל לכאן */}
+              {!isComplete && (
+                <div className="alert alert-success" role="status" style={{ marginBottom: 14 }}>
+                  {L('עוד רגע ואתם בפנים — נשלים כמה פרטים קצרים ואפשר להיכנס לכל האפליקציה.', "Almost in — complete a few quick details and the whole app opens up.")}
+                </div>
+              )}
+              <ProfileForm
+                session={session}
+                profile={profile}
+                onSaved={() => {
+                  setEditing(false)
+                  loadProfile()
+                }}
+                onCancel={isComplete ? () => setEditing(false) : undefined}
+              />
+            </>
           ) : view === 'home' ? (
             <Home
               profile={profile}
-              onNavigate={setView}
+              onNavigate={navigate}
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
           ) : view === 'community' ? (
             <Community
               session={session}
               profile={profile}
+              initialTab={communityTab}
+              onConsumeInitialTab={() => setCommunityTab(null)}
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
           ) : view === 'finder' ? (
-            <CoachFinder session={session} initialCoach={initialCoach} onConsumeInitial={() => setInitialCoach(null)} />
+            <CoachFinder
+              session={session}
+              initialCoach={initialCoach}
+              onConsumeInitial={() => setInitialCoach(null)}
+              initialTab={finderTab}
+              onConsumeInitialTab={() => setFinderTab(null)}
+            />
           ) : view === 'drills' ? (
             <DrillLibrary session={session} />
           ) : view === 'plans' ? (
@@ -309,7 +337,7 @@ export default function Dashboard({ session }) {
           ) : view === 'schedule' ? (
             <Schedule session={session} />
           ) : view === 'teams' ? (
-            <Teams session={session} profile={profile} onNavigate={setView} />
+            <Teams session={session} profile={profile} onNavigate={navigate} />
           ) : view === 'admin' && profile?.is_admin ? (
             <Admin session={session} profile={profile} />
           ) : view === 'media' ? (
@@ -317,7 +345,7 @@ export default function Dashboard({ session }) {
           ) : view === 'video' ? (
             null /* מרונדר בנפרד למטה כדי לשמור על מצב העריכה */
           ) : view === 'messages' ? (
-            <Messages session={session} onNavigate={setView} />
+            <Messages session={session} onNavigate={navigate} />
           ) : (
             <div className="profile-page">
               <header className="page-header">
@@ -397,6 +425,9 @@ export default function Dashboard({ session }) {
                   </section>
                 </aside>
               </div>
+
+              {/* [15] התרגילים שיצרתי — במרוכז, לפי ה-handoff */}
+              <MyDrills session={session} onNavigate={navigate} />
             </div>
           )}
           </Suspense>

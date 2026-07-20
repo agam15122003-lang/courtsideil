@@ -4,19 +4,19 @@ import { PODCASTS } from './constants'
 import Videos from './Videos'
 import { L } from './i18n'
 
-// עמוד "מדיה" — ספריית סרטונים מדורגת + פודקסטים נבחרים בכרטיס צד (מסך היעד 10).
+// עמוד "מדיה" — ספריית סרטונים מדורגת + פודקאסטים נבחרים בכרטיס צד (מסך היעד 10).
 // props: session, profile
 export default function Media({ session, profile }) {
   const [mode, setMode] = useState('videos') // 'videos' | 'podcasts'
 
   const podcastsCard = (
     <aside className="media-podcasts pr-card">
-      <h3 className="pr-card-title"><Headphones size={17} /> {L('פודקסטים נבחרים', 'Selected podcasts')}</h3>
+      <h3 className="pr-card-title"><Headphones size={17} /> {L('פודקאסטים נבחרים', 'Selected podcasts')}</h3>
       <p className="muted small" style={{ margin: '0 0 10px' }}>
         {L('לחיצה פותחת ישירות בספוטיפיי.', 'Tap to open directly in Spotify.')}
       </p>
       <div className="podcast-grid">
-        {PODCASTS.map((p) => (
+        {PODCASTS.slice(0, 3).map((p) => (
           <a key={p.title} className="podcast-card" href={p.url} target="_blank" rel="noreferrer">
             <span className="podcast-ic"><Headphones size={20} /></span>
             <div className="podcast-body">
@@ -32,6 +32,9 @@ export default function Media({ session, profile }) {
           </a>
         ))}
       </div>
+      <button type="button" className="link-button" style={{ marginTop: 10 }} onClick={() => setMode('podcasts')}>
+        {L('לכל הפודקאסטים', 'All podcasts')}
+      </button>
     </aside>
   )
 
@@ -39,9 +42,9 @@ export default function Media({ session, profile }) {
     <div className="welcome-card">
       <header className="page-header">
         <div className="page-header-text">
-          <div className="welcome-badge">{L('מדיה ותוכן · מדורג על ידי הקהילה', 'Media & content · rated by the community')}</div>
-          <h2>{L('מדיה', 'Media')}</h2>
-          <p className="page-desc">{L('ספריית סרטוני אימון משותפת ופודקסטים נבחרים — הכול במקום אחד.', 'A shared training-video library and selected podcasts — all in one place.')}</p>
+          <div className="welcome-badge">{L('מדיה', 'Media')}</div>
+          <h2>{L('סרטונים ופודקאסטים', 'Videos & podcasts')}</h2>
+          <p className="page-desc">{L('ספריית סרטוני אימון משותפת ופודקאסטים נבחרים — הכול במקום אחד.', 'A shared training-video library and selected podcasts — all in one place.')}</p>
         </div>
       </header>
 
@@ -56,7 +59,7 @@ export default function Media({ session, profile }) {
           className={mode === 'podcasts' ? 'tab active' : 'tab'}
           onClick={() => setMode('podcasts')}
         >
-          <Headphones size={15} aria-hidden="true" /> {L('פודקסטים', 'Podcasts')}
+          <Headphones size={15} aria-hidden="true" /> {L('פודקאסטים', 'Podcasts')}
         </button>
       </div>
 
@@ -70,7 +73,7 @@ export default function Media({ session, profile }) {
       ) : (
         <>
           <p className="muted small" style={{ marginTop: 12 }}>
-            {L('פודקסטים נבחרים של כדורסל בעברית ובאנגלית — לחיצה פותחת ישירות בספוטיפיי.', 'Selected basketball podcasts in Hebrew and English — tap to open directly in Spotify.')}
+            {L('פודקאסטים נבחרים של כדורסל בעברית ובאנגלית — לחיצה פותחת ישירות בספוטיפיי.', 'Selected basketball podcasts in Hebrew and English — tap to open directly in Spotify.')}
           </p>
           <div className="podcast-grid podcast-grid-full">
             {PODCASTS.map((p) => (

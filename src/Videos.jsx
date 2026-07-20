@@ -70,7 +70,7 @@ export default function Videos({ session, profile }) {
     const { error } = await supabase.from('video_ratings').upsert(
       { video_id: videoId, user_id: me, rating: value }, { onConflict: 'video_id,user_id' }
     )
-    if (error) { toast.error(L('הדירוג נכשל (הרצת את ה-SQL?): ', 'Rating failed (ran the SQL?): ') + error.message); loadRatings(); return }
+    if (error) { console.error('video rating:', error.message); toast.error(L('הדירוג נכשל — נסו שוב בעוד רגע.', 'Rating failed — try again in a moment.')); loadRatings(); return }
     loadRatings()
   }
 
@@ -88,7 +88,7 @@ export default function Videos({ session, profile }) {
   // ייבוא אוטומטי של סרטונים אמיתיים מיוטיוב — נושא אחר נושא (אדמין בלבד)
   const importFromYouTube = async () => {
     if (!ytConfigured()) {
-      toast.error(L('הוסף מפתח YouTube API בקובץ constants.js כדי לייבא.', 'Add a YouTube API key in constants.js to import.'))
+      toast.error(L('הייבוא האוטומטי לא זמין כרגע — אפשר להוסיף סרטון עם קישור יוטיוב.', 'Auto-import is unavailable right now — you can add a video with a YouTube link.'))
       return
     }
     setImporting(true)

@@ -112,7 +112,7 @@ export default function GamesBoard({ session }) {
     }
     setMsgText('')
     setMsgFor(null)
-    toast.success(L('ההודעה נשלחה! אפשר לראות אותה בטאב "הודעות".', 'Message sent! You can see it in the "Messages" tab.'))
+    toast.success(L('ההודעה נשלחה! אפשר לראות אותה בלשונית "הודעות".', 'Message sent! You can see it in the "Messages" tab.'))
   }
 
   return (

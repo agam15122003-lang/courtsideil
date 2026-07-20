@@ -101,7 +101,7 @@ export default function Attendance({ session, team, players }) {
         { coach_id: me, team, session_date: date, player_id: playerId, status },
         { onConflict: 'coach_id,team,session_date,player_id' }
       )
-    if (error) { toast.error(L('השמירה נכשלה (הרצת את ה-SQL?): ', 'Save failed (ran the SQL?): ') + error.message); return }
+    if (error) { console.error('attendance save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     // עדכון מקומי מיידי — בלי לרענן את כל הרשימה בכל לחיצה
     setSeasonRows((rs) => [
       ...rs.filter((r) => !(r.session_date === date && r.player_id === playerId)),
@@ -119,7 +119,7 @@ export default function Attendance({ session, team, players }) {
     const { error } = await supabase
       .from('practice_attendance')
       .upsert(rows, { onConflict: 'coach_id,team,session_date,player_id' })
-    if (error) { toast.error(L('השמירה נכשלה (הרצת את ה-SQL?): ', 'Save failed (ran the SQL?): ') + error.message); return }
+    if (error) { console.error('attendance save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     setSeasonRows((rs) => [...rs, ...rows])
     toast.success(L(`${rows.length} שחקנים סומנו כנוכחים`, `${rows.length} players marked present`))
   }

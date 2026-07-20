@@ -215,7 +215,7 @@ body {
   width: 76px;
   height: 76px;
   margin: 0 auto 14px;
-  background: var(--navy);
+  background: var(--hero-navy);
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -1743,7 +1743,7 @@ a.btn-ghost {
 
 .cat-badge {
   flex-shrink: 0;
-  background: var(--navy);
+  background: var(--hero-navy);
   color: var(--white);
   font-size: 12px;
   font-weight: 700;
@@ -6228,8 +6228,9 @@ html.a11y-spacing * {
 .land-feature:nth-child(3), .home-card:nth-child(3), .drill-card:nth-child(3), .coach-card:nth-child(3) { animation-delay: 140ms; }
 .land-feature:nth-child(4), .home-card:nth-child(4), .drill-card:nth-child(4), .coach-card:nth-child(4) { animation-delay: 190ms; }
 
-/* reveal-on-scroll בדף הנחיתה — מופעל ע"י IntersectionObserver (class: reveal / is-visible) */
-.reveal {
+/* reveal-on-scroll בדף הנחיתה — מוסתר רק כשה-JS באמת פעיל (.js-reveal על .land),
+   כך שבלי observer התוכן תמיד גלוי */
+.land.js-reveal .reveal {
   opacity: 0;
   transform: translateY(22px);
   transition:
@@ -9607,7 +9608,7 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   --shadow-md: 0 12px 30px -14px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 50px -22px rgba(0, 0, 0, 0.6);
-  --bl-grad: linear-gradient(135deg, #F0883F, #D15F23);
+  --bl-grad: linear-gradient(180deg, var(--accent-fill), var(--accent-press));
 }
 
 /* ---- רקע קולנועי לאזור התוכן ---- */
@@ -9865,7 +9866,7 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 }
 .np-live { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--orange-300); font-size: 18px; margin: 6px 0; }
 .np-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
-.np-actions .btn-primary { background: linear-gradient(135deg, #F0883F, #D15F23); color: #fff; box-shadow: 0 10px 24px -12px rgba(232, 118, 58, 0.8); }
+.np-actions .btn-primary { background: linear-gradient(180deg, var(--accent-fill), var(--accent-press)); color: #fff; box-shadow: 0 10px 24px -12px rgba(232, 118, 58, 0.8); }
 .np-actions .btn-soft { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; }
 .np-actions .btn-soft:hover { background: rgba(255, 255, 255, 0.14); }
 .np-empty { align-items: flex-start; }
@@ -12106,7 +12107,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 
 /* ---- הירו נייבי גלובלי — כותרת עמוד בתוך כרטיס (handoff §Global-3) ---- */
 .welcome-card > .page-header {
-  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
   margin: -36px -32px 24px;
   padding: 30px 32px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -12241,7 +12242,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .home-hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
   border-radius: var(--radius-lg);
   padding: clamp(24px, 4vw, 44px);
   display: grid;
@@ -12457,7 +12458,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 
 /* ---- קהילה: הירו ממורכז עם סטטיסטיקות וחיפוש (handoff §Community) ---- */
 .cm-page > .cm-hero {
-  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
   margin: -36px -32px 22px;
   padding: 34px 32px 38px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -12752,7 +12753,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   color: var(--text);
 }
 .land-hero {
-  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
   color: #fff;
 }
 .land-hero .land-title,
@@ -12788,7 +12789,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 }
 /* רצועת ה-CTA התחתונה — נייבי כמו ההירו */
 .land-band {
-  background: linear-gradient(140deg, var(--navy) 0%, var(--navy-2) 58%, #2A3F66 100%);
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
   color: #fff;
 }
 .land-band-title { color: #fff; }
@@ -12797,4 +12798,238 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 /* reveal — ליתר ביטחון, אם ה-IntersectionObserver לא רץ התוכן עדיין נראה */
 @media (prefers-reduced-motion: reduce) {
   .land .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+/* ============================================================
+   COUNCIL FIXES — תיקוני סקירת המועצה (שכבה אחרונה, גוברת)
+   ============================================================ */
+
+/* [0] הפרדת נייבי-משטח מנייבי-טקסט: ההירו על --hero-navy, ובמצב כהה
+   --navy (שמשמש ~21 חוקי טקסט ישנים) חוזר להיות צבע טקסט קריא */
+:root {
+  --hero-navy: #152238;
+  --hero-navy-2: #1E3050;
+}
+[data-theme='dark'] {
+  --hero-navy: #111A2B;
+  --hero-navy-2: #1B2A45;
+  --navy: var(--text);
+  --accent-fill: #BF5017; /* [16] לבן על הכתום עובר 4.5:1 */
+}
+
+/* [5] פריט ניווט פעיל — לפי ה-handoff, בשני המצבים */
+.sidebar .nav-item.active,
+[data-theme='dark'] .nav-item.active {
+  background: var(--accent-soft);
+  color: var(--c-orange);
+  box-shadow: none;
+  font-weight: 700;
+}
+[data-theme='dark'] .nav-item.active svg {
+  color: var(--c-orange);
+}
+.sidebar .nav-item.active::before,
+[data-theme='dark'] .nav-item.active::before {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* [6] טאבים וצ'יפים פעילים — רקע רך + טקסט כתום, לא מילוי מלא */
+.chip {
+  border-radius: var(--radius-full);
+}
+.tab.active,
+[data-theme='dark'] .tab.active,
+.chip.selected,
+[data-theme='dark'] .chip.selected {
+  background: var(--accent-soft);
+  color: var(--c-orange);
+  border: 1px solid rgba(232, 118, 58, 0.45);
+  font-weight: 700;
+  box-shadow: none;
+}
+/* חריג: צ'יפים על נייר המחברת נשארים בדיו נייבי */
+.nb-edit-chips .chip.selected,
+[data-theme='dark'] .nb-edit-chips .chip.selected {
+  background: #1b2a4a;
+  border-color: #1b2a4a;
+  color: #fff;
+}
+/* הטאבים בכרטיס ההתחברות נשארים בכתום מלא (כפתור פעולה ראשי במסך) */
+.auth-card .tab.active,
+[data-theme='dark'] .auth-card .tab.active {
+  background: linear-gradient(180deg, var(--accent-fill), var(--accent-press));
+  color: #fff;
+  border: none;
+}
+
+/* [9] badge בתוך הירו — pill אמיתי בלי המקף של הקיקר הישן */
+.welcome-card > .page-header .welcome-badge,
+.cm-hero .welcome-badge {
+  padding: 5px 14px;
+  letter-spacing: 0.06em;
+}
+.welcome-card > .page-header .welcome-badge::before,
+.cm-hero .welcome-badge::before {
+  display: none;
+}
+
+/* [14] בלי מספרי רפאים על אריחי הגרדיאנט */
+.home-card.grad-blue::after,
+.home-card.grad-green::after,
+.home-card.grad-purple::after,
+.home-card.grad-orange::after {
+  content: none;
+}
+
+/* [21] פס אקצנט אחד בלבד לפני כותרות סקשן בדף הבית */
+.home .section-title {
+  border-inline-start: none;
+  padding-inline-start: 0;
+}
+
+/* [37] פס הציטוט — לא נטוי ולא שקוף */
+.quote-strip {
+  font-style: normal;
+  opacity: 1;
+}
+
+/* [36] אייקון הסטטיסטיקה בזרימה, לא אבסולוטי מהשכבה הישנה */
+.stat-tile-ic {
+  position: static;
+  margin-bottom: 8px;
+}
+
+/* [17] הירו של כותרת עמוד — הכפתורים מיושרים בתוך הפס */
+.welcome-card > .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.welcome-card > .page-header .page-header-actions {
+  margin: 0;
+}
+
+/* [32] הכרטיס העוטף שקוף (padding 0) — להירו אין מה למשוך החוצה */
+.main-content .welcome-card > .page-header,
+.main-content .cm-page > .cm-hero {
+  margin-top: 0;
+  margin-inline: 0;
+}
+.main-content {
+  overflow-x: clip;
+}
+
+/* [8] גובה הצ'אט במובייל מפנה מקום לתפריט התחתון */
+@media (max-width: 768px) {
+  .chat {
+    height: calc(100dvh - 250px - env(safe-area-inset-bottom));
+  }
+}
+
+/* [4] כפתור הנגישות מרחף מעל התפריט התחתון, לא עליו */
+@media (max-width: 768px) {
+  .a11y-fab {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+  /* [42] טוסטים מעל התפריט התחתון */
+  .toaster {
+    inset-block-end: calc(70px + env(safe-area-inset-bottom));
+  }
+  /* [31] ריפוד תחתון כולל safe-area */
+  .main-content {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
+  /* [41] יעדי מגע נוחים לכפתורי אייקון */
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+/* [4] בעמוד ההתחברות (בלי תפריט תחתון) — התגים לא נחסמים ע"י הכפתור */
+@media (max-width: 860px) {
+  .auth-trust-inline {
+    margin-bottom: 64px;
+  }
+  /* [20] הפאנל הקולנועי חוזר להיות רצועה עליונה במובייל */
+  .auth-form-panel {
+    order: 0;
+  }
+}
+
+/* מונה "הודעות חדשות" בערוץ — badge כתום אמיתי (רק כשיש חדשות) */
+.ch-count-new {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* "התרגילים שלי" בפרופיל */
+.md-card {
+  margin-top: 18px;
+}
+.md-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.md-head .pr-card-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.md-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.md-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.md-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.md-item:last-child {
+  border-bottom: none;
+}
+.md-title {
+  font-weight: 700;
+  color: var(--text);
+}
+.md-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.md-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.md-cat {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+.md-rate svg {
+  color: var(--accent);
+  fill: var(--accent);
 }

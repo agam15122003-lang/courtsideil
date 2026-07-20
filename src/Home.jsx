@@ -269,7 +269,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   const onboardSteps = [
     { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
-    { id: 'plans', Icon: ClipboardList, title: L('בנה אימון', 'Build a practice'), desc: L('הרכב תוכנית אימון בדקות', 'Put together a practice plan in minutes') },
+    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('הרכב תוכנית מלאה בדקות', 'Put together a full plan in minutes') },
   ]
 
   const shortcuts = [
@@ -303,7 +303,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           </p>
           <div className="home-greet-actions">
             <button className="btn-primary" onClick={() => onNavigate('plans')}>
-              <Plus size={17} /> {L('אימון חדש', 'New practice')}
+              <Plus size={17} /> {L('תוכנית חדשה', 'New plan')}
             </button>
             <button className="btn-heroghost" onClick={() => onNavigate('schedule')}>
               <CalendarDays size={17} /> {L('לו"ז השבוע', 'This week')}
@@ -329,37 +329,6 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
         ))}
       </div>
 
-      {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
-      {communityPosts.length > 0 && (
-        <>
-          <div className="home-community-head">
-            <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
-            <button type="button" className="link-button" onClick={() => onNavigate('community')}>
-              {L('לכל הפיד', 'Open the feed')} <ChevronLeft size={14} />
-            </button>
-          </div>
-          <div className="home-community-grid">
-            {communityPosts.map((p) => {
-              const author = p.author
-                ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
-                : L('מאמן', 'Coach')
-              const img = p.image_urls?.[0]
-              return (
-                <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
-                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img}")` }} />}
-                  <span className="hc-body">
-                    <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
-                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון 📷', 'Shared practice photos 📷')}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
-
-      <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
-
       {showOnboarding && (
         <div className="onboard-card">
           <button
@@ -370,7 +339,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           >
             <X size={16} />
           </button>
-          <h3 className="onboard-title">{L(`ברוך הבא, ${name}!`, `Welcome, ${name}!`)}</h3>
+          <h3 className="onboard-title">{L(`ברוכים הבאים, ${name}!`, `Welcome, ${name}!`)}</h3>
           <p className="muted small">{L('שלושה צעדים קצרים כדי להתחיל:', 'Three quick steps to get started:')}</p>
           <div className="onboard-steps">
             {onboardSteps.map((s, i) => (
@@ -404,6 +373,37 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           </button>
         ))}
       </div>
+
+      {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
+      {communityPosts.length > 0 && (
+        <>
+          <div className="home-community-head">
+            <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
+            <button type="button" className="link-button" onClick={() => onNavigate('community')}>
+              {L('לכל הפיד', 'Open the feed')} <ChevronLeft size={14} />
+            </button>
+          </div>
+          <div className="home-community-grid">
+            {communityPosts.map((p) => {
+              const author = p.author
+                ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
+                : L('מאמן', 'Coach')
+              const img = p.image_urls?.[0]
+              return (
+                <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
+                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img}")` }} />}
+                  <span className="hc-body">
+                    <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
+                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון 📷', 'Shared practice photos 📷')}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
 
       <h2 className="section-title section-title--icon" style={{ marginTop: 32 }}>
         <Newspaper size={18} />

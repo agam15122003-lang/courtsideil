@@ -79,7 +79,7 @@ export default function ResetPassword() {
             <div className="empty-ic" style={{ margin: '0 auto 8px', color: 'var(--accent-strong)' }}><AlertTriangle size={26} /></div>
             <h2>{L('קישור האיפוס פג תוקף', 'The reset link has expired')}</h2>
             <p className="muted small">
-              {L('קישורי איפוס תקפים לזמן מוגבל ולשימוש חד-פעמי. חזור לדף ההתחברות ולחץ "שכחתי סיסמה?" כדי לקבל קישור חדש.', 'Reset links are time-limited and single-use. Go back to the login page and tap "Forgot password?" to get a fresh link.')}
+              {L('קישורי איפוס תקפים לזמן מוגבל ולשימוש חד-פעמי. חזרו לדף ההתחברות ולחצו "שכחת סיסמה?" כדי לקבל קישור חדש.', 'Reset links are time-limited and single-use. Go back to the login page and tap "Forgot password?" to get a fresh link.')}
             </p>
             <button type="button" className="btn-primary" style={{ marginTop: 14 }} onClick={goHome}>
               {L('חזרה לדף ההתחברות', 'Back to login')}

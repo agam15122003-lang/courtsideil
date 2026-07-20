@@ -240,7 +240,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
 
         {sent && (
           <div className="alert alert-success" style={{ marginTop: 12 }}>
-            {L('ההודעה נשלחה! תוכל לראות את השיחה בטאב "הודעות".', 'Message sent! You can see the conversation in the "Messages" tab.')}
+            {L('ההודעה נשלחה! השיחה מחכה בלשונית "הודעות".', 'Message sent! You can see the conversation in the "Messages" tab.')}
           </div>
         )}
       </div>
@@ -298,7 +298,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
                     style={{ marginTop: 0 }}
                     onClick={() => copyPlan(p)}
                   >
-                    {L('העתק אלי', 'Copy to me')}
+                    {L('העתק אליי', 'Copy to me')}
                   </button>
                 </div>
               </div>

@@ -130,7 +130,7 @@ export default function Schedule({ session }) {
 
   const sendInvite = async () => {
     if (!invTo) {
-      toast.error(L('בחר מאמן לזמן.', 'Choose a coach to invite.'))
+      toast.error(L('בחרו מאמן לזימון.', 'Choose a coach to invite.'))
       return
     }
     if (!invTopic.trim()) {
@@ -154,7 +154,7 @@ export default function Schedule({ session }) {
     })
     setInvSaving(false)
     if (error) {
-      toast.error(L('הזימון נכשל (ודא שהרצת את ה-SQL): ', 'Invite failed (make sure the SQL ran): ') + error.message)
+      console.error('invite:', error.message); toast.error(L('הזימון נכשל — נסו שוב בעוד רגע.', 'Invite failed — try again in a moment.'))
       return
     }
     setInviting(false)
@@ -326,7 +326,7 @@ export default function Schedule({ session }) {
         </div>
         <div className="cal-actions">
           <button className="btn-soft" onClick={() => { setInviting(true); setSelected(null); setAdding(false) }}>
-            {L('זמן מאמן', 'Invite coach')}
+            {L('זימון מאמן', 'Invite coach')}
           </button>
           <button className="btn-primary cal-add" style={{ marginTop: 0 }} onClick={() => openAdd()}>
             <Plus size={18} /> {L('הוסף אימון', 'Add')}

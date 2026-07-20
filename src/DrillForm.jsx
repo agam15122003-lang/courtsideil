@@ -432,7 +432,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
                   <span className="nb-club">{coach.club || 'CourtSide'}</span>
                   <span className="nb-date">{dateLabel}</span>
                 </div>
-                <h2 className="nb-title">{L('מערך תרגיל', 'Drill sheet')}</h2>
+                <h2 className="nb-title">{L('דף תרגיל', 'Drill sheet')}</h2>
                 {coach.name && (
                   <div className="nb-coach">{L('שם המאמן: ', 'Coach: ')}{coach.name}</div>
                 )}
