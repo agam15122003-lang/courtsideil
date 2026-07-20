@@ -13468,3 +13468,17 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   background: color-mix(in srgb, var(--item-c) 14%, transparent);
   color: var(--item-c);
 }
+
+/* שורת מטא של הסגל — מונה + ייצוא CSV */
+.roster-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.roster-meta-row .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { downloadIcs } from './ics'
 import { L, trTeam } from './i18n'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -96,6 +97,19 @@ export default function NextPractice({ onNavigate }) {
         </button>
         <button className="btn-soft" onClick={() => onNavigate('teams')}>
           <UserCheck size={16} /> {L('נוכחות שחקנים', 'Player attendance')}
+        </button>
+        <button
+          className="btn-soft"
+          onClick={() => downloadIcs({
+            title: title,
+            date: entry.date,
+            start: entry.start_time,
+            end: entry.end_time,
+            location: entry.location,
+            description: entry.plan ? entry.plan.name : '',
+          })}
+        >
+          <CalendarPlus size={16} /> {L('הוסף ליומן', 'Add to calendar')}
         </button>
       </div>
     </div>

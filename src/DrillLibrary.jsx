@@ -26,6 +26,7 @@ export default function DrillLibrary({ session }) {
   const [ageFilter, setAgeFilter] = useState([])
   const [tagFilter, setTagFilter] = useState('') // סינון לפי תגית
   const [onlySaved, setOnlySaved] = useState(false) // הצג רק מועדפים
+  const [onlyMine, setOnlyMine] = useState(false) // הצג רק תרגילים שיצרתי
   const [sortBy, setSortBy] = useState('new') // 'new' = חדשים, 'rating' = מדורגים
 
   // בורר "הוספה לתוכנית"
@@ -178,9 +179,10 @@ export default function DrillLibrary({ session }) {
     setAgeFilter([])
     setTagFilter('')
     setOnlySaved(false)
+    setOnlyMine(false)
   }
 
-  const hasFilters = search || catFilter || ageFilter.length > 0 || tagFilter || onlySaved
+  const hasFilters = search || catFilter || ageFilter.length > 0 || tagFilter || onlySaved || onlyMine
 
   // ממוצע דירוג של תרגיל (לצורך מיון)
   const avgOf = (d) => {
@@ -205,7 +207,8 @@ export default function DrillLibrary({ session }) {
       (d.age_groups || []).some((g) => ageFilter.includes(g))
     const tagOk = tagFilter === '' || (d.tags || []).includes(tagFilter)
     const savedOk = !onlySaved || (d.saved_drills || []).length > 0
-    return searchOk && catOk && ageOk && tagOk && savedOk
+    const mineOk = !onlyMine || d.created_by === session.user.id
+    return searchOk && catOk && ageOk && tagOk && savedOk && mineOk
   })
 
   // ממיינים: לפי דירוג (גבוה→נמוך) או לפי החדשים ביותר (סדר ברירת המחדל)
@@ -286,6 +289,14 @@ export default function DrillLibrary({ session }) {
           onClick={() => setOnlySaved(!onlySaved)}
         >
           {L('המועדפים שלי', 'My favorites')}
+        </button>
+        <button
+          type="button"
+          className={onlyMine ? 'chip selected' : 'chip'}
+          onClick={() => setOnlyMine(!onlyMine)}
+          aria-pressed={onlyMine}
+        >
+          {L('התרגילים שלי', 'My drills')}
         </button>
         <span className="filter-chips-sep" aria-hidden="true" />
         <button
