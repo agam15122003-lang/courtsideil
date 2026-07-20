@@ -13417,3 +13417,54 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pd-cta .btn-primary {
   margin-top: 14px;
 }
+
+/* ============================================================
+   בונה התוכניות — עומק לפי handoff §3
+   ============================================================ */
+/* מספר הסה"כ — טיפוגרפיית תצוגה */
+.pb-summary-num {
+  font-family: var(--font-display);
+  font-weight: 900;
+}
+/* בר היעד — כתום בדרך, ירוק כשמגיעים */
+.pb-target-bar.done > span {
+  background: var(--c-green);
+}
+.pb-target-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-orange);
+}
+.pb-target-hint.done {
+  color: var(--c-green);
+}
+.pb-summary-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* כרטיס תרגיל בתוכנית — פס קטגוריה צבעוני ומספור בעיגול
+   (כולל דריסת חוקי הגבול של מצב כהה) */
+.plan-item,
+[data-theme='dark'] .plan-item {
+  border-inline-start: 3px solid var(--item-c, var(--border));
+}
+.plan-item .ord-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--c-orange);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+}
+.plan-item .cat-badge {
+  background: color-mix(in srgb, var(--item-c) 14%, transparent);
+  color: var(--item-c);
+}
