@@ -669,11 +669,20 @@ function PlanBuilder({ planId, plan, onBack }) {
     if (!cat) continue
     catTotals[cat] = (catTotals[cat] || 0) + (Number(it.duration_minutes) || 0)
   }
-  const CAT_COLORS = ['#E8763A', '#4663A0', '#1D7A4C', '#A97B12', '#8E5BB5']
+  // צבע קבוע לכל קטגוריה (פלטת ה-handoff) — הצבעים לא מתחלפים כשהסדר משתנה
+  const CAT_COLOR = {
+    'יסודות': 'var(--c-green)',
+    'הגנה': 'var(--c-blue)',
+    'התקפה': 'var(--c-orange)',
+    'ניהול אימון': 'var(--c-purple)',
+    'ניהול משחק': 'var(--c-navy)',
+    'פיתוח שחקן': 'var(--c-red)',
+  }
+  const catColor = (cat) => CAT_COLOR[cat] || 'var(--c-navy)'
   const breakdown = Object.entries(catTotals)
     .filter(([, m]) => m > 0)
     .sort((a, b) => b[1] - a[1])
-    .map(([cat, min], i) => ({ cat, min, color: CAT_COLORS[i % CAT_COLORS.length] }))
+    .map(([cat, min]) => ({ cat, min, color: catColor(cat) }))
   const breakdownMax = breakdown.reduce((m, b) => Math.max(m, b.min), 0)
 
   // מצב הרצת אימון — מסך טיימר נפרד
@@ -736,13 +745,18 @@ function PlanBuilder({ planId, plan, onBack }) {
             <bdi>{total}</bdi> <span className="pb-summary-unit">/ {TARGET_MIN} {L('דק׳', 'min')}</span>
           </span>
         </div>
-        <span className="pb-target-bar" aria-hidden="true">
+        <span className={total >= TARGET_MIN ? 'pb-target-bar done' : 'pb-target-bar'} aria-hidden="true">
           <span style={{ width: `${Math.min(100, Math.round((total / TARGET_MIN) * 100))}%` }} />
         </span>
         <div className="pb-summary-meta">
           <span className="builder-stat">
             <ListChecks size={14} />
             <strong><bdi>{items.length}</bdi></strong> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+          </span>
+          <span className={total >= TARGET_MIN ? 'pb-target-hint done' : 'pb-target-hint'}>
+            {total >= TARGET_MIN
+              ? L('הגעת ליעד האימון ✓', 'Practice target reached ✓')
+              : L(`עוד ${TARGET_MIN - total} דק׳ ליעד`, `${TARGET_MIN - total} min to target`)}
           </span>
         </div>
         {breakdown.length > 0 && (
@@ -906,7 +920,7 @@ function PlanBuilder({ planId, plan, onBack }) {
             ].filter(([, v]) => v)
 
             return (
-              <div key={it.id} className="plan-item">
+              <div key={it.id} className="plan-item" style={{ '--item-c': catColor(d.category) }}>
                 <div className="plan-item-top">
                   <div className="plan-item-order">
                     <button
