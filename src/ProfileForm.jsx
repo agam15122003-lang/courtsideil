@@ -18,7 +18,9 @@ const TEAM_OPTIONS = AGE_GROUPS.flatMap((age) => GENDERS.map((g) => teamLabel(ag
 //   onSaved  - פונקציה שתופעל אחרי שמירה מוצלחת
 //   onCancel - פונקציה לכפתור "ביטול" (אופציונלי — מוצג רק אם קיים)
 export default function ProfileForm({ session, profile, onSaved, onCancel }) {
-  const [role, setRole] = useState(profile?.role || '') // '' = טרם נבחר, 'coach' | 'player'
+  // משתמש חדש (עדיין אין שם) — תמיד מתחילים ממסך בחירת התפקיד, גם אם
+  // ברירת המחדל של העמודה במסד היא 'coach' (אחרת מסך הבחירה נדלג).
+  const [role, setRole] = useState(profile?.first_name ? (profile?.role || '') : '') // '' = טרם נבחר, 'coach' | 'player'
   const [firstName, setFirstName] = useState(profile?.first_name || '')
   const [lastName, setLastName] = useState(profile?.last_name || '')
   const [club, setClub] = useState(profile?.club || '')
