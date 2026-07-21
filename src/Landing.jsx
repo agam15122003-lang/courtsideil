@@ -87,7 +87,7 @@ export default function Landing({ onEnter }) {
   useReveal()
   const FEATURES = [
     { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם שדות עשירים, דירוג כוכבים, מועדפים ותגובות — ידע משותף של הקהילה.', 'Hundreds of drills with rich details, star ratings, favorites and comments — shared knowledge from the community.') },
-    { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('הרכב אימון מלא בדקות — ידני או בנאי חכם אוטומטי לפי גיל, נושא וזמן יעד.', 'Build a full practice in minutes — manually or with the smart auto-builder by age, topic and target time.') },
+    { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('הרכב אימון מלא — ידני או עם בנאי חכם אוטומטי לפי גיל, נושא וזמן יעד.', 'Build a full practice — manually or with the smart auto-builder by age, topic and target time.') },
     { Icon: PencilRuler, title: L('לוח טקטיקה', 'Tactics Board'), desc: L('שרטט מהלכים על מגרש דיגיטלי, הוסף חצי תנועה ומסירה, ונגן אנימציה שלב-אחרי-שלב.', 'Diagram plays on a digital court, add movement and passing arrows, and play back the animation step by step.') },
     { Icon: CalendarDays, title: L('לו"ז חכם', 'Smart Schedule'), desc: L('נהל את שבוע האימונים בלוח שנה — אימוני קבוצה ואישיים, עם תוכנית מצורפת לכל שעה.', 'Manage your training week on a calendar — team and individual sessions, with a plan attached to every slot.') },
     { Icon: Users, title: L('קהילת מאמנים', 'Coaches Community'), desc: L('מצא מאמנים, צפה בתרגילים שלהם, העתק תוכניות ששותפו ותאם משחקי אימון.', 'Find coaches, browse their drills, copy shared plans and arrange scrimmages.') },
@@ -101,8 +101,8 @@ export default function Landing({ onEnter }) {
   ]
 
   const STATS = [
-    { num: '7', label: L('כלים מקצועיים', 'pro tools') },
-    { num: '5 דק׳', label: L('לבניית אימון מלא', 'to a full practice') },
+    { num: L('הכול', 'All'), label: L('הכלים במקום אחד', 'tools in one place') },
+    { num: L('קהילה', 'Community'), label: L('של מאמנים ששיתפים ידע', 'of coaches sharing knowledge') },
     { num: L('חינם', 'Free'), label: L('לכל מאמן', 'for every coach') },
   ]
 
@@ -115,7 +115,7 @@ export default function Landing({ onEnter }) {
 
   // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
   const FAQ = [
-    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל שבעת הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז, ניהול הקבוצות, עריכת הווידאו והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. All seven tools — the drill library, practice builder, tactics board, schedule, team management, video editing and the community — are open to every coach at no cost. Sign up and start.') },
+    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז, ניהול הקבוצות, עריכת הווידאו והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. Every tool — the drill library, practice builder, tactics board, schedule, team management, video editing and the community — is open to every coach at no cost. Sign up and start.') },
     { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
     { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
     {
@@ -127,7 +127,7 @@ export default function Landing({ onEnter }) {
         </>
       ),
     },
-    { q: L('איך מצטרפים?', 'How do I join?'), a: L('לוחצים "התחל עכשיו", נרשמים עם אימייל ומקימים פרופיל מאמן — מועדון, שכבות גיל ופרטים. כל התהליך לוקח פחות משלוש דקות.', 'Click "Start now", sign up with your email and set up a coach profile — club, age groups and details. The whole thing takes under three minutes.') },
+    { q: L('איך מצטרפים?', 'How do I join?'), a: L('לוחצים "התחל עכשיו", נרשמים עם אימייל ומקימים פרופיל מאמן — מועדון, שכבות גיל ופרטים. וזהו, אתם בפנים.', 'Click "Start now", sign up with your email and set up a coach profile — club, age groups and details. That’s it, you’re in.') },
     { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
   ]
 
@@ -209,7 +209,7 @@ export default function Landing({ onEnter }) {
       <section className="land-section reveal" id="features">
         <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
         <h2 className="land-h2">{L('כל מה שמאמן צריך', 'Everything a coach needs')}</h2>
-        <p className="land-lead">{L('שבעה כלים מקצועיים שעובדים יחד, בלי לקפוץ בין אפליקציות.', 'Seven professional tools that work together — no jumping between apps.')}</p>
+        <p className="land-lead">{L('כל הכלים המקצועיים במקום אחד, בלי לקפוץ בין אפליקציות.', 'Every professional tool in one place — no jumping between apps.')}</p>
         <div className="land-features">
           {FEATURES.map((f) => (
             <div key={f.title} className="land-feature">
@@ -225,7 +225,7 @@ export default function Landing({ onEnter }) {
 
       <section className="land-section land-steps-wrap reveal" id="how">
         <span className="land-kicker">{L('איך זה עובד', 'How It Works')}</span>
-        <h2 className="land-h2">{L('מתחילים בשלוש דקות', 'Get started in three minutes')}</h2>
+        <h2 className="land-h2">{L('שלושה צעדים ואתם בפנים', 'Three steps and you’re in')}</h2>
         <div className="land-steps">
           {STEPS.map((s) => (
             <div key={s.n} className="land-step">

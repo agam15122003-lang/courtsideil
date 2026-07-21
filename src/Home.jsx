@@ -269,13 +269,13 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
   const onboardSteps = [
     { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
-    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('הרכב תוכנית מלאה בדקות', 'Put together a full plan in minutes') },
+    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בונים אימון מלא — ידני או עם בנאי חכם', 'Build a full practice — manually or with the smart builder') },
   ]
 
   const shortcuts = [
     { id: 'community', Icon: Users, grad: 'orange', title: L('קהילת המאמנים', 'Coaches community'), desc: L('פיד שיתופים, תגובות וצילומים מהאימונים', 'A feed of posts, comments and practice photos') },
     { id: 'drills', Icon: Dumbbell, grad: 'blue', title: L('ספריית תרגילים', 'Drill library'), desc: L('חיפוש, דירוג ושמירת תרגילים', 'Search, rate and save drills') },
-    { id: 'plans', Icon: ClipboardList, grad: 'green', title: L('בניית אימון', 'Practice builder'), desc: L('הרכבת אימון מלא בדקות', 'Build a full practice in minutes') },
+    { id: 'plans', Icon: ClipboardList, grad: 'green', title: L('בניית אימון', 'Practice builder'), desc: L('אימון מלא מהתרגילים של הקהילה', 'A full practice from the community drills') },
     { id: 'messages', Icon: MessageSquare, grad: 'purple', title: L('הודעות', 'Messages'), desc: L('שיחות אישיות עם מאמנים', 'Personal conversations with coaches') },
   ]
 

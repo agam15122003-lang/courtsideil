@@ -4,11 +4,13 @@ import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, P
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
+import PlanNotebook from './PlanNotebook'
 import NotebookPage from './NotebookPage'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
 import { safeUrl } from './constants'
 import { waShare } from './share'
+import { confirmDialog } from './confirm'
 
 // ממיר פריטי תוכנית לפורמט "דף מחברת" (כותרת, פרטים, הערה, ולוח טקטיקה לאנימציה)
 export function planToNotebook(name, items) {
@@ -56,6 +58,7 @@ export default function TrainingPlans({ session }) {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [smartOpen, setSmartOpen] = useState(false) // בנאי אימון חכם
+  const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id
 
@@ -132,7 +135,12 @@ export default function TrainingPlans({ session }) {
   }
 
   const deletePlan = async (id) => {
-    if (!window.confirm(L('למחוק את התוכנית? פעולה זו אינה הפיכה.', 'Delete this plan? This cannot be undone.'))) return
+    const ok = await confirmDialog({
+      title: L('למחוק את התוכנית?', 'Delete this plan?'),
+      message: L('הפעולה אינה הפיכה — התוכנית וכל התרגילים שבה יימחקו.', 'This cannot be undone — the plan and its drills will be deleted.'),
+      confirmText: L('מחיקה', 'Delete'),
+    })
+    if (!ok) return
     const { error } = await supabase.from('training_plans').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
@@ -167,12 +175,15 @@ export default function TrainingPlans({ session }) {
         privateIds = (priv || []).map((d) => d.id)
       }
       if (privateIds.length > 0) {
-        const ok = window.confirm(
-          L(
-            `שיתוף התוכנית יפרסם לקהילה גם ${privateIds.length === 1 ? 'תרגיל פרטי אחד' : `${privateIds.length} תרגילים פרטיים`} שמופיעים בה. להמשיך?`,
-            `Sharing this plan will also publish ${privateIds.length} private drill(s) it contains. Continue?`
-          )
-        )
+        const ok = await confirmDialog({
+          title: L('לשתף את התוכנית?', 'Share this plan?'),
+          message: L(
+            `בתוכנית יש ${privateIds.length === 1 ? 'תרגיל פרטי אחד' : `${privateIds.length} תרגילים פרטיים`} שיתפרסמו גם הם לקהילה.`,
+            `This plan contains ${privateIds.length} private drill(s) that will also be published.`
+          ),
+          confirmText: L('שיתוף', 'Share'),
+          danger: false,
+        })
         if (!ok) return
       }
     }
@@ -227,6 +238,20 @@ export default function TrainingPlans({ session }) {
     )
   }
 
+  if (notebookNew) {
+    return (
+      <PlanNotebook
+        session={session}
+        onDone={async (id) => {
+          setNotebookNew(false)
+          await loadPlans()
+          setActivePlanId(id)
+        }}
+        onCancel={() => setNotebookNew(false)}
+      />
+    )
+  }
+
   if (smartOpen) {
     return (
       <SmartBuilder
@@ -265,37 +290,40 @@ export default function TrainingPlans({ session }) {
         </div>
       </header>
 
-      {/* יצירת תוכנית חדשה */}
-      <div className="field-group" style={{ marginTop: 18 }}>
-        <span className="field-label">{L('תוכנית חדשה', 'New plan')}</span>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <input
-            className="finder-input"
-            style={{ flex: 1 }}
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            aria-label={L('שם התוכנית', 'Plan name')}
-            placeholder={L('שם התוכנית, למשל: אימון הגנה לנוער', 'Plan name, e.g. Defense practice for juniors')}
-          />
-          <button
-            className="btn-primary"
-            style={{ marginTop: 0, whiteSpace: 'nowrap' }}
-            disabled={creating || !newName.trim()}
-            onClick={createPlan}
-          >
-            {creating ? L('יוצר...', 'Creating...') : L('צור תוכנית', 'Create plan')}
+      {/* יצירת תוכנית חדשה — שלוש דרכים */}
+      <div className="pn-create">
+        <button className="pn-create-main" onClick={() => setNotebookNew(true)}>
+          <span className="pn-create-ic"><BookOpen size={20} /></span>
+          <span className="pn-create-body">
+            <strong>{L('כתיבת תוכנית על המחברת', 'Write a plan on the notebook')}</strong>
+            <span>{L('בונים את מבנה האימון ישר על דף המחברת', 'Build the practice outline right on the page')}</span>
+          </span>
+        </button>
+        <div className="pn-create-alts">
+          <button className="btn-soft" onClick={() => setSmartOpen(true)}>
+            <Zap size={16} /> {L('בנייה אוטומטית', 'Auto-build')}
           </button>
+          <div className="pn-quick">
+            <input
+              className="finder-input"
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              aria-label={L('שם התוכנית', 'Plan name')}
+              placeholder={L('או שם מהיר לתוכנית ריקה...', 'Or a quick name for an empty plan...')}
+              onKeyDown={(e) => e.key === 'Enter' && newName.trim() && createPlan()}
+            />
+            <button
+              className="btn-ghost"
+              style={{ marginTop: 0, whiteSpace: 'nowrap' }}
+              disabled={creating || !newName.trim()}
+              onClick={createPlan}
+            >
+              {creating ? L('יוצר...', 'Creating...') : L('צור ריקה', 'Create empty')}
+            </button>
+          </div>
         </div>
       </div>
-
-      <button
-        className="btn-ghost"
-        style={{ marginTop: 12 }}
-        onClick={() => setSmartOpen(true)}
-      >
-        {L('בנייה אוטומטית של תוכנית אימון', 'Auto-build a practice plan')}
-      </button>
 
       <div className="finder-results">
         {loading ? (

@@ -30,7 +30,7 @@ export default function Auth({ onBack }) {
   // ציטוט מתחלף בפאנל המותג — כל דקה (זמן מספיק לקרוא)
   const [qi, setQi] = useState(0)
   useEffect(() => {
-    const t = setInterval(() => setQi((i) => (i + 1) % COACHING_QUOTES.length), 60000)
+    const t = setInterval(() => setQi((i) => (i + 1) % COACHING_QUOTES.length), 8000)
     return () => clearInterval(t)
   }, [])
   const quote = COACHING_QUOTES[qi]
@@ -134,10 +134,11 @@ export default function Auth({ onBack }) {
         <div className="auth-hero-content">
           <span className="auth-hero-badge"><span className="np-dot" /> {L('קהילת המאמנים של ישראל', "Israel's coaching community")}</span>
           <blockquote className="auth-hero-quote" key={qi}>“{L(quote.text, quote.text_en)}”</blockquote>
-          <span className="auth-hero-cite">— {L('מתוך ציטוטי המגרש בקהילה', 'from the court quotes in the community')}</span>
+          <span className="auth-hero-cite">— {L(quote.author, quote.author_en)}</span>
           <ul className="auth-hero-caps">
-            <li>{L('7 כלים מקצועיים', '7 pro tools')}</li>
-            <li>{L('חינם לכל מאמן', 'Free for every coach')}</li>
+            <li>{L('הבית של המאמנים', 'The coaches’ home')}</li>
+            <li>{L('ידע שמאמנים משתפים', 'Knowledge coaches share')}</li>
+            <li>{L('קהילה שגדלה יחד', 'A community growing together')}</li>
           </ul>
         </div>
       </aside>

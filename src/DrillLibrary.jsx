@@ -4,6 +4,7 @@ import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
+import { confirmDialog } from './confirm'
 import DrillForm from './DrillForm'
 import DrillCard from './DrillCard'
 import MultiSelect from './MultiSelect'
@@ -155,7 +156,12 @@ export default function DrillLibrary({ session }) {
 
   // מחיקת תרגיל (רק תרגיל של המשתמש עצמו — מאובטח גם במסד)
   const handleDelete = async (id) => {
-    if (!window.confirm(L('למחוק את התרגיל? פעולה זו אינה הפיכה.', 'Delete this drill? This action cannot be undone.'))) return
+    const ok = await confirmDialog({
+      title: L('למחוק את התרגיל?', 'Delete this drill?'),
+      message: L('הפעולה אינה הפיכה — התרגיל יימחק לצמיתות.', 'This cannot be undone — the drill will be permanently deleted.'),
+      confirmText: L('מחיקה', 'Delete'),
+    })
+    if (!ok) return
     const { error } = await supabase.from('drills').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)

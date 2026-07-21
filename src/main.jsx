@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import Toaster from './Toaster.jsx'
 import AccessibilityWidget from './AccessibilityWidget.jsx'
+import { ConfirmHost } from './confirm.jsx'
 import { applyDir } from './i18n'
 import { inject } from '@vercel/analytics'
 import './index.css'
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
     <Toaster />
+    <ConfirmHost />
     <AccessibilityWidget />
   </React.StrictMode>,
 )
