@@ -11292,7 +11292,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
    מחברת המאמן — עריכה ישירות על הדף (DrillForm, מצב ברירת מחדל)
    ============================================================ */
 :root {
-  --font-hand: 'Solitreo', 'Rubik', cursive; /* כתב-יד עברי לכתיבה על המחברת */
+  --font-hand: 'Rubik', 'Heebo', system-ui, sans-serif; /* כתב מחשב ברור על המחברת */
 }
 .drillform-head {
   display: flex;
@@ -11310,13 +11310,14 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   padding: var(--space-6);
   padding-inline-end: calc(var(--space-6) + 16px);
 }
-/* כל שדה כתיבה על המחברת — שקוף, בלי מסגרות, בפונט כתב-יד */
+/* כל שדה כתיבה על המחברת — שקוף, בלי מסגרות, כתב מחשב ברור בדיו נייבי */
 .nb-write {
   font-family: var(--font-hand);
+  font-weight: 500;
   background: transparent;
   border: none;
   outline: none;
-  color: #223a63;
+  color: #1b2a4a;
   width: 100%;
   border-radius: 0;
   padding: 0;
@@ -11329,7 +11330,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .nb-write-title {
   font-size: clamp(24px, 4vw, 30px);
   line-height: 1.3;
-  font-weight: 400;
+  font-weight: 700;
   border-bottom: 2px solid #1b2a4a;
   padding-bottom: 4px;
   margin-bottom: 14px;
