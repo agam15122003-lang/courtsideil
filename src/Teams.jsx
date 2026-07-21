@@ -3,7 +3,7 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck,
+  UserCheck, MessageSquareHeart, Star,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -12,6 +12,8 @@ import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
 import Attendance from './Attendance'
+import TeamConnect from './TeamConnect'
+import { sendNotification } from './notify'
 
 // ---- סטטוס שחקן ----
 const STATUSES = [
@@ -80,6 +82,21 @@ export default function Teams({ session, profile, onNavigate }) {
   const [gEdit, setGEdit] = useState(null)
   const [sEdit, setSEdit] = useState(null)
 
+
+  // משוב לשחקן (בתוך מודל השחקן)
+  const [fbText, setFbText] = useState('')
+  const [fbRating, setFbRating] = useState(0)
+  const sendFeedback = async () => {
+    if (!pEdit?.player_id || !fbText.trim()) return
+    const { error } = await supabase.from('player_feedback').insert({
+      coach_id: me, player_id: pEdit.player_id,
+      content: fbText.trim(), rating: fbRating || null,
+    })
+    if (error) { toast.error(L('שליחת המשוב נכשלה: ', 'Failed to send feedback: ') + error.message); return }
+    sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
+    setFbText(''); setFbRating(0)
+    toast.success(L('המשוב נשלח לשחקן', 'Feedback sent to the player'))
+  }
 
   // מטרות — בורר שבוע/חודש
   const [gWeek, setGWeek] = useState(sundayOf(new Date()))
@@ -376,6 +393,7 @@ export default function Teams({ session, profile, onNavigate }) {
         /* ===================== סגל (פריסת מסך היעד 09: טבלה + פאנל צד) ===================== */
         <div className="team-split">
         <div className="team-section team-split-main">
+          <TeamConnect coachId={me} team={team} onApproved={load} />
           <div className="roster-meta-row">
             <p className="muted small" style={{ margin: 0 }}>
               {L(`${players.length} שחקנים`, `${players.length} players`)}
@@ -742,6 +760,25 @@ export default function Teams({ session, profile, onNavigate }) {
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
               <button className="btn-ghost danger" onClick={() => delPlayer(pEdit.id)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
             </div>
+
+            {/* משוב אישי — רק לשחקן עם חשבון מחובר */}
+            {pEdit.player_id && (
+              <div className="tm-feedback">
+                <span className="field-label"><MessageSquareHeart size={15} /> {L('שליחת משוב לשחקן', 'Send feedback to player')}</span>
+                <div className="tm-fb-stars" role="radiogroup" aria-label={L('דירוג', 'Rating')}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} type="button" className={n <= fbRating ? 'tm-star on' : 'tm-star'} onClick={() => setFbRating(n === fbRating ? 0 : n)} aria-label={L(`${n} כוכבים`, `${n} stars`)}>
+                      <Star size={20} fill={n <= fbRating ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+                <textarea className="finder-input" rows={3} value={fbText} onChange={(e) => setFbText(e.target.value)} maxLength={2000}
+                  placeholder={L('מה היה טוב באימון, ומה כדאי לשפר...', 'What went well, what to work on...')} />
+                <button className="btn-soft" style={{ marginTop: 8 }} onClick={sendFeedback} disabled={!fbText.trim()}>
+                  {L('שליחת המשוב', 'Send feedback')}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

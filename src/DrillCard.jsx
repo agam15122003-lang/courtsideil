@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2 } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send } from 'lucide-react'
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam } from './i18n'
@@ -26,6 +26,7 @@ export default function DrillCard({
   onDelete,
   onTagClick,
   onAddToPlan,
+  onSend,
   onEdit,
 }) {
   // ----- תגובות -----
@@ -178,6 +179,11 @@ export default function DrillCard({
             {onAddToPlan && (
               <button className="btn-toplan" onClick={() => onAddToPlan(drill)}>
                 <Plus size={15} /> {L('לתוכנית', 'To plan')}
+              </button>
+            )}
+            {onSend && (
+              <button className="btn-toplan" onClick={() => onSend(drill)}>
+                <Send size={15} /> {L('לשחקנים', 'To players')}
               </button>
             )}
             <button className="btn-soft btn-details" onClick={() => setExpanded(true)}>
