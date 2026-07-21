@@ -13904,7 +13904,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 
 /* פאנל חיבור שחקנים (מאמן) */
 .tc-panel { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 14px; background: var(--surface); overflow: hidden; }
+.tc-panel.tc-open { border-color: var(--accent-soft); box-shadow: var(--shadow-sm); }
 .tc-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 12px 14px; border: none; background: none; cursor: pointer; font-family: inherit; }
+.tc-head-static { cursor: default; border-bottom: 1px solid var(--border); background: var(--accent-soft); }
 .tc-head-l { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
 .tc-head-r { display: inline-flex; align-items: center; gap: 8px; }
 .tc-badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
@@ -13924,4 +13926,121 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .tm-feedback { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 .tm-fb-stars { display: flex; gap: 4px; margin: 8px 0; }
 .tm-star { border: none; background: none; cursor: pointer; color: var(--accent); padding: 2px; }
+
+/* ============================================================
+   דף הבית העשיר של השחקן (v2) — משחוק, טיימר, כתבות, קהילה
+   ============================================================ */
+.pl-section-label { display: flex; align-items: center; gap: 6px; }
+.pl-home-rich { animation: none; }
+.pl-block { margin-top: 18px; }
+
+/* אנימציית כניסה מדורגת (בטוחה ל-reduced-motion) */
+.pl-home-rich .pl-stagger { animation: plRise 0.5s cubic-bezier(0.2,0.8,0.3,1) both; }
+.pl-home-rich .pl-stagger:nth-child(1) { animation-delay: 0.02s; }
+.pl-home-rich .pl-stagger:nth-child(2) { animation-delay: 0.07s; }
+.pl-home-rich .pl-stagger:nth-child(3) { animation-delay: 0.12s; }
+.pl-home-rich .pl-stagger:nth-child(4) { animation-delay: 0.17s; }
+.pl-home-rich .pl-stagger:nth-child(5) { animation-delay: 0.22s; }
+.pl-home-rich .pl-stagger:nth-child(6) { animation-delay: 0.27s; }
+.pl-home-rich .pl-stagger:nth-child(7) { animation-delay: 0.32s; }
+.pl-home-rich .pl-stagger:nth-child(8) { animation-delay: 0.37s; }
+.pl-home-rich .pl-stagger:nth-child(9) { animation-delay: 0.42s; }
+.pl-home-rich .pl-stagger:nth-child(n+10) { animation-delay: 0.46s; }
+@keyframes plRise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pl-home-rich .pl-stagger { animation: none; }
+  .pl-count-unit b, .pl-badge.earned { transition: none; }
+}
+
+/* רצועת רמה + XP + רצף (בתוך ההירו) */
+.pl-level { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.14); }
+.pl-level-badge {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 900; font-size: 20px; color: #fff;
+  background: linear-gradient(150deg, var(--accent-fill), var(--accent-press));
+  box-shadow: 0 4px 14px rgba(232,118,58,0.4);
+}
+.pl-level-body { flex: 1; min-width: 0; }
+.pl-level-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pl-level-top strong { color: #fff; font-size: 14px; font-weight: 700; }
+.pl-streak { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; font-size: 13px; color: #FFB877; }
+.pl-xp-bar { height: 8px; border-radius: var(--radius-full); background: rgba(255,255,255,0.16); overflow: hidden; margin: 7px 0 5px; }
+.pl-xp-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #FFC978, var(--accent)); transition: width 0.6s cubic-bezier(0.2,0.8,0.3,1); }
+.pl-level .muted { color: rgba(255,255,255,0.7) !important; }
+
+/* טיימר ספירה לאחור לאימון הבא */
+.pl-count {
+  display: block; width: 100%; text-align: start; cursor: pointer;
+  background: linear-gradient(135deg, var(--c-blue-bg), var(--surface));
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; margin-bottom: 4px; box-shadow: var(--shadow-sm);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.pl-count:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.pl-count-empty { cursor: default; }
+.pl-count-empty:hover { transform: none; box-shadow: var(--shadow-sm); }
+.pl-count-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--c-blue); }
+.pl-count-empty strong { display: block; margin: 6px 0 2px; color: var(--text); font-size: 16px; }
+.pl-count-clock { display: flex; gap: 8px; margin: 10px 0 6px; }
+.pl-count-unit { display: flex; flex-direction: column; align-items: center; min-width: 52px; padding: 8px 6px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
+.pl-count-unit b { font-family: var(--font-display); font-weight: 900; font-size: 24px; color: var(--text); font-variant-numeric: tabular-nums; }
+.pl-count-unit i { font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+.pl-count-live { display: block; margin: 8px 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--c-green); }
+
+/* טבעת נוכחות */
+.pl-tile-ring { width: 62px; height: 62px; position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.pl-ring { position: relative; width: 62px; height: 62px; }
+.pl-ring svg { transform: rotate(-90deg); }
+.pl-ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+.pl-ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.7s cubic-bezier(0.2,0.8,0.3,1); }
+.pl-ring-val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 15px; color: var(--text); }
+
+/* תגי הישגים */
+.pl-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+.pl-badge {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 12px 8px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface); opacity: 0.55; filter: grayscale(0.6);
+  transition: transform 0.15s, opacity 0.2s;
+}
+.pl-badge.earned { opacity: 1; filter: none; border-color: var(--accent-soft); background: var(--accent-soft); }
+.pl-badge.earned:hover { transform: translateY(-2px); }
+.pl-badge-ic { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); }
+.pl-badge.earned .pl-badge-ic { background: linear-gradient(150deg, var(--accent-fill), var(--accent-press)); color: #fff; }
+.pl-badge-lbl { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.2; }
+
+/* ציטוט */
+.pl-quote { position: relative; margin: 0; padding: 18px 20px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--accent-soft), var(--surface)); border: 1px solid var(--border); }
+.pl-quote-mark { position: absolute; top: 4px; inset-inline-start: 12px; font-size: 48px; line-height: 1; color: var(--accent); opacity: 0.28; font-family: var(--font-display); }
+.pl-quote p { margin: 0 0 8px; font-size: 15.5px; font-weight: 600; line-height: 1.55; color: var(--text); position: relative; z-index: 1; }
+.pl-quote cite { font-style: normal; font-size: 13px; font-weight: 700; color: var(--accent-strong); }
+
+/* כתבות */
+.pl-news { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.pl-news-card { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); transition: transform 0.15s; }
+.pl-news-card:hover { transform: translateY(-2px); }
+.pl-news-thumb { flex-shrink: 0; width: 64px; height: 64px; border-radius: var(--radius-sm); background: var(--surface-alt) center/cover no-repeat; }
+.pl-news-body { min-width: 0; }
+.pl-news-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.pl-news-src { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+
+/* CTA משני */
+.pl-cta-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+
+/* מסך נעול (דורש קבוצה) */
+.pl-locked { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--radius-lg); background: var(--surface-alt); border: 1px dashed var(--border-hover); margin-bottom: 8px; }
+.pl-locked-ic { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; background: var(--surface); color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
+.pl-locked p { margin: 0; font-size: 14px; }
+.pl-join-compact { padding: 8px 0 0; }
+.pl-join-compact .pl-join-card { padding: 20px 18px; box-shadow: none; }
+.pl-join-compact .pl-join-ic { width: 48px; height: 48px; margin-bottom: 10px; }
+.nav-lock { margin-inline-start: auto; opacity: 0.5; }
+
+/* צ'אט קהילת שחקנים */
+.pl-chat-screen { display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 420px; }
+.pl-chat-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.pl-chat-badge { width: 42px; height: 42px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent-strong); display: inline-flex; align-items: center; justify-content: center; }
+.pl-chat-box { flex: 1; min-height: 0; display: flex; }
+.pl-chat-box .chat { height: 100%; flex: 1; }
 .tm-star:not(.on) { color: var(--text-muted); }
