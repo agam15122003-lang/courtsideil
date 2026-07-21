@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
-  Menu, X, Moon, Check, Clock, Star, CalendarDays, Users2,
+  Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, Send,
   ShieldCheck, Hourglass, Trophy, ChevronLeft, Flame, Lock, Newspaper,
-  Sparkles, Zap, Crown, CalendarCheck, Timer,
+  Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -14,13 +15,14 @@ import Avatar from './Avatar'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
+import CoachChat from './CoachChat'
 import { requestJoinByCode, myMemberships } from './players'
-import { playerProgress } from './gamify'
-import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY } from './constants'
+import { playerProgress, computeStreak } from './gamify'
+import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId } from './youtube'
 
-// אייקונים לתגי המשחוק (לפי id שמגיע מ-gamify.js)
 const BADGE_ICONS = { Sparkles, Flame, Zap, Crown, CalendarCheck, Trophy, ShieldCheck }
+const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
 
@@ -30,6 +32,10 @@ function timeAgo(ts) {
   const hrs = Math.round(min / 60)
   if (hrs < 24) return L(`לפני ${hrs} שע'`, `${hrs}h`)
   return new Date(ts).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })
+}
+
+function withinDays(ts, days) {
+  return (Date.now() - new Date(ts).getTime()) <= days * 86400000
 }
 
 // ---------- מסך/כרטיס הצטרפות לקבוצה (קוד מהמאמן) ----------
@@ -109,7 +115,7 @@ function LockedFeature({ session, title, desc, onJoined }) {
 
 // ---------- טיימר ספירה לאחור לאימון הבא ----------
 function Countdown({ membership, onNavigate }) {
-  const [next, setNext] = useState(undefined) // undefined=טוען, null=אין
+  const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -181,15 +187,15 @@ function Countdown({ membership, onNavigate }) {
 }
 
 // ---------- טבעת נוכחות ----------
-function AttendanceRing({ pct }) {
+function AttendanceRing({ pct, size = 62 }) {
   const has = pct != null
   const val = has ? pct : 0
   const r = 26, c = 2 * Math.PI * r
   const off = c * (1 - val / 100)
   const tone = val >= 80 ? 'var(--c-green)' : val >= 50 ? 'var(--c-orange)' : 'var(--c-red)'
   return (
-    <div className="pl-ring">
-      <svg viewBox="0 0 64 64" width="62" height="62" aria-hidden="true">
+    <div className="pl-ring" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
         <circle cx="32" cy="32" r={r} className="pl-ring-bg" />
         <circle cx="32" cy="32" r={r} className="pl-ring-fg" style={{ stroke: has ? tone : 'var(--border)', strokeDasharray: c, strokeDashoffset: has ? off : c }} />
       </svg>
@@ -234,14 +240,36 @@ function BadgeRow({ badges }) {
   )
 }
 
-// ---------- כתבות כדורסל (קומפקטי, שיתוף מטמון עם דף הבית של המאמן) ----------
+// ---------- כרטיס המשימה השבועית ----------
+function WeeklyMission({ done }) {
+  const pct = Math.min(100, Math.round((done / WEEKLY_TARGET) * 100))
+  const complete = done >= WEEKLY_TARGET
+  return (
+    <section className="pl-block">
+      <div className={complete ? 'pl-mission done' : 'pl-mission'}>
+        <span className="pl-mission-ic"><Target size={22} /></span>
+        <div className="pl-mission-body">
+          <div className="pl-mission-top">
+            <strong>{L('המשימה השבועית', 'Weekly mission')}</strong>
+            <span>{done}/{WEEKLY_TARGET}</span>
+          </div>
+          <div className="pl-mission-bar"><span style={{ width: `${pct}%` }} /></div>
+          <span className="muted small">
+            {complete ? L('כל הכבוד! השלמת את המשימה 🎉', 'Awesome! Mission complete 🎉')
+                      : L(`בצעו ${WEEKLY_TARGET} תרגילים השבוע — נשארו ${WEEKLY_TARGET - done}`, `Do ${WEEKLY_TARGET} drills this week — ${WEEKLY_TARGET - done} to go`)}
+          </span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---------- כתבות כדורסל (קומפקטי) ----------
 function PlayerNews() {
   const [items, setItems] = useState(null)
-
   useEffect(() => {
     let alive = true
     ;(async () => {
-      // ננסה מטמון קיים קודם (אותו מפתח כמו דף הבית)
       try {
         const raw = localStorage.getItem(NEWS_CACHE_KEY)
         if (raw) {
@@ -249,7 +277,6 @@ function PlayerNews() {
           if (parsed?.items?.length) { if (alive) setItems(parsed.items.slice(0, 4)); return }
         }
       } catch { /* ignore */ }
-      // אחרת נביא קלות משני מקורות
       try {
         const out = []
         for (const src of NEWS_SOURCES.slice(0, 2)) {
@@ -258,9 +285,7 @@ function PlayerNews() {
             res.items.slice(0, 3).forEach((it, i) => {
               const t = String(it.title || '').split(' - ')
               out.push({
-                title: t[0],
-                source: t[1] || src.name,
-                link: it.link,
+                title: t[0], source: t[1] || src.name, link: it.link,
                 image: it.thumbnail || it.enclosure?.link || NEWS_FALLBACK_IMAGES[(out.length + i) % NEWS_FALLBACK_IMAGES.length],
               })
             })
@@ -354,10 +379,11 @@ function AssignmentCard({ a, doneSet, onToggleDone }) {
   )
 }
 
-// ---------- מסך: התרגילים שלי ----------
+// ---------- מסך: התרגילים שלי (עם סינון והתקדמות) ----------
 function MyAssignments({ session }) {
   const [items, setItems] = useState(null)
   const [doneSet, setDoneSet] = useState(new Set())
+  const [filter, setFilter] = useState('open') // open | all | done
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -385,25 +411,37 @@ function MyAssignments({ session }) {
   }
 
   if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
-  const open = items.filter((a) => !doneSet.has(a.id))
-  const done = items.filter((a) => doneSet.has(a.id))
+  const openCount = items.filter((a) => !doneSet.has(a.id)).length
+  const doneCount = items.length - openCount
+  const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0
+  const shown = items.filter((a) => filter === 'all' ? true : filter === 'done' ? doneSet.has(a.id) : !doneSet.has(a.id))
 
   return (
     <div className="pl-screen">
       <h2 className="pl-h2">{L('התרגילים שלי', 'My drills')}</h2>
+      {items.length > 0 && (
+        <div className="pl-progress-head">
+          <div className="pl-progress-bar"><span style={{ width: `${pct}%` }} /></div>
+          <span className="muted small">{L(`בוצעו ${doneCount} מתוך ${items.length}`, `${doneCount} of ${items.length} done`)}</span>
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="pl-filter-tabs">
+          {[['open', L('לביצוע', 'To do'), openCount], ['done', L('בוצעו', 'Done'), doneCount], ['all', L('הכל', 'All'), items.length]].map(([k, lbl, n]) => (
+            <button key={k} className={filter === k ? 'pl-tab active' : 'pl-tab'} onClick={() => setFilter(k)}>{lbl} · {n}</button>
+          ))}
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Dumbbell size={26} /></span>
           <div className="empty-title">{L('עוד לא קיבלת תרגילים', 'No drills yet')}</div>
           <p className="muted small">{L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד! 💪', 'No open drills — nice! 💪')}</p>
       ) : (
-        <>
-          {open.length > 0 && <p className="pl-section-label">{L('לביצוע', 'To do')} · {open.length}</p>}
-          {open.map((a) => <AssignmentCard key={a.id} a={a} doneSet={doneSet} onToggleDone={toggleDone} />)}
-          {done.length > 0 && <p className="pl-section-label" style={{ marginTop: 18 }}>{L('בוצעו', 'Done')} · {done.length}</p>}
-          {done.map((a) => <AssignmentCard key={a.id} a={a} doneSet={doneSet} onToggleDone={toggleDone} />)}
-        </>
+        shown.map((a) => <AssignmentCard key={a.id} a={a} doneSet={doneSet} onToggleDone={toggleDone} />)
       )}
     </div>
   )
@@ -424,9 +462,21 @@ function MyFeedback({ session }) {
   }, [session.user.id])
 
   if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  const rated = items.filter((f) => f.rating > 0)
+  const avg = rated.length ? (rated.reduce((s, f) => s + f.rating, 0) / rated.length) : null
+
   return (
     <div className="pl-screen">
       <h2 className="pl-h2">{L('המשוב שלי', 'My feedback')}</h2>
+      {avg != null && (
+        <div className="pl-fb-summary">
+          <span className="pl-fb-avg">{avg.toFixed(1)}</span>
+          <div>
+            <div className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} fill={n <= Math.round(avg) ? 'currentColor' : 'none'} />)}</div>
+            <span className="muted small">{L(`דירוג ממוצע · ${items.length} משובים`, `Average rating · ${items.length} notes`)}</span>
+          </div>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><MessageSquareHeart size={26} /></span>
@@ -457,7 +507,7 @@ function MyFeedback({ session }) {
 }
 
 // ---------- מסך: הקבוצה שלי ----------
-function MyTeam({ membership }) {
+function MyTeam({ membership, onNavigate }) {
   const [teammates, setTeammates] = useState([])
   const [next, setNext] = useState(null)
 
@@ -490,10 +540,11 @@ function MyTeam({ membership }) {
       <h2 className="pl-h2">{L('הקבוצה שלי', 'My team')}</h2>
       <div className="pl-team-hero">
         <span className="pl-team-badge"><Trophy size={20} /></span>
-        <div>
+        <div style={{ flex: 1 }}>
           <strong>{trTeam(membership.team)}</strong>
           <span className="muted small">{L('מאמן: ', 'Coach: ')}{coachName(membership.coach)}{membership.coach?.club ? ` · ${membership.coach.club}` : ''}</span>
         </div>
+        <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('הודעה', 'Message')}</button>
       </div>
 
       {next && (
@@ -525,42 +576,85 @@ function MyTeam({ membership }) {
   )
 }
 
-// ---------- מסך: וידאו ----------
+// ---------- מסך: וידאו (סינון לפי קטגוריה + נגן מוטמע) ----------
 function PlayerVideos() {
   const [videos, setVideos] = useState(null)
+  const [cat, setCat] = useState('all')
+  const [playing, setPlaying] = useState(null) // {id(yt), title}
+
   useEffect(() => {
     ;(async () => {
       const { data } = await supabase
         .from('drill_videos')
         .select('id, title, category, url, note')
         .order('created_at', { ascending: false })
-        .limit(60)
+        .limit(120)
       setVideos(data || [])
     })()
   }, [])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setPlaying(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   if (videos === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+
+  const cats = ['all', ...VIDEO_CATEGORIES.filter((c) => videos.some((v) => v.category === c))]
+  const shown = cat === 'all' ? videos : videos.filter((v) => v.category === cat)
+
   return (
     <div className="pl-screen">
       <h2 className="pl-h2">{L('סרטוני תרגול', 'Training videos')}</h2>
       {videos.length === 0 ? (
         <p className="muted small">{L('אין סרטונים כרגע.', 'No videos right now.')}</p>
       ) : (
-        <div className="pl-vid-grid">
-          {videos.map((v) => {
-            const yt = getYouTubeId(v.url)
-            return (
-              <a key={v.id} className="pl-vid" href={safeUrl(v.url) || '#'} target="_blank" rel="noopener noreferrer">
-                <span className="pl-vid-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}>
-                  <span className="pl-vid-play">▶</span>
-                </span>
-                <span className="pl-vid-body">
-                  <span className="pl-vid-title">{v.title}</span>
-                  {v.category && <span className="pl-vid-cat">{v.category}</span>}
-                </span>
-              </a>
-            )
-          })}
-        </div>
+        <>
+          <div className="pl-cat-chips">
+            {cats.map((c) => (
+              <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'} onClick={() => setCat(c)}>
+                {c === 'all' ? L('הכל', 'All') : c}
+              </button>
+            ))}
+          </div>
+          <div className="pl-vid-grid">
+            {shown.map((v) => {
+              const yt = getYouTubeId(v.url)
+              return (
+                <button key={v.id} className="pl-vid" onClick={() => yt ? setPlaying({ id: yt, title: v.title }) : window.open(safeUrl(v.url) || '#', '_blank')}>
+                  <span className="pl-vid-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}>
+                    <span className="pl-vid-play"><Play size={16} fill="#fff" /></span>
+                  </span>
+                  <span className="pl-vid-body">
+                    <span className="pl-vid-title">{v.title}</span>
+                    {v.category && <span className="pl-vid-cat" data-cat={v.category}>{v.category}</span>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {playing && createPortal(
+        <div className="pl-video-modal" onClick={() => setPlaying(null)}>
+          <div className="pl-video-inner" onClick={(e) => e.stopPropagation()}>
+            <div className="pl-video-bar">
+              <span>{playing.title}</span>
+              <button className="icon-btn" onClick={() => setPlaying(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+            </div>
+            <div className="pl-video-frame">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${playing.id}?autoplay=1&rel=0`}
+                title={playing.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -572,10 +666,11 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
   useEffect(() => {
     ;(async () => {
-      const [asg, compl, fb, att] = await Promise.all([
+      const [asg, compl, fbCount, fbLatest, att] = await Promise.all([
         supabase.from('player_assignments').select('id'),
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
         supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
+        supabase.from('player_feedback').select('content, rating, created_at, coach:profiles!coach_id(first_name, last_name, avatar_url)').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
         supabase.from('practice_attendance').select('status'),
       ])
       const doneRows = compl.data || []
@@ -585,10 +680,10 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
+      const weekly = doneRows.filter((c) => c.done_at && withinDays(c.done_at, 7)).length
       setStats({
-        open,
-        fb: fb.count || 0,
-        attendancePct,
+        open, fb: fbCount.count || 0, attendancePct, weekly,
+        latestFb: (fbLatest.data && fbLatest.data[0]) || null,
         progress: playerProgress({
           completedCount: doneRows.length,
           completionDates: doneRows.map((c) => c.done_at).filter(Boolean),
@@ -637,6 +732,29 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         </button>
       </div>
 
+      <div className="pl-stagger"><WeeklyMission done={stats?.weekly || 0} /></div>
+
+      {membership && (
+        <button className="pl-coach-cta pl-stagger" onClick={() => setView('coach')}>
+          <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={40} />
+          <span className="pl-coach-cta-body">
+            <strong>{L('שלח הודעה למאמן', 'Message your coach')}</strong>
+            <span className="muted small">{coachName(membership.coach)}</span>
+          </span>
+          <Send size={18} />
+        </button>
+      )}
+
+      {stats?.latestFb && (
+        <button className="pl-fb-preview pl-stagger" onClick={() => setView('feedback')}>
+          <span className="pl-fb-preview-label"><MessageSquareHeart size={14} /> {L('משוב אחרון מהמאמן', 'Latest coach feedback')}</span>
+          {stats.latestFb.rating > 0 && (
+            <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= stats.latestFb.rating ? 'currentColor' : 'none'} />)}</span>
+          )}
+          <p>{stats.latestFb.content}</p>
+        </button>
+      )}
+
       <section className="pl-block pl-stagger">
         <p className="pl-section-label"><Trophy size={15} /> {L('ההישגים שלי', 'My badges')}</p>
         <BadgeRow badges={progress.badges} />
@@ -657,19 +775,99 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   )
 }
 
+// ---------- מסך: פרופיל (עם סטטיסטיקות) ----------
+function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setView }) {
+  const [st, setSt] = useState(null)
+  useEffect(() => {
+    ;(async () => {
+      const [compl, att] = await Promise.all([
+        supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
+        supabase.from('practice_attendance').select('status'),
+      ])
+      const doneRows = compl.data || []
+      const attRows = att.data || []
+      const attTotal = attRows.length
+      const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
+      const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
+      const progress = playerProgress({ completedCount: doneRows.length, completionDates: doneRows.map((c) => c.done_at).filter(Boolean), attendancePct })
+      setSt({ done: doneRows.length, streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)), attendancePct, progress, earned: progress.badges.filter((b) => b.earned).length })
+    })()
+  }, [session.user.id])
+
+  return (
+    <div className="pl-screen">
+      <div className="pl-profile-head">
+        <Avatar name={`${profile.first_name} ${profile.last_name}`} url={profile.avatar_url} size={64} />
+        <div>
+          <h2 style={{ margin: 0 }}>{profile.first_name} {profile.last_name}</h2>
+          <span className="muted small">
+            {L('שחקן', 'Player')}
+            {profile.position ? ` · ${profile.position}` : ''}
+            {profile.birth_year ? ` · ${L('שנתון', 'b.')} ${profile.birth_year}` : ''}
+          </span>
+        </div>
+      </div>
+
+      {st && (
+        <div className="pl-stat-grid">
+          <div className="pl-stat"><b>{st.progress.level}</b><span>{L('רמה', 'Level')}</span></div>
+          <div className="pl-stat"><b>{st.done}</b><span>{L('תרגילים', 'Drills')}</span></div>
+          <div className="pl-stat"><b>{st.streak}🔥</b><span>{L('רצף', 'Streak')}</span></div>
+          <div className="pl-stat"><b>{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attend.')}</span></div>
+        </div>
+      )}
+
+      <button className="btn-soft" onClick={onEdit}>{L('עריכת פרטים', 'Edit details')}</button>
+
+      {st && (
+        <>
+          <p className="pl-section-label" style={{ marginTop: 20 }}><Trophy size={15} /> {L(`הישגים · ${st.earned}/${st.progress.badges.length}`, `Badges · ${st.earned}/${st.progress.badges.length}`)}</p>
+          <BadgeRow badges={st.progress.badges} />
+        </>
+      )}
+
+      <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הקבוצות שלי', 'My teams')}</p>
+      {memberships.length === 0 ? (
+        <JoinTeam session={session} onJoined={onJoined} compact />
+      ) : (
+        <>
+          <ul className="pl-memberships">
+            {memberships.map((m) => (
+              <li key={m.id} className={`pl-memb st-${m.status}`}>
+                <span className="pl-memb-team">{trTeam(m.team)}</span>
+                <span className="muted small">{coachName(m.coach)}</span>
+                <span className="pl-memb-status">
+                  {m.status === 'approved' ? L('מאושר ✓', 'Approved ✓') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button className="btn-soft" style={{ marginTop: 12 }} onClick={() => setView('home')}>
+            {L('הצטרפות לקבוצה נוספת', 'Join another team')}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------- מסך: וידאו (רכיב עזר לניווט) ----------
+// (PlayerVideos מוגדר למעלה)
+
 // ============================================================
 // האפליקציה של השחקן — מעטפת + ניווט
 // ============================================================
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
+  { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['משוב', 'Feedback'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
   { id: 'community', label: ['קהילה', 'Community'], Icon: Users2 },
   { id: 'team', label: ['הקבוצה שלי', 'My team'], Icon: Users, team: true },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
-const PLAYER_BOTTOM = ['home', 'drills', 'community', 'feedback', 'profile']
+const PLAYER_BOTTOM = ['home', 'drills', 'coach', 'community', 'profile']
 
 export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const [view, setView] = useState('home')
@@ -687,6 +885,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const approved = (memberships || []).filter((m) => m.status === 'approved')
   const membership = approved[0] || null
   const hasTeam = approved.length > 0
+  const coach = membership ? { ...membership.coach, id: membership.coach_id } : null
   const signOut = () => supabase.auth.signOut()
 
   if (memberships === null) {
@@ -709,6 +908,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
     }
     switch (view) {
       case 'drills': return <MyAssignments session={session} />
+      case 'coach':
+        return hasTeam
+          ? <CoachChat session={session} coach={coach} />
+          : <LockedFeature session={session} onJoined={loadMemberships}
+              title={L('המאמן שלי', 'My coach')}
+              desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
       case 'feedback':
         return hasTeam
           ? <MyFeedback session={session} />
@@ -719,48 +924,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       case 'community': return <PlayerCommunity session={session} profile={profile} />
       case 'team':
         return hasTeam
-          ? <MyTeam membership={membership} />
+          ? <MyTeam membership={membership} onNavigate={setView} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('הקבוצה שלי', 'My team')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
-      case 'profile': return (
-        <div className="pl-screen">
-          <div className="pl-profile-head">
-            <Avatar name={`${profile.first_name} ${profile.last_name}`} url={profile.avatar_url} size={64} />
-            <div>
-              <h2 style={{ margin: 0 }}>{profile.first_name} {profile.last_name}</h2>
-              <span className="muted small">
-                {L('שחקן', 'Player')}
-                {profile.position ? ` · ${profile.position}` : ''}
-                {profile.birth_year ? ` · ${L('שנתון', 'b.')} ${profile.birth_year}` : ''}
-              </span>
-            </div>
-          </div>
-          <button className="btn-soft" onClick={() => setEditing(true)}>{L('עריכת פרטים', 'Edit details')}</button>
-
-          <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הקבוצות שלי', 'My teams')}</p>
-          {memberships.length === 0 ? (
-            <JoinTeam session={session} onJoined={loadMemberships} compact />
-          ) : (
-            <>
-              <ul className="pl-memberships">
-                {memberships.map((m) => (
-                  <li key={m.id} className={`pl-memb st-${m.status}`}>
-                    <span className="pl-memb-team">{trTeam(m.team)}</span>
-                    <span className="muted small">{coachName(m.coach)}</span>
-                    <span className="pl-memb-status">
-                      {m.status === 'approved' ? L('מאושר ✓', 'Approved ✓') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <button className="btn-soft" style={{ marginTop: 12 }} onClick={() => { setView('home') }}>
-                {L('הצטרפות לקבוצה נוספת', 'Join another team')}
-              </button>
-            </>
-          )}
-        </div>
-      )
+      case 'profile':
+        return <PlayerProfile session={session} profile={profile} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} setView={setView} />
       default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} />
     }
   }
@@ -774,7 +943,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
-          <Notifications session={session} onNavigate={(v) => setView(v === 'community' || v === 'messages' ? 'community' : 'drills')} />
+          <Notifications session={session} onNavigate={(v) => setView(v === 'messages' ? 'coach' : v === 'community' ? 'community' : 'drills')} />
           <LanguageToggle /><ThemeToggle />
         </div>
       </header>
@@ -784,7 +953,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         <div className="sidebar-brand">
           <svg viewBox="0 0 100 100" width="30" height="30"><circle cx="42" cy="55" r="22" fill="#E8763A" /><circle cx="42" cy="55" r="9" fill="#fff" /><path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" /><circle cx="78" cy="30" r="6" fill="#E8763A" /></svg>
           <span>CourtSide</span>
-          <span className="sidebar-bell"><Notifications session={session} onNavigate={() => setView('drills')} /></span>
+          <span className="sidebar-bell"><Notifications session={session} onNavigate={() => setView('coach')} /></span>
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>
