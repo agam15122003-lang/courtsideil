@@ -11,7 +11,6 @@ import Avatar from './Avatar'
 export default function TeamConnect({ coachId, team, onApproved }) {
   const [code, setCode] = useState(null)
   const [reqs, setReqs] = useState([])
-  const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const loadReqs = useCallback(async () => {
@@ -51,17 +50,15 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   if (!code && reqs.length === 0) return null
 
   return (
-    <div className="tc-panel">
-      <button className="tc-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+    <div className="tc-panel tc-open">
+      <div className="tc-head tc-head-static">
         <span className="tc-head-l"><UserPlus size={16} /> {L('חיבור שחקנים לקבוצה', 'Connect players')}</span>
         <span className="tc-head-r">
           {reqs.length > 0 && <span className="tc-badge">{reqs.length}</span>}
-          <span className="muted small">{open ? L('סגור', 'Hide') : L('הצג', 'Show')}</span>
         </span>
-      </button>
+      </div>
 
-      {open && (
-        <div className="tc-body">
+      <div className="tc-body">
           {code && (
             <div className="tc-code-block">
               <span className="tc-code-label"><KeyRound size={14} /> {L(`קוד ההצטרפות ל${trTeam(team)}`, `Join code for ${trTeam(team)}`)}</span>
@@ -93,8 +90,7 @@ export default function TeamConnect({ coachId, team, onApproved }) {
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
