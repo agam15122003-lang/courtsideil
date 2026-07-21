@@ -9,6 +9,7 @@ import Home from './Home'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
 import Notifications from './Notifications'
+import PlayerDashboard from './PlayerDashboard'
 import { useLang, L } from './i18n'
 
 // מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
@@ -174,9 +175,16 @@ export default function Dashboard({ session }) {
     if (outcome === 'accepted') setInstallEvt(null)
   }
 
+  const isPlayer = profile?.role === 'player'
+  // שחקן: מספיק שם. מאמן: שם + מועדון.
   const isComplete =
-    profile && profile.first_name && profile.last_name && profile.club
+    profile && profile.first_name && profile.last_name && (isPlayer || profile.club)
   const showForm = editing || (!loading && !isComplete)
+
+  // שחקן מלא → האפליקציה של השחקן (מעטפת נפרדת)
+  if (!loading && !showForm && isPlayer) {
+    return <PlayerDashboard session={session} profile={profile} onProfileReload={loadProfile} />
+  }
 
   return (
     <div className="layout">
@@ -355,7 +363,7 @@ export default function Dashboard({ session }) {
               onConsumeInitialTab={() => setFinderTab(null)}
             />
           ) : view === 'drills' ? (
-            <DrillLibrary session={session} />
+            <DrillLibrary session={session} profile={profile} />
           ) : view === 'plans' ? (
             <TrainingPlans session={session} />
           ) : view === 'schedule' ? (

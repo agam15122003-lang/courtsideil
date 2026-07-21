@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, Phone, Building2, Users2, Camera } from 'lucide-react'
+import { User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
@@ -18,14 +18,18 @@ const TEAM_OPTIONS = AGE_GROUPS.flatMap((age) => GENDERS.map((g) => teamLabel(ag
 //   onSaved  - פונקציה שתופעל אחרי שמירה מוצלחת
 //   onCancel - פונקציה לכפתור "ביטול" (אופציונלי — מוצג רק אם קיים)
 export default function ProfileForm({ session, profile, onSaved, onCancel }) {
+  const [role, setRole] = useState(profile?.role || '') // '' = טרם נבחר, 'coach' | 'player'
   const [firstName, setFirstName] = useState(profile?.first_name || '')
   const [lastName, setLastName] = useState(profile?.last_name || '')
   const [club, setClub] = useState(profile?.club || '')
   const [phone, setPhone] = useState(profile?.phone || '')
   const [phonePublic, setPhonePublic] = useState(!!profile?.phone_public)
   const [teams, setTeams] = useState(profile?.age_groups || [])
+  const [birthYear, setBirthYear] = useState(profile?.birth_year ? String(profile.birth_year) : '')
+  const [position, setPosition] = useState(profile?.position || '')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const isPlayer = role === 'player'
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -54,6 +58,9 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    if (isPlayer && !club.trim()) {
+      // מועדון לא חובה לשחקן — אבל אם ריק נשמור כמחרוזת ריקה
+    }
     setSaving(true)
 
     // שומרים את הקבוצות בסדר הקבוע (שכבה ואז מגדר), לא בסדר הלחיצה
@@ -71,19 +78,30 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
     // upsert ולא update: אם שורת הפרופיל חסרה (טריגר ההרשמה נכשל),
     // update על 0 שורות "מצליח" בלי לשמור — ויוצר לולאת שמירה אינסופית.
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: session.user.id,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        club: club.trim(),
-        phone: phone.trim() || null,
-        phone_public: phonePublic,
-        avatar_url: avatarUrl || null,
-        age_groups: orderedTeams,
-        updated_at: new Date().toISOString(),
-      })
+    const payload = {
+      id: session.user.id,
+      role: role || 'coach',
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      club: club.trim(),
+      phone: phone.trim() || null,
+      phone_public: phonePublic,
+      avatar_url: avatarUrl || null,
+      updated_at: new Date().toISOString(),
+    }
+    if (isPlayer) {
+      payload.birth_year = birthYear ? Number(birthYear) : null
+      payload.position = position.trim() || null
+      payload.age_groups = [] // לשחקן אין "קבוצות שאני מאמן"
+    } else {
+      payload.age_groups = orderedTeams
+    }
+    // גיבוי: אם עמודות התפקיד עוד לא קיימות במסד — שומרים בלי לחסום
+    let { error } = await supabase.from('profiles').upsert(payload)
+    if (error && /column .* does not exist|could not find the .* column/i.test(error.message || '')) {
+      const { role: _r, birth_year: _b, position: _p, ...basic } = payload
+      ;({ error } = await supabase.from('profiles').upsert(basic))
+    }
 
     setSaving(false)
 
@@ -95,13 +113,46 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     }
   }
 
+  // שלב ראשון למשתמש חדש — בוחרים מי אתם (ברור ופשוט לילדים ולנוער)
+  const isNew = !profile?.first_name
+  if (isNew && !role) {
+    return (
+      <div className="welcome-card profile-form">
+        <div className="form-head" style={{ textAlign: 'center' }}>
+          <span className="welcome-badge">{L('ברוכים הבאים ל-CourtSide', 'Welcome to CourtSide')}</span>
+          <h2>{L('מי אתם?', 'Who are you?')}</h2>
+          <p className="muted small">{L('בחרו כדי שנתאים לכם את האפליקציה.', 'Pick so we can set up the right app for you.')}</p>
+        </div>
+        <div className="role-picker">
+          <button type="button" className="role-card" onClick={() => setRole('coach')}>
+            <span className="role-ic coach"><ClipboardList size={30} /></span>
+            <strong>{L('אני מאמן/ת', "I'm a coach")}</strong>
+            <span className="muted small">{L('תרגילים, תוכניות אימון, ניהול קבוצה וקהילה', 'Drills, plans, team management and community')}</span>
+          </button>
+          <button type="button" className="role-card" onClick={() => setRole('player')}>
+            <span className="role-ic player"><Dumbbell size={30} /></span>
+            <strong>{L('אני שחקן/ית', "I'm a player")}</strong>
+            <span className="muted small">{L('מתחברים לקבוצה ומקבלים תרגילים ומשוב מהמאמן', 'Join your team and get drills and feedback from your coach')}</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="welcome-card profile-form">
+      {isNew && (
+        <button type="button" className="link-button" style={{ marginBottom: 8 }} onClick={() => setRole('')}>
+          {L('← שינוי סוג משתמש', '← Change who you are')}
+        </button>
+      )}
       <div className="form-head">
-        {!profile?.first_name && <span className="welcome-badge">{L('שלב אחרון בהרשמה', 'Final signup step')}</span>}
-        <h2>{profile?.first_name ? L('עריכת הפרופיל', 'Edit profile') : L('ברוך הבא! נשלים את הפרטים', 'Welcome! Let’s complete your details')}</h2>
+        {isNew && <span className="welcome-badge">{isPlayer ? L('הרשמת שחקן', 'Player signup') : L('שלב אחרון בהרשמה', 'Final signup step')}</span>}
+        <h2>{profile?.first_name ? L('עריכת הפרופיל', 'Edit profile') : isPlayer ? L('נעים להכיר, שחקן!', 'Nice to meet you, player!') : L('ברוך הבא! נשלים את הפרטים', 'Welcome! Let’s complete your details')}</h2>
         <p className="muted small">
-          {profile?.first_name
+          {isPlayer
+            ? L('כמה פרטים קצרים, ואז מתחברים לקבוצה עם קוד מהמאמן.', 'A few quick details, then join your team with a code from your coach.')
+            : profile?.first_name
             ? L('הפרטים האלה עוזרים למאמנים אחרים למצוא אותך, לתאם משחקי אימון וליצור קשר.', 'These details help other coaches find you, set up scrimmages, and get in touch.')
             : L('כדי להיכנס לקהילה צריך להשלים את הפרטים — זה ייקח דקה, ויעזור למאמנים אחרים למצוא אותך.', 'To join the community, complete your details — it takes a minute and helps other coaches find you.')}
         </p>
@@ -171,14 +222,15 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             <Building2 size={16} /> {L('המועדון שלי', 'My club')}
           </h3>
           <label className="pf-label">
-            {L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')} <span className="req-star" aria-hidden="true">*</span>
+            {L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')}
+            {!isPlayer && <span className="req-star" aria-hidden="true"> *</span>}
             <input
               type="text"
               list="clubs-list"
               value={club}
               onChange={(e) => setClub(e.target.value)}
-              placeholder={L('התחל להקליד...', 'Start typing...')}
-              required
+              placeholder={isPlayer ? L('לא חובה', 'Optional') : L('התחל להקליד...', 'Start typing...')}
+              required={!isPlayer}
             />
           </label>
           <datalist id="clubs-list">
@@ -225,20 +277,52 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
           </label>
         </section>
 
-        {/* קבוצות */}
-        <section className="form-section">
-          <h3 className="form-section-title">
-            <Users2 size={16} /> {L('הקבוצות שאני מאמן', 'Teams I coach')}
-          </h3>
-          <p className="muted small">{L('בחר את כל הקבוצות שאתה מאמן (שכבה ומגדר). אפשר לבחור כמה.', 'Select all the teams you coach (age group and gender). You can pick several.')}</p>
-          <MultiSelect
-            options={TEAM_OPTIONS}
-            selected={teams}
-            onToggle={toggleTeam}
-            renderLabel={trTeam}
-            placeholder={L('בחר קבוצות...', 'Select teams...')}
-          />
-        </section>
+        {/* קבוצות / פרטי שחקן */}
+        {isPlayer ? (
+          <section className="form-section">
+            <h3 className="form-section-title">
+              <Dumbbell size={16} /> {L('פרטי שחקן', 'Player details')}
+            </h3>
+            <div className="form-grid-2">
+              <label className="pf-label">
+                {L('שנת לידה', 'Birth year')}
+                <input
+                  type="number"
+                  dir="ltr"
+                  min="1970"
+                  max="2020"
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value)}
+                  placeholder={L('למשל 2010', 'e.g. 2010')}
+                />
+              </label>
+              <label className="pf-label">
+                {L('עמדה', 'Position')}
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  placeholder={L('רכז / קלע / כנף / סנטר', 'Guard / Forward / Center')}
+                />
+              </label>
+            </div>
+            <p className="muted small">{L('אחרי השמירה מתחברים לקבוצה עם קוד מהמאמן.', 'After saving you’ll join your team with a code from your coach.')}</p>
+          </section>
+        ) : (
+          <section className="form-section">
+            <h3 className="form-section-title">
+              <Users2 size={16} /> {L('הקבוצות שאני מאמן', 'Teams I coach')}
+            </h3>
+            <p className="muted small">{L('בחר את כל הקבוצות שאתה מאמן (שכבה ומגדר). אפשר לבחור כמה.', 'Select all the teams you coach (age group and gender). You can pick several.')}</p>
+            <MultiSelect
+              options={TEAM_OPTIONS}
+              selected={teams}
+              onToggle={toggleTeam}
+              renderLabel={trTeam}
+              placeholder={L('בחר קבוצות...', 'Select teams...')}
+            />
+          </section>
+        )}
 
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>

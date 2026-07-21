@@ -13722,3 +13722,206 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pn-add {
   margin-top: 10px;
 }
+
+/* ============================================================
+   פלטפורמת השחקנים — בחירת תפקיד, מעטפת, מסכים
+   ============================================================ */
+/* בחירת תפקיד בהרשמה */
+.role-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 20px;
+}
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.role-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+.role-card strong { font-size: 17px; color: var(--text); }
+.role-ic {
+  width: 62px; height: 62px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.role-ic.coach { background: var(--accent-soft); color: var(--accent-strong); }
+.role-ic.player { background: var(--c-blue-bg); color: var(--c-blue); }
+@media (max-width: 560px) { .role-picker { grid-template-columns: 1fr; } }
+
+/* צ'יפ תפקיד בסיידבר של השחקן */
+.pl-role-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  align-self: flex-start;
+  margin: 0 0 10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--c-blue-bg); color: var(--c-blue);
+  font-size: 12px; font-weight: 700;
+}
+
+.pl-screen { animation: rise 0.4s cubic-bezier(0.2,0.8,0.3,1); }
+.pl-h2 { font-family: var(--font-display); font-weight: 900; font-size: 22px; margin: 0 0 16px; color: var(--text); }
+.pl-section-label { font-size: 12.5px; font-weight: 800; letter-spacing: 0.04em; color: var(--text-muted); text-transform: uppercase; margin: 0 0 10px; }
+
+/* מסך הצטרפות לקבוצה */
+.pl-join { display: flex; justify-content: center; padding: 20px 0; }
+.pl-join-card {
+  width: min(460px, 100%); text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  padding: 32px 24px;
+}
+.pl-join-ic {
+  width: 62px; height: 62px; margin: 0 auto 14px; border-radius: 50%;
+  background: var(--c-blue-bg); color: var(--c-blue);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pl-join-card h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; }
+.pl-join-row { display: flex; gap: 10px; margin-top: 16px; }
+.pl-code-input {
+  flex: 1; text-align: center; font-size: 22px; font-weight: 800;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+.pl-waiting {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 16px; padding: 8px 14px; border-radius: var(--radius-full);
+  background: var(--c-orange-bg); color: var(--c-orange); font-size: 13px; font-weight: 600;
+}
+
+/* הירו של בית השחקן */
+.pl-hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(140deg, var(--hero-navy) 0%, var(--hero-navy-2) 58%, #2A3F66 100%);
+  border-radius: var(--radius-lg); padding: 26px; color: #fff; margin-bottom: 18px;
+}
+.pl-hero-court { position: absolute; inset-inline-end: 16px; top: 10px; font-size: 60px; opacity: 0.16; }
+.pl-hero-date { font-size: 13px; color: rgba(255,255,255,0.65); font-weight: 600; }
+.pl-hero h1 { margin: 6px 0 4px; font-family: var(--font-display); font-weight: 900; font-size: clamp(24px, 5vw, 34px); }
+.pl-hero p { margin: 0; color: rgba(255,255,255,0.8); font-size: 14px; }
+
+.pl-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pl-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 18px 10px; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.pl-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.pl-tile-ic { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.pl-tile-ic.blue { background: var(--c-blue-bg); color: var(--c-blue); }
+.pl-tile-ic.green { background: var(--c-green-bg); color: var(--c-green); }
+.pl-tile-ic.orange { background: var(--c-orange-bg); color: var(--c-orange); }
+.pl-tile-num { font-family: var(--font-display); font-weight: 900; font-size: 20px; color: var(--text); }
+.pl-tile-label { font-size: 12px; color: var(--text-muted); text-align: center; }
+.pl-cta {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  width: 100%; margin-top: 16px; padding: 14px; border: none; cursor: pointer;
+  border-radius: var(--radius-md); font-weight: 700; font-size: 15px;
+  background: linear-gradient(180deg, var(--accent-fill), var(--accent-press)); color: #fff;
+}
+
+/* כרטיס שיגור (תרגיל) */
+.pl-assign {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm);
+}
+.pl-assign.done { opacity: 0.72; }
+.pl-assign-main { flex: 1; min-width: 0; }
+.pl-assign-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-assign-head h3 { margin: 0; font-size: 16px; color: var(--text); }
+.pl-assign.done .pl-assign-head h3 { text-decoration: line-through; }
+.pl-assign-desc { margin: 6px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.pl-assign-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+.pl-assign-meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.pl-assign-from { font-weight: 600; }
+.pl-assign-video { position: relative; display: block; margin-top: 10px; border-radius: var(--radius-md); overflow: hidden; max-width: 260px; }
+.pl-assign-video img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+.pl-assign-play, .pl-vid-play {
+  position: absolute; inset: 0; margin: auto; width: 46px; height: 46px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(232,118,58,0.92); color: #fff; border-radius: 50%; font-size: 16px;
+}
+.pl-done-btn {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted);
+  border-radius: var(--radius-full); padding: 8px 14px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+  align-self: center;
+}
+.pl-done-btn.is-done { background: var(--c-green); border-color: var(--c-green); color: #fff; }
+
+/* משוב */
+.pl-fb { display: flex; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); }
+.pl-fb-body { flex: 1; min-width: 0; }
+.pl-fb-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pl-fb-head strong { color: var(--text); }
+.pl-fb-stars { color: var(--accent); display: flex; gap: 2px; margin: 4px 0; }
+.pl-fb-text { margin: 4px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--text); white-space: pre-wrap; }
+
+/* הקבוצה שלי */
+.pl-team-hero { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-sm); }
+.pl-team-badge { width: 48px; height: 48px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent-strong); display: inline-flex; align-items: center; justify-content: center; }
+.pl-team-hero strong { display: block; font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--text); }
+.pl-next { margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--c-blue-bg); }
+.pl-next-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--c-blue); }
+.pl-next strong { display: block; margin: 4px 0 2px; color: var(--text); }
+.pl-mates { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pl-mate { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+.pl-mate:last-child { border-bottom: none; }
+.pl-mate-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-weight: 800; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.pl-mate-name { flex: 1; font-weight: 600; color: var(--text); }
+
+/* וידאו */
+.pl-vid-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.pl-vid { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
+.pl-vid-thumb { position: relative; aspect-ratio: 16/9; background: var(--surface-alt) center/cover; }
+.pl-vid-body { padding: 10px 12px; }
+.pl-vid-title { display: block; font-weight: 700; font-size: 14px; color: var(--text); }
+.pl-vid-cat { font-size: 12px; color: var(--accent-strong); font-weight: 600; }
+
+/* פרופיל שחקן */
+.pl-profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.pl-memberships { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pl-memb { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.pl-memb-team { font-weight: 700; color: var(--text); }
+.pl-memb-status { margin-inline-start: auto; font-size: 12.5px; font-weight: 700; }
+.pl-memb.st-approved .pl-memb-status { color: var(--c-green); }
+.pl-memb.st-pending .pl-memb-status { color: var(--c-orange); }
+.pl-memb.st-rejected .pl-memb-status { color: var(--c-red); }
+
+/* פאנל חיבור שחקנים (מאמן) */
+.tc-panel { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 14px; background: var(--surface); overflow: hidden; }
+.tc-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 12px 14px; border: none; background: none; cursor: pointer; font-family: inherit; }
+.tc-head-l { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
+.tc-head-r { display: inline-flex; align-items: center; gap: 8px; }
+.tc-badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.tc-body { padding: 0 14px 14px; }
+.tc-code-block { background: var(--surface-alt); border-radius: var(--radius-md); padding: 12px 14px; }
+.tc-code-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.tc-code-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.tc-code { font-family: ui-monospace, 'SF Mono', monospace; font-size: 24px; font-weight: 800; letter-spacing: 0.22em; color: var(--accent-strong); background: var(--surface); padding: 6px 14px; border-radius: var(--radius-sm); border: 1px dashed var(--border-hover); }
+.tc-reqs { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.tc-req { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.tc-req-name { flex: 1; font-weight: 600; color: var(--text); }
+.tc-approve, .tc-reject { width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.tc-approve { background: var(--c-green); color: #fff; }
+.tc-reject { background: var(--c-red-bg); color: var(--c-red); }
+
+/* משוב לשחקן בתוך מודל השחקן */
+.tm-feedback { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.tm-fb-stars { display: flex; gap: 4px; margin: 8px 0; }
+.tm-star { border: none; background: none; cursor: pointer; color: var(--accent); padding: 2px; }
+.tm-star:not(.on) { color: var(--text-muted); }
