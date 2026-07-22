@@ -21,7 +21,7 @@ import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import { requestJoinByCode, myMemberships } from './players'
-import { computeStreak } from './gamify'
+import { computeStreak, playerProgress } from './gamify'
 import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId } from './youtube'
@@ -871,13 +871,14 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
   useEffect(() => {
     ;(async () => {
-      const [asg, compl, fbCount, fbLatest, att, gatt] = await Promise.all([
+      const [asg, compl, fbCount, fbLatest, att, gatt, roster] = await Promise.all([
         supabase.from('player_assignments').select('id'),
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
         supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
         supabase.from('player_feedback').select('content, rating, created_at, coach:profiles!coach_id(first_name, last_name, avatar_url)').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
         supabase.from('practice_attendance').select('status'),
         supabase.from('game_attendance').select('status'),
+        supabase.from('team_players').select('number, position').eq('player_id', session.user.id).limit(1),
       ])
       const doneRows = compl.data || []
       const doneIds = new Set(doneRows.map((c) => c.assignment_id))
@@ -887,26 +888,46 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
       const weekly = doneRows.filter((c) => c.done_at && withinDays(c.done_at, 7)).length
+      const r = roster.data && roster.data[0]
       setStats({
         open, fb: fbCount.count || 0, attendancePct, weekly,
         latestFb: (fbLatest.data && fbLatest.data[0]) || null,
+        number: r?.number || null, position: r?.position || null,
+        progress: playerProgress({ completedCount: doneRows.length, completionDates: doneRows.map((c) => c.done_at).filter(Boolean), attendancePct }),
       })
     })()
   }, [session.user.id])
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
+  const progress = stats?.progress
+  const initial = (profile.first_name || '?').trim().charAt(0)
 
   return (
     <div className="pl-screen pl-home-rich">
-      <header className="pl-hero pl-stagger">
-        <span className="pl-hero-court" aria-hidden="true">🏀</span>
-        <span className="pl-hero-date">{new Date().toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })}</span>
-        <h1>{greet}, <span className="hero-title-accent">{profile.first_name}</span>!</h1>
-        {membership
-          ? <p>{trTeam(membership.team)} · {coachName(membership.coach)}</p>
-          : <p>{L('ברוך הבא לקורטסייד 🏀', 'Welcome to CourtSide 🏀')}</p>}
+      <header className="plh-top pl-stagger">
+        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={52} />
+        <div className="plh-greet">
+          <h1>{greet}, <span className="hero-title-accent">{profile.first_name}</span></h1>
+          <span className="plh-sub">
+            {membership ? `${trTeam(membership.team)} · ${coachName(membership.coach)}` : L('ברוך הבא לקורטסייד', 'Welcome to CourtSide')}
+          </span>
+        </div>
       </header>
+
+      {membership && (
+        <div className="plh-card pl-stagger">
+          <span className="plh-court" aria-hidden="true">🏀</span>
+          <span className="plh-jersey">{stats?.number || initial}</span>
+          <div className="plh-card-body">
+            <strong>{progress ? L(`רמה ${progress.level}`, `Level ${progress.level}`) : L('רמה —', 'Level —')}{stats?.position ? ` · ${stats.position}` : ''}</strong>
+            <span className="plh-sub2">{trTeam(membership.team)} · {coachName(membership.coach)}</span>
+          </div>
+          {progress && (
+            <span className="plh-streak" title={L('רצף ימים', 'Day streak')}><Flame size={15} /> {progress.streak}</span>
+          )}
+        </div>
+      )}
 
       {!membership && (
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>

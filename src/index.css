@@ -13838,6 +13838,34 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-hero h1 { margin: 6px 0 4px; font-family: var(--font-display); font-weight: 900; font-size: clamp(24px, 5vw, 34px); }
 .pl-hero p { margin: 0; color: rgba(255,255,255,0.8); font-size: 14px; }
 
+/* בית השחקן (redesign) — כותרת בהירה + כרטיס שחקן נייבי */
+.plh-top { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+.plh-greet { flex: 1; min-width: 0; }
+.plh-greet h1 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: clamp(21px, 5.5vw, 26px); letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
+.plh-sub { display: block; margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plh-card {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px; border-radius: var(--radius-lg); margin-bottom: 18px; color: #fff;
+  background: linear-gradient(135deg, var(--hero-navy) 0%, var(--hero-navy-2) 100%);
+  box-shadow: var(--shadow-md);
+}
+.plh-court { position: absolute; inset-inline-start: -8px; bottom: -20px; font-size: 92px; opacity: 0.1; pointer-events: none; }
+.plh-jersey {
+  flex-shrink: 0; width: 66px; height: 66px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 900; font-size: 26px; color: #fff;
+  background: rgba(255,255,255,0.06); border: 3px solid var(--accent);
+  box-shadow: 0 0 0 4px rgba(232,118,58,0.12);
+}
+.plh-card-body { flex: 1; min-width: 0; position: relative; }
+.plh-card-body strong { display: block; font-family: var(--font-display); font-weight: 800; font-size: 16px; }
+.plh-sub2 { display: block; margin-top: 3px; font-size: 12.5px; color: rgba(255,255,255,0.66); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plh-streak {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; position: relative;
+  padding: 5px 11px; border-radius: var(--radius-full); font-weight: 800; font-size: 13.5px;
+  color: #F5B98A; background: rgba(0,0,0,0.28);
+}
+
 .pl-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .pl-tile {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
