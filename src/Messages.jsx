@@ -76,7 +76,7 @@ export default function Messages({ session, onNavigate }) {
     if (otherIds.length > 0) {
       const { data: profs } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, club')
+        .select('id, first_name, last_name, club, role, position')
         .in('id', otherIds)
       const map = {}
       for (const p of profs || []) map[p.id] = p
@@ -112,10 +112,20 @@ export default function Messages({ session, onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const nameOf = (coachId) => {
-    const p = profilesById[coachId]
-    if (!p) return L('מאמן', 'Coach')
-    return `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('מאמן', 'Coach')
+  const nameOf = (otherId) => {
+    const p = profilesById[otherId]
+    if (!p) return L('משתתף', 'Member')
+    return `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('משתתף', 'Member')
+  }
+
+  // תווית תפקיד לפי הצד השני בשיחה — שחקן מקבל "שחקן/עמדה", מאמן מקבל "מאמן/מועדון"
+  const roleLabel = (otherId) => {
+    const p = profilesById[otherId]
+    if (!p) return L('משתתף', 'Member')
+    if (p.role === 'player') {
+      return L('שחקן', 'Player') + (p.position ? `, ${p.position}` : '')
+    }
+    return L('מאמן', 'Coach') + (p.club ? `, ${p.club}` : '')
   }
 
   const conversations = buildConversations(messages, myId)
@@ -218,8 +228,7 @@ export default function Messages({ session, onNavigate }) {
                   <h2 className="chat-title">{nameOf(activeCoachId)}</h2>
                   <span className="chat-status">
                     <span className="chat-status-dot" aria-hidden="true" />
-                    {L('מאמן', 'Coach')}
-                    {profilesById[activeCoachId]?.club ? `, ${profilesById[activeCoachId].club}` : ''}
+                    {roleLabel(activeCoachId)}
                   </span>
                 </span>
               </>
