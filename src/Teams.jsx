@@ -10,6 +10,7 @@ import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
 import TeamChat from './TeamChat'
+import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
@@ -788,6 +789,9 @@ export default function Teams({ session, profile, onNavigate }) {
                   {L('שליחת המשוב', 'Send feedback')}
                 </button>
               </div>
+            )}
+            {pEdit.player_id && (
+              <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} team={pEdit.team} playerName={pEdit.name} />
             )}
           </div>
         </div>
