@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Target, Plus, Trash2, Check, Minus, Trophy, CalendarRange } from 'lucide-react'
+import { Target, Plus, Trash2, Check, Minus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
@@ -141,67 +141,64 @@ export function MyGoals({ session, membership }) {
   return (
     <div className="pl-screen pl-narrow">
       <header className="pl-head tone-orange">
-        <span className="pl-head-ic"><Target size={22} /></span>
-        <div className="pl-head-txt">
-          <h2>{L('המטרות שלי', 'My goals')}</h2>
-          <p>{L('היעדים שהמאמן הציב לך — שבועי, חודשי ועונתי', 'Targets your coach set — weekly, monthly and season')}</p>
-        </div>
         {total > 0 && (
-          <div className="pl-goal-sum">
-            <b>{done}<i>/{total}</i></b>
-            <span>{L('הושגו', 'done')}</span>
+          <div className="plg-ring" style={{ '--pct': pct }} aria-label={L(`${done} מתוך ${total} הושגו`, `${done} of ${total} done`)}>
+            <span>{done}<i>/{total}</i></span>
           </div>
         )}
-      </header>
-
-      {total > 0 && (
-        <div className="pl-goal-progress">
-          <div className="pl-goal-progress-bar"><span style={{ width: `${pct}%` }} /></div>
-          <span className="muted small">{pct}% {L('מהמטרות הושלמו', 'of goals completed')}</span>
+        <div className="pl-head-txt">
+          <h2>{L('המטרות שלי', 'My goals')}</h2>
+          <p>{L('היעדים מהמאמן — לאימון, לשבוע ולעונה', 'Targets from your coach — session, week and season')}</p>
         </div>
-      )}
+        <span className="pl-head-ic"><Target size={22} /></span>
+      </header>
 
       {goals.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Target size={26} /></span>
           <div className="empty-title">{L('עוד אין מטרות', 'No goals yet')}</div>
-          <p className="muted small">{L('המאמן יגדיר לך מטרות שבועיות, חודשיות ועונתיות — הן יופיעו כאן.', 'Your coach will set you weekly, monthly and season goals — they show up here.')}</p>
+          <p className="muted small">{L('המאמן יגדיר לך מטרות — לאימון הקרוב, לשבוע ולעונה — והן יופיעו כאן.', 'Your coach will set you goals — for the next session, the week and the season — and they show up here.')}</p>
         </div>
       ) : (
-        <>
-          {PERIODS.map((p) => {
-            const list = goals.filter((g) => g.period === p.id)
-            if (list.length === 0) return null
-            return (
-              <section className="pl-block" key={p.id}>
-                <p className="pl-section-label"><CalendarRange size={15} /> {L(p.label[0], p.label[1])}</p>
-                <ul className="pl-goals">
-                  {list.map((g) => {
-                    const pct = g.target_value ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
-                    const isDone = g.status === 'done'
-                    return (
-                      <li key={g.id} className={isDone ? 'pl-goal done' : 'pl-goal'}>
-                        <span className="pl-goal-ic">{isDone ? <Trophy size={18} /> : <Target size={18} />}</span>
-                        <div className="pl-goal-body">
+        PERIODS.map((p) => {
+          const list = goals.filter((g) => g.period === p.id)
+          if (list.length === 0) return null
+          return (
+            <section className="plg-section" key={p.id}>
+              <p className="pl-section-label">{L(p.label[0], p.label[1])}</p>
+              <ul className="plg-goals">
+                {list.map((g) => {
+                  const gp = g.target_value ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
+                  const isDone = g.status === 'done'
+                  const isCount = !!g.target_value
+                  const remaining = isCount ? Math.max(0, g.target_value - (g.progress_value || 0)) : 0
+                  return (
+                    <li key={g.id} className={isDone ? 'plg-goal done' : 'plg-goal'}>
+                      {!isCount && (
+                        <span className={isDone ? 'plg-check on' : 'plg-check'}>{isDone ? <Check size={16} /> : null}</span>
+                      )}
+                      <div className="plg-goal-main">
+                        <div className="plg-goal-top">
                           <strong>{g.title}</strong>
-                          {g.target_value ? (
-                            <>
-                              <div className="pl-goal-bar"><span style={{ width: `${pct}%` }} /></div>
-                              <span className="muted small">{g.progress_value || 0}/{g.target_value}{g.unit ? ` ${g.unit}` : ''}{isDone ? ` · ${L('הושג! 🎉', 'Done! 🎉')}` : ''}</span>
-                            </>
-                          ) : (
-                            <span className="muted small">{isDone ? L('הושג! 🎉', 'Done! 🎉') : L('בתהליך', 'In progress')}</span>
-                          )}
+                          {isCount && <span className="plg-goal-val">{g.progress_value || 0}/{g.target_value}</span>}
+                          {!g.player_id && <span className="plg-goal-team">{L('קבוצתי', 'Team')}</span>}
                         </div>
-                        {!g.player_id && <span className="pl-goal-team">{L('קבוצתי', 'Team')}</span>}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            )
-          })}
-        </>
+                        {isCount ? (
+                          <>
+                            <div className="plg-goal-bar"><span style={{ width: `${gp}%` }} /></div>
+                            <span className="muted small">{isDone ? L('הושג! כל הכבוד 🎉', 'Done! 🎉') : L(`עוד ${remaining}${g.unit ? ' ' + g.unit : ''} — אתה בקצב מעולה`, `${remaining}${g.unit ? ' ' + g.unit : ''} to go — great pace`)}</span>
+                          </>
+                        ) : (
+                          <span className={isDone ? 'plg-goal-note done' : 'muted small'}>{isDone ? L('הושג! כל הכבוד', 'Done! 🎉') : L('מסמנים בסוף האימון', 'You mark it at wrap-up')}</span>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )
+        })
       )}
     </div>
   )
