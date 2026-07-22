@@ -4,7 +4,7 @@ import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, Send,
   ShieldCheck, Hourglass, Trophy, ChevronLeft, Flame, Lock, Newspaper,
-  Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play,
+  Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -492,12 +492,21 @@ function MyFeedback({ session }) {
                 <strong>{coachName(f.coach)}</strong>
                 <span className="muted small">{timeAgo(f.created_at)}</span>
               </div>
+              {(f.session_type === 'practice' || f.session_type === 'game') && (
+                <span className="pl-fb-session">{f.session_type === 'game' ? L('מהמשחק', 'From the game') : L('מהאימון', 'From practice')}{f.session_date ? ` · ${new Date(f.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}</span>
+              )}
               {f.rating > 0 && (
                 <div className="pl-fb-stars" aria-label={L(`${f.rating} מתוך 5`, `${f.rating} of 5`)}>
                   {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={15} fill={n <= f.rating ? 'currentColor' : 'none'} />)}
                 </div>
               )}
-              <p className="pl-fb-text">{f.content}</p>
+              {f.effort > 0 && (
+                <div className="pl-fb-effort" title={L('מאמץ', 'Effort')}>
+                  {[1, 2, 3, 4, 5].map((n) => <Flame key={n} size={13} fill={n <= f.effort ? 'currentColor' : 'none'} className={n <= f.effort ? 'on' : ''} />)}
+                  <span className="muted small">{L('מאמץ', 'Effort')}</span>
+                </div>
+              )}
+              {f.content && <p className="pl-fb-text">{f.content}</p>}
             </div>
           </article>
         ))
@@ -507,9 +516,12 @@ function MyFeedback({ session }) {
 }
 
 // ---------- מסך: הקבוצה שלי ----------
+const MOOD_EMOJI = { tough: '😤', good: '💪', great: '🔥' }
+
 function MyTeam({ membership, onNavigate }) {
   const [teammates, setTeammates] = useState([])
   const [next, setNext] = useState(null)
+  const [reviews, setReviews] = useState([])
 
   useEffect(() => {
     if (!membership) return
@@ -531,6 +543,14 @@ function MyTeam({ membership, onNavigate }) {
         .order('date').order('start_time')
         .limit(1)
       setNext(sched && sched[0] ? sched[0] : null)
+      const { data: revs } = await supabase
+        .from('session_reviews')
+        .select('*')
+        .eq('coach_id', membership.coach_id)
+        .eq('team', membership.team)
+        .order('session_date', { ascending: false })
+        .limit(8)
+      setReviews(revs || [])
     })()
   }, [membership])
 
@@ -556,6 +576,31 @@ function MyTeam({ membership, onNavigate }) {
             {next.start_time ? ` · ${next.start_time.slice(0, 5)}` : ''}{next.location ? ` · ${next.location}` : ''}
           </span>
         </div>
+      )}
+
+      {reviews.length > 0 && (
+        <>
+          <p className="pl-section-label" style={{ marginTop: 18 }}><ClipboardList size={15} /> {L('סיכומי אימונים', 'Session recaps')}</p>
+          <ul className="pl-recaps">
+            {reviews.map((r) => {
+              const isMvp = r.mvp_player_id && r.mvp_player_id === membership.player_id
+              return (
+                <li key={r.id} className={isMvp ? 'pl-recap mvp' : 'pl-recap'}>
+                  <div className="pl-recap-head">
+                    <span className="pl-recap-date">
+                      {r.mood ? `${MOOD_EMOJI[r.mood] || ''} ` : ''}
+                      {r.session_type === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}
+                      {r.session_date ? ` · ${new Date(r.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short', day: 'numeric', month: 'numeric' })}` : ''}
+                    </span>
+                    {isMvp ? <span className="pl-recap-mvp">🏆 {L('היית ה-MVP!', "You were MVP!")}</span>
+                      : r.mvp_name ? <span className="muted small">{L('MVP: ', 'MVP: ')}{r.mvp_name}</span> : null}
+                  </div>
+                  {r.overall_note && <p className="pl-recap-note">{r.overall_note}</p>}
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
 
       <p className="pl-section-label">{L('חברי הקבוצה', 'Teammates')} · {teammates.length}</p>
