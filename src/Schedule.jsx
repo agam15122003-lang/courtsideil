@@ -1,10 +1,11 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus, ClipboardCheck } from 'lucide-react'
 import { downloadIcs } from './ics'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
 import NotebookPage from './NotebookPage'
+import SessionDetail from './SessionDetail'
 import { planToNotebook } from './TrainingPlans'
 import { L, trTeam } from './i18n'
 
@@ -50,6 +51,7 @@ export default function Schedule({ session }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(null)
+  const [reviewEntry, setReviewEntry] = useState(null)
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
 
   const openPlan = async (plan) => {
@@ -561,6 +563,15 @@ export default function Schedule({ session }) {
             </button>
           )}
           {selected.note && <p className="muted small" style={{ marginTop: 8 }}>{selected.note}</p>}
+          {!selected.is_personal && selected.team && (
+            <button
+              className="btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => setReviewEntry(selected)}
+            >
+              <ClipboardCheck size={15} /> {L('נוכחות ומשוב לאימון', 'Attendance & session review')}
+            </button>
+          )}
           <button
             className="btn-soft"
             style={{ marginTop: 12 }}
@@ -769,6 +780,10 @@ export default function Schedule({ session }) {
             </p>
           )}
         </div>
+      )}
+
+      {reviewEntry && (
+        <SessionDetail session={session} entry={reviewEntry} onClose={() => setReviewEntry(null)} />
       )}
     </div>
   )
