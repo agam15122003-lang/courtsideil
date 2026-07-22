@@ -21,6 +21,7 @@ import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
 import { requestJoinByCode, myMemberships } from './players'
 import { playerProgress, computeStreak } from './gamify'
+import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId } from './youtube'
 
@@ -700,11 +701,15 @@ function PlayerSchedule({ membership }) {
   const load = useCallback(async () => {
     if (!membership) return
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: pr }, { data: gm }] = await Promise.all([
+    const [{ data: slots }, { data: pr }, { data: gm }] = await Promise.all([
+      supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(40),
       supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(40),
     ])
     const list = [
+      // לו"ז קבוע (ימי אימון) — נגזר ל-30 הימים הקרובים
+      ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', id: 's' + o.session_id, date: o.date, time: o.start_time, end: o.end_time, title: L('אימון', 'Practice'), location: o.location })),
+      // אימונים חד-פעמיים/מיוחדים
       ...(pr || []).filter((e) => e.date).map((e) => ({ kind: 'practice', id: 'p' + e.id, date: e.date, time: e.start_time, end: e.end_time, title: e.plan?.name || L('אימון', 'Practice'), location: e.location })),
       ...(gm || []).map((g) => ({ kind: 'game', id: 'g' + g.id, date: g.game_date, time: g.game_time, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game'), location: g.location })),
     ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
@@ -871,37 +876,56 @@ function EffortPrompt({ session, membership }) {
   const [pending, setPending] = useState(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [effort, setEffort] = useState(0)
+  const [note, setNote] = useState('')
+  const [goals, setGoals] = useState([])
+  const [marks, setMarks] = useState({}) // {goalId: boolean}
 
   useEffect(() => {
     if (!membership) return
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
-      const from = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
-      const [{ data: pr }, { data: gm }, { data: se }] = await Promise.all([
-        supabase.from('schedule_entries').select('id, date, plan:training_plans(name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today).order('date', { ascending: false }),
+      const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
+      const [{ data: slots }, { data: gm }, { data: se }, { data: gl }] = await Promise.all([
+        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
         supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
         supabase.from('session_effort').select('session_id').eq('player_id', session.user.id),
+        supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['week', 'month']),
       ])
       const rated = new Set((se || []).map((r) => r.session_id))
       const cands = [
-        ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, title: e.plan?.name || L('אימון', 'Practice') })),
+        // מופעי הלו"ז הקבוע ב-3 הימים האחרונים (כולל היום)
+        ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון', 'Practice') })),
         ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
       ].filter((c) => c.session_date && !rated.has(c.session_id)).sort((a, b) => b.session_date.localeCompare(a.session_date))
-      setPending(cands[0] || null)
+      const p = cands[0] || null
+      setPending(p)
+      setGoals(gl || [])
+      if (p) {
+        const { data: existing } = await supabase.from('session_goal_marks').select('goal_id, met').eq('session_id', p.session_id).eq('player_id', session.user.id)
+        const m = {}; for (const r of existing || []) m[r.goal_id] = r.met; setMarks(m)
+      }
     })()
   }, [membership, session.user.id])
 
-  const rate = async (n) => {
-    if (!pending || busy) return
+  const submit = async () => {
+    if (!pending || busy || !effort) return
     setBusy(true)
     const { error } = await supabase.from('session_effort').insert({
       player_id: session.user.id, coach_id: membership.coach_id, team: membership.team,
-      session_type: pending.session_type, session_id: pending.session_id, session_date: pending.session_date, effort: n,
+      session_type: pending.session_type, session_id: pending.session_id, session_date: pending.session_date,
+      effort, note: note.trim() || null,
     })
+    if (!error && goals.length) {
+      const rows = goals.map((g) => ({
+        player_id: session.user.id, coach_id: membership.coach_id, session_id: pending.session_id, goal_id: g.id, met: !!marks[g.id],
+      }))
+      await supabase.from('session_goal_marks').upsert(rows, { onConflict: 'session_id,goal_id,player_id' })
+    }
     setBusy(false)
     if (error) { toast.error(L('השליחה נכשלה', 'Failed to send')); return }
     setDone(true)
-    toast.success(L('תודה! הדירוג נשלח למאמן 💪', 'Thanks! Sent to your coach 💪'))
+    toast.success(L('תודה! נשלח למאמן 💪', 'Thanks! Sent to your coach 💪'))
   }
 
   if (!membership || (!pending && !done)) return null
@@ -911,16 +935,40 @@ function EffortPrompt({ session, membership }) {
         <div className="pl-effort-ask-head">
           <span className="pl-effort-ic"><Flame size={20} /></span>
           <div>
-            <strong>{done ? L('תודה על הדירוג! 🔥', 'Thanks for rating! 🔥') : L('איך היה המאמץ שלך?', 'How was your effort?')}</strong>
+            <strong>{done ? L('תודה! הסיכום נשלח למאמן 🔥', 'Thanks! Sent to your coach 🔥') : L('סיכום האימון — כמה השקעת?', 'Session wrap-up — how hard did you go?')}</strong>
             {!done && pending && <span className="muted small">{pending.title}{pending.session_date ? ` · ${new Date(pending.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}</span>}
           </div>
         </div>
+
         {!done && (
-          <div className="pl-effort-scale" role="group" aria-label={L('דירוג מאמץ 1 עד 10', 'Effort 1 to 10')}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button key={n} className="pl-effort-btn" onClick={() => rate(n)} disabled={busy} aria-label={String(n)}>{n}</button>
-            ))}
-          </div>
+          <>
+            <span className="pl-effort-lbl">{L('רמת העומס שלך (1–10)', 'Your effort (1–10)')}</span>
+            <div className="pl-effort-scale" role="group" aria-label={L('דירוג מאמץ 1 עד 10', 'Effort 1 to 10')}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button key={n} className={effort === n ? 'pl-effort-btn on' : 'pl-effort-btn'} onClick={() => setEffort(n)} aria-pressed={effort === n} aria-label={String(n)}>{n}</button>
+              ))}
+            </div>
+
+            <textarea className="finder-input pl-effort-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500}
+              placeholder={L('משהו לרשום למאמן? (איך הרגשת, כאב, מה עבד...) — לא חובה', 'Anything to tell your coach? (how you felt, pain, what worked...) — optional')} />
+
+            {goals.length > 0 && (
+              <div className="pl-effort-goals">
+                <span className="pl-effort-lbl">{L('עמדת במטרות שלך היום?', 'Did you meet your goals today?')}</span>
+                {goals.map((g) => (
+                  <button key={g.id} className={marks[g.id] ? 'pl-goal-check on' : 'pl-goal-check'} onClick={() => setMarks((m) => ({ ...m, [g.id]: !m[g.id] }))} aria-pressed={!!marks[g.id]}>
+                    <span className="pl-goal-check-box">{marks[g.id] ? <Check size={14} /> : null}</span>
+                    <span className="pl-goal-check-txt">{g.title}{g.target_value ? ` · ${g.progress_value || 0}/${g.target_value}${g.unit ? ' ' + g.unit : ''}` : ''}</span>
+                    {!g.player_id && <span className="pl-goal-check-team">{L('קבוצתי', 'Team')}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button className="pl-cta pl-effort-submit" onClick={submit} disabled={busy || !effort}>
+              {busy ? L('שולח...', 'Sending...') : L('שליחה למאמן', 'Send to coach')}
+            </button>
+          </>
         )}
       </div>
     </section>
