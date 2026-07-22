@@ -14226,6 +14226,34 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .team-chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 240px); min-height: 420px; }
 .team-chat-wrap .pl-chat-screen { height: 100%; }
 
+/* מטרות — עורך המאמן */
+.pg-editor { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.pg-add { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 8px; }
+.pg-add-row { display: flex; gap: 8px; }
+.pg-add-row .finder-input { flex: 1; }
+.pg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pg-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.pg-item.done { background: var(--c-green-bg); border-color: var(--c-green-bg); }
+.pg-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pg-item-main strong { color: var(--text); font-size: 14px; }
+.pg-per { font-size: 11px; font-weight: 800; color: var(--c-purple); }
+.pg-ctl { display: flex; gap: 4px; }
+.pg-check { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border-hover); background: var(--surface); color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.pg-check.on { background: var(--c-green); border-color: var(--c-green); color: #fff; }
+
+/* מטרות — מסך השחקן */
+.pl-goals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pl-goal { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.pl-goal.done { border-color: var(--accent-soft); background: var(--accent-soft); }
+.pl-goal-ic { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--c-purple-bg); color: var(--c-purple); }
+.pl-goal.done .pl-goal-ic { background: linear-gradient(150deg, #FFD36B, var(--accent)); color: #fff; }
+.pl-goal-body { flex: 1; min-width: 0; }
+.pl-goal-body strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 5px; }
+.pl-goal-bar { height: 8px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; margin-bottom: 4px; }
+.pl-goal-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--c-purple), #B98BFF); transition: width 0.6s cubic-bezier(0.2,0.8,0.3,1); }
+.pl-goal.done .pl-goal-bar > span { background: linear-gradient(90deg, var(--accent), #FFC978); }
+.pl-goal-team { flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--c-blue); background: var(--c-blue-bg); padding: 3px 9px; border-radius: var(--radius-full); }
+
 /* משוב מוצמד לאימון — צד השחקן */
 .pl-fb-session { display: inline-block; font-size: 11.5px; font-weight: 800; color: var(--c-blue); background: var(--c-blue-bg); padding: 2px 9px; border-radius: var(--radius-full); margin: 2px 0 4px; }
 .pl-fb-effort { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 12.5px; color: var(--accent-strong); background: var(--accent-soft); padding: 2px 9px; border-radius: var(--radius-full); margin: 2px 0 4px; }

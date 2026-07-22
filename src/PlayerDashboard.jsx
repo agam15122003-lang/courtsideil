@@ -17,6 +17,7 @@ import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
 import CoachChat from './CoachChat'
 import TeamChat from './TeamChat'
+import { MyGoals } from './PlayerGoals'
 import { requestJoinByCode, myMemberships } from './players'
 import { playerProgress, computeStreak } from './gamify'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
@@ -927,6 +928,12 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
       <div className="pl-stagger"><PlayerQuote /></div>
 
+      {membership && (
+        <button className="pl-cta pl-cta-ghost pl-stagger" onClick={() => setView('goals')}>
+          <Target size={18} /> {L('המטרות שלי', 'My goals')} <ChevronLeft size={16} />
+        </button>
+      )}
+
       <button className="pl-cta pl-stagger" onClick={() => setView('community')}>
         <Users size={18} /> {L('לקהילת השחקנים', 'Players community')} <ChevronLeft size={16} />
       </button>
@@ -1025,6 +1032,7 @@ function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setVie
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
+  { id: 'goals', label: ['המטרות שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'teamchat', label: ['צ׳אט קבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
@@ -1087,6 +1095,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('המשוב שלי', 'My feedback')}
               desc={L('משוב אישי מגיע מהמאמן שלך. הצטרפו לקבוצה כדי לקבל משוב.', 'Personal feedback comes from your coach. Join a team to receive feedback.')} />
+      case 'goals':
+        return hasTeam
+          ? <MyGoals session={session} membership={membership} />
+          : <LockedFeature session={session} onJoined={loadMemberships}
+              title={L('המטרות שלי', 'My goals')}
+              desc={L('המאמן יגדיר לך מטרות ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
       case 'schedule':
         return hasTeam
           ? <PlayerSchedule membership={membership} />
@@ -1122,7 +1136,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
-          <Notifications session={session} onNavigate={(v) => setView(v === 'messages' ? 'coach' : v === 'community' ? 'community' : 'drills')} />
+          <Notifications session={session} onNavigate={(v) => setView(['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat'].includes(v) ? v : v === 'messages' ? 'coach' : 'drills')} />
           <LanguageToggle /><ThemeToggle />
         </div>
       </header>
