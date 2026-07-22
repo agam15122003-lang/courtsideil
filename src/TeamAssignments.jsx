@@ -49,8 +49,7 @@ export default function TeamAssignments({ coachId, team }) {
 
   return (
     <div className="team-section">
-      <h3 className="ta-title"><Dumbbell size={16} /> {L('מטלות שנשלחו', 'Sent tasks')} · {trTeam(team)}</h3>
-      <p className="muted small" style={{ marginBottom: 12 }}>{L('מה שלחת לשחקנים ומי כבר ביצע.', 'What you sent players and who has done it.')}</p>
+      <h3 className="ta-title" style={{ marginTop: 18 }}><Dumbbell size={16} /> {L('מה נשלח ומי ביצע', 'Sent & done')}</h3>
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Inbox size={26} /></span>

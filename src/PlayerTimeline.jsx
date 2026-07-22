@@ -168,7 +168,7 @@ export default function PlayerTimeline({ session, membership }) {
                     <div className="tl-fb">
                       <Avatar name={coachName(c.fb.coach)} url={c.fb.coach?.avatar_url} size={30} />
                       <div className="tl-fb-body">
-                        <span className="tl-lbl">{coachName(c.fb.coach)} {L('כתב לך', 'wrote')}</span>
+                        {c.type !== 'note' && <span className="tl-lbl">{L('המאמן כתב לך', 'Coach wrote')}</span>}
                         {c.fb.rating > 0 && (
                           <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
                         )}

@@ -21,12 +21,11 @@ import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import { requestJoinByCode, myMemberships } from './players'
-import { playerProgress, computeStreak } from './gamify'
+import { computeStreak } from './gamify'
 import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId } from './youtube'
 
-const BADGE_ICONS = { Sparkles, Flame, Zap, Crown, CalendarCheck, Trophy, ShieldCheck }
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
@@ -223,43 +222,6 @@ function AttendanceRing({ pct, size = 62 }) {
   )
 }
 
-// ---------- רצועת רמה + XP + רצף ----------
-function LevelStrip({ progress }) {
-  const pct = Math.round(progress.progress * 100)
-  return (
-    <div className="pl-level">
-      <span className="pl-level-badge" aria-hidden="true">{progress.level}</span>
-      <div className="pl-level-body">
-        <div className="pl-level-top">
-          <strong>{L(`רמה ${progress.level}`, `Level ${progress.level}`)} · {L(progress.title[0], progress.title[1])}</strong>
-          {progress.streak > 0 && (
-            <span className="pl-streak" title={L('רצף ימים', 'Day streak')}><Flame size={14} /> {progress.streak}</span>
-          )}
-        </div>
-        <div className="pl-xp-bar"><span style={{ width: `${pct}%` }} /></div>
-        <span className="muted small">{L(`עוד ${progress.xpToNext} XP לרמה הבאה`, `${progress.xpToNext} XP to next level`)}</span>
-      </div>
-    </div>
-  )
-}
-
-function BadgeRow({ badges }) {
-  return (
-    <div className="pl-badges">
-      {badges.map((b) => {
-        const Ic = BADGE_ICONS[b.icon] || Sparkles
-        return (
-          <div key={b.id} className={b.earned ? 'pl-badge earned' : 'pl-badge'} title={L(b.hint[0], b.hint[1])}>
-            <span className="pl-badge-ic"><Ic size={18} /></span>
-            <span className="pl-badge-lbl">{L(b.label[0], b.label[1])}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------- כרטיס המשימה השבועית ----------
 function WeeklyMission({ done }) {
   const pct = Math.min(100, Math.round((done / WEEKLY_TARGET) * 100))
   const complete = done >= WEEKLY_TARGET
@@ -928,18 +890,12 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       setStats({
         open, fb: fbCount.count || 0, attendancePct, weekly,
         latestFb: (fbLatest.data && fbLatest.data[0]) || null,
-        progress: playerProgress({
-          completedCount: doneRows.length,
-          completionDates: doneRows.map((c) => c.done_at).filter(Boolean),
-          attendancePct,
-        }),
       })
     })()
   }, [session.user.id])
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
-  const progress = stats?.progress || playerProgress({})
 
   return (
     <div className="pl-screen pl-home-rich">
@@ -950,7 +906,6 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         {membership
           ? <p>{trTeam(membership.team)} · {coachName(membership.coach)}</p>
           : <p>{L('ברוך הבא לקורטסייד 🏀', 'Welcome to CourtSide 🏀')}</p>}
-        <LevelStrip progress={progress} />
       </header>
 
       {!membership && (
@@ -1003,11 +958,6 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         </button>
       )}
 
-      <section className="pl-block pl-stagger">
-        <p className="pl-section-label"><Trophy size={15} /> {L('ההישגים שלי', 'My badges')}</p>
-        <BadgeRow badges={progress.badges} />
-      </section>
-
       <div className="pl-stagger"><PlayerQuote /></div>
 
       {membership && (
@@ -1043,8 +993,7 @@ function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setVie
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-      const progress = playerProgress({ completedCount: doneRows.length, completionDates: doneRows.map((c) => c.done_at).filter(Boolean), attendancePct })
-      setSt({ done: doneRows.length, streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)), attendancePct, progress, earned: progress.badges.filter((b) => b.earned).length })
+      setSt({ done: doneRows.length, streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)), attendancePct })
     })()
   }, [session.user.id])
 
@@ -1063,22 +1012,14 @@ function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setVie
       </div>
 
       {st && (
-        <div className="pl-stat-grid">
-          <div className="pl-stat"><b>{st.progress.level}</b><span>{L('רמה', 'Level')}</span></div>
-          <div className="pl-stat"><b>{st.done}</b><span>{L('תרגילים', 'Drills')}</span></div>
-          <div className="pl-stat"><b>{st.streak}🔥</b><span>{L('רצף', 'Streak')}</span></div>
+        <div className="pl-stat-grid pl-stat-grid3">
+          <div className="pl-stat"><b>{st.done}</b><span>{L('תרגילים שבוצעו', 'Drills done')}</span></div>
+          <div className="pl-stat"><b>{st.streak}🔥</b><span>{L('רצף ימים', 'Day streak')}</span></div>
           <div className="pl-stat"><b>{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attend.')}</span></div>
         </div>
       )}
 
       <button className="btn-soft" onClick={onEdit}>{L('עריכת פרטים', 'Edit details')}</button>
-
-      {st && (
-        <>
-          <p className="pl-section-label" style={{ marginTop: 20 }}><Trophy size={15} /> {L(`הישגים · ${st.earned}/${st.progress.badges.length}`, `Badges · ${st.earned}/${st.progress.badges.length}`)}</p>
-          <BadgeRow badges={st.progress.badges} />
-        </>
-      )}
 
       <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הקבוצות שלי', 'My teams')}</p>
       {memberships.length === 0 ? (

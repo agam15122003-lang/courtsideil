@@ -40,7 +40,7 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
     setBusy(true)
     const { error } = await supabase.from('player_goals').insert({
       coach_id: coachId, player_id: playerId, team,
-      period, title: goalTitle.trim(), target_value: tv || null, unit: tv ? (unit.trim() || null) : null,
+      period, title: goalTitle.trim(), target_value: tv || null,
       metric_type: tv ? 'count' : 'checkbox',
     })
     setBusy(false)
@@ -72,7 +72,6 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
 
   return (
     <div className="pg-editor">
-      <span className="field-label"><Target size={15} /> {L('מטרות אישיות', 'Personal goals')}</span>
       <div className="pg-periods">
         {PERIODS.map((p) => (
           <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
@@ -89,11 +88,8 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
       </div>
       <div className="pg-add">
         <div className="pg-add-row">
-          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('או כתוב מטרה משלך... לדוגמה: 200 עונשין', 'Or write your own... e.g. 200 free throws')} maxLength={120} />
-        </div>
-        <div className="pg-add-row">
-          <input className="finder-input" dir="ltr" inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('יעד (מספר, לא חובה)', 'Target (number, optional)')} style={{ maxWidth: 160 }} />
-          <input className="finder-input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={L('יחידה (זריקות/אימונים...)', 'Unit (shots/practices...)')} maxLength={20} />
+          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('מטרה משלך... לדוגמה: 200 עונשין', 'Your own goal... e.g. 200 free throws')} maxLength={120} />
+          <input className="finder-input pg-target" dir="ltr" inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('יעד', 'Nr.')} />
           <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף מטרה', 'Add goal')}><Plus size={15} /></button>
         </div>
       </div>
