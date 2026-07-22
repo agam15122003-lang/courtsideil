@@ -760,6 +760,38 @@ function PlayerVideos() {
   )
 }
 
+// ---------- המטרות לאימון הקרוב — מופיעות בבית לפני האימון ----------
+function PrePracticeGoals({ session, membership }) {
+  const [goals, setGoals] = useState([])
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const [{ data: gl }, { data: marks }] = await Promise.all([
+        supabase.from('player_goals').select('id, title, period, status, player_id').eq('period', 'session').eq('status', 'active'),
+        supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
+      ])
+      const marked = new Set((marks || []).map((m) => m.goal_id))
+      setGoals((gl || []).filter((g) => !marked.has(g.id)))
+    })()
+  }, [membership, session.user.id])
+
+  if (!membership || goals.length === 0) return null
+  return (
+    <section className="pl-block">
+      <div className="pl-pregoals">
+        <span className="pl-pregoals-ic"><Target size={18} /></span>
+        <div className="pl-pregoals-body">
+          <strong>{L('המטרות שלך לאימון הקרוב 🎯', 'Your goals for the next practice 🎯')}</strong>
+          <span className="muted small">{L('תגיע לאימון כשאתה יודע על מה אתה עובד. בסוף האימון תסמן אם עמדת בהן.', 'Arrive knowing what you’re working on. Mark them at wrap-up.')}</span>
+          <div className="pl-pregoals-chips">
+            {goals.map((g) => <span key={g.id} className="pl-pregoal">{g.title}</span>)}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ---------- דירוג מאמץ עצמי (בסוף אימון/משחק) ----------
 function EffortPrompt({ session, membership }) {
   const [pending, setPending] = useState(null)
@@ -928,6 +960,8 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       <div className="pl-stagger"><Countdown membership={membership} onNavigate={setView} /></div>
 
       {membership && <div className="pl-stagger"><EffortPrompt session={session} membership={membership} /></div>}
+
+      {membership && <div className="pl-stagger"><PrePracticeGoals session={session} membership={membership} /></div>}
 
       <div className="pl-tiles pl-stagger">
         <button className="pl-tile" onClick={() => setView('drills')}>
