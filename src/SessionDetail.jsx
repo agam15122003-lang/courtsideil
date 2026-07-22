@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Flame, Crown, StickyNote, Save } from 'lucide-react'
+import { X, Flame, Crown, StickyNote, Save, Check, Minus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
@@ -25,6 +25,8 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [roster, setRoster] = useState(null)
   const [att, setAtt] = useState({})        // {rosterId: status}
   const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — קריאה בלבד (דירוג עצמי של השחקן)
+  const [playerNotes, setPlayerNotes] = useState({}) // {rosterId: מה שהשחקן רשם}
+  const [goalMarks, setGoalMarks] = useState({})     // {rosterId: [{title, met}]}
   const [note, setNote] = useState({})      // {rosterId: text}
   const [openNote, setOpenNote] = useState({})
   const [fbId, setFbId] = useState({})      // {rosterId: existing feedback row id}
@@ -44,11 +46,12 @@ export default function SessionDetail({ session, entry, onClose }) {
     const attP = sessionType === 'game'
       ? supabase.from('game_attendance').select('player_id, status').eq('game_id', sessionId)
       : supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team).eq('session_date', sessionDate)
-    const [{ data: aRows }, { data: fRows }, { data: rev }, { data: eRows }] = await Promise.all([
+    const [{ data: aRows }, { data: fRows }, { data: rev }, { data: eRows }, { data: gmRows }] = await Promise.all([
       attP,
       supabase.from('player_feedback').select('id, player_id, content').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_reviews').select('*').eq('coach_id', me).eq('session_type', sessionType).eq('session_id', sessionId).maybeSingle(),
-      supabase.from('session_effort').select('player_id, effort').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_effort').select('player_id, effort, note').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_goal_marks').select('player_id, met, goal:player_goals(title)').eq('coach_id', me).eq('session_id', sessionId),
     ])
     const a = {}; for (const r of aRows || []) a[r.player_id] = r.status; setAtt(a)
     const nt = {}, fid = {}
@@ -58,8 +61,10 @@ export default function SessionDetail({ session, entry, onClose }) {
       fid[rid] = r.id
     }
     setNote(nt); setFbId(fid)
-    const ef = {}; for (const r of eRows || []) { const rid = byAuth[r.player_id]; if (rid) ef[rid] = r.effort }
-    setEfforts(ef)
+    const ef = {}, pn = {}; for (const r of eRows || []) { const rid = byAuth[r.player_id]; if (rid) { ef[rid] = r.effort; if (r.note) pn[rid] = r.note } }
+    setEfforts(ef); setPlayerNotes(pn)
+    const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('מטרה', 'Goal'), met: r.met }) }
+    setGoalMarks(gm)
     if (rev) {
       setOverall(rev.overall_note || '')
       if (rev.mvp_player_id && byAuth[rev.mvp_player_id]) setMvp(byAuth[rev.mvp_player_id])
@@ -189,6 +194,18 @@ export default function SessionDetail({ session, entry, onClose }) {
                     </div>
                     {connected && (openNote[p.id] || note[p.id]) && (
                       <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
+                    )}
+                    {connected && playerNotes[p.id] && (
+                      <div className="sd-player-note"><span className="sd-player-note-lbl">{L('השחקן רשם:', 'Player wrote:')}</span> {playerNotes[p.id]}</div>
+                    )}
+                    {connected && goalMarks[p.id] && goalMarks[p.id].length > 0 && (
+                      <div className="sd-goal-marks">
+                        {goalMarks[p.id].map((g, i) => (
+                          <span key={i} className={g.met ? 'sd-goal-mark met' : 'sd-goal-mark miss'}>
+                            {g.met ? <Check size={12} /> : <Minus size={12} />} {g.title}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </li>
                 )

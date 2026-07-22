@@ -11,6 +11,7 @@ import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
 import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
+import TeamSlots from './TeamSlots'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
@@ -79,6 +80,8 @@ export default function Teams({ session, profile, onNavigate }) {
   const [pNum, setPNum] = useState('')
   const [gForm, setGForm] = useState({ date: '', time: '', opponent: '', location: '' })
   const [reviewGame, setReviewGame] = useState(null)
+  const [reviewPractice, setReviewPractice] = useState(null)
+  const [gpEdit, setGpEdit] = useState(null) // עריכת מטרות מהירה לשחקן {player_id, name, team}
   const [manualOpen, setManualOpen] = useState(false)
   const [sForm, setSForm] = useState({ name: '', role: 'assistant', phone: '' })
 
@@ -387,8 +390,9 @@ export default function Teams({ session, profile, onNavigate }) {
       <div className="tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
         <button className={tab === 'attendance' ? 'tab active' : 'tab'} onClick={() => setTab('attendance')}><UserCheck size={15} /> {L('נוכחות', 'Attendance')}</button>
+        <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('ימי אימון', 'Practices')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
-        <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><CalendarClock size={15} /> {L('משחקים', 'Games')}</button>
+        <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><Trophy size={15} /> {L('משחקים', 'Games')}</button>
         <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><ClipboardCheck size={15} /> {L('מטלות', 'Tasks')}</button>
         <button className={tab === 'chat' ? 'tab active' : 'tab'} onClick={() => setTab('chat')}><MessagesSquare size={15} /> {L('צ׳אט', 'Chat')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
@@ -459,6 +463,9 @@ export default function Teams({ session, profile, onNavigate }) {
                   <button className={`status-pill status-${p.status}`} onClick={(e) => { e.stopPropagation(); cycleStatus(p) }} title={L('שנה סטטוס', 'Change status')}>
                     {statusLabel(p.status)}
                   </button>
+                  {p.player_id && (
+                    <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, name: p.name, team }) }} aria-label={L('מטרות', 'Goals')} title={L('מטרות אישיות', 'Personal goals')}><Target size={15} /></button>
+                  )}
                   <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
                 </li>
               ))}
@@ -641,6 +648,9 @@ export default function Teams({ session, profile, onNavigate }) {
             </ul>
           )}
         </div>
+      ) : tab === 'practices' ? (
+        /* ===================== ימי אימון קבועים + סיכום אימונים ===================== */
+        <TeamSlots coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
       ) : tab === 'tasks' ? (
         /* ===================== מטלות שנשלחו ===================== */
         <TeamAssignments coachId={me} team={team} />
@@ -874,6 +884,29 @@ export default function Teams({ session, profile, onNavigate }) {
           entry={{ id: reviewGame.id, team, date: reviewGame.game_date, start_time: reviewGame.game_time, session_type: 'game', opponent: reviewGame.opponent }}
           onClose={() => setReviewGame(null)}
         />
+      )}
+
+      {reviewPractice && (
+        <SessionDetail
+          session={session}
+          entry={reviewPractice}
+          onClose={() => setReviewPractice(null)}
+        />
+      )}
+
+      {/* מטרות מהירות לשחקן — נגיש מהסגל, לא קבור בעריכה */}
+      {gpEdit && (
+        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setGpEdit(null)}>
+          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="tm-modal-head">
+              <strong><Target size={16} /> {L('מטרות', 'Goals')} · {gpEdit.name}</strong>
+              <button className="icon-btn" onClick={() => setGpEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+            </div>
+            <div className="tm-modal-body">
+              <PlayerGoalsEditor coachId={me} playerId={gpEdit.player_id} team={gpEdit.team} playerName={gpEdit.name} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
