@@ -54,7 +54,7 @@ export default function TeamAssignments({ coachId, team }) {
         <div className="empty-state">
           <span className="empty-ic"><Inbox size={26} /></span>
           <div className="empty-title">{L('עדיין לא שלחת מטלות לקבוצה הזו', 'No tasks sent to this team yet')}</div>
-          <p className="muted small">{L('שלח תרגילים מהמסך "שליחה לשחקנים".', 'Send drills from the "Send to players" screen.')}</p>
+          <p className="muted small">{L('בחר תרגיל למעלה ושלח — המעקב יופיע כאן.', 'Pick a drill above and send — tracking shows up here.')}</p>
         </div>
       ) : (
         <ul className="ta-list">
