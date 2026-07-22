@@ -64,6 +64,28 @@ export const WEEKDAYS = [
 // הרחבת משבצות קבועות למופעים מתוארכים בטווח [fromOffsetDays .. toOffsetDays] יחסית להיום.
 // slots: [{id, weekday, start_time, end_time, location, team, coach_id}]
 // מחזיר רשימה ממוינת לפי תאריך+שעה, כל פריט עם session_id דטרמיניסטי.
+// הרחבה לטווח תאריכים אבסולוטי [fromDate .. toDate] (אובייקטי Date, כולל).
+export function expandSlotsRange(slots, fromDate, toDate) {
+  if (!slots || slots.length === 0) return []
+  const from = new Date(fromDate); from.setHours(0, 0, 0, 0)
+  const to = new Date(toDate); to.setHours(0, 0, 0, 0)
+  const out = []
+  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    const wd = d.getDay(); const dateStr = ymd(d)
+    for (const s of slots) {
+      if (Number(s.weekday) !== wd) continue
+      out.push({
+        slot_id: s.id, session_id: occurrenceId(s.id, dateStr), coach_id: s.coach_id, team: s.team,
+        date: dateStr, weekday: wd,
+        start_time: s.start_time ? String(s.start_time).slice(0, 5) : null,
+        end_time: s.end_time ? String(s.end_time).slice(0, 5) : null,
+        location: s.location || null,
+      })
+    }
+  }
+  return out
+}
+
 export function expandSlots(slots, fromOffsetDays, toOffsetDays) {
   if (!slots || slots.length === 0) return []
   const today = new Date(); today.setHours(0, 0, 0, 0)

@@ -5521,6 +5521,14 @@ html.a11y-spacing * {
   border-inline-start-color: var(--primary);
   background: color-mix(in srgb, var(--primary) 14%, var(--surface));
 }
+.cal-event.recurring {
+  border-inline-start-color: var(--c-blue);
+  border-inline-start-style: dashed;
+  border-inline-start-width: 3px;
+  background: color-mix(in srgb, var(--c-blue) 12%, var(--surface));
+}
+.cal-recurring-note, .cal-recurring-tip { display: inline-flex; align-items: center; gap: 6px; }
+.cal-recurring-tip { padding: 9px 12px; border-radius: var(--radius-sm); background: var(--c-blue-bg); color: var(--c-blue); font-weight: 600; }
 .cal-event-time {
   font-size: 10.5px;
   font-weight: 700;

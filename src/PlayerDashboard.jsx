@@ -162,19 +162,18 @@ function Countdown({ membership, onNavigate }) {
     if (!membership) { setNext(null); return }
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
-      const { data } = await supabase
-        .from('schedule_entries')
-        .select('*, plan:training_plans(id, name)')
-        .eq('created_by', membership.coach_id)
-        .eq('team', membership.team)
-        .gte('date', today)
-        .order('date').order('start_time')
-        .limit(10)
+      const [{ data }, { data: slots }] = await Promise.all([
+        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(10),
+        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
+      ])
       const nowTs = Date.now()
-      const pick = (data || []).find((e) => {
-        const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`)
-        return !isNaN(end) && end.getTime() >= nowTs
-      })
+      const cands = [
+        ...(data || []),
+        ...expandSlots(slots || [], 0, 30).map((o) => ({ date: o.date, start_time: o.start_time, end_time: o.end_time })),
+      ]
+      const pick = cands
+        .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
+        .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))[0]
       setNext(pick || null)
     })()
   }, [membership])
@@ -595,15 +594,15 @@ function MyTeam({ membership, onNavigate }) {
         .order('number')
       setTeammates(mates || [])
       const today = new Date().toISOString().slice(0, 10)
-      const { data: sched } = await supabase
-        .from('schedule_entries')
-        .select('*')
-        .eq('created_by', membership.coach_id)
-        .eq('team', membership.team)
-        .gte('date', today)
-        .order('date').order('start_time')
-        .limit(1)
-      setNext(sched && sched[0] ? sched[0] : null)
+      const [{ data: sched }, { data: slots }] = await Promise.all([
+        supabase.from('schedule_entries').select('*').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(5),
+        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
+      ])
+      const merged = [
+        ...(sched || []),
+        ...expandSlots(slots || [], 0, 30).map((o) => ({ id: o.session_id, date: o.date, start_time: o.start_time, title: null })),
+      ].sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))
+      setNext(merged[0] || null)
       const { data: revs } = await supabase
         .from('session_reviews')
         .select('*')

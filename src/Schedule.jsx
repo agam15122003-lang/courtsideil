@@ -1,12 +1,13 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus, ClipboardCheck } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus, ClipboardCheck, RotateCw } from 'lucide-react'
 import { downloadIcs } from './ics'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
 import NotebookPage from './NotebookPage'
 import SessionDetail from './SessionDetail'
 import { planToNotebook } from './TrainingPlans'
+import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 
 // טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
@@ -52,6 +53,7 @@ export default function Schedule({ session }) {
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(null)
   const [reviewEntry, setReviewEntry] = useState(null)
+  const [slots, setSlots] = useState([])
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
 
   const openPlan = async (plan) => {
@@ -102,6 +104,7 @@ export default function Schedule({ session }) {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
+  const weekSlotOccs = expandSlotsRange(slots, weekStart, weekEnd)
   const hours = []
   for (let h = START_HOUR; h <= END_HOUR; h++) hours.push(h)
   const todayStr = ymd(new Date())
@@ -110,7 +113,7 @@ export default function Schedule({ session }) {
   async function load() {
     setLoading(true)
     // ארבע השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
-    const [entriesRes, plansRes, meetingsRes, coachesRes] = await Promise.all([
+    const [entriesRes, plansRes, meetingsRes, coachesRes, slotsRes] = await Promise.all([
       supabase
         .from('schedule_entries')
         .select('*, plan:training_plans(id, name)')
@@ -131,6 +134,11 @@ export default function Schedule({ session }) {
         .from('profiles')
         .select('id, first_name, last_name, club')
         .neq('id', me),
+      // ימי אימון קבועים (מנוהלים ב"הקבוצות שלי") — מוצגים גם בלו"ז השבועי
+      supabase
+        .from('team_practice_slots')
+        .select('*')
+        .eq('coach_id', me),
     ])
     if (entriesRes.error) {
       setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + entriesRes.error.message)
@@ -142,6 +150,7 @@ export default function Schedule({ session }) {
     setPlans(plansRes.data || [])
     setMeetings(meetingsRes.error ? [] : meetingsRes.data || [])
     setCoaches((coachesRes.data || []).filter((c) => c.first_name && c.last_name))
+    setSlots(slotsRes && !slotsRes.error ? slotsRes.data || [] : [])
     setLoading(false)
   }
 
@@ -388,7 +397,11 @@ export default function Schedule({ session }) {
 
             {days.map((d, i) => {
               const ds = ymd(d)
-              const dayEntries = entries.filter((e) => e.date === ds)
+              const slotEntries = weekSlotOccs.filter((o) => o.date === ds).map((o) => ({
+                id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time,
+                team: o.team, location: o.location, is_personal: false, plan: null, _recurring: true,
+              }))
+              const dayEntries = [...entries.filter((e) => e.date === ds), ...slotEntries]
               const dayMeetings = meetings.filter((m) => m.date === ds)
 
               // אירועים חופפים נפרסים זה-לצד-זה (interval partitioning):
@@ -453,7 +466,7 @@ export default function Schedule({ session }) {
                     return (
                       <button
                         key={e.id}
-                        className={'cal-event' + (e.is_personal ? ' personal' : '')}
+                        className={'cal-event' + (e.is_personal ? ' personal' : '') + (e._recurring ? ' recurring' : '')}
                         style={{ top, height, ...laneStyle('e' + e.id) }}
                         onClick={(ev) => {
                           ev.stopPropagation()
@@ -574,6 +587,11 @@ export default function Schedule({ session }) {
             {selected.start_time}
             {selected.end_time ? '–' + selected.end_time : ''}
           </div>
+          {selected._recurring && (
+            <p className="muted small cal-recurring-note" style={{ marginTop: 8 }}>
+              <RotateCw size={13} /> {L('אימון קבוע — לניהול הימים והשעות: "הקבוצות שלי" ← ימי אימון', 'Fixed practice — manage days & times in "My teams" → Practices')}
+            </p>
+          )}
           {selected.plan && (
             <button
               className="btn-primary cal-open-plan"
@@ -607,13 +625,15 @@ export default function Schedule({ session }) {
           >
             <CalendarPlus size={15} /> {L('הוסף ליומן', 'Add to calendar')}
           </button>
-          <button
-            className="btn-ghost danger"
-            style={{ marginTop: 12 }}
-            onClick={() => removeEntry(selected.id)}
-          >
-            <Trash2 size={15} /> {L('מחיקת האימון', 'Delete practice')}
-          </button>
+          {!selected._recurring && (
+            <button
+              className="btn-ghost danger"
+              style={{ marginTop: 12 }}
+              onClick={() => removeEntry(selected.id)}
+            >
+              <Trash2 size={15} /> {L('מחיקת האימון', 'Delete practice')}
+            </button>
+          )}
         </div>
       )}
 
@@ -705,16 +725,9 @@ export default function Schedule({ session }) {
                   style={{ marginTop: 10 }}
                 />
               )}
-              <label className="switch-row" style={{ marginTop: 10 }}>
-                <span className="switch">
-                  <input type="checkbox" checked={repeatWeekly} onChange={(e) => setRepeatWeekly(e.target.checked)} />
-                  <span className="switch-track" />
-                </span>
-                <span className="switch-text">
-                  {L('חוזר כל שבוע (12 שבועות)', 'Repeat weekly (12 weeks)')}
-                  <span className="muted small">{L('נוצר אוטומטית לאותו יום ושעה, ומופיע לשחקנים בלו״ז', 'Auto-created for the same day & time; appears in players’ schedule')}</span>
-                </span>
-              </label>
+              <p className="muted small cal-recurring-tip" style={{ marginTop: 10 }}>
+                <RotateCw size={13} /> {L('לאימון קבוע כל שבוע — הגדר "ימי אימון" ב"הקבוצות שלי", וזה יופיע כאן ואצל השחקנים אוטומטית.', 'For a weekly fixed practice — set "Practices" in "My teams"; it appears here and for players automatically.')}
+              </p>
             </>
           )}
 
