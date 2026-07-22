@@ -798,6 +798,15 @@ export default function Teams({ session, profile, onNavigate }) {
             {pEdit.player_id && (
               <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} team={pEdit.team} playerName={pEdit.name} />
             )}
+            {!pEdit.player_id && (
+              <div className="tm-connect-hint">
+                <span className="tm-connect-hint-ic"><Target size={16} /></span>
+                <div>
+                  <strong>{L('מטרות ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
+                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בטאב הצטרפות). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
