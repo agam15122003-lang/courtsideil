@@ -500,11 +500,6 @@ function MyFeedback({ session }) {
                   {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={15} fill={n <= f.rating ? 'currentColor' : 'none'} />)}
                 </div>
               )}
-              {f.effort > 0 && (
-                <span className="pl-fb-effort" title={L('מאמץ', 'Effort')}>
-                  <Flame size={13} fill="currentColor" /> {L('מאמץ', 'Effort')} {f.effort}/10
-                </span>
-              )}
               {f.content && <p className="pl-fb-text">{f.content}</p>}
             </div>
           </article>
@@ -762,6 +757,67 @@ function PlayerVideos() {
   )
 }
 
+// ---------- דירוג מאמץ עצמי (בסוף אימון/משחק) ----------
+function EffortPrompt({ session, membership }) {
+  const [pending, setPending] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const from = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
+      const [{ data: pr }, { data: gm }, { data: se }] = await Promise.all([
+        supabase.from('schedule_entries').select('id, date, plan:training_plans(name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today).order('date', { ascending: false }),
+        supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
+        supabase.from('session_effort').select('session_id').eq('player_id', session.user.id),
+      ])
+      const rated = new Set((se || []).map((r) => r.session_id))
+      const cands = [
+        ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, title: e.plan?.name || L('אימון', 'Practice') })),
+        ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
+      ].filter((c) => c.session_date && !rated.has(c.session_id)).sort((a, b) => b.session_date.localeCompare(a.session_date))
+      setPending(cands[0] || null)
+    })()
+  }, [membership, session.user.id])
+
+  const rate = async (n) => {
+    if (!pending || busy) return
+    setBusy(true)
+    const { error } = await supabase.from('session_effort').insert({
+      player_id: session.user.id, coach_id: membership.coach_id, team: membership.team,
+      session_type: pending.session_type, session_id: pending.session_id, session_date: pending.session_date, effort: n,
+    })
+    setBusy(false)
+    if (error) { toast.error(L('השליחה נכשלה', 'Failed to send')); return }
+    setDone(true)
+    toast.success(L('תודה! הדירוג נשלח למאמן 💪', 'Thanks! Sent to your coach 💪'))
+  }
+
+  if (!membership || (!pending && !done)) return null
+  return (
+    <section className="pl-block">
+      <div className="pl-effort-ask">
+        <div className="pl-effort-ask-head">
+          <span className="pl-effort-ic"><Flame size={20} /></span>
+          <div>
+            <strong>{done ? L('תודה על הדירוג! 🔥', 'Thanks for rating! 🔥') : L('איך היה המאמץ שלך?', 'How was your effort?')}</strong>
+            {!done && pending && <span className="muted small">{pending.title}{pending.session_date ? ` · ${new Date(pending.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}</span>}
+          </div>
+        </div>
+        {!done && (
+          <div className="pl-effort-scale" role="group" aria-label={L('דירוג מאמץ 1 עד 10', 'Effort 1 to 10')}>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} className="pl-effort-btn" onClick={() => rate(n)} disabled={busy} aria-label={String(n)}>{n}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
@@ -817,6 +873,8 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       )}
 
       <div className="pl-stagger"><Countdown membership={membership} onNavigate={setView} /></div>
+
+      {membership && <div className="pl-stagger"><EffortPrompt session={session} membership={membership} /></div>}
 
       <div className="pl-tiles pl-stagger">
         <button className="pl-tile" onClick={() => setView('drills')}>
