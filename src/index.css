@@ -14554,7 +14554,28 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-ev-body strong { color: var(--text); font-size: 15px; }
 .pl-ev-body .muted { display: inline-flex; align-items: center; gap: 4px; }
 
-/* לו"ז שחקן — טבלה אחת מחוברת */
+/* לו"ז שחקן (redesign) — כרטיסים לפי יום + אימונים שהיו */
+.pls-day { margin-bottom: 16px; }
+.pls-day-head { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 800; color: var(--text); margin: 0 2px 9px; }
+.pls-today { font-style: normal; font-size: 11px; font-weight: 800; color: var(--accent-strong); background: var(--accent-soft); padding: 2px 9px; border-radius: var(--radius-full); }
+.pls-ev { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); margin-bottom: 9px; }
+.pls-ev.game { border: 1.5px solid var(--accent); }
+.pls-ev-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pls-ev-body strong { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); font-size: 15px; font-family: var(--font-display); font-weight: 800; }
+.pls-ev-body .muted { display: inline-flex; align-items: center; gap: 4px; }
+.pls-ev-tag { font-size: 11px; font-weight: 800; color: var(--accent-strong); background: var(--accent-soft); padding: 2px 9px; border-radius: var(--radius-full); }
+.pls-ev-time { flex-shrink: 0; align-self: stretch; display: inline-flex; align-items: center; padding: 0 14px; border-radius: var(--radius-md); background: var(--surface-alt); color: var(--text); font-family: var(--font-display); font-weight: 900; font-size: 16px; }
+.pls-ev.game .pls-ev-time { background: var(--accent-soft); color: var(--accent-strong); }
+.pls-past { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 9px; }
+.pls-past-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.pls-past-head strong { font-family: var(--font-display); font-weight: 800; font-size: 14.5px; color: var(--text); }
+.pls-load { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 800; color: var(--accent-strong); background: var(--accent-soft); padding: 3px 10px; border-radius: var(--radius-full); }
+.pls-past-goal { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 600; color: var(--text); padding: 3px 0; }
+.pls-mark { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.pls-mark.on { background: var(--c-green); border-color: var(--c-green); }
+.pls-past-note { display: flex; align-items: center; gap: 5px; margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--text-muted); }
+
+/* לו"ז שחקן — טבלה אחת מחוברת (legacy) */
 .pl-tbl { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
 .pl-tbl-head, .pl-tbl-row { display: grid; grid-template-columns: 86px 62px 1fr 140px; gap: 10px; align-items: center; padding: 10px 14px; }
 .pl-tbl-head { font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
@@ -14587,6 +14608,27 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-goal-progress { margin-bottom: 20px; }
 .pl-goal-progress-bar { height: 9px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; margin-bottom: 6px; }
 .pl-goal-progress-bar > span { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--c-orange), var(--accent)); transition: width 0.5s cubic-bezier(0.2,0.8,0.3,1); }
+
+/* מטרות השחקן (redesign) — טבעת בכותרת + כרטיסים נקיים */
+.plg-ring { flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%; display: inline-grid; place-items: center; background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--surface-alt) 0); }
+.plg-ring > span { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); display: inline-grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 14px; color: var(--text); }
+.plg-ring > span i { font-size: 10px; font-style: normal; color: var(--text-muted); font-weight: 700; }
+.plg-section { margin-bottom: 18px; }
+.plg-section .pl-section-label { margin-bottom: 10px; }
+.plg-goals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.plg-goal { display: flex; align-items: flex-start; gap: 12px; padding: 15px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.plg-goal.done { background: var(--c-green-bg); border-color: color-mix(in srgb, var(--c-green) 30%, var(--border)); }
+.plg-check { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-top: 1px; }
+.plg-goal.done .plg-check { background: var(--c-green); border-color: var(--c-green); }
+.plg-goal-main { flex: 1; min-width: 0; }
+.plg-goal-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.plg-goal-top strong { font-family: var(--font-display); font-weight: 800; font-size: 15.5px; color: var(--text); }
+.plg-goal.done .plg-goal-top strong { color: var(--c-green); }
+.plg-goal-val { margin-inline-start: auto; font-family: var(--font-display); font-weight: 900; font-size: 15px; color: var(--accent-strong); }
+.plg-goal-team { font-size: 11px; font-weight: 800; color: var(--c-blue); background: var(--c-blue-bg); padding: 2px 9px; border-radius: var(--radius-full); }
+.plg-goal-bar { height: 8px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; margin-bottom: 7px; }
+.plg-goal-bar > span { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--accent), #F0A878); transition: width 0.6s cubic-bezier(0.2,0.8,0.3,1); }
+.plg-goal-note.done { font-size: 13px; font-weight: 800; color: var(--c-green); }
 
 /* סיכומי אימונים — צד השחקן */
 .pl-recaps { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
