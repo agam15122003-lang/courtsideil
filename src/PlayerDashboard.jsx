@@ -322,39 +322,50 @@ function AssignmentCard({ a, doneSet, onToggleDone }) {
   const done = doneSet.has(a.id)
   const drill = a.drill
   const yt = a.video_url ? getYouTubeId(a.video_url) : null
+  const vidUrl = a.video_url ? safeUrl(a.video_url) : null
   const title = drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
   const cat = drill?.category
   const desc = drill?.description || a.note
 
+  if (done) {
+    return (
+      <button className="pla done" onClick={() => onToggleDone(a.id, true)} aria-pressed="true">
+        <span className="pla-check on"><Check size={16} /></span>
+        <span className="pla-done-body">
+          <span className="pla-done-title">{title}{cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}</span>
+          <span className="muted small">{L('בוצע · כל הכבוד', 'Done · nice work')}</span>
+        </span>
+        <span className="pla-done-badge">{L('בוצע', 'Done')}</span>
+      </button>
+    )
+  }
+
   return (
-    <article className={done ? 'pl-assign done' : 'pl-assign'}>
-      <div className="pl-assign-main">
-        <div className="pl-assign-head">
-          <h3>{title}</h3>
-          {cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}
-        </div>
-        {desc && <p className="pl-assign-desc">{desc}</p>}
-        <div className="pl-assign-meta">
-          {drill?.duration_minutes && <span><Clock size={13} /> {drill.duration_minutes} {L("דק'", 'min')}</span>}
-          {a.due_date && <span><CalendarDays size={13} /> {L('עד', 'by')} {new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</span>}
-          <span className="pl-assign-from">{a.player_id ? L('נשלח אליך', 'Sent to you') : L('לכל הקבוצה', 'Whole team')} · {timeAgo(a.created_at)}</span>
-        </div>
-        {yt && (
-          <a className="pl-assign-video" href={safeUrl(a.video_url) || '#'} target="_blank" rel="noopener noreferrer">
-            <img src={`https://img.youtube.com/vi/${yt}/hqdefault.jpg`} alt="" loading="lazy" />
-            <span className="pl-assign-play">▶</span>
-          </a>
-        )}
-        {!yt && a.video_url && safeUrl(a.video_url) && (
-          <a className="link-button" href={safeUrl(a.video_url)} target="_blank" rel="noopener noreferrer">{L('לצפייה בסרטון', 'Watch video')}</a>
-        )}
+    <article className="pla">
+      <div className="pla-head">
+        <h3>{title}</h3>
+        {cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}
       </div>
-      <button
-        className={done ? 'pl-done-btn is-done' : 'pl-done-btn'}
-        onClick={() => onToggleDone(a.id, done)}
-        aria-pressed={done}
-      >
-        <Check size={16} /> {done ? L('בוצע', 'Done') : L('סמן כבוצע', 'Mark done')}
+      {desc && <p className="pla-desc">{desc}</p>}
+      <div className="pla-meta">
+        {drill?.duration_minutes && <span><Clock size={13} /> {drill.duration_minutes} {L("דק'", 'min')}</span>}
+        {a.due_date && <span><CalendarDays size={13} /> {L('עד', 'by')} {new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</span>}
+        <span>{a.player_id ? L('נשלח אליך אישית', 'Sent to you') : L('לכל הקבוצה', 'Whole team')}</span>
+      </div>
+      {yt && (
+        <a className="pla-video" href={vidUrl || '#'} target="_blank" rel="noopener noreferrer" style={{ backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` }}>
+          <span className="pla-play"><Play size={22} fill="#fff" /></span>
+          <span className="pla-video-tag">{L('סרטון הדגמה · YouTube', 'Demo · YouTube')}</span>
+        </a>
+      )}
+      {!yt && vidUrl && (
+        <a className="pla-video no-thumb" href={vidUrl} target="_blank" rel="noopener noreferrer">
+          <span className="pla-play"><Play size={22} fill="#fff" /></span>
+          <span className="pla-video-tag">{L('לצפייה בסרטון', 'Watch video')}</span>
+        </a>
+      )}
+      <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
+        <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
       </button>
     </article>
   )
@@ -398,18 +409,23 @@ function MyAssignments({ session }) {
   const shown = items.filter((a) => filter === 'all' ? true : filter === 'done' ? doneSet.has(a.id) : !doneSet.has(a.id))
 
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('התרגילים שלי', 'My drills')}</h2>
+    <div className="pl-screen pl-narrow">
+      <PlHead Icon={Dumbbell} tone="green"
+        title={L('התרגילים שלי', 'My drills')}
+        subtitle={L('מה שהמאמן שלח לך לתרגל בבית', 'What your coach sent you to practice at home')} />
       {items.length > 0 && (
-        <div className="pl-progress-head">
-          <div className="pl-progress-bar"><span style={{ width: `${pct}%` }} /></div>
-          <span className="muted small">{L(`בוצעו ${doneCount} מתוך ${items.length}`, `${doneCount} of ${items.length} done`)}</span>
+        <div className="pla-progress">
+          <div className="pla-progress-top">
+            <span>{L('ההתקדמות שלך', 'Your progress')}</span>
+            <b>{doneCount}/{items.length}</b>
+          </div>
+          <div className="pla-progress-bar"><span style={{ width: `${pct}%` }} /></div>
         </div>
       )}
       {items.length > 0 && (
-        <div className="pl-filter-tabs">
+        <div className="pla-tabs">
           {[['open', L('לביצוע', 'To do'), openCount], ['done', L('בוצעו', 'Done'), doneCount], ['all', L('הכל', 'All'), items.length]].map(([k, lbl, n]) => (
-            <button key={k} className={filter === k ? 'pl-tab active' : 'pl-tab'} onClick={() => setFilter(k)}>{lbl} · {n}</button>
+            <button key={k} className={filter === k ? 'pla-tab active' : 'pla-tab'} onClick={() => setFilter(k)}>{lbl} · {n}</button>
           ))}
         </div>
       )}
@@ -469,17 +485,22 @@ function MyTeam({ membership, onNavigate }) {
 
   if (!membership) return null
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('הקבוצה שלי', 'My team')}</h2>
-      <div className="pl-team-hero">
-        <span className="pl-team-badge"><Trophy size={20} /></span>
-        <div style={{ flex: 1 }}>
-          <strong>{trTeam(membership.team)}</strong>
-          <span className="muted small">{L('מאמן: ', 'Coach: ')}{coachName(membership.coach)}{membership.coach?.club ? ` · ${membership.coach.club}` : ''}</span>
+    <div className="pl-screen pl-narrow">
+      <PlHead Icon={Users} tone="accent"
+        title={L('הקבוצה שלי', 'My team')}
+        subtitle={L('הסגל, האימון הבא והסיכומים של הקבוצה', 'Your squad, next practice and recaps')} />
+      <div className="plt-hero">
+        <span className="plt-hero-court" aria-hidden="true">🏀</span>
+        <div className="plt-hero-top">
+          <span className="plt-badge"><Trophy size={20} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>{trTeam(membership.team)}</strong>
+            <span className="plt-hero-sub">{coachName(membership.coach)}{membership.coach?.club ? ` · ${membership.coach.club}` : ''} · {teammates.length} {L('שחקנים', 'players')}</span>
+          </div>
         </div>
-        <div className="pl-team-actions">
-          <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('teamchat')}><MessagesSquare size={15} /> {L('צ׳אט הקבוצה', 'Team chat')}</button>
-          <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('למאמן', 'Coach')}</button>
+        <div className="plt-hero-actions">
+          <button className="plt-hero-btn" onClick={() => onNavigate?.('teamchat')}><MessagesSquare size={15} /> {L('צ׳אט הקבוצה', 'Team chat')}</button>
+          <button className="plt-hero-btn" onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('הודעה למאמן', 'Message coach')}</button>
         </div>
       </div>
 
@@ -699,10 +720,16 @@ function PlayerVideos() {
   const shown = cat === 'all' ? videos : videos.filter((v) => v.category === cat)
 
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('סרטוני תרגול', 'Training videos')}</h2>
+    <div className="pl-screen pl-narrow">
+      <PlHead Icon={MonitorPlay} tone="blue"
+        title={L('סרטוני תרגול', 'Training videos')}
+        subtitle={L('סרטונים שהמאמן בחר בשבילך', 'Videos your coach picked for you')} />
       {videos.length === 0 ? (
-        <p className="muted small">{L('אין סרטונים כרגע.', 'No videos right now.')}</p>
+        <div className="empty-state">
+          <span className="empty-ic"><MonitorPlay size={26} /></span>
+          <div className="empty-title">{L('אין סרטונים כרגע', 'No videos yet')}</div>
+          <p className="muted small">{L('המאמן יוסיף כאן סרטוני תרגול — לפי קטגוריות.', 'Your coach will add training videos here, by category.')}</p>
+        </div>
       ) : (
         <>
           <div className="pl-cat-chips">
@@ -718,11 +745,11 @@ function PlayerVideos() {
               return (
                 <button key={v.id} className="pl-vid" onClick={() => yt ? setPlaying({ id: yt, title: v.title }) : window.open(safeUrl(v.url) || '#', '_blank')}>
                   <span className="pl-vid-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}>
-                    <span className="pl-vid-play"><Play size={16} fill="#fff" /></span>
+                    <span className="pl-vid-play"><Play size={18} fill="#fff" /></span>
                   </span>
                   <span className="pl-vid-body">
                     <span className="pl-vid-title">{v.title}</span>
-                    {v.category && <span className="pl-vid-cat" data-cat={v.category}>{v.category}</span>}
+                    {v.category && <span className="cat-badge" data-cat={v.category}>{v.category}</span>}
                   </span>
                 </button>
               )

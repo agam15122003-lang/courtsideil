@@ -14554,6 +14554,44 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-ev-body strong { color: var(--text); font-size: 15px; }
 .pl-ev-body .muted { display: inline-flex; align-items: center; gap: 4px; }
 
+/* תרגילים (redesign) — התקדמות, טאבים, כרטיס עם וידאו */
+.pla-progress { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); margin-bottom: 14px; }
+.pla-progress-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-size: 13.5px; font-weight: 800; color: var(--text); }
+.pla-progress-top b { font-family: var(--font-display); color: var(--c-green); }
+.pla-progress-bar { height: 8px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; }
+.pla-progress-bar > span { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--c-green), #4CC38A); transition: width 0.6s cubic-bezier(0.2,0.8,0.3,1); }
+.pla-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 16px; border-radius: var(--radius-md); background: var(--surface-alt); }
+.pla-tab { flex: 1; border: none; background: none; cursor: pointer; font-family: inherit; padding: 9px 6px; border-radius: var(--radius-sm); font-weight: 800; font-size: 13px; color: var(--text-muted); }
+.pla-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.pla { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 12px; }
+.pla-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pla-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 16.5px; color: var(--text); }
+.pla-desc { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.pla-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.pla-meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.pla-video { position: relative; display: block; margin-top: 12px; height: 168px; border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt) center/cover no-repeat; }
+.pla-video.no-thumb { background: repeating-linear-gradient(135deg, var(--surface-alt), var(--surface-alt) 10px, var(--border) 10px, var(--border) 11px); }
+.pla-play { position: absolute; inset: 0; margin: auto; width: 58px; height: 58px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; box-shadow: 0 6px 18px rgba(232,118,58,0.5); }
+.pla-video-tag { position: absolute; inset-inline-end: 12px; bottom: 10px; font-size: 11.5px; font-weight: 700; color: #fff; background: rgba(15,20,30,0.6); padding: 3px 10px; border-radius: var(--radius-full); }
+.pla-mark { width: 100%; margin-top: 14px; justify-content: center; gap: 8px; }
+.pla.done, button.pla.done { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; cursor: pointer; font-family: inherit; background: var(--c-green-bg); border-color: color-mix(in srgb, var(--c-green) 30%, var(--border)); }
+.pla-check { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.pla-check.on { background: var(--c-green); border-color: var(--c-green); }
+.pla-done-body { flex: 1; min-width: 0; }
+.pla-done-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-display); font-weight: 800; font-size: 15.5px; color: var(--c-green); }
+.pla-done-badge { flex-shrink: 0; font-size: 11.5px; font-weight: 800; color: var(--c-green); background: var(--surface); border: 1px solid color-mix(in srgb, var(--c-green) 30%, var(--border)); padding: 3px 11px; border-radius: var(--radius-full); }
+
+/* הקבוצה שלי — hero נייבי */
+.plt-hero { position: relative; overflow: hidden; padding: 18px 20px; border-radius: var(--radius-lg); margin-bottom: 16px; color: #fff; background: linear-gradient(135deg, var(--hero-navy), var(--hero-navy-2)); box-shadow: var(--shadow-md); }
+.plt-hero-court { position: absolute; inset-inline-start: -6px; bottom: -22px; font-size: 92px; opacity: 0.1; pointer-events: none; }
+.plt-hero-top { display: flex; align-items: center; gap: 13px; position: relative; }
+.plt-badge { flex-shrink: 0; width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(255,255,255,0.1); color: #F5B98A; display: inline-flex; align-items: center; justify-content: center; }
+.plt-hero-top strong { display: block; font-family: var(--font-display); font-weight: 900; font-size: 20px; }
+.plt-hero-sub { display: block; margin-top: 2px; font-size: 12.5px; color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plt-hero-actions { display: flex; gap: 9px; margin-top: 15px; position: relative; }
+.plt-hero-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: var(--radius-md); font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; color: #fff; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); transition: background 0.15s; }
+.plt-hero-btn:hover { background: rgba(255,255,255,0.18); }
+
 /* לו"ז שחקן (redesign) — כרטיסים לפי יום + אימונים שהיו */
 .pls-day { margin-bottom: 16px; }
 .pls-day-head { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 800; color: var(--text); margin: 0 2px 9px; }
