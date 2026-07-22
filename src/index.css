@@ -14409,6 +14409,11 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .gb-more { font-size: 11.5px; font-weight: 800; color: var(--text-muted); }
 .gb-editor { padding: 0 14px 14px; border-top: 1px solid var(--border); }
 .gb-editor .pg-editor { margin-top: 10px; padding-top: 0; border-top: none; }
+.gb-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.gb-stat { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); background: var(--surface-alt); padding: 6px 12px; border-radius: var(--radius-full); }
+.gb-stat b { color: var(--text); font-weight: 800; }
+.sp-embedded .sp-card { padding: 14px; }
+.sp-embedded { margin-top: 4px; }
 .pg-add { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 8px; }
 .pg-add-row { display: flex; gap: 8px; }
 .pg-add-row .finder-input { flex: 1; }
@@ -14491,6 +14496,31 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-ev-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pl-ev-body strong { color: var(--text); font-size: 15px; }
 .pl-ev-body .muted { display: inline-flex; align-items: center; gap: 4px; }
+
+/* לו"ז שחקן — טבלה אחת מחוברת */
+.pl-tbl { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
+.pl-tbl-head, .pl-tbl-row { display: grid; grid-template-columns: 86px 62px 1fr 140px; gap: 10px; align-items: center; padding: 10px 14px; }
+.pl-tbl-head { font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); background: var(--surface-alt); border-bottom: 1px solid var(--border); }
+.pl-tbl-row { border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.pl-tbl-row:last-child { border-bottom: none; }
+.pl-tbl-row.first-of-day:not(:first-of-type) { border-top: 2px solid var(--border); }
+.pl-tbl-row.today { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.pl-tbl-day { display: flex; flex-direction: column; line-height: 1.2; }
+.pl-tbl-day b { font-weight: 800; font-family: var(--font-display); }
+.pl-tbl-day i { font-style: normal; font-size: 12px; color: var(--text-muted); }
+.pl-tbl-time { font-weight: 800; font-family: var(--font-display); color: var(--c-blue); }
+.pl-tbl-row.game .pl-tbl-time { color: var(--c-red); }
+.pl-tbl-ev { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+.pl-tbl-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; }
+.pl-tbl-dot.practice { background: var(--c-blue); }
+.pl-tbl-dot.game { background: var(--c-red); }
+.pl-tbl-today { flex-shrink: 0; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--accent-strong); background: var(--accent-soft); padding: 2px 8px; border-radius: var(--radius-full); }
+.pl-tbl-loc { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .pl-tbl-head, .pl-tbl-row { grid-template-columns: 64px 52px 1fr; }
+  .pl-tbl-head .pl-tbl-loc { display: none; }
+  .pl-tbl-row .pl-tbl-loc { grid-column: 3; margin-top: -4px; }
+}
 
 /* מטרות שחקן — סיכום התקדמות */
 .pl-goal-sum { flex-shrink: 0; text-align: center; padding: 8px 14px; border-radius: var(--radius-md); background: var(--c-orange-bg); }

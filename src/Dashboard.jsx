@@ -22,8 +22,6 @@ const Schedule = lazy(() => import('./Schedule'))
 const Teams = lazy(() => import('./Teams'))
 const Admin = lazy(() => import('./Admin'))
 const Media = lazy(() => import('./Media'))
-const VideoEditor = lazy(() => import('./VideoEditor'))
-const SendToPlayers = lazy(() => import('./SendToPlayers'))
 import {
   Home as HomeIcon,
   User,
@@ -34,7 +32,6 @@ import {
   MessagesSquare,
   CalendarDays,
   MonitorPlay,
-  Clapperboard,
   Send,
   Shield,
   ShieldCheck,
@@ -56,10 +53,8 @@ const NAV = [
   { id: 'drills', key: 'nav.drills', Icon: Dumbbell },
   { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teams', Icon: Shield },
-  { id: 'send', key: 'nav.send', Icon: Send },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
-  { id: 'video', key: 'nav.video', Icon: Clapperboard },
 ]
 
 // התפריט התחתון במובייל — חמשת היעדים המרכזיים
@@ -83,8 +78,6 @@ export default function Dashboard({ session }) {
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
-  const [videoVisited, setVideoVisited] = useState(false)
-  useEffect(() => { if (view === 'video') setVideoVisited(true) }, [view])
 
   const [loadError, setLoadError] = useState(false)
 
@@ -302,7 +295,7 @@ export default function Dashboard({ session }) {
         {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
         <div className="main-inner" key={showForm ? 'profile-form' : view}>
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2) */}
-          {!loading && !showForm && view !== 'video' && <QuoteStrip />}
+          {!loading && !showForm && <QuoteStrip />}
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>
@@ -375,13 +368,11 @@ export default function Dashboard({ session }) {
           ) : view === 'teams' ? (
             <Teams session={session} profile={profile} onNavigate={navigate} />
           ) : view === 'send' ? (
-            <SendToPlayers session={session} />
+            <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
           ) : view === 'admin' && profile?.is_admin ? (
             <Admin session={session} profile={profile} />
           ) : view === 'media' ? (
             <Media session={session} profile={profile} />
-          ) : view === 'video' ? (
-            null /* מרונדר בנפרד למטה כדי לשמור על מצב העריכה */
           ) : view === 'messages' ? (
             <Messages session={session} onNavigate={navigate} />
           ) : (
@@ -470,20 +461,6 @@ export default function Dashboard({ session }) {
           )}
           </Suspense>
         </div>
-        {/* עורך הווידאו — מחוץ לעטיפה עם key={view}, כדי שמעבר עמוד לא ימחק את העריכה */}
-        {videoVisited && !loading && !showForm && (
-          <div className="main-inner" style={{ display: view === 'video' ? undefined : 'none' }}>
-            <Suspense
-              fallback={
-                <div className="app-loading" style={{ padding: '48px 0' }}>
-                  <div className="loader" />
-                </div>
-              }
-            >
-              <VideoEditor active={view === 'video'} />
-            </Suspense>
-          </div>
-        )}
       </main>
 
       {/* תפריט תחתון — מובייל בלבד (לפי ה-handoff: 5 יעדים מרכזיים) */}
