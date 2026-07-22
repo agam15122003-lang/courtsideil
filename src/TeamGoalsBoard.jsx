@@ -67,10 +67,8 @@ export default function TeamGoalsBoard({ coachId, team }) {
 
   return (
     <div className="gb">
-      <h3 className="ta-title" style={{ marginTop: 26 }}><Target size={16} /> {L('מטרות לשחקנים', 'Player goals')}</h3>
-      <p className="muted small" style={{ marginBottom: 12 }}>
-        {L('לחיצה על שחקן — רואים את המטרות שלו ומוסיפים חדשות בטאפ. מטרות "לאימון" מופיעות לשחקן בסוף האימון לסימון עמד/לא עמד.', 'Tap a player to see their goals and add new ones in one tap. "Session" goals appear at practice wrap-up for the player to mark met/missed.')}
-      </p>
+      <h3 className="ta-title"><Target size={16} /> {L('מטרות לשחקנים', 'Player goals')}</h3>
+      <p className="muted small" style={{ marginBottom: 10 }}>{L('טאפ על שחקן להוספת מטרות.', 'Tap a player to add goals.')}</p>
       {players.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={24} /></span>

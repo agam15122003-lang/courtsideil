@@ -548,9 +548,11 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         </aside>
         </div>
       ) : tab === 'goals' ? (
-        /* ===================== מטרות (בורר שבוע/חודש) ===================== */
+        /* ===================== מטרות: שחקנים קודם, קבוצתי מקופל ===================== */
         <div className="team-section">
-          <p className="muted small" style={{ marginBottom: 12 }}>{L('תכנן מטרות לכל שבוע וחודש — גם קדימה. דפדף בין התקופות ושמור.', 'Plan goals for any week and month — even ahead. Browse periods and save.')}</p>
+          <TeamGoalsBoard coachId={me} team={team} />
+          <details className="tg-collapse">
+            <summary><Target size={15} /> {L('מטרות קבוצתיות — שבוע · חודש · עונה', 'Team goals — week · month · season')}</summary>
           <div className="goals-grid2">
             {/* שבוע */}
             <div className="goal-card-v2 gc-week">
@@ -586,9 +588,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
               <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירת מטרות העונה', 'Save season goals')}</button>
             </div>
           </div>
-
-          {/* מטרות אישיות — רשימת כל השחקנים */}
-          <TeamGoalsBoard coachId={me} team={team} />
+          </details>
         </div>
       ) : tab === 'games' ? (
         /* ===================== משחקים ===================== */

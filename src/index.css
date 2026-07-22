@@ -14420,8 +14420,29 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .gb-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .gb-stat { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); background: var(--surface-alt); padding: 6px 12px; border-radius: var(--radius-full); }
 .gb-stat b { color: var(--text); font-weight: 800; }
-.sp-embedded .sp-card { padding: 14px; }
-.sp-embedded { margin-top: 4px; }
+/* שיגור קומפקטי — כרטיס אחד בתוך "הקבוצות שלי" */
+.sp-mini { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.sp-mini-src { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-items-mini { max-height: 210px; overflow-y: auto; }
+.sp-mini-who { display: flex; gap: 6px; }
+.sp-mini-who .sp-seg-btn { flex: 1; }
+.sp-mini-opts { display: flex; gap: 8px; }
+.sp-mini-date { max-width: 150px; flex-shrink: 0; }
+.sp-mini-opts .finder-input:last-child { flex: 1; }
+.sp-mini .sp-send { margin-top: 2px; }
+
+/* מטרות קבוצתיות — מקופל */
+.tg-collapse { margin-top: 22px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.tg-collapse > summary { display: flex; align-items: center; gap: 8px; padding: 13px 16px; cursor: pointer; font-weight: 800; font-size: 14px; color: var(--text); list-style: none; }
+.tg-collapse > summary::-webkit-details-marker { display: none; }
+.tg-collapse > summary::after { content: '▾'; margin-inline-start: auto; color: var(--text-muted); transition: transform 0.15s; }
+.tg-collapse[open] > summary::after { transform: rotate(180deg); }
+.tg-collapse[open] > summary { border-bottom: 1px solid var(--border); }
+.tg-collapse .goals-grid2 { padding: 14px; }
+
+/* שדה יעד קטן בעורך המטרות */
+.pg-target { max-width: 76px; flex-shrink: 0; }
+.pl-stat-grid3 { grid-template-columns: repeat(3, 1fr) !important; }
 .pg-add { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 8px; }
 .pg-add-row { display: flex; gap: 8px; }
 .pg-add-row .finder-input { flex: 1; }

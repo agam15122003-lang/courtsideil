@@ -104,6 +104,73 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
 
   const noConnected = roster.players.length === 0
 
+  // מצב מוטמע (בתוך "הקבוצות שלי") — כרטיס קומפקטי אחד, בלי כותרות מיותרות
+  if (embedded) {
+    return (
+      <div className="sp-mini">
+        {noConnected ? (
+          <p className="muted small">{L('אין שחקנים מחוברים עדיין — שתפו את קוד ההצטרפות מטאב "סגל".', 'No connected players yet — share the join code from the roster tab.')}</p>
+        ) : (
+          <>
+            <div className="sp-mini-src">
+              {SOURCES.map((s) => (
+                <button key={s.id} className={source === s.id ? `sp-src active ${s.tone}` : 'sp-src'} onClick={() => { setSource(s.id); setContentId(null) }}>
+                  <s.Icon size={15} /> {L(s.label[0], s.label[1])}
+                </button>
+              ))}
+            </div>
+
+            {source === 'task' ? (
+              <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('מה המשימה? לדוגמה: 100 זריקות עונשין', 'The task, e.g. 100 free throws')} maxLength={120} />
+            ) : (
+              <ul className="sp-items sp-items-mini">
+                {(items[source] || []).filter((i) => !sQuery || i.title?.includes(sQuery)).slice(0, 40).map((i) => (
+                  <li key={i.id}>
+                    <button className={contentId === i.id ? 'sp-item on' : 'sp-item'} onClick={() => setContentId(contentId === i.id ? null : i.id)}>
+                      <span className="sp-check">{contentId === i.id ? <Check size={14} /> : null}</span>
+                      <span className="sp-item-title">{i.title}</span>
+                      {i.sub && <span className="muted small">{i.sub}</span>}
+                    </button>
+                  </li>
+                ))}
+                {(items[source] || []).length === 0 && <p className="muted small" style={{ padding: '6px 2px' }}>{L('אין פריטים עדיין.', 'Nothing here yet.')}</p>}
+              </ul>
+            )}
+
+            <div className="sp-mini-who">
+              <button className={mode === 'team' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setMode('team')}><Users size={14} /> {L(`כל הקבוצה (${connectedInTeam.length})`, `Whole team (${connectedInTeam.length})`)}</button>
+              <button className={mode === 'players' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setMode('players')}><User size={14} /> {L('שחקנים מסוימים', 'Specific players')}</button>
+            </div>
+
+            {mode === 'players' && (
+              <ul className="sp-players sp-items-mini">
+                {roster.players.filter((p) => p.team === team).map((p) => (
+                  <li key={p.player_id}>
+                    <button className={picked.has(p.player_id) ? 'sp-player on' : 'sp-player'} onClick={() => togglePick(p.player_id)}>
+                      <span className="sp-check">{picked.has(p.player_id) ? <Check size={14} /> : null}</span>
+                      {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
+                      <span className="sp-player-name">{p.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="sp-mini-opts">
+              <input type="date" dir="ltr" className="finder-input sp-mini-date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={L('תאריך יעד', 'Due date')} />
+              <input className="finder-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('הערה (לא חובה)', 'Note (optional)')} maxLength={400} />
+            </div>
+
+            <button className="btn-primary sp-send" onClick={doSend} disabled={!canSend} aria-busy={sending}>
+              {sending && <span className="btn-spinner" aria-hidden="true" />}
+              <Send size={17} /> {targetCount > 0 ? L(`שלח ל-${targetCount} שחקנים`, `Send to ${targetCount} players`) : L('בחרו מה לשלוח', 'Pick what to send')}
+            </button>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={embedded ? 'sp-page sp-embedded' : 'sp-page'}>
       {!embedded && (
