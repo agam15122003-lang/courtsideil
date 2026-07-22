@@ -19,6 +19,7 @@ import PlayerCommunity from './PlayerCommunity'
 import CoachChat from './CoachChat'
 import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
+import PlayerTimeline from './PlayerTimeline'
 import { requestJoinByCode, myMemberships } from './players'
 import { playerProgress, computeStreak } from './gamify'
 import { expandSlots } from './sessionId'
@@ -56,27 +57,6 @@ function PlHead({ Icon, tone = 'accent', title, subtitle, children }) {
   )
 }
 
-// קיבוץ פריטים לפי קרבה בזמן (מהחדש לישן) — לרשימת המשוב
-function timeBucket(ts) {
-  const d = new Date(ts)
-  const start = new Date(); start.setHours(0, 0, 0, 0)
-  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  const diff = Math.round((start - dayStart) / 86400000)
-  if (diff <= 0) return { key: 'today', label: L('היום', 'Today') }
-  if (diff === 1) return { key: 'yesterday', label: L('אתמול', 'Yesterday') }
-  if (diff <= 7) return { key: 'week', label: L('השבוע האחרון', 'This week') }
-  if (diff <= 31) return { key: 'month', label: L('החודש האחרון', 'This month') }
-  return { key: 'older', label: L('מוקדם יותר', 'Earlier') }
-}
-const BUCKET_ORDER = ['today', 'yesterday', 'week', 'month', 'older']
-
-// הקשר האימון/משחק שממנו הגיע המשוב — לתגית צבעונית
-function sessionContext(f) {
-  const date = f.session_date ? ` · ${new Date(f.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''
-  if (f.session_type === 'game') return { tone: 'game', label: (f.opponent ? L(`מהמשחק מול ${f.opponent}`, `Game vs ${f.opponent}`) : L('מהמשחק', 'From the game')) + date }
-  if (f.session_type === 'practice') return { tone: 'practice', label: L('מהאימון', 'From practice') + date }
-  return null
-}
 
 // ---------- מסך/כרטיס הצטרפות לקבוצה (קוד מהמאמן) ----------
 function JoinTeam({ session, onJoined, compact }) {
@@ -481,95 +461,6 @@ function MyAssignments({ session }) {
         <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד! 💪', 'No open drills — nice! 💪')}</p>
       ) : (
         shown.map((a) => <AssignmentCard key={a.id} a={a} doneSet={doneSet} onToggleDone={toggleDone} />)
-      )}
-    </div>
-  )
-}
-
-// ---------- מסך: המשוב שלי ----------
-function MyFeedback({ session }) {
-  const [items, setItems] = useState(null)
-  useEffect(() => {
-    ;(async () => {
-      const { data } = await supabase
-        .from('player_feedback')
-        .select('*, coach:profiles!coach_id(first_name, last_name, avatar_url)')
-        .eq('player_id', session.user.id)
-        .order('created_at', { ascending: false })
-      setItems(data || [])
-    })()
-  }, [session.user.id])
-
-  if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
-  const rated = items.filter((f) => f.rating > 0)
-  const avg = rated.length ? (rated.reduce((s, f) => s + f.rating, 0) / rated.length) : null
-
-  // קיבוץ לפי זמן — הכי חדש למעלה, מסודר בקבוצות ברורות
-  const groupMap = {}
-  for (const f of items) {
-    const b = timeBucket(f.created_at)
-    ;(groupMap[b.key] = groupMap[b.key] || { ...b, list: [] }).list.push(f)
-  }
-  const groups = BUCKET_ORDER.filter((k) => groupMap[k]).map((k) => groupMap[k])
-
-  return (
-    <div className="pl-screen pl-narrow">
-      <PlHead Icon={MessageSquareHeart} tone="green"
-        title={L('המשוב שלי', 'My feedback')}
-        subtitle={L('מה שהמאמן כתב לך אחרי אימונים ומשחקים', 'What your coach wrote after practices and games')} />
-
-      {items.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><MessageSquareHeart size={26} /></span>
-          <div className="empty-title">{L('עדיין אין משוב', 'No feedback yet')}</div>
-          <p className="muted small">{L('אחרי אימון או משחק, המאמן יכתוב לך כאן משוב אישי — והוא יופיע מסודר לפי תאריך.', 'After a practice or game, your coach leaves personal feedback here — sorted by date.')}</p>
-        </div>
-      ) : (
-        <>
-          <div className="pl-fb-stats">
-            <div className="pl-fb-stat"><b>{items.length}</b><span>{L('משובים', 'notes')}</span></div>
-            {avg != null && (
-              <div className="pl-fb-stat">
-                <b>{avg.toFixed(1)}<i>/5</i></b>
-                <span>{L('דירוג ממוצע', 'avg rating')}</span>
-              </div>
-            )}
-            <div className="pl-fb-stat"><b>{items.filter((f) => f.session_type === 'game').length}</b><span>{L('ממשחקים', 'from games')}</span></div>
-          </div>
-
-          {groups.map((g) => (
-            <section className="pl-fb-group" key={g.key}>
-              <p className="pl-section-label">{g.label}</p>
-              {g.list.map((f) => {
-                const ctx = sessionContext(f)
-                return (
-                  <article key={f.id} className={`pl-fb ${ctx ? 'tone-' + ctx.tone : 'tone-accent'}`}>
-                    <Avatar name={coachName(f.coach)} url={f.coach?.avatar_url} size={40} />
-                    <div className="pl-fb-body">
-                      <div className="pl-fb-head">
-                        <strong>{coachName(f.coach)}</strong>
-                        <span className="muted small">{timeAgo(f.created_at)}</span>
-                      </div>
-                      {ctx && (
-                        <span className={`pl-fb-session ${ctx.tone}`}>
-                          {ctx.tone === 'game' ? <Volleyball size={12} /> : <Dumbbell size={12} />} {ctx.label}
-                        </span>
-                      )}
-                      {f.rating > 0 && (
-                        <div className="pl-fb-stars" aria-label={L(`${f.rating} מתוך 5`, `${f.rating} of 5`)}>
-                          {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={15} fill={n <= f.rating ? 'currentColor' : 'none'} />)}
-                        </div>
-                      )}
-                      {f.content
-                        ? <p className="pl-fb-text">{f.content}</p>
-                        : <p className="pl-fb-text muted">{L('המאמן סימן נוכחות/דירוג לאימון הזה.', 'Your coach logged this session.')}</p>}
-                    </div>
-                  </article>
-                )
-              })}
-            </section>
-          ))}
-        </>
       )}
     </div>
   )
@@ -1187,7 +1078,7 @@ const PLAYER_NAV = [
   { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'teamchat', label: ['צ׳אט קבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
-  { id: 'feedback', label: ['משוב', 'Feedback'], Icon: MessageSquareHeart, team: true },
+  { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
   { id: 'community', label: ['קהילה', 'Community'], Icon: Users2 },
   { id: 'team', label: ['הקבוצה שלי', 'My team'], Icon: Users, team: true },
@@ -1242,10 +1133,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
       case 'feedback':
         return hasTeam
-          ? <MyFeedback session={session} />
+          ? <PlayerTimeline session={session} membership={membership} />
           : <LockedFeature session={session} onJoined={loadMemberships}
-              title={L('המשוב שלי', 'My feedback')}
-              desc={L('משוב אישי מגיע מהמאמן שלך. הצטרפו לקבוצה כדי לקבל משוב.', 'Personal feedback comes from your coach. Join a team to receive feedback.')} />
+              title={L('האימונים שלי', 'My sessions')}
+              desc={L('ההיסטוריה שלך — משוב, עומס ומטרות לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
       case 'goals':
         return hasTeam
           ? <MyGoals session={session} membership={membership} />

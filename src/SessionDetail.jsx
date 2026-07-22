@@ -33,6 +33,7 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [mvp, setMvp] = useState(null)      // rosterId
   const [overall, setOverall] = useState('')
   const [saving, setSaving] = useState(false)
+  const [hadReview, setHadReview] = useState(false) // כבר נשמר דוח בעבר? (כדי לא לשלוח התראות כפולות)
 
   const load = useCallback(async () => {
     const { data: rp } = await supabase
@@ -65,6 +66,7 @@ export default function SessionDetail({ session, entry, onClose }) {
     setEfforts(ef); setPlayerNotes(pn)
     const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('מטרה', 'Goal'), met: r.met }) }
     setGoalMarks(gm)
+    setHadReview(!!rev)
     if (rev) {
       setOverall(rev.overall_note || '')
       if (rev.mvp_player_id && byAuth[rev.mvp_player_id]) setMvp(byAuth[rev.mvp_player_id])
@@ -123,6 +125,22 @@ export default function SessionDetail({ session, entry, onClose }) {
     }, { onConflict: 'coach_id,session_type,session_id' })
     if (mvpP?.player_id && !notified.has(mvpP.player_id)) {
       sendNotification({ to: mvpP.player_id, actor: me, type: 'message', content: L('נבחרת ל-MVP של האימון! 🏀', 'You were picked MVP of the session! 🏀'), nav: 'feedback' })
+      notified.add(mvpP.player_id)
+    }
+
+    // התראה אחת "הסיכום מוכן" לשחקנים שלא קיבלו התראה אישית — רק בשמירה הראשונה
+    if (!hadReview) {
+      const dateLbl = sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''
+      for (const p of roster) {
+        if (!p.player_id || notified.has(p.player_id)) continue
+        sendNotification({
+          to: p.player_id, actor: me, type: 'message',
+          content: sessionType === 'game'
+            ? L(`סיכום המשחק${dateLbl ? ` של ${dateLbl}` : ''} מוכן 🏀`, `Game recap${dateLbl ? ` for ${dateLbl}` : ''} is ready 🏀`)
+            : L(`סיכום האימון${dateLbl ? ` של ${dateLbl}` : ''} מוכן 🏀`, `Practice recap${dateLbl ? ` for ${dateLbl}` : ''} is ready 🏀`),
+          nav: 'feedback',
+        })
+      }
     }
 
     setSaving(false)
