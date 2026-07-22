@@ -3,11 +3,12 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck, MessageSquareHeart, Star,
+  UserCheck, MessageSquareHeart, Star, ClipboardCheck,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
+import SessionDetail from './SessionDetail'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
@@ -74,6 +75,7 @@ export default function Teams({ session, profile, onNavigate }) {
   const [pName, setPName] = useState('')
   const [pNum, setPNum] = useState('')
   const [gForm, setGForm] = useState({ date: '', time: '', opponent: '', location: '' })
+  const [reviewGame, setReviewGame] = useState(null)
   const [manualOpen, setManualOpen] = useState(false)
   const [sForm, setSForm] = useState({ name: '', role: 'assistant', phone: '' })
 
@@ -626,6 +628,7 @@ export default function Teams({ session, profile, onNavigate }) {
                     <strong>{gm.opponent || L('יריבה', 'Opponent')}</strong>
                     {gm.location && <span className="game-loc"><MapPin size={12} /> {gm.location}</span>}
                   </div>
+                  <button className="icon-btn" onClick={() => setReviewGame(gm)} aria-label={L('נוכחות ומשוב', 'Attendance & review')} title={L('נוכחות ומשוב למשחק', 'Game attendance & review')}><ClipboardCheck size={15} /></button>
                   <button className="icon-btn" onClick={() => setGEdit({ ...gm })} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
                   <button className="icon-btn" onClick={() => delGame(gm.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
                 </li>
@@ -838,6 +841,14 @@ export default function Teams({ session, profile, onNavigate }) {
             </div>
           </div>
         </div>
+      )}
+
+      {reviewGame && (
+        <SessionDetail
+          session={session}
+          entry={{ id: reviewGame.id, team, date: reviewGame.game_date, start_time: reviewGame.game_time, session_type: 'game', opponent: reviewGame.opponent }}
+          onClose={() => setReviewGame(null)}
+        />
       )}
     </div>
   )
