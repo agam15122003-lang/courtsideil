@@ -3,12 +3,13 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck, MessageSquareHeart, Star, ClipboardCheck, MessagesSquare,
+  UserCheck, MessageSquareHeart, Star, ClipboardCheck, MessagesSquare, Send as SendIcon,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
+import SendToPlayers from './SendToPlayers'
 import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
@@ -17,7 +18,6 @@ import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
-import Attendance from './Attendance'
 import TeamConnect from './TeamConnect'
 import { sendNotification } from './notify'
 
@@ -63,11 +63,11 @@ const weekLabel = (sun) => { const sat = addDays(sun, 6); return `${sun.getDate(
 const monthLabel = (d) => d.toLocaleDateString(L('he-IL', 'en-US'), { month: 'long', year: 'numeric' })
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 
-export default function Teams({ session, profile, onNavigate }) {
+export default function Teams({ session, profile, onNavigate, initialTab }) {
   const me = session.user.id
   const teams = profile?.age_groups || []
   const [team, setTeam] = useState(teams[0] || '')
-  const [tab, setTab] = useState('roster')
+  const [tab, setTab] = useState(initialTab || 'roster')
   const [players, setPlayers] = useState([])
   const [attByPlayer, setAttByPlayer] = useState({})
   const [staff, setStaff] = useState([])
@@ -390,11 +390,10 @@ export default function Teams({ session, profile, onNavigate }) {
 
       <div className="tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
-        <button className={tab === 'attendance' ? 'tab active' : 'tab'} onClick={() => setTab('attendance')}><UserCheck size={15} /> {L('נוכחות', 'Attendance')}</button>
         <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('ימי אימון', 'Practices')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><Trophy size={15} /> {L('משחקים', 'Games')}</button>
-        <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><ClipboardCheck size={15} /> {L('מטלות', 'Tasks')}</button>
+        <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><SendIcon size={15} /> {L('שיגורים', 'Sends')}</button>
         <button className={tab === 'chat' ? 'tab active' : 'tab'} onClick={() => setTab('chat')}><MessagesSquare size={15} /> {L('צ׳אט', 'Chat')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
       </div>
@@ -548,9 +547,6 @@ export default function Teams({ session, profile, onNavigate }) {
           )}
         </aside>
         </div>
-      ) : tab === 'attendance' ? (
-        /* ===================== נוכחות ===================== */
-        <Attendance session={session} team={team} players={players} />
       ) : tab === 'goals' ? (
         /* ===================== מטרות (בורר שבוע/חודש) ===================== */
         <div className="team-section">
@@ -656,8 +652,11 @@ export default function Teams({ session, profile, onNavigate }) {
         /* ===================== ימי אימון קבועים + סיכום אימונים ===================== */
         <TeamSlots coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
       ) : tab === 'tasks' ? (
-        /* ===================== מטלות שנשלחו ===================== */
-        <TeamAssignments coachId={me} team={team} />
+        /* ===================== שיגורים: שליחה + מעקב ביצוע ===================== */
+        <div className="team-section">
+          <SendToPlayers session={session} embedded initialTeam={team} key={team} />
+          <TeamAssignments coachId={me} team={team} />
+        </div>
       ) : tab === 'chat' ? (
         /* ===================== צ'אט קבוצה ===================== */
         <div className="team-section team-chat-wrap">

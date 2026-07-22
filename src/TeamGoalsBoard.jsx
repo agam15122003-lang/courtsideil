@@ -1,11 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Target, ChevronDown, Check, Users2 } from 'lucide-react'
+import { Target, ChevronDown, Users2, Flame, CheckCircle2, CalendarCheck } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import Avatar from './Avatar'
-import { PlayerGoalsEditor, PERIODS } from './PlayerGoals'
+import { PlayerGoalsEditor } from './PlayerGoals'
 
-const periodShort = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : id }
+// מיני-דוח שחקן — ממוצע עומס, % עמידה במטרות, % נוכחות. במבט אחד.
+function GbStats({ coachId, playerAuthId, rosterId }) {
+  const [st, setSt] = useState(null)
+  useEffect(() => {
+    ;(async () => {
+      const [{ data: eff }, { data: marks }, { data: att }] = await Promise.all([
+        supabase.from('session_effort').select('effort').eq('coach_id', coachId).eq('player_id', playerAuthId),
+        supabase.from('session_goal_marks').select('met').eq('coach_id', coachId).eq('player_id', playerAuthId),
+        supabase.from('practice_attendance').select('status').eq('coach_id', coachId).eq('player_id', rosterId),
+      ])
+      const effVals = (eff || []).map((r) => r.effort)
+      const met = (marks || []).filter((m) => m.met).length
+      const attRows = att || []
+      const present = attRows.filter((a) => a.status && a.status !== 'absent').length
+      setSt({
+        avgEffort: effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null,
+        goalsPct: (marks || []).length ? Math.round((met / marks.length) * 100) : null,
+        attPct: attRows.length ? Math.round((present / attRows.length) * 100) : null,
+      })
+    })()
+  }, [coachId, playerAuthId, rosterId])
+  if (!st) return null
+  return (
+    <div className="gb-stats">
+      <span className="gb-stat"><Flame size={13} /> {L('עומס ממוצע', 'Avg load')} <b>{st.avgEffort ?? '—'}</b></span>
+      <span className="gb-stat"><CheckCircle2 size={13} /> {L('עמידה במטרות', 'Goals met')} <b>{st.goalsPct != null ? `${st.goalsPct}%` : '—'}</b></span>
+      <span className="gb-stat"><CalendarCheck size={13} /> {L('נוכחות', 'Attendance')} <b>{st.attPct != null ? `${st.attPct}%` : '—'}</b></span>
+    </div>
+  )
+}
 
 // לוח מטרות לשחקנים — רשימת כל השחקנים המחוברים, לכל אחד המטרות שלו במבט,
 // ולחיצה פותחת עורך מהיר (צ'יפים + הוספה). (מאמן, בטאב "מטרות")
@@ -71,6 +100,7 @@ export default function TeamGoalsBoard({ coachId, team }) {
                 </button>
                 {isOpen && (
                   <div className="gb-editor">
+                    <GbStats coachId={coachId} playerAuthId={p.player_id} rosterId={p.id} />
                     <PlayerGoalsEditor coachId={coachId} playerId={p.player_id} team={team} playerName={p.name} />
                   </div>
                 )}

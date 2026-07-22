@@ -16,7 +16,7 @@ const SOURCES = [
   { id: 'task', label: ['משימה חופשית', 'Free task'], Icon: PencilLine, tone: 'orange' },
 ]
 
-export default function SendToPlayers({ session }) {
+export default function SendToPlayers({ session, embedded, initialTeam }) {
   const me = session.user.id
   const [roster, setRoster] = useState({ teams: [], players: [] })
   const [mode, setMode] = useState('team') // 'team' | 'players'
@@ -43,8 +43,9 @@ export default function SendToPlayers({ session }) {
     ;(async () => {
       const r = await loadRoster(me)
       setRoster(r)
-      if (r.teams[0]) setTeam(r.teams[0])
-      refreshFeed(r)
+      // בקבוצות שלי — הקבוצה הפעילה נבחרת מראש
+      setTeam(initialTeam && r.teams.includes(initialTeam) ? initialTeam : (r.teams[0] || ''))
+      if (!embedded) refreshFeed(r)
     })()
   }, [me, refreshFeed])
 
@@ -104,12 +105,14 @@ export default function SendToPlayers({ session }) {
   const noConnected = roster.players.length === 0
 
   return (
-    <div className="sp-page">
-      <header className="welcome-card page-header sp-hero">
-        <div className="welcome-badge">{L('שליחה לשחקנים', 'Send to players')}</div>
-        <h2>{L('שגר תרגול לקבוצה או לשחקן', 'Send training to a team or a player')}</h2>
-        <p className="muted small">{L('תרגיל, תוכנית, סרטון או משימה — לכל הקבוצה או לשחקנים מסוימים, עם תאריך יעד.', 'A drill, plan, video or task — to the whole team or to specific players, with a due date.')}</p>
-      </header>
+    <div className={embedded ? 'sp-page sp-embedded' : 'sp-page'}>
+      {!embedded && (
+        <header className="welcome-card page-header sp-hero">
+          <div className="welcome-badge">{L('שליחה לשחקנים', 'Send to players')}</div>
+          <h2>{L('שגר תרגול לקבוצה או לשחקן', 'Send training to a team or a player')}</h2>
+          <p className="muted small">{L('תרגיל, תוכנית, סרטון או משימה — לכל הקבוצה או לשחקנים מסוימים, עם תאריך יעד.', 'A drill, plan, video or task — to the whole team or to specific players, with a due date.')}</p>
+        </header>
+      )}
 
       {noConnected ? (
         <div className="empty-state">
@@ -204,7 +207,8 @@ export default function SendToPlayers({ session }) {
         </>
       )}
 
-      {/* מה שלחתי לאחרונה */}
+      {/* מה שלחתי לאחרונה (במצב מוטמע — TeamAssignments מציג את המעקב) */}
+      {!embedded && (
       <section className="sp-card sp-feed">
         <h3 className="sp-h3"><Inbox size={16} /> {L('מה שלחתי לאחרונה', 'Recently sent')}</h3>
         {feed === null ? (
@@ -233,6 +237,7 @@ export default function SendToPlayers({ session }) {
           </ul>
         )}
       </section>
+      )}
     </div>
   )
 }

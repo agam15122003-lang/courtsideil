@@ -611,17 +611,7 @@ function PlayerSchedule({ membership }) {
   if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
 
   const next = items[0] || null
-  const rest = items.slice(1)
-  // קיבוץ שאר האירועים לפי יום, בסדר עולה
-  const dayMap = {}
-  for (const it of rest) (dayMap[it.date] = dayMap[it.date] || []).push(it)
-  const days = Object.keys(dayMap).sort()
-
-  const evTime = (t) => {
-    if (!t) return { h: '•', m: '' }
-    const [h, m] = String(t).slice(0, 5).split(':')
-    return { h, m: m ? `:${m}` : '' }
-  }
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div className="pl-screen pl-narrow">
@@ -651,26 +641,35 @@ function PlayerSchedule({ membership }) {
             </div>
           )}
 
-          {days.map((d) => (
-            <section className="pl-day-group" key={d}>
-              <p className="pl-section-label"><CalendarDays size={14} /> {dayLabel(d)}</p>
-              <ul className="pl-sched">
-                {dayMap[d].map((it) => {
-                  const t = evTime(it.time)
-                  return (
-                    <li key={it.id} className={`pl-ev ${it.kind}`}>
-                      <span className="pl-ev-time"><b>{t.h}</b>{t.m && <i>{t.m}</i>}</span>
-                      <div className="pl-ev-body">
-                        <strong>{it.title}</strong>
-                        {it.location && <span className="muted small"><MapPin size={12} /> {it.location}</span>}
-                      </div>
-                      <span className={`pl-sched-tag ${it.kind}`}>{it.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          ))}
+          {/* טבלה אחת מחוברת — יום · שעה · אירוע · מיקום */}
+          <div className="pl-tbl" role="table" aria-label={L('לוח אימונים ומשחקים', 'Schedule table')}>
+            <div className="pl-tbl-head" role="row">
+              <span>{L('יום', 'Day')}</span>
+              <span>{L('שעה', 'Time')}</span>
+              <span>{L('אירוע', 'Event')}</span>
+              <span className="pl-tbl-loc">{L('מיקום', 'Where')}</span>
+            </div>
+            {items.map((it, i) => {
+              const firstOfDay = i === 0 || items[i - 1].date !== it.date
+              return (
+                <div key={it.id} className={`pl-tbl-row ${it.kind}${firstOfDay ? ' first-of-day' : ''}${it.date === todayStr ? ' today' : ''}`} role="row">
+                  <span className="pl-tbl-day">
+                    {firstOfDay ? <>
+                      <b>{new Date(it.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short' })}</b>
+                      <i>{new Date(it.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</i>
+                    </> : null}
+                  </span>
+                  <span className="pl-tbl-time" dir="ltr">{it.time ? String(it.time).slice(0, 5) : '—'}</span>
+                  <span className="pl-tbl-ev">
+                    <span className={`pl-tbl-dot ${it.kind}`} aria-hidden="true" />
+                    {it.title}
+                    {it.date === todayStr && <em className="pl-tbl-today">{L('היום', 'Today')}</em>}
+                  </span>
+                  <span className="pl-tbl-loc muted small">{it.location ? <><MapPin size={11} /> {it.location}</> : ''}</span>
+                </div>
+              )
+            })}
+          </div>
         </>
       )}
     </div>
@@ -1084,7 +1083,6 @@ const PLAYER_NAV = [
   { id: 'goals', label: ['המטרות שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
-  { id: 'teamchat', label: ['צ׳אט קבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
   { id: 'community', label: ['קהילה', 'Community'], Icon: Users2 },
