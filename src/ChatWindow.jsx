@@ -82,6 +82,8 @@ export default function ChatWindow({
   empty,
   header,
   showAuthor,
+  readOnly,
+  readOnlyNote,
 }) {
   const scrollRef = useRef(null)
   const taRef = useRef(null)
@@ -171,27 +173,31 @@ export default function ChatWindow({
         )}
       </div>
 
-      <div className="chat-composer">
-        <textarea
-          ref={taRef}
-          className="chat-input"
-          rows={1}
-          maxLength={2000}
-          placeholder={L('כתוב הודעה...', 'Type a message...')}
-          onKeyDown={onKeyDown}
-          onInput={onInput}
-          aria-label={L('כתיבת הודעה', 'Write a message')}
-        />
-        <button
-          className="btn-send"
-          disabled={sending || !hasText}
-          onClick={submit}
-          aria-label={L('שליחה', 'Send')}
-          title={L('שליחה', 'Send')}
-        >
-          <Send size={18} />
-        </button>
-      </div>
+      {readOnly ? (
+        <div className="chat-readonly">{readOnlyNote || L('הצ׳אט במצב קריאה בלבד', 'Chat is read-only')}</div>
+      ) : (
+        <div className="chat-composer">
+          <textarea
+            ref={taRef}
+            className="chat-input"
+            rows={1}
+            maxLength={2000}
+            placeholder={L('כתוב הודעה...', 'Type a message...')}
+            onKeyDown={onKeyDown}
+            onInput={onInput}
+            aria-label={L('כתיבת הודעה', 'Write a message')}
+          />
+          <button
+            className="btn-send"
+            disabled={sending || !hasText}
+            onClick={submit}
+            aria-label={L('שליחה', 'Send')}
+            title={L('שליחה', 'Send')}
+          >
+            <Send size={18} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
