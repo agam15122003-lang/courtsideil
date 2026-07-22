@@ -776,13 +776,16 @@ function EffortPrompt({ session, membership }) {
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
       const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
-      const [{ data: slots }, { data: gm }, { data: se }, { data: gl }] = await Promise.all([
+      const [{ data: slots }, { data: gm }, { data: se }, { data: gl }, { data: prevMarks }] = await Promise.all([
         supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
         supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
         supabase.from('session_effort').select('session_id').eq('player_id', session.user.id),
-        supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['week', 'month']),
+        supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['session', 'week', 'month']),
+        supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
       ])
       const rated = new Set((se || []).map((r) => r.session_id))
+      // מטרה "לאימון" שכבר סומנה באימון קודם — לא חוזרת שוב
+      const markedEver = new Set((prevMarks || []).map((m) => m.goal_id))
       const cands = [
         // מופעי הלו"ז הקבוע ב-3 הימים האחרונים (כולל היום)
         ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון', 'Practice') })),
@@ -790,7 +793,11 @@ function EffortPrompt({ session, membership }) {
       ].filter((c) => c.session_date && !rated.has(c.session_id)).sort((a, b) => b.session_date.localeCompare(a.session_date))
       const p = cands[0] || null
       setPending(p)
-      setGoals(gl || [])
+      // סדר: קודם מטרות "לאימון", אחר כך שבועיות/חודשיות
+      const order = { session: 0, week: 1, month: 2 }
+      setGoals((gl || [])
+        .filter((g) => !(g.period === 'session' && markedEver.has(g.id)))
+        .sort((a, b) => (order[a.period] ?? 9) - (order[b.period] ?? 9)))
       if (p) {
         const { data: existing } = await supabase.from('session_goal_marks').select('goal_id, met').eq('session_id', p.session_id).eq('player_id', session.user.id)
         const m = {}; for (const r of existing || []) m[r.goal_id] = r.met; setMarks(m)
