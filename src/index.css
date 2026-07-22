@@ -14110,3 +14110,49 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-stat b { font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--text); }
 .pl-stat span { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ============================================================
+   מרכז "שליחה לשחקנים" (מאמן) — SendToPlayers
+   ============================================================ */
+.sp-page { max-width: 760px; margin: 0 auto; }
+.sp-hero { margin-bottom: 16px; }
+.sp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+.sp-h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 15px; font-weight: 800; color: var(--text); }
+
+.sp-seg { display: flex; gap: 8px; background: var(--surface-alt); padding: 4px; border-radius: var(--radius-full); margin-bottom: 12px; }
+.sp-seg-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; background: none; color: var(--text-muted); border-radius: var(--radius-full); padding: 9px 12px; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+.sp-seg-btn.active { background: var(--surface); color: var(--accent-strong); box-shadow: var(--shadow-sm); }
+
+.sp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.sp-search { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-alt); margin-bottom: 10px; color: var(--text-muted); }
+.sp-search .finder-input { border: none; background: none; padding: 10px 0; flex: 1; }
+
+.sp-players, .sp-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.sp-player, .sp-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; font-family: inherit; }
+.sp-player.on, .sp-item.on { border-color: var(--accent); background: var(--accent-soft); }
+.sp-check { width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; border: 1.5px solid var(--border-hover); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.sp-player.on .sp-check, .sp-item.on .sp-check { background: var(--accent); border-color: var(--accent); }
+.sp-player-name, .sp-item-title { flex: 1; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sp-source-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sp-src { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: var(--radius-full); padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.sp-src.active { color: #fff; border-color: transparent; }
+.sp-src.active.blue { background: var(--c-blue); }
+.sp-src.active.purple { background: var(--c-purple); }
+.sp-src.active.green { background: var(--c-green); }
+.sp-src.active.orange { background: var(--accent); }
+
+.sp-opts { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.sp-opts .pf-label span { display: inline-flex; align-items: center; gap: 5px; }
+.sp-note { width: 100%; resize: vertical; }
+
+.sp-send { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; font-size: 15.5px; padding: 15px; }
+
+.sp-feed { margin-top: 4px; }
+.sp-sent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sp-sent-item { display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border); }
+.sp-sent-item:last-child { border-bottom: none; }
+.sp-sent-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sp-sent-main strong { color: var(--text); font-size: 14.5px; }
+.sp-ratio { flex-shrink: 0; font-weight: 800; font-size: 13px; color: var(--text-muted); background: var(--surface-alt); padding: 5px 11px; border-radius: var(--radius-full); }
+.sp-ratio.done { color: var(--c-green); background: var(--c-green-bg); }
