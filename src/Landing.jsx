@@ -86,18 +86,18 @@ function CourtArt() {
 export default function Landing({ onEnter }) {
   useReveal()
   const FEATURES = [
-    { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם שדות עשירים, דירוג כוכבים, מועדפים ותגובות — ידע משותף של הקהילה.', 'Hundreds of drills with rich details, star ratings, favorites and comments — shared knowledge from the community.') },
-    { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('הרכב אימון מלא — ידני או עם בנאי חכם אוטומטי לפי גיל, נושא וזמן יעד.', 'Build a full practice — manually or with the smart auto-builder by age, topic and target time.') },
+    { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם הסבר מלא, דירוג ומועדפים — כולל מה שמאמנים אחרים שיתפו.', 'Hundreds of drills with full explanations, ratings and favorites — including what other coaches shared.') },
+    { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('מרכיבים אימון שלם בכמה דקות — לבד או עם בנאי אוטומטי לפי גיל, נושא וזמן.', 'Put together a full practice in a few minutes — on your own or with an auto-builder by age, topic and time.') },
     { Icon: PencilRuler, title: L('לוח טקטיקה', 'Tactics Board'), desc: L('שרטט מהלכים על מגרש דיגיטלי, הוסף חצי תנועה ומסירה, ונגן אנימציה שלב-אחרי-שלב.', 'Diagram plays on a digital court, add movement and passing arrows, and play back the animation step by step.') },
-    { Icon: CalendarDays, title: L('לו"ז חכם', 'Smart Schedule'), desc: L('נהל את שבוע האימונים בלוח שנה — אימוני קבוצה ואישיים, עם תוכנית מצורפת לכל שעה.', 'Manage your training week on a calendar — team and individual sessions, with a plan attached to every slot.') },
+    { Icon: CalendarDays, title: L('לו"ז חכם', 'Smart Schedule'), desc: L('כל האימונים והמשחקים בלוח שנה אחד, עם התוכנית צמודה לכל אימון — והשחקנים רואים אותו גם.', 'All practices and games on one calendar, with the plan attached to each session — and the players see it too.') },
     { Icon: Users, title: L('קהילת מאמנים', 'Coaches Community'), desc: L('מצא מאמנים, צפה בתרגילים שלהם, העתק תוכניות ששותפו ותאם משחקי אימון.', 'Find coaches, browse their drills, copy shared plans and arrange scrimmages.') },
-    { Icon: MessageSquare, title: L('תקשורת', 'Messaging'), desc: L('הודעות פרטיות 1:1 וצ׳אט קבוצתי לכל קהילת המאמנים — הכול במקום אחד.', 'Private 1:1 messages and group chat for the whole coaching community — all in one place.') },
+    { Icon: MessageSquare, title: L('תקשורת', 'Messaging'), desc: L('הודעות אישיות וצ׳אט קבוצתי — עם מאמנים אחרים, ועכשיו גם ישירות מול השחקנים והקבוצה שלך.', 'Personal messages and group chat — with other coaches, and now directly with your players and team too.') },
   ]
 
   const STEPS = [
     { n: '1', title: L('הקם פרופיל', 'Set Up Your Profile'), desc: L('מועדון, שכבות גיל ופרטים — והצטרף לקהילה.', 'Club, age groups and details — then join the community.') },
     { n: '2', title: L('בנה את הארסנל', 'Build Your Arsenal'), desc: L('שמור תרגילים, הרכב תוכניות ושרטט מהלכים.', 'Save drills, assemble plans and diagram plays.') },
-    { n: '3', title: L('נהל את העונה', 'Run Your Season'), desc: L('סדר לו"ז, הרץ אימונים על המגרש ותתחבר למאמנים.', 'Set your schedule, run practices on the court and connect with coaches.') },
+    { n: '3', title: L('נהל את העונה', 'Run Your Season'), desc: L('מסמנים נוכחות, כותבים משוב אחרי אימון ושולחים תרגול לשחקנים — הכל מהטלפון.', 'Take attendance, write feedback after practice and send drills to players — all from your phone.') },
   ]
 
   const STATS = [
@@ -209,7 +209,7 @@ export default function Landing({ onEnter }) {
       <section className="land-section reveal" id="features">
         <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
         <h2 className="land-h2">{L('כל מה שמאמן צריך', 'Everything a coach needs')}</h2>
-        <p className="land-lead">{L('כל הכלים המקצועיים במקום אחד, בלי לקפוץ בין אפליקציות.', 'Every professional tool in one place — no jumping between apps.')}</p>
+        <p className="land-lead">{L('כל מה שצריך כדי לנהל קבוצה — במקום אחד, בלי לקפוץ בין אפליקציות.', 'Everything you need to run a team — in one place, no jumping between apps.')}</p>
         <div className="land-features">
           {FEATURES.map((f) => (
             <div key={f.title} className="land-feature">
@@ -279,8 +279,8 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-band reveal">
-        <h2 className="land-band-title">{L('מוכן לסדר את עולם האימון שלך?', 'Ready to organize your coaching world?')}</h2>
-        <p className="land-band-sub">{L('הצטרף לקהילת מאמני הכדורסל — בחינם, בעברית, מהמכשיר שכבר בכיס שלך.', 'Join the basketball coaching community — free, and right from the device already in your pocket.')}</p>
+        <h2 className="land-band-title">{L('יאללה, מתחילים.', 'Let’s get started.')}</h2>
+        <p className="land-band-sub">{L('בחינם ובעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'Free and in Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')}</p>
         <button className="btn-hero btn-lg" onClick={onEnter}>
           {L('הצטרפות חינם', 'Join free')}
           <ArrowLeft size={18} />
