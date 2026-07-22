@@ -116,10 +116,32 @@ export function MyGoals({ session, membership }) {
 
   if (goals === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
   const done = goals.filter((g) => g.status === 'done').length
+  const total = goals.length
+  const pct = total ? Math.round((done / total) * 100) : 0
 
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('המטרות שלי', 'My goals')}</h2>
+    <div className="pl-screen pl-narrow">
+      <header className="pl-head tone-orange">
+        <span className="pl-head-ic"><Target size={22} /></span>
+        <div className="pl-head-txt">
+          <h2>{L('המטרות שלי', 'My goals')}</h2>
+          <p>{L('היעדים שהמאמן הציב לך — שבועי, חודשי ועונתי', 'Targets your coach set — weekly, monthly and season')}</p>
+        </div>
+        {total > 0 && (
+          <div className="pl-goal-sum">
+            <b>{done}<i>/{total}</i></b>
+            <span>{L('הושגו', 'done')}</span>
+          </div>
+        )}
+      </header>
+
+      {total > 0 && (
+        <div className="pl-goal-progress">
+          <div className="pl-goal-progress-bar"><span style={{ width: `${pct}%` }} /></div>
+          <span className="muted small">{pct}% {L('מהמטרות הושלמו', 'of goals completed')}</span>
+        </div>
+      )}
+
       {goals.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Target size={26} /></span>
@@ -128,7 +150,6 @@ export function MyGoals({ session, membership }) {
         </div>
       ) : (
         <>
-          {done > 0 && <p className="pl-section-label"><Trophy size={15} /> {L(`השלמת ${done} מטרות`, `${done} goals completed`)}</p>}
           {PERIODS.map((p) => {
             const list = goals.filter((g) => g.period === p.id)
             if (list.length === 0) return null

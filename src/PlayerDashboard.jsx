@@ -5,6 +5,7 @@ import {
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, ChevronLeft, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
+  MapPin, Volleyball, ArrowLeft,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -38,6 +39,42 @@ function timeAgo(ts) {
 
 function withinDays(ts, days) {
   return (Date.now() - new Date(ts).getTime()) <= days * 86400000
+}
+
+// כותרת מסך אחידה ומעוצבת לשחקן — אייקון צבעוני + כותרת + תת-כותרת (+ סיכום אופציונלי מימין)
+function PlHead({ Icon, tone = 'accent', title, subtitle, children }) {
+  return (
+    <header className={`pl-head tone-${tone}`}>
+      <span className="pl-head-ic"><Icon size={22} /></span>
+      <div className="pl-head-txt">
+        <h2>{title}</h2>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      {children}
+    </header>
+  )
+}
+
+// קיבוץ פריטים לפי קרבה בזמן (מהחדש לישן) — לרשימת המשוב
+function timeBucket(ts) {
+  const d = new Date(ts)
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diff = Math.round((start - dayStart) / 86400000)
+  if (diff <= 0) return { key: 'today', label: L('היום', 'Today') }
+  if (diff === 1) return { key: 'yesterday', label: L('אתמול', 'Yesterday') }
+  if (diff <= 7) return { key: 'week', label: L('השבוע האחרון', 'This week') }
+  if (diff <= 31) return { key: 'month', label: L('החודש האחרון', 'This month') }
+  return { key: 'older', label: L('מוקדם יותר', 'Earlier') }
+}
+const BUCKET_ORDER = ['today', 'yesterday', 'week', 'month', 'older']
+
+// הקשר האימון/משחק שממנו הגיע המשוב — לתגית צבעונית
+function sessionContext(f) {
+  const date = f.session_date ? ` · ${new Date(f.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''
+  if (f.session_type === 'game') return { tone: 'game', label: (f.opponent ? L(`מהמשחק מול ${f.opponent}`, `Game vs ${f.opponent}`) : L('מהמשחק', 'From the game')) + date }
+  if (f.session_type === 'practice') return { tone: 'practice', label: L('מהאימון', 'From practice') + date }
+  return null
 }
 
 // ---------- מסך/כרטיס הצטרפות לקבוצה (קוד מהמאמן) ----------
@@ -467,45 +504,72 @@ function MyFeedback({ session }) {
   const rated = items.filter((f) => f.rating > 0)
   const avg = rated.length ? (rated.reduce((s, f) => s + f.rating, 0) / rated.length) : null
 
+  // קיבוץ לפי זמן — הכי חדש למעלה, מסודר בקבוצות ברורות
+  const groupMap = {}
+  for (const f of items) {
+    const b = timeBucket(f.created_at)
+    ;(groupMap[b.key] = groupMap[b.key] || { ...b, list: [] }).list.push(f)
+  }
+  const groups = BUCKET_ORDER.filter((k) => groupMap[k]).map((k) => groupMap[k])
+
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('המשוב שלי', 'My feedback')}</h2>
-      {avg != null && (
-        <div className="pl-fb-summary">
-          <span className="pl-fb-avg">{avg.toFixed(1)}</span>
-          <div>
-            <div className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={16} fill={n <= Math.round(avg) ? 'currentColor' : 'none'} />)}</div>
-            <span className="muted small">{L(`דירוג ממוצע · ${items.length} משובים`, `Average rating · ${items.length} notes`)}</span>
-          </div>
-        </div>
-      )}
+    <div className="pl-screen pl-narrow">
+      <PlHead Icon={MessageSquareHeart} tone="green"
+        title={L('המשוב שלי', 'My feedback')}
+        subtitle={L('מה שהמאמן כתב לך אחרי אימונים ומשחקים', 'What your coach wrote after practices and games')} />
+
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><MessageSquareHeart size={26} /></span>
           <div className="empty-title">{L('עדיין אין משוב', 'No feedback yet')}</div>
-          <p className="muted small">{L('אחרי אימון, המאמן יכול לכתוב לך כאן משוב אישי.', 'After practice, your coach can leave you personal feedback here.')}</p>
+          <p className="muted small">{L('אחרי אימון או משחק, המאמן יכתוב לך כאן משוב אישי — והוא יופיע מסודר לפי תאריך.', 'After a practice or game, your coach leaves personal feedback here — sorted by date.')}</p>
         </div>
       ) : (
-        items.map((f) => (
-          <article key={f.id} className="pl-fb">
-            <Avatar name={coachName(f.coach)} url={f.coach?.avatar_url} size={38} />
-            <div className="pl-fb-body">
-              <div className="pl-fb-head">
-                <strong>{coachName(f.coach)}</strong>
-                <span className="muted small">{timeAgo(f.created_at)}</span>
+        <>
+          <div className="pl-fb-stats">
+            <div className="pl-fb-stat"><b>{items.length}</b><span>{L('משובים', 'notes')}</span></div>
+            {avg != null && (
+              <div className="pl-fb-stat">
+                <b>{avg.toFixed(1)}<i>/5</i></b>
+                <span>{L('דירוג ממוצע', 'avg rating')}</span>
               </div>
-              {(f.session_type === 'practice' || f.session_type === 'game') && (
-                <span className="pl-fb-session">{f.session_type === 'game' ? L('מהמשחק', 'From the game') : L('מהאימון', 'From practice')}{f.session_date ? ` · ${new Date(f.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}</span>
-              )}
-              {f.rating > 0 && (
-                <div className="pl-fb-stars" aria-label={L(`${f.rating} מתוך 5`, `${f.rating} of 5`)}>
-                  {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={15} fill={n <= f.rating ? 'currentColor' : 'none'} />)}
-                </div>
-              )}
-              {f.content && <p className="pl-fb-text">{f.content}</p>}
-            </div>
-          </article>
-        ))
+            )}
+            <div className="pl-fb-stat"><b>{items.filter((f) => f.session_type === 'game').length}</b><span>{L('ממשחקים', 'from games')}</span></div>
+          </div>
+
+          {groups.map((g) => (
+            <section className="pl-fb-group" key={g.key}>
+              <p className="pl-section-label">{g.label}</p>
+              {g.list.map((f) => {
+                const ctx = sessionContext(f)
+                return (
+                  <article key={f.id} className={`pl-fb ${ctx ? 'tone-' + ctx.tone : 'tone-accent'}`}>
+                    <Avatar name={coachName(f.coach)} url={f.coach?.avatar_url} size={40} />
+                    <div className="pl-fb-body">
+                      <div className="pl-fb-head">
+                        <strong>{coachName(f.coach)}</strong>
+                        <span className="muted small">{timeAgo(f.created_at)}</span>
+                      </div>
+                      {ctx && (
+                        <span className={`pl-fb-session ${ctx.tone}`}>
+                          {ctx.tone === 'game' ? <Volleyball size={12} /> : <Dumbbell size={12} />} {ctx.label}
+                        </span>
+                      )}
+                      {f.rating > 0 && (
+                        <div className="pl-fb-stars" aria-label={L(`${f.rating} מתוך 5`, `${f.rating} of 5`)}>
+                          {[1, 2, 3, 4, 5].map((n) => <Star key={n} size={15} fill={n <= f.rating ? 'currentColor' : 'none'} />)}
+                        </div>
+                      )}
+                      {f.content
+                        ? <p className="pl-fb-text">{f.content}</p>
+                        : <p className="pl-fb-text muted">{L('המאמן סימן נוכחות/דירוג לאימון הזה.', 'Your coach logged this session.')}</p>}
+                    </div>
+                  </article>
+                )
+              })}
+            </section>
+          ))}
+        </>
       )}
     </div>
   )
@@ -650,29 +714,69 @@ function PlayerSchedule({ membership }) {
   useEffect(() => { load() }, [load])
 
   if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+
+  const next = items[0] || null
+  const rest = items.slice(1)
+  // קיבוץ שאר האירועים לפי יום, בסדר עולה
+  const dayMap = {}
+  for (const it of rest) (dayMap[it.date] = dayMap[it.date] || []).push(it)
+  const days = Object.keys(dayMap).sort()
+
+  const evTime = (t) => {
+    if (!t) return { h: '•', m: '' }
+    const [h, m] = String(t).slice(0, 5).split(':')
+    return { h, m: m ? `:${m}` : '' }
+  }
+
   return (
-    <div className="pl-screen">
-      <h2 className="pl-h2">{L('לוח האימונים והמשחקים', 'Schedule')}</h2>
+    <div className="pl-screen pl-narrow">
+      <PlHead Icon={CalendarDays} tone="blue"
+        title={L('הלו״ז שלי', 'My schedule')}
+        subtitle={L('כל האימונים והמשחקים הקרובים של הקבוצה', 'Your team’s upcoming practices and games')} />
+
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><CalendarDays size={26} /></span>
           <div className="empty-title">{L('אין אירועים קרובים', 'Nothing coming up')}</div>
-          <p className="muted small">{L('ברגע שהמאמן יוסיף אימונים ומשחקים ללו״ז — הם יופיעו כאן.', 'When your coach adds practices and games, they show up here.')}</p>
+          <p className="muted small">{L('ברגע שהמאמן יוסיף אימונים ומשחקים ללו״ז — הם יופיעו כאן אוטומטית.', 'When your coach adds practices and games, they show up here automatically.')}</p>
         </div>
       ) : (
-        <ul className="pl-sched">
-          {items.map((it) => (
-            <li key={it.id} className={`pl-sched-item ${it.kind}`}>
-              <span className="pl-sched-rail" aria-hidden="true" />
-              <div className="pl-sched-main">
-                <span className="pl-sched-day">{dayLabel(it.date)}{it.time ? ` · ${String(it.time).slice(0, 5)}` : ''}</span>
-                <strong>{it.kind === 'game' ? '🏀 ' : ''}{it.title}</strong>
-                {it.location && <span className="muted small"><CalendarDays size={12} /> {it.location}</span>}
+        <>
+          {next && (
+            <div className={`pl-next-up ${next.kind}`}>
+              <span className="pl-next-up-court" aria-hidden="true">🏀</span>
+              <span className="pl-next-up-label">{next.kind === 'game' ? <Volleyball size={13} /> : <Flame size={13} />} {L('הבא בתור', 'Next up')}</span>
+              <h3>{next.title}</h3>
+              <div className="pl-next-up-meta">
+                <span><CalendarDays size={15} /> {dayLabel(next.date)}</span>
+                {next.time && <span><Clock size={15} /> {String(next.time).slice(0, 5)}</span>}
+                {next.location && <span><MapPin size={15} /> {next.location}</span>}
+                <span className="pl-next-up-kind">{next.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
               </div>
-              <span className={`pl-sched-tag ${it.kind}`}>{it.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
-            </li>
+            </div>
+          )}
+
+          {days.map((d) => (
+            <section className="pl-day-group" key={d}>
+              <p className="pl-section-label"><CalendarDays size={14} /> {dayLabel(d)}</p>
+              <ul className="pl-sched">
+                {dayMap[d].map((it) => {
+                  const t = evTime(it.time)
+                  return (
+                    <li key={it.id} className={`pl-ev ${it.kind}`}>
+                      <span className="pl-ev-time"><b>{t.h}</b>{t.m && <i>{t.m}</i>}</span>
+                      <div className="pl-ev-body">
+                        <strong>{it.title}</strong>
+                        {it.location && <span className="muted small"><MapPin size={12} /> {it.location}</span>}
+                      </div>
+                      <span className={`pl-sched-tag ${it.kind}`}>{it.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </>
       )}
     </div>
   )
