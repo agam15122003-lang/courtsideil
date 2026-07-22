@@ -5,13 +5,16 @@ import { L } from './i18n'
 import Avatar from './Avatar'
 import { PlayerGoalsEditor } from './PlayerGoals'
 
-// מיני-דוח שחקן — ממוצע עומס, % עמידה במטרות, % נוכחות. במבט אחד.
+// דרגת עומס → צבע (נמוך=כחול, בינוני=ירוק, גבוה=אדום)
+const loadTone = (e) => (e >= 8 ? 'hi' : e >= 6 ? 'mid' : 'lo')
+
+// מיני-דוח שחקן — ממוצע עומס, % עמידה במטרות, % נוכחות + היסטוריית עומס אחרונה. במבט אחד.
 function GbStats({ coachId, playerAuthId, rosterId }) {
   const [st, setSt] = useState(null)
   useEffect(() => {
     ;(async () => {
       const [{ data: eff }, { data: marks }, { data: att }] = await Promise.all([
-        supabase.from('session_effort').select('effort').eq('coach_id', coachId).eq('player_id', playerAuthId),
+        supabase.from('session_effort').select('effort, session_date, session_type').eq('coach_id', coachId).eq('player_id', playerAuthId).order('session_date', { ascending: false }),
         supabase.from('session_goal_marks').select('met').eq('coach_id', coachId).eq('player_id', playerAuthId),
         supabase.from('practice_attendance').select('status').eq('coach_id', coachId).eq('player_id', rosterId),
       ])
@@ -23,16 +26,31 @@ function GbStats({ coachId, playerAuthId, rosterId }) {
         avgEffort: effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null,
         goalsPct: (marks || []).length ? Math.round((met / marks.length) * 100) : null,
         attPct: attRows.length ? Math.round((present / attRows.length) * 100) : null,
+        recent: (eff || []).slice(0, 4),
       })
     })()
   }, [coachId, playerAuthId, rosterId])
   if (!st) return null
   return (
-    <div className="gb-stats">
-      <span className="gb-stat"><Flame size={13} /> {L('עומס ממוצע', 'Avg load')} <b>{st.avgEffort ?? '—'}</b></span>
-      <span className="gb-stat"><CheckCircle2 size={13} /> {L('עמידה במטרות', 'Goals met')} <b>{st.goalsPct != null ? `${st.goalsPct}%` : '—'}</b></span>
-      <span className="gb-stat"><CalendarCheck size={13} /> {L('נוכחות', 'Attendance')} <b>{st.attPct != null ? `${st.attPct}%` : '—'}</b></span>
-    </div>
+    <>
+      <div className="gb-stats">
+        <span className="gb-stat"><Flame size={13} /> {L('עומס ממוצע', 'Avg load')} <b>{st.avgEffort ?? '—'}</b></span>
+        <span className="gb-stat"><CheckCircle2 size={13} /> {L('עמידה במטרות', 'Goals met')} <b>{st.goalsPct != null ? `${st.goalsPct}%` : '—'}</b></span>
+        <span className="gb-stat"><CalendarCheck size={13} /> {L('נוכחות', 'Attendance')} <b>{st.attPct != null ? `${st.attPct}%` : '—'}</b></span>
+      </div>
+      {st.recent.length > 0 && (
+        <div className="gb-load">
+          <span className="gb-load-label"><Flame size={12} /> {L('העומס באימונים האחרונים', 'Recent load')}</span>
+          <div className="gb-load-row">
+            {st.recent.map((r, i) => (
+              <span key={i} className={`gb-load-tag ${loadTone(r.effort)}`}>
+                {r.session_date ? new Date(r.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''} · {r.effort}/10
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
