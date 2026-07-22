@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
-  Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, Send,
+  Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, ChevronLeft, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
 } from 'lucide-react'
@@ -16,6 +16,7 @@ import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
 import CoachChat from './CoachChat'
+import TeamChat from './TeamChat'
 import { requestJoinByCode, myMemberships } from './players'
 import { playerProgress, computeStreak } from './gamify'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
@@ -558,7 +559,10 @@ function MyTeam({ membership, onNavigate }) {
           <strong>{trTeam(membership.team)}</strong>
           <span className="muted small">{L('מאמן: ', 'Coach: ')}{coachName(membership.coach)}{membership.coach?.club ? ` · ${membership.coach.club}` : ''}</span>
         </div>
-        <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('הודעה', 'Message')}</button>
+        <div className="pl-team-actions">
+          <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('teamchat')}><MessagesSquare size={15} /> {L('צ׳אט הקבוצה', 'Team chat')}</button>
+          <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('למאמן', 'Coach')}</button>
+        </div>
       </div>
 
       {next && (
@@ -1023,6 +1027,7 @@ const PLAYER_NAV = [
   { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
   { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
+  { id: 'teamchat', label: ['צ׳אט קבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
   { id: 'feedback', label: ['משוב', 'Feedback'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
   { id: 'community', label: ['קהילה', 'Community'], Icon: Users2 },
@@ -1089,6 +1094,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               title={L('לוח האימונים והמשחקים', 'Schedule')}
               desc={L('לו״ז האימונים והמשחקים של הקבוצה יופיע כאן. הצטרפו לקבוצה עם קוד מהמאמן.', 'Your team’s practices and games appear here. Join a team with a code from your coach.')} />
       case 'videos': return <PlayerVideos />
+      case 'teamchat':
+        return hasTeam
+          ? <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
+          : <LockedFeature session={session} onJoined={loadMemberships}
+              title={L('צ׳אט הקבוצה', 'Team chat')}
+              desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
       case 'community': return <PlayerCommunity session={session} profile={profile} />
       case 'team':
         return hasTeam

@@ -3,12 +3,13 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck, MessageSquareHeart, Star, ClipboardCheck,
+  UserCheck, MessageSquareHeart, Star, ClipboardCheck, MessagesSquare,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
+import TeamChat from './TeamChat'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
@@ -386,6 +387,7 @@ export default function Teams({ session, profile, onNavigate }) {
         <button className={tab === 'attendance' ? 'tab active' : 'tab'} onClick={() => setTab('attendance')}><UserCheck size={15} /> {L('נוכחות', 'Attendance')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><CalendarClock size={15} /> {L('משחקים', 'Games')}</button>
+        <button className={tab === 'chat' ? 'tab active' : 'tab'} onClick={() => setTab('chat')}><MessagesSquare size={15} /> {L('צ׳אט', 'Chat')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
       </div>
 
@@ -635,6 +637,11 @@ export default function Teams({ session, profile, onNavigate }) {
               ))}
             </ul>
           )}
+        </div>
+      ) : tab === 'chat' ? (
+        /* ===================== צ'אט קבוצה ===================== */
+        <div className="team-section team-chat-wrap">
+          <TeamChat session={session} coachId={me} team={team} isCoach />
         </div>
       ) : (
         /* ===================== טבלת ליגה ===================== */
