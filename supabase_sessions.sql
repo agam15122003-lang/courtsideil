@@ -17,10 +17,9 @@ create index if not exists pf_player_created_idx on public.player_feedback (play
 
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'pf_effort_range') then
-    alter table public.player_feedback
-      add constraint pf_effort_range check (effort is null or (effort between 1 and 5)) not valid;
-  end if;
+  alter table public.player_feedback drop constraint if exists pf_effort_range;
+  alter table public.player_feedback
+    add constraint pf_effort_range check (effort is null or (effort between 1 and 10)) not valid;
 end $$;
 
 -- ---------- סקירת מאמן לאימון (שורה אחת לכל אימון) ----------

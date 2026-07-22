@@ -501,10 +501,9 @@ function MyFeedback({ session }) {
                 </div>
               )}
               {f.effort > 0 && (
-                <div className="pl-fb-effort" title={L('מאמץ', 'Effort')}>
-                  {[1, 2, 3, 4, 5].map((n) => <Flame key={n} size={13} fill={n <= f.effort ? 'currentColor' : 'none'} className={n <= f.effort ? 'on' : ''} />)}
-                  <span className="muted small">{L('מאמץ', 'Effort')}</span>
-                </div>
+                <span className="pl-fb-effort" title={L('מאמץ', 'Effort')}>
+                  <Flame size={13} fill="currentColor" /> {L('מאמץ', 'Effort')} {f.effort}/10
+                </span>
               )}
               {f.content && <p className="pl-fb-text">{f.content}</p>}
             </div>
@@ -621,6 +620,64 @@ function MyTeam({ membership, onNavigate }) {
   )
 }
 
+// ---------- מסך: לו״ז (אימונים + משחקים של הקבוצה, גלוי לשחקן) ----------
+function dayLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00')
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const diff = Math.round((d - today) / 86400000)
+  if (diff === 0) return L('היום', 'Today')
+  if (diff === 1) return L('מחר', 'Tomorrow')
+  return d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
+}
+
+function PlayerSchedule({ membership }) {
+  const [items, setItems] = useState(null)
+
+  const load = useCallback(async () => {
+    if (!membership) return
+    const today = new Date().toISOString().slice(0, 10)
+    const [{ data: pr }, { data: gm }] = await Promise.all([
+      supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(40),
+      supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(40),
+    ])
+    const list = [
+      ...(pr || []).filter((e) => e.date).map((e) => ({ kind: 'practice', id: 'p' + e.id, date: e.date, time: e.start_time, end: e.end_time, title: e.plan?.name || L('אימון', 'Practice'), location: e.location })),
+      ...(gm || []).map((g) => ({ kind: 'game', id: 'g' + g.id, date: g.game_date, time: g.game_time, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game'), location: g.location })),
+    ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+    setItems(list)
+  }, [membership])
+
+  useEffect(() => { load() }, [load])
+
+  if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  return (
+    <div className="pl-screen">
+      <h2 className="pl-h2">{L('לוח האימונים והמשחקים', 'Schedule')}</h2>
+      {items.length === 0 ? (
+        <div className="empty-state">
+          <span className="empty-ic"><CalendarDays size={26} /></span>
+          <div className="empty-title">{L('אין אירועים קרובים', 'Nothing coming up')}</div>
+          <p className="muted small">{L('ברגע שהמאמן יוסיף אימונים ומשחקים ללו״ז — הם יופיעו כאן.', 'When your coach adds practices and games, they show up here.')}</p>
+        </div>
+      ) : (
+        <ul className="pl-sched">
+          {items.map((it) => (
+            <li key={it.id} className={`pl-sched-item ${it.kind}`}>
+              <span className="pl-sched-rail" aria-hidden="true" />
+              <div className="pl-sched-main">
+                <span className="pl-sched-day">{dayLabel(it.date)}{it.time ? ` · ${String(it.time).slice(0, 5)}` : ''}</span>
+                <strong>{it.kind === 'game' ? '🏀 ' : ''}{it.title}</strong>
+                {it.location && <span className="muted small"><CalendarDays size={12} /> {it.location}</span>}
+              </div>
+              <span className={`pl-sched-tag ${it.kind}`}>{it.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ---------- מסך: וידאו (סינון לפי קטגוריה + נגן מוטמע) ----------
 function PlayerVideos() {
   const [videos, setVideos] = useState(null)
@@ -711,17 +768,18 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
   useEffect(() => {
     ;(async () => {
-      const [asg, compl, fbCount, fbLatest, att] = await Promise.all([
+      const [asg, compl, fbCount, fbLatest, att, gatt] = await Promise.all([
         supabase.from('player_assignments').select('id'),
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
         supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
         supabase.from('player_feedback').select('content, rating, created_at, coach:profiles!coach_id(first_name, last_name, avatar_url)').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
         supabase.from('practice_attendance').select('status'),
+        supabase.from('game_attendance').select('status'),
       ])
       const doneRows = compl.data || []
       const doneIds = new Set(doneRows.map((c) => c.assignment_id))
       const open = (asg.data || []).filter((a) => !doneIds.has(a.id)).length
-      const attRows = att.data || []
+      const attRows = [...(att.data || []), ...(gatt.data || [])]
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
@@ -905,6 +963,7 @@ function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setVie
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
+  { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['משוב', 'Feedback'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
@@ -965,6 +1024,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('המשוב שלי', 'My feedback')}
               desc={L('משוב אישי מגיע מהמאמן שלך. הצטרפו לקבוצה כדי לקבל משוב.', 'Personal feedback comes from your coach. Join a team to receive feedback.')} />
+      case 'schedule':
+        return hasTeam
+          ? <PlayerSchedule membership={membership} />
+          : <LockedFeature session={session} onJoined={loadMemberships}
+              title={L('לוח האימונים והמשחקים', 'Schedule')}
+              desc={L('לו״ז האימונים והמשחקים של הקבוצה יופיע כאן. הצטרפו לקבוצה עם קוד מהמאמן.', 'Your team’s practices and games appear here. Join a team with a code from your coach.')} />
       case 'videos': return <PlayerVideos />
       case 'community': return <PlayerCommunity session={session} profile={profile} />
       case 'team':

@@ -46,8 +46,11 @@ export default function SessionDetail({ session, entry, onClose }) {
     setRoster(players)
     const byAuth = {}; for (const p of players) if (p.player_id) byAuth[p.player_id] = p.id
 
+    const attP = sessionType === 'game'
+      ? supabase.from('game_attendance').select('player_id, status').eq('game_id', sessionId)
+      : supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team).eq('session_date', sessionDate)
     const [{ data: aRows }, { data: fRows }, { data: rev }] = await Promise.all([
-      supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team).eq('session_date', sessionDate),
+      attP,
       supabase.from('player_feedback').select('id, player_id, content, effort').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_reviews').select('*').eq('coach_id', me).eq('session_type', sessionType).eq('session_id', sessionId).maybeSingle(),
     ])
@@ -74,19 +77,23 @@ export default function SessionDetail({ session, entry, onClose }) {
   }, [onClose])
 
   const setP = (setter) => (rid, val) => setter((c) => ({ ...c, [rid]: val }))
-  const cycleEffort = (rid) => setEffort((c) => ({ ...c, [rid]: c[rid] === 5 ? 0 : (c[rid] || 0) + 1 }))
+  const setEffortVal = (rid, n) => setEffort((c) => ({ ...c, [rid]: c[rid] === n ? 0 : n }))
 
   const save = async () => {
     if (!roster) return
     setSaving(true)
     const byId = Object.fromEntries(roster.map((p) => [p.id, p]))
 
-    // 1) נוכחות — לכל מי שסומן
-    const attRows = Object.entries(att).filter(([, s]) => s).map(([rid, status]) => ({
-      coach_id: me, team, session_date: sessionDate, player_id: rid, status,
-    }))
-    if (attRows.length) {
-      await supabase.from('practice_attendance').upsert(attRows, { onConflict: 'coach_id,team,session_date,player_id' })
+    // 1) נוכחות — לכל מי שסומן (אימון → practice_attendance, משחק → game_attendance)
+    const marks = Object.entries(att).filter(([, s]) => s)
+    if (marks.length) {
+      if (sessionType === 'game') {
+        const gRows = marks.map(([rid, status]) => ({ coach_id: me, team, game_id: sessionId, player_id: rid, status }))
+        await supabase.from('game_attendance').upsert(gRows, { onConflict: 'game_id,player_id' })
+      } else {
+        const pRows = marks.map(([rid, status]) => ({ coach_id: me, team, session_date: sessionDate, player_id: rid, status }))
+        await supabase.from('practice_attendance').upsert(pRows, { onConflict: 'coach_id,team,session_date,player_id' })
+      }
     }
 
     // 2) משוב אישי + מאמץ — לשחקנים מחוברים בלבד
@@ -181,16 +188,21 @@ export default function SessionDetail({ session, entry, onClose }) {
                         ))}
                       </div>
                       {connected && (
-                        <>
-                          <button className="sd-effort" onClick={() => cycleEffort(p.id)} title={L('סולם מאמץ', 'Effort')}>
-                            {[1, 2, 3, 4, 5].map((n) => <Flame key={n} size={15} fill={n <= (effort[p.id] || 0) ? 'currentColor' : 'none'} className={n <= (effort[p.id] || 0) ? 'on' : ''} />)}
-                          </button>
-                          <button className={openNote[p.id] || note[p.id] ? 'sd-note-btn on' : 'sd-note-btn'} onClick={() => setP(setOpenNote)(p.id, !openNote[p.id])} title={L('הערה אישית', 'Personal note')}>
-                            <StickyNote size={15} />
-                          </button>
-                        </>
+                        <button className={openNote[p.id] || note[p.id] ? 'sd-note-btn on' : 'sd-note-btn'} onClick={() => setP(setOpenNote)(p.id, !openNote[p.id])} title={L('הערה אישית', 'Personal note')}>
+                          <StickyNote size={15} />
+                        </button>
                       )}
                     </div>
+                    {connected && (
+                      <div className="sd-effort-row">
+                        <span className="sd-effort-lbl"><Flame size={13} /> {L('מאמץ', 'Effort')}{effort[p.id] ? ` · ${effort[p.id]}/10` : ''}</span>
+                        <div className="sd-effort10" role="group" aria-label={L('מאמץ 1 עד 10', 'Effort 1 to 10')}>
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                            <button key={n} className={n <= (effort[p.id] || 0) ? 'sd-e on' : 'sd-e'} onClick={() => setEffortVal(p.id, n)} aria-label={String(n)}>{n}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {connected && (openNote[p.id] || note[p.id]) && (
                       <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
                     )}
