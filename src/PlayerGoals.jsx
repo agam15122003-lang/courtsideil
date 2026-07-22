@@ -6,16 +6,24 @@ import { sendNotification } from './notify'
 import { L } from './i18n'
 
 export const PERIODS = [
+  { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון', 'Session'] },
   { id: 'week', label: ['השבוע', 'This week'], short: ['שבועי', 'Weekly'] },
   { id: 'month', label: ['החודש', 'This month'], short: ['חודשי', 'Monthly'] },
   { id: 'year', label: ['העונה', 'This season'], short: ['שנתי', 'Season'] },
 ]
 const periodShort = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : id }
 
+// מטרות נפוצות — טאפ אחד מוסיף, בלי להקליד
+const GOAL_CHIPS = [
+  ['יד שמאל', 'Weak hand'], ['עונשין', 'Free throws'], ['הגנה אישית', '1v1 defense'],
+  ['ריבאונד', 'Rebounds'], ['ראיית מגרש', 'Court vision'], ['תקשורת בהגנה', 'Talk on D'],
+  ['תנועה בלי כדור', 'Off-ball movement'], ['חיטוט', 'Steals'],
+]
+
 // ---------- עורך מטרות (מאמן, בתוך חלון עריכת השחקן) ----------
 export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   const [goals, setGoals] = useState(null)
-  const [period, setPeriod] = useState('week')
+  const [period, setPeriod] = useState('session')
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
   const [unit, setUnit] = useState('')
@@ -27,20 +35,24 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   }, [coachId, playerId])
   useEffect(() => { load() }, [load])
 
-  const add = async () => {
-    if (!title.trim() || busy) return
+  const insertGoal = async (goalTitle, tv) => {
+    if (!goalTitle.trim() || busy) return false
     setBusy(true)
-    const tv = target ? Number(target) : null
     const { error } = await supabase.from('player_goals').insert({
       coach_id: coachId, player_id: playerId, team,
-      period, title: title.trim(), target_value: tv, unit: unit.trim() || null,
+      period, title: goalTitle.trim(), target_value: tv || null, unit: tv ? (unit.trim() || null) : null,
       metric_type: tv ? 'count' : 'checkbox',
     })
     setBusy(false)
-    if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return }
-    setTitle(''); setTarget(''); setUnit('')
-    sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('המאמן הגדיר לך מטרה חדשה 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
+    if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
+    sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך מטרה לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך מטרה חדשה 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
     load()
+    return true
+  }
+
+  const add = async () => {
+    const ok = await insertGoal(title, target ? Number(target) : null)
+    if (ok) { setTitle(''); setTarget(''); setUnit('') }
   }
 
   const bump = async (g, delta) => {
@@ -61,17 +73,28 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   return (
     <div className="pg-editor">
       <span className="field-label"><Target size={15} /> {L('מטרות אישיות', 'Personal goals')}</span>
+      <div className="pg-periods">
+        {PERIODS.map((p) => (
+          <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
+            {L(p.short[0], p.short[1])}
+          </button>
+        ))}
+      </div>
+      <div className="pg-chips">
+        {GOAL_CHIPS.map(([he, en]) => (
+          <button key={he} type="button" className="pg-chip" disabled={busy} onClick={() => insertGoal(L(he, en), null)}>
+            <Plus size={12} /> {L(he, en)}
+          </button>
+        ))}
+      </div>
       <div className="pg-add">
         <div className="pg-add-row">
-          <select className="finder-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ maxWidth: 120 }}>
-            {PERIODS.map((p) => <option key={p.id} value={p.id}>{L(p.short[0], p.short[1])}</option>)}
-          </select>
-          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={L('לדוגמה: 200 עונשין', 'e.g. 200 free throws')} maxLength={120} />
+          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('או כתוב מטרה משלך... לדוגמה: 200 עונשין', 'Or write your own... e.g. 200 free throws')} maxLength={120} />
         </div>
         <div className="pg-add-row">
           <input className="finder-input" dir="ltr" inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('יעד (מספר, לא חובה)', 'Target (number, optional)')} style={{ maxWidth: 160 }} />
           <input className="finder-input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={L('יחידה (זריקות/אימונים...)', 'Unit (shots/practices...)')} maxLength={20} />
-          <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy}><Plus size={15} /></button>
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף מטרה', 'Add goal')}><Plus size={15} /></button>
         </div>
       </div>
 

@@ -12,6 +12,7 @@ import SessionDetail from './SessionDetail'
 import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
+import TeamGoalsBoard from './TeamGoalsBoard'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
@@ -589,6 +590,9 @@ export default function Teams({ session, profile, onNavigate }) {
               <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירת מטרות העונה', 'Save season goals')}</button>
             </div>
           </div>
+
+          {/* מטרות אישיות — רשימת כל השחקנים */}
+          <TeamGoalsBoard coachId={me} team={team} />
         </div>
       ) : tab === 'games' ? (
         /* ===================== משחקים ===================== */

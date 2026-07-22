@@ -345,6 +345,7 @@ export default function Dashboard({ session }) {
             </>
           ) : view === 'home' ? (
             <Home
+              session={session}
               profile={profile}
               onNavigate={navigate}
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}

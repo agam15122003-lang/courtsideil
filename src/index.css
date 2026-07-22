@@ -9875,6 +9875,24 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 }
 .np-live { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--orange-300); font-size: 18px; margin: 6px 0; }
 .np-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+/* דוח האימון האחרון — פס בתחתית הכרטיס החכם */
+.np-report {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: start;
+  margin-top: 14px; padding: 11px 13px; border-radius: var(--radius-md); cursor: pointer;
+  background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.16); color: #fff;
+  transition: background 0.15s;
+}
+.np-report:hover { background: rgba(255, 255, 255, 0.15); }
+.np-report-ic {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, var(--accent-fill), var(--accent-press)); color: #fff;
+}
+.np-report-body { flex: 1; min-width: 0; }
+.np-report-body strong { display: block; font-size: 13.5px; }
+.np-report-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.np-report-avg { display: inline-flex; align-items: center; gap: 3px; color: #FFC38A; font-weight: 700; }
+.np-report-cta { flex-shrink: 0; font-size: 12.5px; font-weight: 800; padding: 5px 13px; border-radius: var(--radius-full); background: rgba(255,255,255,0.14); }
 .np-actions .btn-primary { background: linear-gradient(180deg, var(--accent-fill), var(--accent-press)); color: #fff; box-shadow: 0 10px 24px -12px rgba(232, 118, 58, 0.8); }
 .np-actions .btn-soft { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; }
 .np-actions .btn-soft:hover { background: rgba(255, 255, 255, 0.14); }
@@ -14356,6 +14374,41 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 
 /* מטרות — עורך המאמן */
 .pg-editor { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+/* בורר תקופה + צ'יפים של מטרות נפוצות */
+.pg-periods { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.pg-period {
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted);
+  border-radius: var(--radius-full); padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.pg-period.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pg-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  border: 1px dashed var(--border); background: var(--surface-alt); color: var(--text);
+  border-radius: var(--radius-full); padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pg-chip:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.pg-chip:disabled { opacity: 0.5; cursor: default; }
+
+/* לוח מטרות לשחקנים (מאמן) */
+.gb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gb-item { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
+.gb-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: start;
+  padding: 12px 14px; border: none; background: none; cursor: pointer; font-family: inherit;
+}
+.gb-head:hover { background: var(--surface-alt); }
+.gb-name { flex-shrink: 0; font-weight: 800; color: var(--text); font-size: 14.5px; }
+.gb-summary { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.gb-none { font-size: 12px; color: var(--text-muted); }
+.gb-goal { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); background: var(--surface-alt); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.gb-goal.per-session { background: var(--accent-soft); color: var(--accent-strong); }
+.gb-goal.per-week { background: var(--c-blue-bg); color: var(--c-blue); }
+.gb-goal.per-month { background: var(--c-purple-bg); color: var(--c-purple); }
+.gb-more { font-size: 11.5px; font-weight: 800; color: var(--text-muted); }
+.gb-editor { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.gb-editor .pg-editor { margin-top: 10px; padding-top: 0; border-top: none; }
 .pg-add { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 8px; }
 .pg-add-row { display: flex; gap: 8px; }
 .pg-add-row .finder-input { flex: 1; }

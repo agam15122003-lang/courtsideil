@@ -231,7 +231,7 @@ function formatDate(d) {
 // props:
 //   profile    - פרטי המאמן (לברכה אישית)
 //   onNavigate - (viewId) => מעבר לטאב אחר
-export default function Home({ profile, onNavigate, onOpenCoach }) {
+export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   const stats = useHomeStats(profile?.id)
@@ -311,7 +311,7 @@ export default function Home({ profile, onNavigate, onOpenCoach }) {
           </div>
         </div>
         <div className="home-hero-card">
-          <NextPractice onNavigate={onNavigate} />
+          <NextPractice session={session} onNavigate={onNavigate} />
         </div>
       </header>
 
