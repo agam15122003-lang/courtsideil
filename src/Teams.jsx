@@ -10,6 +10,7 @@ import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
 import TeamChat from './TeamChat'
+import TeamAssignments from './TeamAssignments'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
@@ -388,6 +389,7 @@ export default function Teams({ session, profile, onNavigate }) {
         <button className={tab === 'attendance' ? 'tab active' : 'tab'} onClick={() => setTab('attendance')}><UserCheck size={15} /> {L('נוכחות', 'Attendance')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><CalendarClock size={15} /> {L('משחקים', 'Games')}</button>
+        <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><ClipboardCheck size={15} /> {L('מטלות', 'Tasks')}</button>
         <button className={tab === 'chat' ? 'tab active' : 'tab'} onClick={() => setTab('chat')}><MessagesSquare size={15} /> {L('צ׳אט', 'Chat')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
       </div>
@@ -639,6 +641,9 @@ export default function Teams({ session, profile, onNavigate }) {
             </ul>
           )}
         </div>
+      ) : tab === 'tasks' ? (
+        /* ===================== מטלות שנשלחו ===================== */
+        <TeamAssignments coachId={me} team={team} />
       ) : tab === 'chat' ? (
         /* ===================== צ'אט קבוצה ===================== */
         <div className="team-section team-chat-wrap">

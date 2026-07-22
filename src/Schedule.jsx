@@ -73,6 +73,20 @@ export default function Schedule({ session }) {
   const [planId, setPlanId] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [repeatWeekly, setRepeatWeekly] = useState(false)
+  const [myTeams, setMyTeams] = useState([])
+
+  // רשימת הקבוצות של המאמן — לבחירה מדויקת (חשוב כדי שהשחקנים יראו את האימון)
+  useEffect(() => {
+    ;(async () => {
+      const [{ data: prof }, { data: rp }] = await Promise.all([
+        supabase.from('profiles').select('age_groups').eq('id', me).maybeSingle(),
+        supabase.from('team_players').select('team').eq('coach_id', me),
+      ])
+      const set = new Set([...(prof?.age_groups || []), ...((rp || []).map((r) => r.team))])
+      setMyTeams([...set].filter(Boolean))
+    })()
+  }, [me])
 
   // זימון מאמן אחר לפגישה
   const [meetings, setMeetings] = useState([])
@@ -202,9 +216,10 @@ export default function Schedule({ session }) {
     setStartTime(hour != null ? `${pad(hour)}:00` : '18:00')
     setEndTime(hour != null ? `${pad(Math.min(hour + 1, 23))}:00` : '19:30')
     setIsPersonal(false)
-    setTeam('')
+    setTeam(myTeams.length === 1 ? myTeams[0] : '')
     setPlanId('')
     setNote('')
+    setRepeatWeekly(false)
     setSelected(null)
     setAdding(true)
   }
@@ -223,9 +238,8 @@ export default function Schedule({ session }) {
       return
     }
     setSaving(true)
-    const { error } = await supabase.from('schedule_entries').insert({
+    const base = {
       created_by: me,
-      date: formDate,
       start_time: startTime,
       end_time: endTime,
       hour: parseInt(startTime.split(':')[0], 10),
@@ -233,14 +247,21 @@ export default function Schedule({ session }) {
       team: isPersonal ? null : team.trim(),
       plan_id: planId || null,
       note: note.trim() || null,
-    })
+    }
+    // אימון חוזר: יוצרים 12 מופעים שבועיים (מאותו יום בשבוע)
+    const rows = []
+    const weeks = repeatWeekly && !isPersonal ? 12 : 1
+    for (let i = 0; i < weeks; i++) {
+      rows.push({ ...base, date: ymd(addDays(new Date(formDate + 'T00:00'), i * 7)) })
+    }
+    const { error } = await supabase.from('schedule_entries').insert(rows)
     setSaving(false)
     if (error) {
       toast.error(L('השמירה נכשלה: ', 'Save failed: ') + error.message)
       return
     }
     setAdding(false)
-    toast.success(L('האימון נוסף ללו"ז', 'Practice added to schedule'))
+    toast.success(weeks > 1 ? L(`נוספו ${weeks} אימונים שבועיים`, `Added ${weeks} weekly practices`) : L('האימון נוסף ללו"ז', 'Practice added to schedule'))
     load()
   }
 
@@ -659,15 +680,42 @@ export default function Schedule({ session }) {
           </div>
 
           {!isPersonal && (
-            <input
-              className="finder-input"
-              type="text"
-              value={team}
-              onChange={(e) => setTeam(e.target.value)}
-              aria-label={L('שם הקבוצה', 'Team name')}
-              placeholder={L('שם הקבוצה (לדוגמה: נערים א׳ בנים)', 'Team name (e.g. Youth A Boys)')}
-              style={{ marginTop: 10 }}
-            />
+            <>
+              {myTeams.length > 0 ? (
+                <select
+                  className="finder-input"
+                  value={team}
+                  onChange={(e) => setTeam(e.target.value)}
+                  aria-label={L('בחר קבוצה', 'Choose team')}
+                  style={{ marginTop: 10 }}
+                >
+                  <option value="">{L('בחר קבוצה...', 'Choose a team...')}</option>
+                  {myTeams.map((t) => (
+                    <option key={t} value={t}>{trTeam(t)}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="finder-input"
+                  type="text"
+                  value={team}
+                  onChange={(e) => setTeam(e.target.value)}
+                  aria-label={L('שם הקבוצה', 'Team name')}
+                  placeholder={L('שם הקבוצה (לדוגמה: נערים א׳ בנים)', 'Team name (e.g. Youth A Boys)')}
+                  style={{ marginTop: 10 }}
+                />
+              )}
+              <label className="switch-row" style={{ marginTop: 10 }}>
+                <span className="switch">
+                  <input type="checkbox" checked={repeatWeekly} onChange={(e) => setRepeatWeekly(e.target.checked)} />
+                  <span className="switch-track" />
+                </span>
+                <span className="switch-text">
+                  {L('חוזר כל שבוע (12 שבועות)', 'Repeat weekly (12 weeks)')}
+                  <span className="muted small">{L('נוצר אוטומטית לאותו יום ושעה, ומופיע לשחקנים בלו״ז', 'Auto-created for the same day & time; appears in players’ schedule')}</span>
+                </span>
+              </label>
+            </>
           )}
 
           <select
