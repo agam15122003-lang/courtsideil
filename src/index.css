@@ -13901,6 +13901,56 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-fb-text { margin: 6px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--text); white-space: pre-wrap; }
 .pl-fb-text.muted { color: var(--text-muted); font-size: 13.5px; }
 
+/* ============================================================
+   ציר הזמן של השחקן — "האימונים שלי"
+   ============================================================ */
+.tl { position: relative; padding-inline-start: 34px; }
+.tl::before { content: ''; position: absolute; inset-inline-start: 13px; top: 8px; bottom: 8px; width: 2.5px; border-radius: 2px; background: linear-gradient(180deg, var(--accent), var(--border) 85%); opacity: 0.5; }
+.tl-item { position: relative; margin-bottom: 16px; animation: rise 0.35s cubic-bezier(0.2,0.8,0.3,1) both; }
+.tl-dot {
+  position: absolute; inset-inline-start: -34px; top: 14px; z-index: 1;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-blue); color: #fff; box-shadow: 0 0 0 4px var(--bg), 0 2px 8px rgba(0,0,0,0.18);
+}
+.tl-item.game .tl-dot { background: var(--c-red); }
+.tl-item.note .tl-dot { background: var(--c-green); }
+.tl-item.mvp .tl-dot { background: linear-gradient(150deg, #E8A33A, #D97A1F); }
+.tl-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-sm);
+}
+.tl-item.mvp .tl-card { border-color: color-mix(in srgb, #E8A33A 55%, var(--border)); }
+.tl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.tl-type { font-weight: 800; font-size: 14.5px; color: var(--text); }
+.tl-type.game { color: var(--c-red); }
+.tl-type.note { color: var(--c-green); }
+.tl-date { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.tl-mvp {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; padding: 9px 13px;
+  border-radius: var(--radius-md); font-weight: 800; font-size: 14px; color: #7A4A05;
+  background: linear-gradient(120deg, #FDEEC8, #FAD98F);
+}
+:root[data-theme='dark'] .tl-mvp, .dark .tl-mvp { color: #FAD98F; background: linear-gradient(120deg, rgba(232,163,58,0.22), rgba(217,122,31,0.18)); }
+.tl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tl-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; padding: 4px 11px; border-radius: var(--radius-full); }
+.tl-chip.att-present { color: var(--c-green); background: var(--c-green-bg); }
+.tl-chip.att-late { color: var(--c-orange); background: var(--c-orange-bg); }
+.tl-chip.att-absent { color: var(--c-red); background: var(--c-red-bg); }
+.tl-chip.eff { color: var(--accent-strong); background: var(--accent-soft); }
+.tl-lbl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: var(--text-muted); }
+.tl-goals { margin-top: 10px; }
+.tl-goal-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tl-goal { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; padding: 4px 11px; border-radius: var(--radius-full); }
+.tl-goal.met { color: var(--c-green); background: var(--c-green-bg); }
+.tl-goal.miss { color: var(--text-muted); background: var(--surface-alt); }
+.tl-fb { display: flex; gap: 10px; margin-top: 10px; padding: 11px 13px; border-radius: var(--radius-md); background: var(--c-green-bg); }
+.tl-fb-body { flex: 1; min-width: 0; }
+.tl-fb-body .pl-fb-stars { margin: 3px 0; }
+.tl-fb-body p { margin: 3px 0 0; font-size: 14px; line-height: 1.55; color: var(--text); white-space: pre-wrap; }
+.tl-mynote { display: flex; align-items: flex-start; gap: 5px; margin: 10px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.tl-review { margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--border); font-size: 13.5px; line-height: 1.55; color: var(--text); }
+
 /* הקבוצה שלי */
 .pl-team-hero { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-sm); }
 .pl-team-badge { width: 48px; height: 48px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent-strong); display: inline-flex; align-items: center; justify-content: center; }
