@@ -14149,6 +14149,38 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-vid-cat { font-size: 12px; color: var(--accent-strong); font-weight: 600; }
 
 /* פרופיל שחקן */
+/* ============================================================
+   פרופיל השחקן — עיצוב מחודש (handoff 06)
+   ============================================================ */
+.plp-head { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.plp-head .avatar { border: 3px solid var(--surface); box-shadow: 0 10px 26px rgba(24,42,68,.18); }
+.plp-name { margin: 12px 0 0; font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--text); }
+.plp-role { margin-top: 3px; font-size: 13px; color: var(--text-muted); }
+.plp-teams { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.plp-team { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-sm); }
+.plp-team-badge { flex-shrink: 0; width: 44px; height: 44px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; font-size: 14px; background: var(--hero-navy); color: #fff; }
+.plp-team-body { flex: 1; min-width: 0; }
+.plp-team-body strong { display: block; font-weight: 700; font-size: 14.5px; color: var(--text); }
+.plp-team-status { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 4px 11px; border-radius: 99px; }
+.plp-team-status.st-approved { color: var(--c-green); background: var(--c-green-bg); }
+.plp-team-status.st-pending { color: var(--accent-strong); background: var(--accent-soft); }
+.plp-team-status.st-declined { color: var(--c-red); background: var(--c-red-bg); }
+.plp-edit { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 12px; padding: 14px; border: none; border-radius: 15px; font-weight: 700; font-size: 14.5px; color: #fff; cursor: pointer; background: linear-gradient(180deg, var(--accent-fill), var(--accent-press)); box-shadow: 0 8px 20px rgba(196,89,43,.3); transition: transform .1s ease; }
+.plp-edit:active { transform: scale(.98); }
+.plp-join-more { width: 100%; margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text-muted); font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.plp-settings { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.plp-set-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: none; border-bottom: 1px solid var(--border); background: none; text-align: start; }
+.plp-set-row:last-child { border-bottom: none; }
+.plp-logout { cursor: pointer; }
+.plp-set-ic { flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt, var(--bg)); color: var(--text); }
+.plp-set-ic.brand { color: var(--accent-strong); }
+.plp-set-label { flex: 1; font-weight: 600; font-size: 14px; color: var(--text); }
+.plp-logout .plp-set-label { color: var(--accent-strong); }
+.plp-set-ctrl { display: inline-flex; }
+.plp-switch { flex-shrink: 0; width: 46px; height: 27px; border-radius: 99px; padding: 3px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: flex-start; background: var(--border); transition: background .2s ease; }
+.plp-switch.on { justify-content: flex-end; background: var(--accent); }
+.plp-switch-knob { width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
 .pl-profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .pl-memberships { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .pl-memb { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
@@ -14212,6 +14244,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .slot-review-btn { flex-shrink: 0; }
 
 /* סקירת אימון — הערת שחקן + סימוני מטרות */
+.sd-mf { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.sd-mood { display: inline-flex; align-items: center; font-size: 12px; font-weight: 800; padding: 3px 11px; border-radius: var(--radius-full); }
+.sd-focus { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); color: var(--text-muted); background: var(--surface-alt, var(--bg)); border: 1px solid var(--border); }
 .sd-player-note { margin-top: 8px; padding: 8px 11px; border-radius: var(--radius-sm); background: var(--c-blue-bg); font-size: 13.5px; line-height: 1.5; color: var(--text); }
 .sd-player-note-lbl { font-weight: 800; color: var(--c-blue); }
 .sd-goal-marks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

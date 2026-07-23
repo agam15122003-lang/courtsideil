@@ -6,6 +6,7 @@ import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
+import { MOOD_BY_KEY } from './FeedbackSheet'
 
 const ATT = [
   { id: 'present', label: ['נוכח', 'Present'], tone: 'green' },
@@ -26,6 +27,8 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [att, setAtt] = useState({})        // {rosterId: status}
   const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — קריאה בלבד (דירוג עצמי של השחקן)
   const [playerNotes, setPlayerNotes] = useState({}) // {rosterId: מה שהשחקן רשם}
+  const [moods, setMoods] = useState({})     // {rosterId: moodKey}
+  const [focuses, setFocuses] = useState({}) // {rosterId: [labels]}
   const [goalMarks, setGoalMarks] = useState({})     // {rosterId: [{title, met}]}
   const [note, setNote] = useState({})      // {rosterId: text}
   const [openNote, setOpenNote] = useState({})
@@ -51,7 +54,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       attP,
       supabase.from('player_feedback').select('id, player_id, content').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_reviews').select('*').eq('coach_id', me).eq('session_type', sessionType).eq('session_id', sessionId).maybeSingle(),
-      supabase.from('session_effort').select('player_id, effort, note').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_effort').select('player_id, effort, note, mood, focus').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_goal_marks').select('player_id, met, goal:player_goals(title)').eq('coach_id', me).eq('session_id', sessionId),
     ])
     const a = {}; for (const r of aRows || []) a[r.player_id] = r.status; setAtt(a)
@@ -62,8 +65,15 @@ export default function SessionDetail({ session, entry, onClose }) {
       fid[rid] = r.id
     }
     setNote(nt); setFbId(fid)
-    const ef = {}, pn = {}; for (const r of eRows || []) { const rid = byAuth[r.player_id]; if (rid) { ef[rid] = r.effort; if (r.note) pn[rid] = r.note } }
-    setEfforts(ef); setPlayerNotes(pn)
+    const ef = {}, pn = {}, md = {}, fc = {}
+    for (const r of eRows || []) {
+      const rid = byAuth[r.player_id]; if (!rid) continue
+      ef[rid] = r.effort
+      if (r.note) pn[rid] = r.note
+      if (r.mood) md[rid] = r.mood
+      if (Array.isArray(r.focus) && r.focus.length) fc[rid] = r.focus
+    }
+    setEfforts(ef); setPlayerNotes(pn); setMoods(md); setFocuses(fc)
     const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('מטרה', 'Goal'), met: r.met }) }
     setGoalMarks(gm)
     setHadReview(!!rev)
@@ -212,6 +222,16 @@ export default function SessionDetail({ session, entry, onClose }) {
                     </div>
                     {connected && (openNote[p.id] || note[p.id]) && (
                       <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
+                    )}
+                    {connected && (moods[p.id] || focuses[p.id]) && (
+                      <div className="sd-mf">
+                        {moods[p.id] && MOOD_BY_KEY[moods[p.id]] && (
+                          <span className="sd-mood" style={{ color: MOOD_BY_KEY[moods[p.id]].col, background: 'var(--surface-alt, var(--bg))' }}>
+                            {L(MOOD_BY_KEY[moods[p.id]].label[0], MOOD_BY_KEY[moods[p.id]].label[1])}
+                          </span>
+                        )}
+                        {(focuses[p.id] || []).map((f, i) => <span key={i} className="sd-focus">{f}</span>)}
+                      </div>
                     )}
                     {connected && playerNotes[p.id] && (
                       <div className="sd-player-note"><span className="sd-player-note-lbl">{L('השחקן רשם:', 'Player wrote:')}</span> {playerNotes[p.id]}</div>
