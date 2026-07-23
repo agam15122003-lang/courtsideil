@@ -5,7 +5,7 @@ import {
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
-  MapPin, Volleyball, ArrowLeft, Eye,
+  MapPin, Volleyball, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -1024,8 +1024,29 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   )
 }
 
-// ---------- מסך: פרופיל (עם סטטיסטיקות) ----------
-function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setView }) {
+// מתג מצב-כהה מונפש (משתמש באותו מנגנון של ThemeToggle)
+function DarkSwitch() {
+  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark')
+  useEffect(() => {
+    const sync = () => setDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    window.addEventListener('themechange', sync)
+    return () => window.removeEventListener('themechange', sync)
+  }, [])
+  const toggle = () => {
+    const next = !dark
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light')
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+    window.dispatchEvent(new Event('themechange'))
+  }
+  return (
+    <button className={dark ? 'plp-switch on' : 'plp-switch'} onClick={toggle} role="switch" aria-checked={dark} aria-label={L('מצב כהה', 'Dark mode')}>
+      <span className="plp-switch-knob" />
+    </button>
+  )
+}
+
+// ---------- מסך: פרופיל (זהות, סטטיסטיקות, קבוצות, הגדרות) ----------
+function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView }) {
   const [st, setSt] = useState(null)
   useEffect(() => {
     ;(async () => {
@@ -1042,51 +1063,66 @@ function PlayerProfile({ session, profile, memberships, onEdit, onJoined, setVie
     })()
   }, [session.user.id])
 
+  const role = [L('שחקן', 'Player'), profile.position, profile.birth_year ? `${L('שנתון', 'b.')} ${profile.birth_year}` : null].filter(Boolean).join(' · ')
+
   return (
-    <div className="pl-screen">
-      <div className="pl-profile-head">
-        <Avatar name={`${profile.first_name} ${profile.last_name}`} url={profile.avatar_url} size={64} />
-        <div>
-          <h2 style={{ margin: 0 }}>{profile.first_name} {profile.last_name}</h2>
-          <span className="muted small">
-            {L('שחקן', 'Player')}
-            {profile.position ? ` · ${profile.position}` : ''}
-            {profile.birth_year ? ` · ${L('שנתון', 'b.')} ${profile.birth_year}` : ''}
-          </span>
-        </div>
+    <div className="pl-screen pl-narrow">
+      <div className="plp-head">
+        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={94} />
+        <h2 className="plp-name">{profile.first_name} {profile.last_name}</h2>
+        <span className="plp-role">{role}</span>
       </div>
 
       {st && (
-        <div className="pl-stat-grid pl-stat-grid3">
-          <div className="pl-stat"><b>{st.done}</b><span>{L('תרגילים שבוצעו', 'Drills done')}</span></div>
-          <div className="pl-stat"><b>{st.streak}🔥</b><span>{L('רצף ימים', 'Day streak')}</span></div>
-          <div className="pl-stat"><b>{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attend.')}</span></div>
+        <div className="plt-trio" style={{ marginTop: 18 }}>
+          <div className="plt-stat"><b className="green">{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attendance')}</span></div>
+          <div className="plt-stat"><b className="brand">{st.streak}</b><span>{L('רצף ימים', 'Day streak')}</span></div>
+          <div className="plt-stat"><b>{st.done}</b><span>{L('תרגילים', 'Drills')}</span></div>
         </div>
       )}
 
-      <button className="btn-soft" onClick={onEdit}>{L('עריכת פרטים', 'Edit details')}</button>
-
-      <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הקבוצות שלי', 'My teams')}</p>
+      <p className="pl-section-label" style={{ marginTop: 18 }}>{L('הקבוצות שלי', 'My teams')}</p>
       {memberships.length === 0 ? (
         <JoinTeam session={session} onJoined={onJoined} compact />
       ) : (
-        <>
-          <ul className="pl-memberships">
-            {memberships.map((m) => (
-              <li key={m.id} className={`pl-memb st-${m.status}`}>
-                <span className="pl-memb-team">{trTeam(m.team)}</span>
+        <ul className="plp-teams">
+          {memberships.map((m) => (
+            <li key={m.id} className="plp-team">
+              <span className="plp-team-badge">{(trTeam(m.team) || '?').slice(0, 2)}</span>
+              <div className="plp-team-body">
+                <strong>{trTeam(m.team)}</strong>
                 <span className="muted small">{coachName(m.coach)}</span>
-                <span className="pl-memb-status">
-                  {m.status === 'approved' ? L('מאושר ✓', 'Approved ✓') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <button className="btn-soft" style={{ marginTop: 12 }} onClick={() => setView('home')}>
-            {L('הצטרפות לקבוצה נוספת', 'Join another team')}
-          </button>
-        </>
+              </div>
+              <span className={`plp-team-status st-${m.status}`}>
+                {m.status === 'approved' ? L('מאושר', 'Approved') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
+
+      <button className="plp-edit" onClick={onEdit}><Pencil size={16} /> {L('עריכת פרטים', 'Edit details')}</button>
+      {memberships.length > 0 && (
+        <button className="plp-join-more" onClick={() => setView('home')}>{L('הצטרפות לקבוצה נוספת', 'Join another team')}</button>
+      )}
+
+      <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הגדרות', 'Settings')}</p>
+      <div className="plp-settings">
+        <div className="plp-set-row">
+          <span className="plp-set-ic"><Moon size={17} /></span>
+          <span className="plp-set-label">{L('מצב כהה', 'Dark mode')}</span>
+          <DarkSwitch />
+        </div>
+        <div className="plp-set-row">
+          <span className="plp-set-ic"><Globe size={17} /></span>
+          <span className="plp-set-label">{L('שפה', 'Language')}</span>
+          <span className="plp-set-ctrl"><LanguageToggle /></span>
+        </div>
+        <button className="plp-set-row plp-logout" onClick={onSignOut}>
+          <span className="plp-set-ic brand"><LogOut size={17} /></span>
+          <span className="plp-set-label">{L('התנתקות', 'Sign out')}</span>
+        </button>
+      </div>
     </div>
   )
 }
@@ -1189,7 +1225,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               title={L('הקבוצה שלי', 'My team')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'profile':
-        return <PlayerProfile session={session} profile={profile} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} setView={setView} />
+        return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />
       default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} />
     }
   }
