@@ -21,6 +21,7 @@ import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet from './FeedbackSheet'
+import ScheduleGrid from './ScheduleGrid'
 import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
 import { expandSlots } from './sessionId'
@@ -572,6 +573,7 @@ function dayLabel(dateStr) {
 function PlayerSchedule({ session, membership }) {
   const [items, setItems] = useState(null)
   const [past, setPast] = useState([])
+  const [slotRows, setSlotRows] = useState([])
   const me = session.user.id
 
   const load = useCallback(async () => {
@@ -593,6 +595,7 @@ function PlayerSchedule({ session, membership }) {
       ...(gm || []).map((g) => ({ kind: 'game', id: 'g' + g.id, date: g.game_date, time: g.game_time, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game'), location: g.location })),
     ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
     setItems(list)
+    setSlotRows(slots || [])
 
     // אימונים שהיו — מתוך הדירוגים של השחקן ב-14 הימים האחרונים
     const effBy = {}; for (const r of eff || []) effBy[r.session_id] = r.effort
@@ -616,8 +619,10 @@ function PlayerSchedule({ session, membership }) {
 
   const next = items[0] || null
   const todayStr = new Date().toISOString().slice(0, 10)
+  // הלו״ז השבועי הקבוע מוצג כטבלה; ברשימת התאריכים משאירים רק משחקים ואירועים חד-פעמיים
+  const extra = items.filter((it) => it.id[0] !== 's')
   const dayMap = {}
-  for (const it of items) (dayMap[it.date] = dayMap[it.date] || []).push(it)
+  for (const it of extra) (dayMap[it.date] = dayMap[it.date] || []).push(it)
   const days = Object.keys(dayMap).sort()
 
   return (
@@ -648,6 +653,14 @@ function PlayerSchedule({ session, membership }) {
             </div>
           )}
 
+          {slotRows.length > 0 && (
+            <section className="pls-grid-sec">
+              <p className="pl-section-label"><CalendarDays size={15} /> {L('הלו״ז השבועי הקבוע', 'Weekly schedule')}</p>
+              <ScheduleGrid slots={slotRows} showTeam />
+            </section>
+          )}
+
+          {days.length > 0 && <p className="pl-section-label" style={{ marginTop: 18 }}>{L('משחקים ואירועים קרובים', 'Upcoming games & events')}</p>}
           {days.map((d) => (
             <section className="pls-day" key={d}>
               <p className="pls-day-head">
