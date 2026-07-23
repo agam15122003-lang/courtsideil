@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  History, Flame, Star, Crown, MessageSquareHeart, Target, Check, Minus,
-  Dumbbell, Volleyball, StickyNote, CalendarDays, Send, TrendingUp,
+  History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
+  Dumbbell, Volleyball, StickyNote, Send, TrendingUp,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
@@ -167,73 +167,75 @@ export default function PlayerTimeline({ session, membership }) {
         </div>
       ) : (
         <>
-          <p className="pl-section-label" style={{ marginTop: 18 }}>{L('היסטוריה', 'History')}</p>
-          <div className="tl">
+          <p className="pl-section-label" style={{ marginTop: 18 }}>{L('אימונים שהיו', 'Past sessions')}</p>
+          <div className="thist">
             {items.map((c) => {
               const isMvp = c.review && c.review.mvp_player_id === me
-              return (
-                <article key={c.session_id} className={`tl-item ${c.type}${isMvp ? ' mvp' : ''}`}>
-                  <span className="tl-dot" aria-hidden="true">
-                    {c.type === 'game' ? <Volleyball size={13} /> : c.type === 'note' ? <MessageSquareHeart size={13} /> : <Dumbbell size={13} />}
-                  </span>
-                  <div className="tl-card">
-                    <header className="tl-head">
-                      <span className={`tl-type ${c.type}`}>
-                        {c.type === 'game' ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')) : c.type === 'note' ? L('הודעה מהמאמן', 'Note from coach') : L('אימון', 'Practice')}
-                      </span>
-                      <span className="tl-date"><CalendarDays size={12} /> {heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
-                    </header>
-
-                    {isMvp && (
-                      <div className="tl-mvp"><Crown size={16} /> {L('נבחרת ל-MVP של האימון!', 'You were the MVP!')}</div>
+              // כרטיס "הודעה מהמאמן" — ירקרק, ללא אימון צמוד
+              if (c.type === 'note') {
+                return (
+                  <div key={c.session_id} className="th-msg">
+                    <div className="th-msg-head">
+                      <span className="th-msg-ic"><MessageSquareHeart size={15} /></span>
+                      <strong>{L('הודעה מהמאמן', 'Message from coach')}</strong>
+                      <span className="th-date">{heDate(c.date)}</span>
+                    </div>
+                    {c.fb?.rating > 0 && (
+                      <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
                     )}
-
-                    {(c.att || c.eff) && (
-                      <div className="tl-chips">
-                        {c.att && (
-                          <span className={`tl-chip att-${c.att}`}>
-                            {c.att === 'present' ? <><Check size={12} /> {L('נוכחת', 'Present')}</> : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')}
-                          </span>
-                        )}
-                        {c.eff && <span className="tl-chip eff"><Flame size={12} /> {L('העומס שלך', 'Your effort')} {c.eff.effort}/10</span>}
-                      </div>
-                    )}
-
-                    {c.marks.length > 0 && (
-                      <div className="tl-goals">
-                        <span className="tl-lbl"><Target size={13} /> {L('המטרות שלך', 'Your goals')}</span>
-                        <div className="tl-goal-chips">
-                          {c.marks.map((m, i) => (
-                            <span key={i} className={m.met ? 'tl-goal met' : 'tl-goal miss'}>
-                              {m.met ? <Check size={12} /> : <Minus size={12} />} {m.title}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {c.fb && (c.fb.content || c.fb.rating > 0) && (
-                      <div className="tl-fb">
-                        <Avatar name={coachName(c.fb.coach)} url={c.fb.coach?.avatar_url} size={30} />
-                        <div className="tl-fb-body">
-                          {c.type !== 'note' && <span className="tl-lbl">{L('המאמן כתב לך', 'Coach wrote')}</span>}
-                          {c.fb.rating > 0 && (
-                            <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
-                          )}
-                          {c.fb.content && <p>{c.fb.content}</p>}
-                        </div>
-                      </div>
-                    )}
-
-                    {c.eff?.note && (
-                      <p className="tl-mynote"><StickyNote size={12} /> {L('רשמת: ', 'You wrote: ')}{c.eff.note}</p>
-                    )}
-
-                    {c.review?.overall_note && (
-                      <p className="tl-review">{L('סיכום המאמן: ', 'Coach summary: ')}{c.review.overall_note}</p>
-                    )}
+                    {c.fb?.content && <p className="th-msg-txt">{c.fb.content}</p>}
                   </div>
-                </article>
+                )
+              }
+              // כרטיס סיכום אימון/משחק
+              return (
+                <div key={c.session_id} className={isMvp ? 'th-card mvp' : 'th-card'}>
+                  <div className="th-card-head">
+                    <span className="th-title">
+                      {c.type === 'game'
+                        ? <><Volleyball size={15} /> {c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')}</>
+                        : <><Dumbbell size={15} /> {L('אימון קבוצתי', 'Team practice')}</>}
+                    </span>
+                    <span className="th-date">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
+                  </div>
+
+                  {isMvp && <div className="th-mvp"><Crown size={15} /> {L('נבחרת ל-MVP של האימון!', 'You were the MVP!')}</div>}
+
+                  {(c.eff || c.att || c.marks.length > 0) && (
+                    <div className="th-pills">
+                      {c.eff && <span className="th-pill load"><Flame size={12} /> {L('עומס', 'Load')} {c.eff.effort}/10</span>}
+                      {c.att && (
+                        <span className={`th-pill att-${c.att}`}>
+                          {c.att === 'present' ? <><Check size={12} /> {L('נכחת', 'Present')}</> : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')}
+                        </span>
+                      )}
+                      {c.marks.map((m, i) => (
+                        <span key={i} className={m.met ? 'th-pill goal met' : 'th-pill goal miss'}>
+                          {m.met ? <Check size={12} /> : <Minus size={12} />} {m.title}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {c.eff?.note && <p className="th-quote">״{c.eff.note}״</p>}
+
+                  {c.fb && (c.fb.content || c.fb.rating > 0) && (
+                    <div className="th-coach">
+                      <Avatar name={coachName(c.fb.coach)} url={c.fb.coach?.avatar_url} size={28} />
+                      <div className="th-coach-body">
+                        <span className="th-coach-lbl">{L('המאמן כתב לך', 'Coach wrote')}</span>
+                        {c.fb.rating > 0 && (
+                          <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={12} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
+                        )}
+                        {c.fb.content && <p>{c.fb.content}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {c.review?.overall_note && (
+                    <p className="th-summary"><StickyNote size={12} /> {L('סיכום המאמן: ', 'Coach summary: ')}{c.review.overall_note}</p>
+                  )}
+                </div>
               )
             })}
           </div>

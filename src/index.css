@@ -14078,6 +14078,39 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 @media (prefers-reduced-motion: reduce) { .plt-trend-line { animation: none; stroke-dashoffset: 0; } }
 
 /* ============================================================
+   "אימונים שהיו" — כרטיסים שטוחים (handoff), מחליף את ציר הזמן
+   ============================================================ */
+.thist { display: flex; flex-direction: column; gap: 10px; }
+.th-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 15px 16px; box-shadow: var(--shadow-sm); }
+.th-card.mvp { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow-sm); }
+.th-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.th-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; color: var(--text); }
+.th-title > svg { color: var(--accent-strong); }
+.th-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.th-mvp { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--accent-strong); background: var(--accent-soft); padding: 4px 11px; border-radius: var(--radius-full); }
+.th-pills { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+.th-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: var(--radius-full); }
+.th-pill.load { color: var(--accent-strong); background: var(--accent-soft); }
+.th-pill.att-present { color: var(--c-green); background: var(--c-green-bg); }
+.th-pill.att-late { color: var(--c-gold, #b8862f); background: var(--surface-alt, var(--bg)); }
+.th-pill.att-absent { color: var(--c-red); background: var(--c-red-bg); }
+.th-pill.goal.met { color: var(--c-green); background: var(--c-green-bg); }
+.th-pill.goal.miss { color: var(--text-muted); background: var(--surface-alt, var(--bg)); }
+.th-quote { margin: 11px 0 0; padding: 10px 13px; border-radius: 12px; background: var(--surface-alt, var(--bg)); font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.th-coach { display: flex; gap: 10px; margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--border); }
+.th-coach-body { flex: 1; min-width: 0; }
+.th-coach-lbl { display: block; font-size: 11px; font-weight: 700; color: var(--accent-strong); }
+.th-coach-body .pl-fb-stars { margin: 3px 0; }
+.th-coach-body p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.th-summary { display: flex; align-items: flex-start; gap: 6px; margin: 11px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.th-summary > svg { flex-shrink: 0; margin-top: 3px; }
+.th-msg { background: var(--c-green-bg); border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px; }
+.th-msg-head { display: flex; align-items: center; gap: 8px; }
+.th-msg-ic { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--c-green); color: #fff; flex-shrink: 0; }
+.th-msg-head strong { flex: 1; font-weight: 700; font-size: 13px; color: var(--c-green); }
+.th-msg-txt { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+
+/* ============================================================
    ציר הזמן של השחקן — "האימונים שלי"
    ============================================================ */
 .tl { position: relative; padding-inline-start: 34px; }
