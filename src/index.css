@@ -14785,6 +14785,40 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-goal-progress-bar > span { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--c-orange), var(--accent)); transition: width 0.5s cubic-bezier(0.2,0.8,0.3,1); }
 
 /* מטרות השחקן (redesign) — טבעת בכותרת + כרטיסים נקיים */
+/* ============================================================
+   מטרות השחקן — תיעוד עצמי (handoff): הירו התקדמות, סטפרים, בוצע
+   ============================================================ */
+.plg2-hero { position: relative; overflow: hidden; border-radius: 22px; padding: 20px; margin-bottom: 14px; color: var(--on-navy, #F3EEE4); background: linear-gradient(150deg, var(--hero-navy), var(--hero-navy-2)); box-shadow: 0 14px 32px rgba(22,35,59,.25); }
+.plg2-hero-glow { position: absolute; top: -40px; inset-inline-start: -30px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, var(--accent), transparent 68%); opacity: .28; pointer-events: none; }
+.plg2-hero-lbl { position: relative; display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.7); }
+.plg2-hero-pct { position: relative; display: block; font-family: var(--font-display); font-size: 38px; font-weight: 900; line-height: 1; margin-top: 2px; color: #fff; }
+.plg2-hero-bar { position: relative; margin-top: 14px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+.plg2-hero-bar > span { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+
+.plg2-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.plg2-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 16px; box-shadow: var(--shadow-sm); }
+.plg2-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.plg2-title { min-width: 0; }
+.plg2-title strong { display: block; font-weight: 700; font-size: 14.5px; color: var(--text); }
+.plg2-tag { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.plg2-pct { flex-shrink: 0; font-family: var(--font-display); font-weight: 800; font-size: 15px; color: var(--accent-strong); }
+.plg2-donepill { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--c-green); background: var(--c-green-bg); padding: 4px 10px; border-radius: 99px; }
+.plg2-bar { margin-top: 12px; height: 9px; border-radius: 99px; background: var(--surface-alt, var(--bg)); overflow: hidden; }
+.plg2-bar > span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-fill)); transition: width .4s ease; }
+.plg2-bar > span.done { background: linear-gradient(90deg, var(--c-green), #5cc08a); }
+.plg2-log { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.plg2-step { display: flex; align-items: center; gap: 10px; }
+.plg2-step-btn { width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface-alt, var(--bg)); color: var(--text); transition: transform .1s ease; }
+.plg2-step-btn.plus { background: var(--accent-soft); border-color: transparent; color: var(--accent-strong); }
+.plg2-step-btn:active { transform: scale(.92); }
+.plg2-count { min-width: 62px; text-align: center; font-size: 14px; color: var(--text-muted); font-weight: 600; }
+.plg2-count b { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--text); }
+.plg2-donebtn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 99px; font-weight: 700; font-size: 12.5px; cursor: pointer; flex-shrink: 0; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); transition: all .16s ease; }
+.plg2-donebtn.on { background: var(--c-green); border-color: transparent; color: #fff; }
+.plg2-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px; padding: 15px; border: 1.5px dashed var(--accent); border-radius: 18px; font-weight: 700; font-size: 14px; color: var(--accent-strong); background: var(--surface); cursor: pointer; transition: transform .1s ease; }
+.plg2-add:active { transform: scale(.98); }
+.plg2-input { width: 100%; margin-top: 9px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface-alt, var(--bg)); padding: 14px; font-size: 14px; color: var(--text); font-family: inherit; }
+
 .plg-ring { flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%; display: inline-grid; place-items: center; background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--surface-alt) 0); }
 .plg-ring > span { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); display: inline-grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 14px; color: var(--text); }
 .plg-ring > span i { font-size: 10px; font-style: normal; color: var(--text-muted); font-weight: 700; }
