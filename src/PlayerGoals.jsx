@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Target, Plus, Trash2, Check, Minus, X } from 'lucide-react'
+import { Target, Plus, Trash2, Check, Minus, X, TrendingUp, ChevronDown } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
@@ -168,28 +168,82 @@ function AddGoalSheet({ open, onClose, onAdd }) {
   )
 }
 
+// גרף התקדמות למטרה ספציפית — קו+שטח של ההתקדמות לאורך זמן, עם קו יעד מקווקו
+function GoalChart({ logs, target, goalId }) {
+  const series = logs.map((l) => Number(l.value))
+  if (series.length < 2) return null
+  const W = 280, H = 64, p = 6, n = series.length
+  const maxV = Math.max(target || 0, ...series, 1)
+  const xs = (i) => p + i * ((W - 2 * p) / (n - 1))
+  const ys = (v) => H - p - (v / maxV) * (H - 2 * p)
+  const pts = series.map((v, i) => [xs(i), ys(v)])
+  const line = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ')
+  const area = `${line} L ${xs(n - 1).toFixed(1)} ${H - p} L ${xs(0).toFixed(1)} ${H - p} Z`
+  const ty = target ? ys(target) : null
+  const last = pts[n - 1]
+  const gid = `plgGrad-${goalId}`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="plg2-chart" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--accent)" stopOpacity="0.28" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></linearGradient></defs>
+      {ty != null && <line x1={p} y1={ty} x2={W - p} y2={ty} stroke="var(--c-green)" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.75" />}
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last[0]} cy={last[1]} r="4" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
+    </svg>
+  )
+}
+
 // ---------- מסך המטרות של השחקן — עם תיעוד עצמי ----------
 export function MyGoals({ session, membership }) {
   const [goals, setGoals] = useState(null)
+  const [logsBy, setLogsBy] = useState({})
+  const [openId, setOpenId] = useState(null)
+  const [amtInput, setAmtInput] = useState({})
   const [addOpen, setAddOpen] = useState(false)
   const me = session.user.id
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
     setGoals(data || [])
+    const ids = (data || []).map((g) => g.id)
+    if (ids.length) {
+      const { data: logs } = await supabase.from('player_goal_logs')
+        .select('goal_id, value, log_date, created_at').in('goal_id', ids).order('created_at', { ascending: true })
+      const by = {}; for (const r of logs || []) (by[r.goal_id] = by[r.goal_id] || []).push(r)
+      setLogsBy(by)
+    } else setLogsBy({})
   }, [])
   useEffect(() => { load() }, [load])
 
   const goalFrac = (g) => g.target_value ? Math.min(1, (g.progress_value || 0) / g.target_value) : (g.status === 'done' ? 1 : 0)
 
+  // שומר "צילום מצב" ליומן — כדי לצייר את גרף ההתקדמות
+  const recordLog = async (goalId, value) => {
+    setLogsBy((cur) => ({ ...cur, [goalId]: [...(cur[goalId] || []), { value, log_date: null, created_at: 'x' }] }))
+    await supabase.from('player_goal_logs').insert({ goal_id: goalId, player_id: me, value })
+  }
+
+  const applyProgress = async (g, next) => {
+    const done = next >= g.target_value
+    setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
+    await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    await recordLog(g.id, next)
+    if (done && g.status !== 'done') toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉'))
+  }
+
   const bump = async (g, dir) => {
     if (!g.target_value) return
     const step = Math.max(1, Math.round(g.target_value / 20))
     const next = Math.max(0, Math.min(g.target_value, (g.progress_value || 0) + dir * step))
-    const done = next >= g.target_value
-    setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
-    await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
-    if (done && g.status !== 'done') toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉'))
+    await applyProgress(g, next)
+  }
+
+  const logAmount = async (g) => {
+    const amt = parseInt(amtInput[g.id], 10)
+    if (!amt || !g.target_value) return
+    const next = Math.max(0, Math.min(g.target_value, (g.progress_value || 0) + amt))
+    setAmtInput((m) => ({ ...m, [g.id]: '' }))
+    await applyProgress(g, next)
   }
 
   const toggleDone = async (g) => {
@@ -273,6 +327,30 @@ export function MyGoals({ session, membership }) {
                     <Check size={14} /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
                   </button>
                 </div>
+
+                {isCount && (
+                  <button className="plg2-more" onClick={() => setOpenId(openId === g.id ? null : g.id)} aria-expanded={openId === g.id}>
+                    <TrendingUp size={13} /> {L('גרף התקדמות', 'Progress chart')}
+                    <ChevronDown size={14} className={openId === g.id ? 'plg2-chev open' : 'plg2-chev'} />
+                  </button>
+                )}
+                {isCount && openId === g.id && (
+                  <div className="plg2-prog">
+                    {(logsBy[g.id] || []).length >= 2
+                      ? <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
+                      : <p className="muted small plg2-prog-empty">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא 📈', 'Log your progress — the chart will start filling up 📈')}</p>}
+                    <div className="plg2-amt">
+                      <input className="plg2-amt-input" dir="ltr" inputMode="numeric"
+                        placeholder={L('כמה ביצעת?', 'How much?')}
+                        value={amtInput[g.id] || ''}
+                        onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+                        onKeyDown={(e) => e.key === 'Enter' && logAmount(g)} />
+                      <button className="plg2-amt-btn" onClick={() => logAmount(g)} disabled={!amtInput[g.id]}>
+                        <Plus size={14} /> {L('רישום', 'Log')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             )
           })}
