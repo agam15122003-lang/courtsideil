@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Target, Plus, Trash2, Check, Minus } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Target, Plus, Trash2, Check, Minus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
@@ -120,86 +121,169 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   )
 }
 
-// ---------- מסך המטרות של השחקן ----------
-export function MyGoals({ session, membership }) {
-  const [goals, setGoals] = useState(null)
+const periodTag = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : '' }
+
+// ---------- גיליון "מטרה חדשה" (השחקן מוסיף מטרה אישית) ----------
+function AddGoalSheet({ open, onClose, onAdd }) {
+  const [title, setTitle] = useState('')
+  const [target, setTarget] = useState('')
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    ;(async () => {
-      let q = supabase.from('player_goals').select('*').order('created_at', { ascending: false })
-      // RLS מחזיר את המטרות האישיות של השחקן + מטרות לכל הקבוצה שלו
-      const { data } = await q
-      setGoals(data || [])
-    })()
-  }, [session.user.id])
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [open, onClose])
+
+  const submit = async () => {
+    if (!title.trim() || busy) return
+    setBusy(true)
+    const ok = await onAdd(title.trim(), target ? Math.max(1, parseInt(target, 10)) : null)
+    setBusy(false)
+    if (ok) { setTitle(''); setTarget(''); onClose() }
+  }
+
+  if (!open) return null
+  return createPortal(
+    <div className="fbs-scrim" onClick={onClose}>
+      <div className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={L('מטרה חדשה', 'New goal')}>
+        <span className="fbs-grip" />
+        <button className="fbs-x" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+        <div className="fbs-title">{L('מטרה חדשה', 'New goal')}</div>
+        <div className="fbs-sub">{L('הגדר יעד אישי למעקב', 'Set a personal target to track')}</div>
+        <div className="fbs-q">{L('שם המטרה', 'Goal name')}</div>
+        <input className="plg2-input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
+          placeholder={L('למשל: 100 זריקות ליום', 'e.g. 100 shots a day')} />
+        <div className="fbs-q">{L('יעד (מספר) — לא חובה', 'Target (number) — optional')}</div>
+        <input className="plg2-input" dir="ltr" inputMode="numeric" value={target}
+          onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('למשל: 100', 'e.g. 100')} />
+        <button className="fbs-send" onClick={submit} disabled={!title.trim() || busy}>
+          <Plus size={18} /> {busy ? L('מוסיף…', 'Adding…') : L('הוסף מטרה', 'Add goal')}
+        </button>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ---------- מסך המטרות של השחקן — עם תיעוד עצמי ----------
+export function MyGoals({ session, membership }) {
+  const [goals, setGoals] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const me = session.user.id
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
+    setGoals(data || [])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const goalFrac = (g) => g.target_value ? Math.min(1, (g.progress_value || 0) / g.target_value) : (g.status === 'done' ? 1 : 0)
+
+  const bump = async (g, dir) => {
+    if (!g.target_value) return
+    const step = Math.max(1, Math.round(g.target_value / 20))
+    const next = Math.max(0, Math.min(g.target_value, (g.progress_value || 0) + dir * step))
+    const done = next >= g.target_value
+    setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
+    await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    if (done && g.status !== 'done') toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉'))
+  }
+
+  const toggleDone = async (g) => {
+    const done = g.status !== 'done'
+    setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, status: done ? 'done' : 'active' } : x))
+    await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    if (done) toast.success(L('כל הכבוד! 💪', 'Nice! 💪'))
+  }
+
+  const addGoal = async (title, target) => {
+    const { error } = await supabase.from('player_goals').insert({
+      coach_id: membership?.coach_id, player_id: me, team: membership?.team || null,
+      period: 'week', title, target_value: target, metric_type: target ? 'count' : 'checkbox',
+    })
+    if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
+    toast.success(L('המטרה נוספה', 'Goal added'))
+    load()
+    return true
+  }
 
   if (goals === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
-  const done = goals.filter((g) => g.status === 'done').length
+
   const total = goals.length
-  const pct = total ? Math.round((done / total) * 100) : 0
+  const inProg = goals.filter((g) => goalFrac(g) < 1).length
+  const overallPct = total ? Math.round(goals.reduce((a, g) => a + goalFrac(g), 0) / total * 100) : 0
 
   return (
     <div className="pl-screen pl-narrow">
       <header className="pl-head tone-orange">
-        {total > 0 && (
-          <div className="plg-ring" style={{ '--pct': pct }} aria-label={L(`${done} מתוך ${total} הושגו`, `${done} of ${total} done`)}>
-            <span>{done}<i>/{total}</i></span>
-          </div>
-        )}
+        <span className="pl-head-ic"><Target size={22} /></span>
         <div className="pl-head-txt">
           <h2>{L('המטרות שלי', 'My goals')}</h2>
-          <p>{L('היעדים מהמאמן — לאימון, לשבוע ולעונה', 'Targets from your coach — session, week and season')}</p>
+          <p>{total === 0 ? L('היעדים שלך — מהמאמן וגם שלך', 'Your targets — from your coach and your own')
+            : inProg > 0 ? L(`${inProg} מתוך ${total} מטרות בתהליך`, `${inProg} of ${total} goals in progress`)
+            : L('כל המטרות הושלמו — כל הכבוד 🎉', 'All goals complete — nice work 🎉')}</p>
         </div>
-        <span className="pl-head-ic"><Target size={22} /></span>
       </header>
 
-      {goals.length === 0 ? (
+      {total > 0 && (
+        <div className="plg2-hero">
+          <span className="plg2-hero-glow" aria-hidden="true" />
+          <span className="plg2-hero-lbl">{L('התקדמות כללית', 'Overall progress')}</span>
+          <strong className="plg2-hero-pct">{overallPct}%</strong>
+          <div className="plg2-hero-bar"><span style={{ width: `${overallPct}%` }} /></div>
+        </div>
+      )}
+
+      {total === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Target size={26} /></span>
           <div className="empty-title">{L('עוד אין מטרות', 'No goals yet')}</div>
-          <p className="muted small">{L('המאמן יגדיר לך מטרות — לאימון הקרוב, לשבוע ולעונה — והן יופיעו כאן.', 'Your coach will set you goals — for the next session, the week and the season — and they show up here.')}</p>
+          <p className="muted small">{L('המאמן יגדיר לך מטרות — או שתוכל להוסיף מטרה אישית משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
         </div>
       ) : (
-        PERIODS.map((p) => {
-          const list = goals.filter((g) => g.period === p.id)
-          if (list.length === 0) return null
-          return (
-            <section className="plg-section" key={p.id}>
-              <p className="pl-section-label">{L(p.label[0], p.label[1])}</p>
-              <ul className="plg-goals">
-                {list.map((g) => {
-                  const gp = g.target_value ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
-                  const isDone = g.status === 'done'
-                  const isCount = !!g.target_value
-                  const remaining = isCount ? Math.max(0, g.target_value - (g.progress_value || 0)) : 0
-                  return (
-                    <li key={g.id} className={isDone ? 'plg-goal done' : 'plg-goal'}>
-                      {!isCount && (
-                        <span className={isDone ? 'plg-check on' : 'plg-check'}>{isDone ? <Check size={16} /> : null}</span>
-                      )}
-                      <div className="plg-goal-main">
-                        <div className="plg-goal-top">
-                          <strong>{g.title}</strong>
-                          {isCount && <span className="plg-goal-val">{g.progress_value || 0}/{g.target_value}</span>}
-                          {!g.player_id && <span className="plg-goal-team">{L('קבוצתי', 'Team')}</span>}
-                        </div>
-                        {isCount ? (
-                          <>
-                            <div className="plg-goal-bar"><span style={{ width: `${gp}%` }} /></div>
-                            <span className="muted small">{isDone ? L('הושג! כל הכבוד 🎉', 'Done! 🎉') : L(`עוד ${remaining}${g.unit ? ' ' + g.unit : ''} — אתה בקצב מעולה`, `${remaining}${g.unit ? ' ' + g.unit : ''} to go — great pace`)}</span>
-                          </>
-                        ) : (
-                          <span className={isDone ? 'plg-goal-note done' : 'muted small'}>{isDone ? L('הושג! כל הכבוד', 'Done! 🎉') : L('מסמנים בסוף האימון', 'You mark it at wrap-up')}</span>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          )
-        })
+        <ul className="plg2-list">
+          {goals.map((g) => {
+            const isCount = !!g.target_value
+            const pct = isCount ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
+            const isDone = goalFrac(g) >= 1
+            return (
+              <li key={g.id} className={isDone ? 'plg2-card done' : 'plg2-card'}>
+                <div className="plg2-top">
+                  <div className="plg2-title">
+                    <strong>{g.title}</strong>
+                    <span className="plg2-tag">{periodTag(g.period)}{!g.player_id ? ` · ${L('קבוצתי', 'Team')}` : ''}</span>
+                  </div>
+                  {isDone
+                    ? <span className="plg2-donepill"><Check size={12} /> {L('הושלם', 'Done')}</span>
+                    : isCount ? <span className="plg2-pct">{pct}%</span> : null}
+                </div>
+                <div className="plg2-bar"><span className={isDone ? 'done' : ''} style={{ width: `${pct}%` }} /></div>
+                <div className="plg2-log">
+                  {isCount ? (
+                    <div className="plg2-step">
+                      <button className="plg2-step-btn minus" onClick={() => bump(g, -1)} aria-label="-"><Minus size={16} /></button>
+                      <span className="plg2-count"><b>{g.progress_value || 0}</b> / {g.target_value}</span>
+                      <button className="plg2-step-btn plus" onClick={() => bump(g, 1)} aria-label="+"><Plus size={16} /></button>
+                    </div>
+                  ) : <span />}
+                  <button className={g.status === 'done' ? 'plg2-donebtn on' : 'plg2-donebtn'} onClick={() => toggleDone(g)}>
+                    <Check size={14} /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
+                  </button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       )}
+
+      <button className="plg2-add" onClick={() => setAddOpen(true)}>
+        <Plus size={18} /> {L('מטרה חדשה', 'New goal')}
+      </button>
+
+      <AddGoalSheet open={addOpen} onClose={() => setAddOpen(false)} onAdd={addGoal} />
     </div>
   )
 }
