@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CalendarClock, Plus, Trash2, MapPin, Clock, ClipboardCheck, CalendarDays, Info } from 'lucide-react'
+import { CalendarClock, Plus, ClipboardCheck, CalendarDays } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { WEEKDAYS, expandSlots } from './sessionId'
+import ScheduleGrid from './ScheduleGrid'
 
 // לו"ז קבוע לקבוצה (מאמן) — ימי אימון + שעות. מופיע אוטומטית לשחקנים.
 // כשאימון עבר, כאן נפתחת ה"סקירה" (רשימת שחקנים: עומס, הערת שחקן, הערת מאמן, מטרות).
@@ -88,16 +89,7 @@ export default function TeamSlots({ coachId, team, onReview }) {
           <p className="muted small">{L('הוסף למעלה — לדוגמה: ראשון 18:00, חמישי 19:30.', 'Add above — e.g. Sunday 18:00, Thursday 19:30.')}</p>
         </div>
       ) : (
-        <ul className="slot-list">
-          {slots.map((s) => (
-            <li key={s.id} className="slot-row">
-              <span className="slot-day">{L(WEEKDAYS[s.weekday][0], WEEKDAYS[s.weekday][1])}</span>
-              <span className="slot-time" dir="ltr"><Clock size={13} /> {String(s.start_time).slice(0, 5)}{s.end_time ? `–${String(s.end_time).slice(0, 5)}` : ''}</span>
-              {s.location && <span className="slot-loc"><MapPin size={13} /> {s.location}</span>}
-              <button className="icon-btn danger slot-del" onClick={() => del(s.id)} aria-label={L('הסר', 'Remove')}><Trash2 size={14} /></button>
-            </li>
-          ))}
-        </ul>
+        <ScheduleGrid slots={slots} showTeam onDelete={del} />
       )}
 
       {upcoming.length > 0 && (
