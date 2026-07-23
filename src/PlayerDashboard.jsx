@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
-  ShieldCheck, Hourglass, Trophy, ChevronLeft, Flame, Lock, Newspaper,
+  ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
   MapPin, Volleyball, ArrowLeft, Eye,
 } from 'lucide-react'
@@ -20,8 +20,9 @@ import CoachChat from './CoachChat'
 import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
+import FeedbackSheet from './FeedbackSheet'
 import { requestJoinByCode, myMemberships } from './players'
-import { computeStreak, playerProgress } from './gamify'
+import { computeStreak } from './gamify'
 import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId } from './youtube'
@@ -813,248 +814,212 @@ function PrePracticeGoals({ session, membership }) {
   )
 }
 
-// ---------- דירוג מאמץ עצמי (בסוף אימון/משחק) ----------
-function EffortPrompt({ session, membership }) {
-  const [pending, setPending] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
-  const [effort, setEffort] = useState(0)
-  const [note, setNote] = useState('')
-  const [goals, setGoals] = useState([])
-  const [marks, setMarks] = useState({}) // {goalId: boolean}
+// ---------- בית: כרטיס-הירו עם ספירה לאחור לאימון הבא + CTA לסיכום ----------
+function HomeHero({ profile, membership, onFeedback }) {
+  const [next, setNext] = useState(undefined)
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
-    if (!membership) return
+    if (!membership) { setNext(null); return }
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
-      const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
-      const [{ data: slots }, { data: gm }, { data: se }, { data: gl }, { data: prevMarks }] = await Promise.all([
+      const [{ data }, { data: slots }] = await Promise.all([
+        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(10),
         supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-        supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
-        supabase.from('session_effort').select('session_id').eq('player_id', session.user.id),
-        supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['session', 'week', 'month']),
-        supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
       ])
-      const rated = new Set((se || []).map((r) => r.session_id))
-      // מטרה "לאימון" שכבר סומנה באימון קודם — לא חוזרת שוב
-      const markedEver = new Set((prevMarks || []).map((m) => m.goal_id))
+      const nowTs = Date.now()
       const cands = [
-        // מופעי הלו"ז הקבוע ב-3 הימים האחרונים (כולל היום)
-        ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון', 'Practice') })),
-        ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
-      ].filter((c) => c.session_date && !rated.has(c.session_id)).sort((a, b) => b.session_date.localeCompare(a.session_date))
-      const p = cands[0] || null
-      setPending(p)
-      // סדר: קודם מטרות "לאימון", אחר כך שבועיות/חודשיות
-      const order = { session: 0, week: 1, month: 2 }
-      setGoals((gl || [])
-        .filter((g) => !(g.period === 'session' && markedEver.has(g.id)))
-        .sort((a, b) => (order[a.period] ?? 9) - (order[b.period] ?? 9)))
-      if (p) {
-        const { data: existing } = await supabase.from('session_goal_marks').select('goal_id, met').eq('session_id', p.session_id).eq('player_id', session.user.id)
-        const m = {}; for (const r of existing || []) m[r.goal_id] = r.met; setMarks(m)
-      }
+        ...(data || []).map((e) => ({ date: e.date, start_time: e.start_time, end_time: e.end_time, title: e.plan?.name || null, location: e.location })),
+        ...expandSlots(slots || [], 0, 30).map((o) => ({ date: o.date, start_time: o.start_time, end_time: o.end_time, title: null, location: o.location })),
+      ]
+      const pick = cands
+        .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
+        .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))[0]
+      setNext(pick || null)
     })()
-  }, [membership, session.user.id])
+  }, [membership])
 
-  const submit = async () => {
-    if (!pending || busy || !effort) return
-    setBusy(true)
-    const { error } = await supabase.from('session_effort').insert({
-      player_id: session.user.id, coach_id: membership.coach_id, team: membership.team,
-      session_type: pending.session_type, session_id: pending.session_id, session_date: pending.session_date,
-      effort, note: note.trim() || null,
-    })
-    if (!error && goals.length) {
-      const rows = goals.map((g) => ({
-        player_id: session.user.id, coach_id: membership.coach_id, session_id: pending.session_id, goal_id: g.id, met: !!marks[g.id],
-      }))
-      await supabase.from('session_goal_marks').upsert(rows, { onConflict: 'session_id,goal_id,player_id' })
-    }
-    setBusy(false)
-    if (error) { toast.error(L('השליחה נכשלה', 'Failed to send')); return }
-    setDone(true)
-    toast.success(L('תודה! נשלח למאמן 💪', 'Thanks! Sent to your coach 💪'))
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+
+  const hour = new Date().getHours()
+  const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
+
+  let dd = '00', hh = '00', mm = '00', ss = '00', started = false, whenStr = '', titleStr = ''
+  if (next) {
+    const start = new Date(`${next.date}T${next.start_time || '00:00'}`)
+    const diff = Math.max(0, start.getTime() - now)
+    started = start.getTime() - now <= 0 && new Date(`${next.date}T${next.end_time || next.start_time || '23:59'}`).getTime() >= now
+    const pad = (n) => String(n).padStart(2, '0')
+    dd = pad(Math.floor(diff / 86400000)); hh = pad(Math.floor((diff % 86400000) / 3600000)); mm = pad(Math.floor((diff % 3600000) / 60000)); ss = pad(Math.floor((diff % 60000) / 1000))
+    whenStr = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' }) + (next.start_time ? ` · ${next.start_time.slice(0, 5)}` : '') + (next.location ? ` · ${next.location}` : '')
+    titleStr = next.title || L('אימון קבוצתי', 'Team practice')
   }
 
-  if (!membership || (!pending && !done)) return null
   return (
-    <section className="pl-block">
-      <div className="pl-effort-ask">
-        <div className="pl-effort-ask-head">
-          <span className="pl-effort-ic"><Flame size={20} /></span>
-          <div>
-            <strong>{done ? L('תודה! הסיכום נשלח למאמן 🔥', 'Thanks! Sent to your coach 🔥') : L('סיכום האימון — כמה השקעת?', 'Session wrap-up — how hard did you go?')}</strong>
-            {!done && pending && <span className="muted small">{pending.title}{pending.session_date ? ` · ${new Date(pending.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}</span>}
-          </div>
-        </div>
-
-        {!done && (
+    <div className="plh-hero pl-stagger">
+      <span className="plh-hero-glow" aria-hidden="true" />
+      <span className="plh-hero-ball" aria-hidden="true">🏀</span>
+      <div className="plh-hero-head">
+        <span className="plh-hero-greet">{greet},</span>
+        <span className="plh-hero-name">{profile.first_name}</span>
+        <span className="plh-hero-team">{membership ? `${trTeam(membership.team)} · ${coachName(membership.coach)}` : L('ברוך הבא לקורטסייד', 'Welcome to CourtSide')}</span>
+      </div>
+      <div className="plh-hero-foot">
+        {next ? (
           <>
-            <span className="pl-effort-lbl">{L('רמת העומס שלך (1–10)', 'Your effort (1–10)')}</span>
-            <div className="pl-effort-scale" role="group" aria-label={L('דירוג מאמץ 1 עד 10', 'Effort 1 to 10')}>
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                <button key={n} className={effort === n ? 'pl-effort-btn on' : 'pl-effort-btn'} onClick={() => setEffort(n)} aria-pressed={effort === n} aria-label={String(n)}>{n}</button>
-              ))}
-            </div>
-
-            <textarea className="finder-input pl-effort-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500}
-              placeholder={L('משהו לרשום למאמן? (איך הרגשת, כאב, מה עבד...) — לא חובה', 'Anything to tell your coach? (how you felt, pain, what worked...) — optional')} />
-
-            {goals.length > 0 && (
-              <div className="pl-effort-goals">
-                <span className="pl-effort-lbl">{L('עמדת במטרות שלך היום?', 'Did you meet your goals today?')}</span>
-                {goals.map((g) => (
-                  <button key={g.id} className={marks[g.id] ? 'pl-goal-check on' : 'pl-goal-check'} onClick={() => setMarks((m) => ({ ...m, [g.id]: !m[g.id] }))} aria-pressed={!!marks[g.id]}>
-                    <span className="pl-goal-check-box">{marks[g.id] ? <Check size={14} /> : null}</span>
-                    <span className="pl-goal-check-txt">{g.title}{g.target_value ? ` · ${g.progress_value || 0}/${g.target_value}${g.unit ? ' ' + g.unit : ''}` : ''}</span>
-                    {!g.player_id && <span className="pl-goal-check-team">{L('קבוצתי', 'Team')}</span>}
-                  </button>
-                ))}
+            <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />{started ? L('האימון עכשיו', 'Practice now') : L('האימון הבא', 'Next practice')}</span>
+            <strong className="plh-hero-title">{titleStr}</strong>
+            <span className="plh-hero-meta">{whenStr}</span>
+            {!started ? (
+              <div className="plh-cd">
+                <span className="plh-cd-cell"><b>{dd}</b><i>{L('ימים', 'days')}</i></span>
+                <span className="plh-cd-cell"><b>{hh}</b><i>{L('שעות', 'hrs')}</i></span>
+                <span className="plh-cd-cell"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
+                <span className="plh-cd-cell secs"><b>{ss}</b><i>{L('שניות', 'sec')}</i></span>
               </div>
-            )}
-
-            <button className="pl-cta pl-effort-submit" onClick={submit} disabled={busy || !effort}>
-              {busy ? L('שולח...', 'Sending...') : L('שליחה למאמן', 'Send to coach')}
-            </button>
+            ) : <div className="plh-cd-live">{L('בהצלחה באימון! 🔥', 'Have a great practice! 🔥')}</div>}
+          </>
+        ) : membership ? (
+          <>
+            <span className="plh-hero-live"><i className="plh-dot off" />{L('האימון הבא', 'Next practice')}</span>
+            <strong className="plh-hero-title">{L('אין אימון קרוב בלו״ז', 'No upcoming practice')}</strong>
+            <span className="plh-hero-meta">{L('המאמן יוסיף אימונים ללו״ז', 'Your coach will add practices')}</span>
+          </>
+        ) : (
+          <>
+            <strong className="plh-hero-title">{L('הצטרפו לקבוצה', 'Join a team')}</strong>
+            <span className="plh-hero-meta">{L('כדי לראות את האימון הבא ולמלא סיכומים', 'to see your next practice and log summaries')}</span>
           </>
         )}
+        {membership && (
+          <button className="plh-hero-cta" onClick={onFeedback}><Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}</button>
+        )}
       </div>
-    </section>
+    </div>
+  )
+}
+
+// ---------- בית: שלישיית סטטיסטיקה — נוכחות / רצף / עומס ממוצע ----------
+function StatTrio({ attendancePct, streak, avgLoad }) {
+  return (
+    <div className="plh-trio pl-stagger">
+      <div className="plh-stat">
+        <AttendanceRing pct={attendancePct ?? null} size={58} />
+        <span className="plh-stat-lbl">{L('נוכחות', 'Attendance')}</span>
+      </div>
+      <div className="plh-stat">
+        <span className="plh-stat-circle brand"><Flame size={24} /></span>
+        <b className="plh-stat-num">{streak}</b>
+        <span className="plh-stat-lbl">{L('רצף ימים', 'Day streak')}</span>
+      </div>
+      <div className="plh-stat">
+        <span className="plh-stat-circle purple">{avgLoad ?? '—'}</span>
+        <span className="plh-stat-lbl">{L('עומס ממוצע', 'Avg load')}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------- בית: קיצורי דרך 2×2 ----------
+function Shortcuts({ setView }) {
+  const items = [
+    ['goals', L('המטרות שלי', 'My goals'), Target, 'brand'],
+    ['drills', L('התרגילים שלי', 'My drills'), Dumbbell, 'green'],
+    ['videos', L('סרטונים', 'Videos'), MonitorPlay, 'purple'],
+    ['community', L('קהילה', 'Community'), Users2, 'brand'],
+  ]
+  return (
+    <>
+      <p className="plh-sc-label pl-stagger">{L('קיצורי דרך', 'Shortcuts')}</p>
+      <div className="plh-shortcuts pl-stagger">
+        {items.map(([id, label, Icon, tone]) => (
+          <button key={id} className="plh-sc" onClick={() => setView(id)}>
+            <span className={`plh-sc-ic ${tone}`}><Icon size={21} /></span>
+            <span className="plh-sc-txt">{label}</span>
+          </button>
+        ))}
+      </div>
+    </>
   )
 }
 
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
+  const [fbOpen, setFbOpen] = useState(false)
 
-  useEffect(() => {
-    ;(async () => {
-      const [asg, compl, fbCount, fbLatest, att, gatt, roster] = await Promise.all([
-        supabase.from('player_assignments').select('id'),
-        supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
-        supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
-        supabase.from('player_feedback').select('content, rating, created_at, coach:profiles!coach_id(first_name, last_name, avatar_url)').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
-        supabase.from('practice_attendance').select('status'),
-        supabase.from('game_attendance').select('status'),
-        supabase.from('team_players').select('number, position').eq('player_id', session.user.id).limit(1),
-      ])
-      const doneRows = compl.data || []
-      const doneIds = new Set(doneRows.map((c) => c.assignment_id))
-      const open = (asg.data || []).filter((a) => !doneIds.has(a.id)).length
-      const attRows = [...(att.data || []), ...(gatt.data || [])]
-      const attTotal = attRows.length
-      const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
-      const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-      const weekly = doneRows.filter((c) => c.done_at && withinDays(c.done_at, 7)).length
-      const r = roster.data && roster.data[0]
-      setStats({
-        open, fb: fbCount.count || 0, attendancePct, weekly,
-        latestFb: (fbLatest.data && fbLatest.data[0]) || null,
-        number: r?.number || null, position: r?.position || null,
-        progress: playerProgress({ completedCount: doneRows.length, completionDates: doneRows.map((c) => c.done_at).filter(Boolean), attendancePct }),
-      })
-    })()
+  const loadStats = useCallback(async () => {
+    const [asg, compl, fbLatest, att, gatt, eff] = await Promise.all([
+      supabase.from('player_assignments').select('id'),
+      supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
+      supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
+      supabase.from('practice_attendance').select('status'),
+      supabase.from('game_attendance').select('status'),
+      supabase.from('session_effort').select('effort').eq('player_id', session.user.id),
+    ])
+    const doneRows = compl.data || []
+    const doneIds = new Set(doneRows.map((c) => c.assignment_id))
+    const open = (asg.data || []).filter((a) => !doneIds.has(a.id)).length
+    const attRows = [...(att.data || []), ...(gatt.data || [])]
+    const attTotal = attRows.length
+    const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
+    const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
+    const weekly = doneRows.filter((c) => c.done_at && withinDays(c.done_at, 7)).length
+    const effVals = (eff.data || []).map((r) => r.effort).filter((v) => v != null)
+    const avgLoad = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null
+    setStats({
+      open, attendancePct, weekly, avgLoad,
+      latestFb: (fbLatest.data && fbLatest.data[0]) || null,
+      streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)),
+    })
   }, [session.user.id])
-
-  const hour = new Date().getHours()
-  const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
-  const progress = stats?.progress
-  const initial = (profile.first_name || '?').trim().charAt(0)
+  useEffect(() => { loadStats() }, [loadStats])
 
   return (
     <div className="pl-screen pl-home-rich">
-      <header className="plh-top pl-stagger">
-        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={52} />
-        <div className="plh-greet">
-          <h1>{greet}, <span className="hero-title-accent">{profile.first_name}</span></h1>
-          <span className="plh-sub">
-            {membership ? `${trTeam(membership.team)} · ${coachName(membership.coach)}` : L('ברוך הבא לקורטסייד', 'Welcome to CourtSide')}
-          </span>
-        </div>
-      </header>
-
-      {membership && (
-        <div className="plh-card pl-stagger">
-          <span className="plh-court" aria-hidden="true">🏀</span>
-          <span className="plh-jersey">{stats?.number || initial}</span>
-          <div className="plh-card-body">
-            <strong>{progress ? L(`רמה ${progress.level}`, `Level ${progress.level}`) : L('רמה —', 'Level —')}{stats?.position ? ` · ${stats.position}` : ''}</strong>
-            <span className="plh-sub2">{trTeam(membership.team)} · {coachName(membership.coach)}</span>
-          </div>
-          {progress && (
-            <span className="plh-streak" title={L('רצף ימים', 'Day streak')}><Flame size={15} /> {progress.streak}</span>
-          )}
-        </div>
-      )}
+      <HomeHero profile={profile} membership={membership} onFeedback={() => setFbOpen(true)} />
 
       {!membership && (
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
       )}
 
-      <div className="pl-stagger"><Countdown membership={membership} onNavigate={setView} /></div>
-
-      {membership && <div className="pl-stagger"><EffortPrompt session={session} membership={membership} /></div>}
-
       {membership && <div className="pl-stagger"><PrePracticeGoals session={session} membership={membership} /></div>}
 
-      <div className="pl-tiles pl-stagger">
-        <button className="pl-tile" onClick={() => setView('drills')}>
-          <span className="pl-tile-ic blue"><Dumbbell size={20} /></span>
-          <span className="pl-tile-num">{stats ? stats.open : '—'}</span>
-          <span className="pl-tile-label">{L('תרגילים לביצוע', 'Drills to do')}</span>
-        </button>
-        <button className="pl-tile" onClick={() => setView('team')}>
-          <span className="pl-tile-ring"><AttendanceRing pct={stats?.attendancePct ?? null} /></span>
-          <span className="pl-tile-label">{L('נוכחות', 'Attendance')}</span>
-        </button>
-        <button className="pl-tile" onClick={() => setView('feedback')}>
-          <span className="pl-tile-ic green"><MessageSquareHeart size={20} /></span>
-          <span className="pl-tile-num">{stats ? stats.fb : '—'}</span>
-          <span className="pl-tile-label">{L('משובים', 'Feedback')}</span>
-        </button>
-      </div>
+      {membership && <StatTrio attendancePct={stats?.attendancePct} streak={stats?.streak || 0} avgLoad={stats?.avgLoad} />}
 
-      <div className="pl-stagger"><WeeklyMission done={stats?.weekly || 0} /></div>
+      {membership && <div className="pl-stagger"><WeeklyMission done={stats?.weekly || 0} /></div>}
+
+      <Shortcuts setView={setView} />
 
       {membership && (
-        <button className="pl-coach-cta pl-stagger" onClick={() => setView('coach')}>
-          <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={40} />
-          <span className="pl-coach-cta-body">
-            <strong>{L('שלח הודעה למאמן', 'Message your coach')}</strong>
-            <span className="muted small">{coachName(membership.coach)}</span>
-          </span>
-          <Send size={18} />
-        </button>
-      )}
-
-      {stats?.latestFb && (
-        <button className="pl-fb-preview pl-stagger" onClick={() => setView('feedback')}>
-          <span className="pl-fb-preview-label"><MessageSquareHeart size={14} /> {L('משוב אחרון מהמאמן', 'Latest coach feedback')}</span>
-          {stats.latestFb.rating > 0 && (
-            <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= stats.latestFb.rating ? 'currentColor' : 'none'} />)}</span>
-          )}
-          <p>{stats.latestFb.content}</p>
-        </button>
+        <div className="plh-coachmsg pl-stagger">
+          <div className="plh-coachmsg-head">
+            <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={42} />
+            <div className="plh-coachmsg-who">
+              <strong>{L('הודעה מהמאמן', 'Coach message')}</strong>
+              <span className="muted small">{coachName(membership.coach)}</span>
+            </div>
+            {stats?.latestFb?.rating > 0 && (
+              <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= stats.latestFb.rating ? 'currentColor' : 'none'} />)}</span>
+            )}
+          </div>
+          <div className={stats?.latestFb ? 'plh-coachmsg-bubble' : 'plh-coachmsg-bubble empty'}>
+            {stats?.latestFb ? stats.latestFb.content : L('עוד אין הודעה מהמאמן — הישאר מחובר 💬', 'No message from your coach yet — stay tuned 💬')}
+          </div>
+          <button className="plh-coachmsg-btn" onClick={() => setView('coach')}>
+            <Send size={16} /> {L('השב למאמן', 'Reply to coach')}
+          </button>
+        </div>
       )}
 
       <div className="pl-stagger"><PlayerQuote /></div>
 
-      {membership && (
-        <button className="pl-cta pl-cta-ghost pl-stagger" onClick={() => setView('goals')}>
-          <Target size={18} /> {L('המטרות שלי', 'My goals')} <ChevronLeft size={16} />
-        </button>
-      )}
-
-      <button className="pl-cta pl-stagger" onClick={() => setView('community')}>
-        <Users size={18} /> {L('לקהילת השחקנים', 'Players community')} <ChevronLeft size={16} />
-      </button>
-
       <div className="pl-stagger"><PlayerNews /></div>
 
-      <button className="pl-cta pl-cta-ghost pl-stagger" onClick={() => setView('videos')}>
-        <MonitorPlay size={18} /> {L('סרטוני תרגול', 'Training videos')} <ChevronLeft size={16} />
-      </button>
+      {membership && (
+        <FeedbackSheet session={session} membership={membership} open={fbOpen}
+          onClose={() => setFbOpen(false)} onSent={loadStats} />
+      )}
     </div>
   )
 }
