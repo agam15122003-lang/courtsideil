@@ -121,7 +121,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
         <div className="page-header-text">
           {/* [12] שם ייחודי — "קהילת המאמנים" שמור לעמוד הקהילה */}
           <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
-          <h2>{L('חיפוש מאמנים', 'Find coaches')}</h2>
+          <h1>{L('חיפוש מאמנים', 'Find coaches')}</h1>
           <p className="page-desc">{L('חפשו מאמנים לפי שם, מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by name, club or age group, view their drills, and get in touch.')}</p>
         </div>
       </header>

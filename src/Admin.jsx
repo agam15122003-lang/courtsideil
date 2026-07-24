@@ -91,7 +91,7 @@ export default function Admin({ session, profile }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('ניהול מערכת', 'Administration')}</div>
-          <h2 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h2>
+          <h1 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h1>
           <p className="page-desc">{L('מאמנים, אימות (אנטי-התחזות) ודיווחים.', 'Coaches, verification (anti-impersonation), and reports.')}</p>
         </div>
       </header>

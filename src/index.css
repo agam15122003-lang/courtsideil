@@ -12503,7 +12503,8 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   color: #fff;
   animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
-.cm-hero h2 {
+.cm-hero h2,
+.cm-hero h1 {
   margin: 10px 0 6px;
   color: #fff;
   font-family: var(--font-display);
@@ -15122,3 +15123,49 @@ html.a11y-motion *::after {
     margin-top: 6px;
   }
 }
+
+/* פוטר כרטיס התרגיל — היררכיה: פתיחה = ראשי, "לתוכנית"/"לשחקנים" = משניים */
+.drill-foot .btn-details { flex: 1 1 auto; min-width: 140px; margin-top: 0; }
+.drill-foot .btn-toplan.secondary { opacity: 0.92; }
+
+/* ============================================================
+   כותרת מסך = H1 (מסך אחד, כותרת ראשית אחת)
+   הכותרות בהירו היו h2 ועוצבו דרך ".welcome-card h2" בחמש הגדרות שונות.
+   כאן h1 מקבל את אותו מראה בדיוק (נמדד מהאפליקציה החיה) כדי שהמעבר
+   הסמנטי לא ישנה ולו פיקסל.
+   ============================================================ */
+.welcome-card .page-header-text h1,
+.page-header .page-header-text h1 {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+@media (max-width: 640px) {
+  .welcome-card .page-header-text h1,
+  .page-header .page-header-text h1 { font-size: 30px; }
+}
+
+/* כותרת לקוראי מסך בלבד — למשל בתצוגת שיחה פתוחה בהודעות, שאין בה כותרת עמוד */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* שלושה שרידים אחרונים מהמדידה החיה (24.7): */
+/* מצב השיחה בכותרת הצ'אט היה ירוק בהיר על לבן — 1.93:1 */
+.chat-status { color: var(--c-green); }
+.chat-status-dot { background: var(--c-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-green) 18%, transparent); }
+/* מתחת לרצפת 12px */
+.chat-time,
+.admin-stat-l { font-size: 12px; }

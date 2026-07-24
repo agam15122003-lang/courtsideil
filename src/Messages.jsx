@@ -207,6 +207,7 @@ export default function Messages({ session, onNavigate }) {
     }))
     return (
       <div className="msg-split">
+        <h1 className="sr-only">{L('שיחות פרטיות', 'Private chats')}</h1>
         <div className="msg-split-chat">
           <ChatWindow
             key={activeCoachId}
@@ -288,7 +289,7 @@ export default function Messages({ session, onNavigate }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('הודעות', 'Messages')}</div>
-          <h2>{L('שיחות פרטיות', 'Private chats')}</h2>
+          <h1>{L('שיחות פרטיות', 'Private chats')}</h1>
           <p className="page-desc">{L('שיחות אישיות עם מאמנים. לצ׳אטים הקבוצתיים — עמוד הקהילה.', 'Personal conversations with coaches. For group chats — see the Community page.')}</p>
         </div>
         {onNavigate && (

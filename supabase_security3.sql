@@ -100,4 +100,7 @@ grant execute on function public.resolve_join_code(text) to authenticated;
 -- אם הפונקציה עוד לא קיימת, לכן אפשר להריץ את זה גם לפני עליית הגרסה)
 drop policy if exists "join_codes_resolve" on public.team_join_codes;
 
+-- רישום שהקובץ הורץ (דורש supabase_migrations_ledger.sql; לא נכשל אם הוא חסר)
+do $mig$ begin perform public.mark_migration('supabase_security3.sql'); exception when undefined_function then null; end $mig$;
+
 notify pgrst, 'reload schema';

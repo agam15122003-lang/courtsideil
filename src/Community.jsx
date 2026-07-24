@@ -1201,7 +1201,7 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
       {/* הירו ממורכז — כותרת, סטטיסטיקות חיות וחיפוש */}
       <header className="cm-hero">
         <div className="welcome-badge">{L('הקהילה', 'Community')}</div>
-        <h2>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h2>
+        <h1>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h1>
         <p className="cm-hero-sub">{L('שאלות, טיפים, סרטונים וצילומים — הכול במקום אחד.', 'Questions, tips, videos and photos — all in one place.')}</p>
         <div className="cm-hero-stats" dir="rtl">
           <span className="cm-stat"><strong>{coachCount ?? '—'}</strong> {L('מאמנים', 'coaches')}</span>

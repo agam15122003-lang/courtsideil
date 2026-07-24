@@ -6,7 +6,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
-import { loadRoster, sendAssignments, loadSentFeed } from './sendToPlayers'
+import { loadRoster, sendAssignments, loadSentFeed } from './sendToPlayersApi'
 import Avatar from './Avatar'
 
 const SOURCES = [

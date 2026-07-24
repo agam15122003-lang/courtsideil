@@ -187,4 +187,7 @@ create policy "cerr_admin_read" on public.client_errors
 
 create index if not exists client_errors_created_idx on public.client_errors (created_at desc);
 
+-- רישום שהקובץ הורץ (דורש supabase_migrations_ledger.sql; לא נכשל אם הוא חסר)
+do $mig$ begin perform public.mark_migration('supabase_privacy4.sql'); exception when undefined_function then null; end $mig$;
+
 notify pgrst, 'reload schema';

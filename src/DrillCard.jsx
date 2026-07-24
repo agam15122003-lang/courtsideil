@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send } from 'lucide-react'
+import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send, PlayCircle } from 'lucide-react'
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam , cnt } from './i18n'
@@ -175,20 +175,24 @@ export default function DrillCard({
           {(drill.description || drill.goal) && (
             <p className="drill-compact-desc">{drill.description || drill.goal}</p>
           )}
+          {/* היררכיה: פתיחת התרגיל היא הפעולה הראשית (כתום מלא), והוספה לתוכנית
+              ושליחה לשחקנים הן משניות. קודם לכן שני כפתורי outline כתומים זהים
+              התחרו זה בזה, והכפתור הפחות חשוב היה הרחב מכולם. */}
           <div className="drill-foot">
+            <button className="btn-primary btn-details" onClick={() => setExpanded(true)}>
+              <BookOpen size={15} aria-hidden="true" /> {L('פתח תרגיל', 'Open drill')}
+              {hasBoard && <PlayCircle size={14} aria-hidden="true" title={L('כולל לוח מונפש', 'includes animated board')} />}
+            </button>
             {onAddToPlan && (
-              <button className="btn-toplan" onClick={() => onAddToPlan(drill)}>
+              <button className="btn-toplan" onClick={() => onAddToPlan(drill)} title={L('הוספה לתוכנית אימון', 'Add to a training plan')}>
                 <Plus size={15} /> {L('לתוכנית', 'To plan')}
               </button>
             )}
             {onSend && (
-              <button className="btn-toplan" onClick={() => onSend(drill)}>
+              <button className="btn-toplan secondary" onClick={() => onSend(drill)} title={L('שליחה לשחקנים', 'Send to players')}>
                 <Send size={15} /> {L('לשחקנים', 'To players')}
               </button>
             )}
-            <button className="btn-soft btn-details" onClick={() => setExpanded(true)}>
-              {L('פרטים מלאים', 'Full details')}{hasBoard && L(' + אנימציה', ' + animation')}
-            </button>
             <button
               className={isSaved ? 'drill-bookmark on' : 'drill-bookmark'}
               onClick={() => onToggleSave(drill.id, isSaved)}

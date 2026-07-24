@@ -351,7 +351,7 @@ export default function Schedule({ session }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('לו"ז', 'Schedule')}</div>
-          <h2>{L('הלו"ז השבועי', 'Weekly schedule')}</h2>
+          <h1>{L('הלו"ז השבועי', 'Weekly schedule')}</h1>
           <p className="page-desc">{L('כל האימונים והפגישות שלך בתצוגה שבועית אחת.', 'All your practices and meetings in one weekly view.')}</p>
         </div>
       </header>

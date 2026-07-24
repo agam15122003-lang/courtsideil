@@ -43,7 +43,7 @@ export default function Media({ session, profile }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('מדיה', 'Media')}</div>
-          <h2>{L('סרטונים ופודקאסטים', 'Videos & podcasts')}</h2>
+          <h1>{L('סרטונים ופודקאסטים', 'Videos & podcasts')}</h1>
           <p className="page-desc">{L('ספריית סרטוני אימון משותפת ופודקאסטים נבחרים — הכול במקום אחד.', 'A shared training-video library and selected podcasts — all in one place.')}</p>
         </div>
       </header>
