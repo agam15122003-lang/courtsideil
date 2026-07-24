@@ -25,6 +25,9 @@ export default function Videos({ session, profile }) {
 
   const [filterCat, setFilterCat] = useState('')
   const [search, setSearch] = useState('')
+  // כל כרטיס סרטון הוא ~30 אלמנטים (כולל 5 כוכבי דירוג); 106 סרטונים = 4,300 אלמנטים
+  // ומסך שנתקע בטלפון. מציגים 12 ומרחיבים לפי בקשה.
+  const [limit, setLimit] = useState(12)
 
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -177,13 +180,13 @@ export default function Videos({ session, profile }) {
       )}
 
       <div className="chips" style={{ marginTop: 16 }}>
-        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => setFilterCat('')}>{L('הכל', 'All')}</button>
+        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(''); setLimit(12) }}>{L('הכל', 'All')}</button>
         {VIDEO_CATEGORIES.map((c) => (
-          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => setFilterCat(c)}>{tr(c)}</button>
+          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(c); setLimit(12) }}>{tr(c)}</button>
         ))}
       </div>
 
-      <input className="finder-input" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+      <input className="finder-input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setLimit(12) }}
         aria-label={L('חיפוש סרטונים', 'Search videos')} placeholder={L('חיפוש חופשי בסרטונים...', 'Search videos...')} style={{ marginTop: 12 }} />
 
       {loading ? (
@@ -203,7 +206,7 @@ export default function Videos({ session, profile }) {
         </div>
       ) : (
         <div className="video-grid">
-          {results.map((v) => {
+          {results.slice(0, limit).map((v) => {
             const id = ytId(v.url)
             const r = ratings[v.id] || { avg: 0, count: 0, mine: 0 }
             return (
@@ -244,6 +247,11 @@ export default function Videos({ session, profile }) {
             )
           })}
         </div>
+      )}
+      {results.length > limit && (
+        <button type="button" className="pl-more" onClick={() => setLimit((l) => l + 12)}>
+          {L(`עוד סרטונים (${results.length - limit})`, `More videos (${results.length - limit})`)}
+        </button>
       )}
     </>
   )

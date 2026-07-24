@@ -36,7 +36,9 @@
   --surface: #FFFFFF;
   --surface-alt: #EDF2F8;
   --text: #0F1F33;
-  --text-muted: #5B6B82;
+  /* הוכהה מ-#5B6B82: על משטחי הקנבס הקרם והאפרסק הוא נמדד 4.33:1 (WCAG AA דורש 4.5).
+     עכשיו 4.8:1 על הקרם, 5.3:1 על האפרסק, 6.0:1 על לבן. מצב כהה מוגדר בנפרד. */
+  --text-muted: #55647A;
   --border: #E3EAF3;
   --border-hover: #C9D4E2;
   --ink-900: #0A0E18;                /* בסיס ברודקאסט כהה (hero/band) */
@@ -14967,4 +14969,28 @@ button.pr-signout:hover .pr-label { color: var(--error); }
     display: inline-flex;
     align-items: center;
   }
+}
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — רצפת גודל טקסט 12px
+   נמדד באפליקציה החיה: שמונה מקומות ירדו ל-10.5–11.5px, מתחת לרצפה
+   שהפרויקט קבע לעצמו (AUDIT.md). הבלוק בסוף הקובץ כדי לנצח את
+   ההגדרות הכפולות שפזורות למעלה, בלי לגעת בהן אחת-אחת.
+   חריג מכוון: .bn-item (תוויות הבר התחתון) נשאר 11px — זו הקונבנציה
+   של tab bar במובייל, ו-12px שובר את חמשת הפריטים ברוחב 384.
+   ============================================================ */
+.land-stat-label,
+.stat-tile-label,
+.news-source,
+.mini-tag,
+.verified-badge,
+.podcast-lang,
+.roster-cols .rc-num,
+.roster-cols .rc-name,
+.roster-cols .rc-att,
+.roster-cols .rc-status,
+.cal-hour,
+.cal-hour span,
+.cal-event-time {
+  font-size: 12px;
 }

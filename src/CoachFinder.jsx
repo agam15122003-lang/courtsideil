@@ -35,9 +35,11 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
   useEffect(() => {
     async function loadCoaches() {
       setLoading(true)
+      // רק העמודות שהמסך מציג. select('*') שלף לדפדפן טלפון, מייל ושנת לידה
+      // של כל המשתמשים באפליקציה — כולל שחקנים שהם קטינים.
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public, role')
         .neq('id', session.user.id)
 
       if (error) {

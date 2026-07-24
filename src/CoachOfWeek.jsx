@@ -52,7 +52,9 @@ export default function CoachOfWeek({ onOpenCoach }) {
 
       const top = ranked[0]
       const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', top.owner).single()
+        .from('profiles')
+        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public')
+        .eq('id', top.owner).single()
 
       if (alive) { setWinner({ ...top, profile: prof }); setLoading(false) }
     })()
