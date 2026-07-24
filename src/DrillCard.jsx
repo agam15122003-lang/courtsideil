@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send } from 'lucide-react'
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
-import { L, tr, trTeam } from './i18n'
+import { L, tr, trTeam , cnt } from './i18n'
 import { safeUrl } from './constants'
 import TacticsBoard from './TacticsBoard'
 import NotebookPage from './NotebookPage'
@@ -134,7 +134,7 @@ export default function DrillCard({
               <span className="cat-badge" data-cat={drill.category}>{tr(drill.category)}</span>
             )}
             {count > 0 && (
-              <span className="drill-rating-pill" title={L(`ממוצע של ${count} דירוגים`, `Average of ${count} ratings`)}>
+              <span className="drill-rating-pill" title={L(`ממוצע של ${cnt(count, 'דירוג אחד', 'דירוגים')}`, `Average of ${count} ratings`)}>
                 <Star size={13} fill="currentColor" strokeWidth={0} />
                 <bdi>{avg.toFixed(1)}</bdi>
               </span>

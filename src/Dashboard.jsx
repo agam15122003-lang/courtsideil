@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
 import ProfileForm from './ProfileForm'
 import MyStats from './MyStats'
@@ -43,6 +43,7 @@ import {
   Languages,
   LogOut,
   ChevronLeft,
+  Smartphone,
 } from 'lucide-react'
 
 // "קהילה תחילה" (סדר לפי ה-handoff) — הפרופיל יושב בכרטיס המשתמש למטה
@@ -75,6 +76,7 @@ export default function Dashboard({ session }) {
   const [editing, setEditing] = useState(false)
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const sidebarRef = useRef(null)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
@@ -159,6 +161,18 @@ export default function Dashboard({ session }) {
     }
   }, [drawerOpen])
 
+  // המגירה במובייל מוסרת מסדר ה-Tab וממקורא המסך כשהיא סגורה (inert),
+  // ובדסקטופ הסרגל תמיד פעיל.
+  useEffect(() => {
+    const el = sidebarRef.current
+    if (!el) return
+    const mq = window.matchMedia('(max-width: 768px)')
+    const apply = () => { el.inert = mq.matches && !drawerOpen }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => { mq.removeEventListener('change', apply); el.inert = false }
+  }, [drawerOpen])
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
@@ -222,7 +236,9 @@ export default function Dashboard({ session }) {
         <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />
       )}
 
-      <aside className={drawerOpen ? 'sidebar open' : 'sidebar'}>
+      {/* inert כשהמגירה סגורה במובייל: אחרת 16 הפריטים שלה נשארים בסדר ה-Tab
+          ובעץ של קורא המסך גם כשהיא מחוץ למסך. */}
+      <aside ref={sidebarRef} className={drawerOpen ? 'sidebar open' : 'sidebar'}>
         <div className="sidebar-brand">
           <svg viewBox="0 0 100 100" width="30" height="30">
             <circle cx="42" cy="55" r="22" fill="#E8763A" />
@@ -285,7 +301,8 @@ export default function Dashboard({ session }) {
 
         {installEvt && (
           <button type="button" className="btn-soft install-btn" onClick={installApp}>
-            📲 {L('התקן את CourtSide בטלפון', 'Install CourtSide')}
+            {/* היה אמוג'י 📲 — בניגוד לכלל של הפרויקט עצמו: אייקונים מ-lucide בלבד */}
+            <Smartphone size={16} aria-hidden="true" /> {L('התקן את CourtSide בטלפון', 'Install CourtSide')}
           </button>
         )}
         <div className="sidebar-footer">

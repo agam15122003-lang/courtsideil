@@ -13630,7 +13630,10 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   padding: 16px 18px;
   border: none;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #1F7A44, #145A30);
+  /* היה ירוק (#1F7A44 = --success) — צבע סטטוס, והמשטח היחיד באפליקציה
+     שיצא ממערכת נייבי+כתום. עכשיו נייבי המותג עם הדגשה כתומה. */
+  background: linear-gradient(135deg, var(--navy-2, #1E3050), var(--navy-900, #1B2A4A));
+  box-shadow: inset 0 0 0 1px rgba(232, 118, 58, 0.35);
   color: #fff;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
@@ -15065,3 +15068,57 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   font-weight: 700;
 }
 .video-approve { font-size: 13px; }
+
+/* הפחתת אנימציות (ווידג'ט הנגישות + העדפת המערכת): לא רק משך האנימציה אלא גם
+   ההשהיה. עם animation-fill-mode: both, השהיה שלא חלפה משאירה את הכרטיס
+   ב-opacity 0 — כלומר תוכן בלתי נראה עד שהאנימציה מתחילה. */
+html.a11y-motion *,
+html.a11y-motion *::before,
+html.a11y-motion *::after {
+  animation-delay: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-delay: 0s !important;
+  }
+}
+
+/* שורת סינון/מיון בספריית התרגילים — שתי קבוצות מובחנות, כי צ׳יפ שמצמצם
+   רשימה וצ׳יפ שמשנה סדר נראו עד עכשיו זהים לגמרי */
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.filter-group + .filter-group {
+  padding-inline-start: 12px;
+  margin-inline-start: 6px;
+  border-inline-start: 1px solid var(--border);
+}
+.filter-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+.chip.sort::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+}
+.chip.sort.selected::before { opacity: 1; }
+@media (max-width: 560px) {
+  .filter-group + .filter-group {
+    padding-inline-start: 0;
+    margin-inline-start: 0;
+    border-inline-start: none;
+    margin-top: 6px;
+  }
+}

@@ -54,6 +54,7 @@ export default function Schedule({ session }) {
   const [selected, setSelected] = useState(null)
   const [reviewEntry, setReviewEntry] = useState(null)
   const [slots, setSlots] = useState([])
+  const [allHours, setAllHours] = useState(false) // ברירת מחדל: רק השעות שיש בהן משהו
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
 
   const openPlan = async (plan) => {
@@ -105,8 +106,27 @@ export default function Schedule({ session }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
   const weekSlotOccs = expandSlotsRange(slots, weekStart, weekEnd)
+  // טווח השעות מותאם למה שבאמת יש בשבוע. קודם לכן הוצגו תמיד 06:00–23:00,
+  // כלומר כמעט תמיד חצי לוח ריק מעל האימון הראשון. "כל השעות" פותח את הטווח המלא.
+  const weekHours = []
+  for (const e of entries) {
+    const s = hoursOf(e.start_time) ?? e.hour
+    if (s != null) { weekHours.push(s); weekHours.push((hoursOf(e.end_time) ?? s + 1)) }
+  }
+  for (const o of weekSlotOccs || []) {
+    const s = hoursOf(o.start_time)
+    if (s != null) { weekHours.push(s); weekHours.push(hoursOf(o.end_time) ?? s + 1) }
+  }
+  for (const m of meetings || []) {
+    const s = hoursOf(m.start_time)
+    if (s != null) { weekHours.push(s); weekHours.push(hoursOf(m.end_time) ?? s + 1) }
+  }
+  const dataMin = weekHours.length ? Math.min(...weekHours) : 15
+  const dataMax = weekHours.length ? Math.max(...weekHours) : 21
+  const startHour = allHours ? START_HOUR : Math.max(START_HOUR, Math.min(dataMin - 1, 15))
+  const endHour = allHours ? END_HOUR : Math.min(END_HOUR, Math.max(dataMax + 1, 21))
   const hours = []
-  for (let h = START_HOUR; h <= END_HOUR; h++) hours.push(h)
+  for (let h = startHour; h <= endHour; h++) hours.push(h)
   const todayStr = ymd(new Date())
   const calRef = useRef(null)
 
@@ -349,6 +369,15 @@ export default function Schedule({ session }) {
             {L('היום', 'Today')}
           </button>
           <button
+            type="button"
+            className="btn-ghost cal-today"
+            onClick={() => setAllHours((v) => !v)}
+            aria-pressed={allHours}
+            title={L('הצגת כל שעות היום בלוח', 'Show every hour of the day')}
+          >
+            {allHours ? L('שעות האימונים', 'Practice hours') : L('כל השעות', 'All hours')}
+          </button>
+          <button
             className="icon-btn"
             onClick={() => setWeekStart(addDays(weekStart, 7))}
             aria-label={L('שבוע הבא', 'Next week')}
@@ -454,14 +483,14 @@ export default function Schedule({ session }) {
                   onClick={(ev) => {
                     const rect = ev.currentTarget.getBoundingClientRect()
                     const y = ev.clientY - rect.top
-                    const hour = Math.min(END_HOUR, START_HOUR + Math.floor(y / ROW_H))
+                    const hour = Math.min(endHour, startHour + Math.floor(y / ROW_H))
                     openAdd(ds, hour)
                   }}
                 >
                   {dayEntries.map((e) => {
                     const s = hoursOf(e.start_time) ?? (e.hour || 18)
                     const en = hoursOf(e.end_time) ?? s + 1
-                    const top = (s - START_HOUR) * ROW_H
+                    const top = (s - startHour) * ROW_H
                     const height = Math.max(28, (en - s) * ROW_H - 2)
                     return (
                       <button
@@ -488,7 +517,7 @@ export default function Schedule({ session }) {
                   {dayMeetings.map((m) => {
                     const s = hoursOf(m.start_time) ?? 18
                     const en = hoursOf(m.end_time) ?? s + 1
-                    const top = (s - START_HOUR) * ROW_H
+                    const top = (s - startHour) * ROW_H
                     const height = Math.max(28, (en - s) * ROW_H - 2)
                     const other = m.from_coach === me ? m.to_p : m.from_p
                     return (
@@ -517,8 +546,8 @@ export default function Schedule({ session }) {
                   {ds === todayStr && (() => {
                     const now = new Date()
                     const nowH = now.getHours() + now.getMinutes() / 60
-                    if (nowH < START_HOUR || nowH > END_HOUR + 1) return null
-                    return <div className="cal-nowline" style={{ top: (nowH - START_HOUR) * ROW_H }} aria-hidden="true" />
+                    if (nowH < startHour || nowH > endHour + 1) return null
+                    return <div className="cal-nowline" style={{ top: (nowH - startHour) * ROW_H }} aria-hidden="true" />
                   })()}
                 </div>
               )

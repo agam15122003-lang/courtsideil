@@ -18,6 +18,7 @@ export default function Admin({ session, profile }) {
   const [coaches, setCoaches] = useState([])
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [q, setQ] = useState('')
 
   async function load() {
@@ -35,6 +36,9 @@ export default function Admin({ session, profile }) {
     }
     setCoaches(list)
     setReports(rp.error ? [] : rp.data || [])
+    // "אין דיווחים" ו"הטעינה נכשלה" נראו עד עכשיו זהים לחלוטין
+    setLoadFailed(!!rp.error)
+    if (rp.error) toast.error(L('טעינת הדיווחים נכשלה — רענן', 'Failed to load reports — refresh'))
     setLoading(false)
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
@@ -169,9 +173,14 @@ export default function Admin({ session, profile }) {
       ) : (
         <div className="team-section">
           {reports.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state" role={loadFailed ? 'alert' : undefined}>
               <span className="empty-ic"><Flag size={26} /></span>
-              <div className="empty-title">{L('אין דיווחים', 'No reports')}</div>
+              <div className="empty-title">
+                {loadFailed ? L('טעינת הדיווחים נכשלה', 'Failed to load reports') : L('אין דיווחים', 'No reports')}
+              </div>
+              {loadFailed && (
+                <button type="button" className="btn-primary" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+              )}
             </div>
           ) : (
             <ul className="admin-list">

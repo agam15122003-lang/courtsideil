@@ -130,6 +130,16 @@ export default function Messages({ session, onNavigate }) {
 
   const conversations = buildConversations(messages, myId)
 
+  // במסך רחב הפריסה היא צ׳אט + רשימה זה לצד זה, אבל היא נראתה רק אחרי בחירת
+  // שיחה — עד אז 60% מהמסך היו ריקים. בדסקטופ נפתחת השיחה העדכנית מעצמה.
+  // לא מסמנים "נקרא" אוטומטית: הסימון נשאר לפעולה מכוונת של המשתמש.
+  useEffect(() => {
+    if (activeCoachId || conversations.length === 0) return
+    if (!window.matchMedia('(min-width: 1024px)').matches) return
+    setActiveCoachId(conversations[0].coachId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCoachId, conversations.length])
+
   const thread = activeCoachId
     ? messages.filter(
         (m) =>

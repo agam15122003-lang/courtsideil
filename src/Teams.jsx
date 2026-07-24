@@ -17,7 +17,7 @@ import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
 import TeamGoalsBoard from './TeamGoalsBoard'
 import { PlayerGoalsEditor } from './PlayerGoals'
-import { L, trTeam } from './i18n'
+import { L, trTeam , cnt } from './i18n'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
 import TeamConnect from './TeamConnect'
@@ -77,6 +77,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   const [games, setGames] = useState([])
   const [iba, setIba] = useState(null) // קישור שמור לליגה באיגוד
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false) // טעינה שנכשלה != סגל ריק
 
   // הוספת שחקן / משחק / צוות
   const [pName, setPName] = useState('')
@@ -151,7 +152,9 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     ])
     if (token !== loadTokenRef.current) return // קבוצה אחרת נבחרה בינתיים — מתעלמים
     // אם קריאה מרכזית נכשלה (רשת) — מודיעים שזו תקלת טעינה, לא קבוצה ריקה
-    if (pl.error || gm.error) toast.error(L('טעינת הקבוצה נכשלה — בדוק חיבור ורענן', 'Failed to load the team — check your connection and refresh'))
+    const failed = !!(pl.error || gm.error)
+    setLoadFailed(failed)
+    if (failed) toast.error(L('טעינת הקבוצה נכשלה — בדוק חיבור ורענן', 'Failed to load the team — check your connection and refresh'))
     setStaff(st && !st.error ? st.data || [] : [])
     setPlayers(pl.error ? [] : pl.data || [])
     // נוכחות עונתית לכל שחקן: נוכח/איחר מתוך סך האימונים שסומנו
@@ -409,7 +412,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           <TeamConnect coachId={me} team={team} onApproved={load} />
           <div className="roster-meta-row">
             <p className="muted small" style={{ margin: 0 }}>
-              {L(`${players.length} שחקנים`, `${players.length} players`)}
+              {L(`${cnt(players.length, 'שחקן אחד', 'שחקנים')}`, `${players.length} players`)}
               {injured > 0 ? L(` · ${injured} לא זמינים`, ` · ${injured} unavailable`) : ''}
               {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
             </p>
@@ -427,7 +430,15 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
               placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
-          {players.length === 0 ? (
+          {players.length === 0 && loadFailed ? (
+            /* חשוב להבדיל: סגל ריק זה מצב תקין, אבל טעינה שנכשלה נראתה עד עכשיו
+               בדיוק אותו דבר — כאילו כל השחקנים נמחקו. */
+            <p className="alert alert-error" style={{ marginTop: 12 }}>
+              {L('לא הצלחנו לטעון את הסגל. זו תקלת טעינה — השחקנים לא נמחקו. ',
+                 'We could not load the roster. This is a loading error — no players were deleted. ')}
+              <button type="button" className="link-button" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+            </p>
+          ) : players.length === 0 ? (
             <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין שחקנים בסגל.', 'No players in the roster yet.')}</p>
           ) : (
             <>
@@ -820,7 +831,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
                 <span className="tm-connect-hint-ic"><Target size={16} /></span>
                 <div>
                   <strong>{L('מטרות ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
-                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בטאב הצטרפות). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
+                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (מופיע בראש טאב "סגל"). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
                 </div>
               </div>
             )}

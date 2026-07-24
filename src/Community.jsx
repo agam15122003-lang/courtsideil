@@ -28,7 +28,7 @@ import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
 import { SkeletonCards } from './Skeleton'
-import { L } from './i18n'
+import { L , cnt } from './i18n'
 import { safeUrl } from './constants'
 
 const MAX_IMAGES = 4
@@ -392,7 +392,7 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
         >
           <MessageCircle size={17} />
           {comments.length > 0
-            ? L(`${comments.length} תגובות`, `${comments.length} comments`)
+            ? L(`${cnt(comments.length, 'תגובה אחת', 'תגובות')}`, `${comments.length} comments`)
             : L('תגובה', 'Comment')}
         </button>
         <button type="button" className="cm-action" onClick={share}>

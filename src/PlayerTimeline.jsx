@@ -4,7 +4,7 @@ import {
   Dumbbell, Volleyball, StickyNote, CalendarDays, Send, TrendingUp,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import { L } from './i18n'
+import { L , cnt } from './i18n'
 import Avatar from './Avatar'
 import { expandSlots } from './sessionId'
 import FeedbackSheet from './FeedbackSheet'
@@ -27,7 +27,7 @@ function LoadTrend({ series }) {
     <div className="plt-trend">
       <div className="plt-trend-head">
         <span><TrendingUp size={15} /> {L('מגמת עומס', 'Load trend')}</span>
-        <span className="muted small">{L(`${n} אימונים אחרונים`, `last ${n} sessions`)}</span>
+        <span className="muted small">{L(`${cnt(n, 'האימון האחרון', 'אימונים אחרונים')}`, `last ${n} sessions`)}</span>
       </div>
       <svg viewBox="0 0 300 110" className="plt-trend-svg" preserveAspectRatio="none" aria-hidden="true">
         <defs>

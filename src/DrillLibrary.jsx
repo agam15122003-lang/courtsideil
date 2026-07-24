@@ -323,37 +323,47 @@ export default function DrillLibrary({ session, profile }) {
           />
         </div>
       </div>
+      {/* סינון ומיון היו באותה שורת צ׳יפים ובאותו עיצוב — אי אפשר היה לדעת
+          מה מצמצם את הרשימה ומה רק משנה סדר. עכשיו שתי קבוצות מסומנות. */}
       <div className="filter-chips-row">
-        <button
-          type="button"
-          className={onlySaved ? 'chip selected' : 'chip'}
-          onClick={() => setOnlySaved(!onlySaved)}
-        >
-          {L('המועדפים שלי', 'My favorites')}
-        </button>
-        <button
-          type="button"
-          className={onlyMine ? 'chip selected' : 'chip'}
-          onClick={() => setOnlyMine(!onlyMine)}
-          aria-pressed={onlyMine}
-        >
-          {L('התרגילים שלי', 'My drills')}
-        </button>
-        <span className="filter-chips-sep" aria-hidden="true" />
-        <button
-          type="button"
-          className={sortBy === 'new' ? 'chip selected' : 'chip'}
-          onClick={() => setSortBy('new')}
-        >
-          {L('החדשים ביותר', 'Newest')}
-        </button>
-        <button
-          type="button"
-          className={sortBy === 'rating' ? 'chip selected' : 'chip'}
-          onClick={() => setSortBy('rating')}
-        >
-          {L('הכי מדורגים', 'Top rated')}
-        </button>
+        <span className="filter-group" role="group" aria-label={L('סינון', 'Filter')}>
+          <span className="filter-group-label">{L('סינון', 'Filter')}</span>
+          <button
+            type="button"
+            className={onlySaved ? 'chip selected' : 'chip'}
+            onClick={() => setOnlySaved(!onlySaved)}
+            aria-pressed={onlySaved}
+          >
+            {L('המועדפים שלי', 'My favorites')}
+          </button>
+          <button
+            type="button"
+            className={onlyMine ? 'chip selected' : 'chip'}
+            onClick={() => setOnlyMine(!onlyMine)}
+            aria-pressed={onlyMine}
+          >
+            {L('התרגילים שלי', 'My drills')}
+          </button>
+        </span>
+        <span className="filter-group" role="group" aria-label={L('סדר', 'Sort')}>
+          <span className="filter-group-label">{L('סדר', 'Sort')}</span>
+          <button
+            type="button"
+            className={sortBy === 'new' ? 'chip sort selected' : 'chip sort'}
+            onClick={() => setSortBy('new')}
+            aria-pressed={sortBy === 'new'}
+          >
+            {L('החדשים ביותר', 'Newest')}
+          </button>
+          <button
+            type="button"
+            className={sortBy === 'rating' ? 'chip sort selected' : 'chip sort'}
+            onClick={() => setSortBy('rating')}
+            aria-pressed={sortBy === 'rating'}
+          >
+            {L('דירוג גבוה', 'Highest rated')}
+          </button>
+        </span>
       </div>
 
       {tagFilter && (
@@ -395,7 +405,7 @@ export default function DrillLibrary({ session, profile }) {
             </div>
             <p className="muted small">
               {onlySaved
-                ? L('לחץ על "שמירה" בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap "Save" on a drill card to keep it here.')
+                ? L('לחצו על אייקון הסימנייה בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap the bookmark icon on a drill card to keep it here.')
                 : drills.length === 0
                 ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
                 : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}

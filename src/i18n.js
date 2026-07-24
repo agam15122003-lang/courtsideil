@@ -233,3 +233,9 @@ export function useLang() {
   const l = useSyncExternalStore(subscribe, getLang, getLang)
   return { lang: l, dir: getDir(), setLang, t }
 }
+
+// ספירה בעברית: "1 תרגילים" לא תקין. cnt מחזיר את צורת היחיד כשהמספר הוא 1.
+// שימוש: cnt(n, 'תרגיל אחד', 'תרגילים')  →  "תרגיל אחד" / "5 תרגילים"
+export function cnt(n, one, many) {
+  return Number(n) === 1 ? one : `${n} ${many}`
+}
