@@ -14966,10 +14966,12 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   .cm-attach,
   .cm-aside-ch,
   .cal-today,
-  .ntf-bell {
+  .ntf-bell,
+  .drill-foot .drill-bookmark {
     min-height: 44px;
   }
-  .ntf-bell {
+  .ntf-bell,
+  .drill-foot .drill-bookmark {
     min-width: 44px;
   }
   .cm-type-chip,
