@@ -9781,7 +9781,11 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 }
 @media (max-width: 780px) { .home-duo { grid-template-columns: 1fr; } }
 
-.video-card {
+/* הבלוק הזה נכתב לכרטיס-טיזר וידאו בדף הבית, אבל היה חסר-הקשר — ולכן חטף את
+   כרטיסי הסרטונים במסך המדיה (המשתמש היחיד ב-.video-card, Videos.jsx:213):
+   רקע נייבי-גרדיאנט וטקסט לבן במקום כרטיס לבן, וכותרות כהות על כהה.
+   מוגבל ל-.home כדי שההגדרות המקוריות של מסך המדיה יחזרו לפעול. */
+.home .video-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -9799,7 +9803,7 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   text-align: start;
   transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease;
 }
-.video-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.home .video-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .video-badge {
   position: absolute;
   inset-block-start: 14px;
@@ -14994,3 +14998,22 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .cal-event-time {
   font-size: 12px;
 }
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — תיקוני ניגודיות על רקעים כהים
+   שני הממצאים האלה התגלו רק בבדיקה ידנית: סורק ניגודיות אוטומטי מדלג על
+   אלמנטים שהרקע שלהם גרדיאנט, והסייד-בר הוא גרדיאנט נייבי.
+   ============================================================ */
+/* שם המאמן בכרטיס המשתמש היה שחור על נייבי — 1.03:1, כלומר בלתי קריא בפועל.
+   גם הגבול וה-hover היו טוקנים של רקע בהיר על גבי הסייד-בר הכהה. */
+.sidebar-user { border-top-color: rgba(226, 234, 246, 0.14); }
+.sidebar-user:hover { background: rgba(255, 255, 255, 0.06); }
+.sidebar-user-info strong { color: #FFFFFF; }
+.sidebar-user-info span { color: rgba(226, 234, 246, 0.72); }
+
+/* .btn-soft:hover צבע את הטקסט ב---accent (הכתום הבהיר) = 2.97:1 על לבן.
+   --accent-strong הוא אותו כתום בגרסה שעוברת AA. */
+.btn-soft:hover { color: var(--accent-strong); }
+
+/* אחות לא-מדווחת של .cal-event-time באותה קופסה */
+.cal-event-plan { font-size: 12px; }
