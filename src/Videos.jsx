@@ -125,6 +125,15 @@ export default function Videos({ session, profile }) {
     toast.success(L('הסרטון נמחק', 'Video deleted')); load()
   }
 
+  // אישור סרטון לשחקנים (אדמין בלבד; נאכף גם ב-RLS — supabase_privacy4.sql)
+  const toggleApproved = async (v) => {
+    const next = v.approved === false
+    const { error } = await supabase.rpc('set_video_approved', { p_id: v.id, p_approved: next })
+    if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
+    toast.success(next ? L('הסרטון אושר לשחקנים', 'Video approved') : L('האישור בוטל', 'Approval removed'))
+    load()
+  }
+
   const results = videos
     .filter((v) => {
       const catOk = !filterCat || v.category === filterCat
@@ -236,8 +245,20 @@ export default function Videos({ session, profile }) {
                     </span>
                   </div>
 
+                  {v.approved === false && (
+                    <span className="video-pending">
+                      {isAdmin
+                        ? L('ממתין לאישור — לא מוצג לשחקנים', 'Pending approval — hidden from players')
+                        : L('ממתין לאישור מנהל', 'Pending admin approval')}
+                    </span>
+                  )}
                   <div className="video-actions">
                     <a className="btn-soft video-watch" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {L('צפה ביוטיוב', 'Watch on YouTube')}</a>
+                    {isAdmin && (
+                      <button type="button" className="btn-ghost video-approve" onClick={() => toggleApproved(v)}>
+                        {v.approved === false ? L('אשר לשחקנים', 'Approve') : L('בטל אישור', 'Unapprove')}
+                      </button>
+                    )}
                     {v.created_by === me && (
                       <button type="button" className="msg-del" onClick={() => remove(v.id)} aria-label={L('מחיקת סרטון', 'Delete video')} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={16} /></button>
                     )}

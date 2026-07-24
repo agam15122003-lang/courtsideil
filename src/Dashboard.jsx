@@ -110,11 +110,16 @@ export default function Dashboard({ session }) {
   async function loadProfile() {
     setLoading(true)
     setLoadError(false)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
+    // דרך RPC ולא select('*'): הרשאת הקריאה על phone/email נשללה מ-authenticated
+    // (supabase_privacy4.sql) כדי שאיש לא יוכל לשלוף PII של משתמשים אחרים.
+    // my_profile() מחזירה את השורה המלאה של המשתמש עצמו בלבד.
+    let { data, error } = await supabase.rpc('my_profile').maybeSingle()
+    if (error) {
+      // נפילה לאחור עד שה-SQL ירוץ
+      const legacy = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      data = legacy.data
+      error = legacy.error
+    }
 
     // PGRST116 = אין שורה (פרופיל חדש שטרם מולא) — זה מצב תקין, לא שגיאה.
     // כל שגיאה אחרת (רשת/timeout, נפוץ במובייל) לא מתחזה ל"פרופיל ריק"

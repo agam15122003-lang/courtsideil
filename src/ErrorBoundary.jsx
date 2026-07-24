@@ -1,6 +1,24 @@
 import { Component } from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { L } from './i18n'
+import { supabase } from './supabaseClient'
+
+// שולח את השגיאה לטבלת client_errors (supabase_privacy4.sql) כדי שקריסה אצל
+// מאמן בשדה לא תישאר סוד. נכשל בשקט אם הטבלה עוד לא קיימת.
+async function report(error, info) {
+  try {
+    const { data } = await supabase.auth.getUser()
+    await supabase.from('client_errors').insert({
+      user_id: data?.user?.id || null,
+      message: String(error?.message || error).slice(0, 500),
+      stack: String(info?.componentStack || error?.stack || '').slice(0, 4000),
+      screen: window.location.hash || window.location.pathname,
+      user_agent: navigator.userAgent.slice(0, 300),
+    })
+  } catch {
+    /* לא קריטי */
+  }
+}
 
 // גדר בטיחות סביב מסך: שגיאה ברכיב אחד לא מוחקת את כל האפליקציה.
 // React מחייב class component לשם כך (אין hook מקביל ל-componentDidCatch).
@@ -15,8 +33,8 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // נשמר לקונסולה בלבד — כדי שאפשר יהיה לאבחן בלי לחשוף למשתמש
     console.error('[CourtSide] שגיאה במסך:', error, info?.componentStack)
+    report(error, info)
   }
 
   render() {

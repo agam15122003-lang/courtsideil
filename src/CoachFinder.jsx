@@ -35,12 +35,22 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
   useEffect(() => {
     async function loadCoaches() {
       setLoading(true)
-      // רק העמודות שהמסך מציג. select('*') שלף לדפדפן טלפון, מייל ושנת לידה
-      // של כל המשתמשים באפליקציה — כולל שחקנים שהם קטינים.
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public, role')
+      // coach_directory הוא VIEW שמחזיר מאמנים בלבד, בלי מייל, ועם טלפון רק אם
+      // המאמן סימן אותו כציבורי. קודם לכן נשלפה כל טבלת הפרופילים עם select('*'),
+      // כלומר גם טלפון ושנת לידה של שחקנים קטינים.
+      let { data, error } = await supabase
+        .from('coach_directory')
+        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public')
         .neq('id', session.user.id)
+      if (error) {
+        // נפילה לאחור עד שה-SQL ירוץ
+        const legacy = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone_public, role')
+          .neq('id', session.user.id)
+        data = (legacy.data || []).filter((c) => (c.role || 'coach') === 'coach')
+        error = legacy.error
+      }
 
       if (error) {
         setError(L('שגיאה בטעינת המאמנים: ', 'Error loading coaches: ') + error.message)

@@ -22,11 +22,18 @@ export default function Admin({ session, profile }) {
 
   async function load() {
     setLoading(true)
+    // admin_profiles() — נתיב אדמין מפורש; select('*') על profiles כבר לא כולל
+    // phone/email (ההרשאה נשללה כדי להגן על PII של קטינים).
     const [pf, rp] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.rpc('admin_profiles'),
       supabase.from('reports').select('*').order('created_at', { ascending: false }),
     ])
-    setCoaches(pf.error ? [] : pf.data || [])
+    let list = pf.error ? null : pf.data
+    if (!list) {
+      const legacy = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      list = legacy.error ? [] : legacy.data || []
+    }
+    setCoaches(list)
     setReports(rp.error ? [] : rp.data || [])
     setLoading(false)
   }

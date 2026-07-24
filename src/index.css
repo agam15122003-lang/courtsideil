@@ -15017,3 +15017,51 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 
 /* אחות לא-מדווחת של .cal-event-time באותה קופסה */
 .cal-event-plan { font-size: 12px; }
+
+/* ============================================================
+   שער גיל והסכמת הורה בהרשמת שחקן (supabase_privacy4.sql)
+   ============================================================ */
+.pf-req { color: var(--error); font-weight: 800; }
+.pf-guardian {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+.pf-guardian-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.pf-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.pf-consent input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--accent-fill);
+}
+
+/* סרטון שממתין לאישור מנהל — לא מוצג לשחקנים (supabase_privacy4.sql) */
+.video-pending {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--c-orange-bg);
+  color: var(--c-orange);
+  font-size: 12px;
+  font-weight: 700;
+}
+.video-approve { font-size: 13px; }
