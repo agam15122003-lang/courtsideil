@@ -1,138 +1,120 @@
-# סיכום מעבר — עולם הכדורסל
+# HANDOFF — CourtSide
 
-> העתק את ההודעה הראשונה לצ'אט החדש: "אנא קרא את `HANDOFF.md` ו-`SPEC.md` בתיקיית הפרויקט, ונמשיך."
+> **הודעה ראשונה לצ'אט חדש:** "אנא קרא את `HANDOFF.md` (ואם צריך `SPEC.md`) בתיקיית הפרויקט, ונמשיך."
+>
+> עודכן: **24.7.2026** · מסכם את המצב עד קומיט `c021247` (PR #73). קומיטים 1–73 ב-`main`, הכול דחוף ל-origin.
 
-## הוראות עבודה (חשוב!)
+---
+
+## 1. הוראות עבודה (חשוב!)
+
 - המשתמש **מתחיל בקוד** — להסביר כל צעד **בעברית**, פשוט וברור.
-- **לעבוד צעד אחד בכל פעם** — לתת צעד, לחכות לאישור, להמשיך. לא להציף.
-- **לבצע את העריכות בעצמך** בקבצים. תשובות בעברית.
-- **לעבוד חסכוני בטוקנים** בלי לפגוע באיכות: תשובות תמציתיות, עריכות ממוקדות (לא לשכתב קבצים שלמים בלי צורך), ולא לקרוא קבצים מיותר.
-- **SQL חדש = קטע להדבקה** ב-Supabase SQL Editor (לא קובץ), ותמיד מסתיים ב-`notify pgrst, 'reload schema';` (מונע תקלת cache). המשתמש מדביק ומריץ ומאשר "עבד".
-- אחרי כל שינוי קוד: `npm --prefix "C:/Users/AGAM/Downloads/pinkas-hamaman" run build` לוודא שאין שגיאות.
-- **עיצוב:** כל UI חדש מציית למערכת העיצוב ב-`SPEC.md` ולטוקנים ב-`index.css` (לא ערכים קשיחים).
+- **צעד אחד בכל פעם** — לתת צעד, לחכות לאישור, להמשיך. לא להציף.
+- **לבצע את העריכות בעצמך** בקבצים; תשובות בעברית ותמציתיות.
+- **חסכוני בטוקנים**: עריכות ממוקדות (לא לשכתב קבצים שלמים), לא לקרוא קבצים מיותר.
+- **SQL חדש = גם קובץ `supabase_*.sql` בשורש וגם קטע להדבקה** ב-Supabase SQL Editor. תמיד idempotent (`if not exists` / `drop policy if exists`) ותמיד מסתיים ב-`notify pgrst, 'reload schema';`.
+- אחרי כל שינוי קוד: `npm --prefix "C:/Users/AGAM/Downloads/pinkas-hamaman" run build`.
+- **עיצוב:** רק טוקנים מ-`index.css` (בלי הקסים קשיחים), אייקוני `lucide-react` (בלי אימוג'ים כאייקונים), RTL תחילה.
+- שרת הפיתוח של המשתמש הוא לרוב **5174** (הפריוויו של Claude ב-5173) — צריך רענון קשיח אצלו.
 
-## טכנולוגיה
-- React + Vite (JS/JSX), Supabase (PostgreSQL + Auth + RLS), אירוח Netlify, אייקונים `lucide-react`.
-- תיקייה: `C:\Users\AGAM\Downloads\pinkas-hamaman` · פיתוח: `npm run dev` → localhost:5173.
-- עברית RTL מלא · מצב כהה (`ThemeToggle`, נשמר ב-localStorage) · רספונסיבי.
-- שם תצוגה: **עולם הכדורסל** (codename/תיקייה נשארו `pinkas-hamaman`).
+## 2. טכנולוגיה ופריסה
 
-## מצב נוכחי — מה בנוי ועובד
-- **בית** (`Home`) — מסך נחיתה: hero, קיצורי דרך, קישורי תוכן.
-- **פרופילים/קהילה** — הרשמה/התחברות + איפוס סיסמה; פרופיל; מאתר מאמנים; פרופיל מאמן לחיץ (תרגילים שלו + תוכניות ששיתף + שליחת הודעה); "האזור שלי" (סטטיסטיקות).
-- **ספריית תרגילים** — הוספה עם שדות עשירים; חיפוש/סינון/מיון (כולל "הכי מדורגים"); דירוג כוכבים; מועדפים; תגובות; **תרגילים פרטיים** (`is_public`); **לוח טקטיקה** (`TacticsBoard`: מגרש חצי/שלם, גרירת שחקנים/מגנים/קונוסים/כדור, ריבוי שלבים בתצוגת "שלב בודד" או "כל השלבים").
-- **תוכניות אימון** — בונה ידני (סדר/משך/הערה, פתיחת פרטים), **יצירת תרגיל חדש בתוך האימון** (פריט עם title/description בלי drill_id), בנאי חכם אוטומטי (`SmartBuilder`), מצב טיימר (`PlanRunner`), ייצוא PDF (Blob בכרטיסייה), **שיתוף תוכנית** (`is_public`) + העתקה מתוכניות של מאמנים אחרים.
-- **לו"ז** (`Schedule`, טאב נפרד) — לוח שנה: בוחרים תאריך → שעות 06:00–22:00 → אימון לכל שעה (קבוצה/אישי) + צירוף תוכנית + הערה.
-- **תקשורת** — הודעות פרטיות 1:1 + צ'אט קבוצתי (`Messages` עם מתג; `CommunityChat`); לוח משחקי אימון (`GamesBoard`, מתג בטאב "מאמנים").
+- **React 18 + Vite** (JS/JSX, ללא TypeScript) · **Supabase** (Postgres + RLS + Auth + Realtime + Storage) · `lucide-react` · `@vercel/analytics`. אין Tailwind, אין framer-motion (ב-`main`) — CSS ידני.
+- תיקייה: `C:\Users\AGAM\Downloads\pinkas-hamaman` · `npm run dev` → localhost:5173.
+- **חי:** https://courtsideil.vercel.app — **Vercel, פריסה אוטומטית בכל מיזוג ל-`main`**. (Netlify הישן לא רלוונטי.)
+- **CI:** `.github/workflows/ci.yml` מריץ build על כל push/PR ל-main.
+- מפתחות: `.env.local` → `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (גם ב-Vercel Env).
+- **PWA:** `public/manifest.webmanifest` + `public/sw.js` (נרשם ב-`main.jsx` ב-PROD בלבד), אייקונים, `og-image`, `privacy.html`/`terms.html`, `robots.txt`, `sitemap.xml`.
+- **אבטחה:** כל הכתובות עוברות rewrite ל-`index.html`; `vercel.json` מגדיר CSP מלא + `X-Frame-Options: DENY` + Permissions-Policy. שינוי דומיין חיצוני (API/מדיה) מחייב עדכון ה-CSP שם.
+- **עברית RTL** ברירת מחדל + **אנגלית** (`i18n.js`, `LanguageToggle`, `useLang()` ב-`App`), מצב כהה (`ThemeToggle`), `AccessibilityWidget`.
 
-## מסד הנתונים (Supabase, הכול עם RLS)
-- `profiles` (id, first_name, last_name, club, age_groups, email) — קריאה לכולם, עריכה לבעלים.
-- `drills` (+ `is_public` bool ברירת מחדל true, `board` jsonb ללוח טקטיקה, `sketch` text לא בשימוש) — select: `is_public OR owner`; כתיבה לבעלים.
-- `drill_ratings` (drill_id,user_id,rating 1-5, unique) — קריאה לכולם, כתיבה לבעלים.
-- `saved_drills` (drill_id,user_id, unique) — **פרטי** (owner).
-- `drill_comments` (drill_id,user_id,content) — קריאה לכולם, כתיבה/מחיקה לבעלים.
-- `messages` (sender_id,recipient_id,content,read_at) — רואים רק הודעות שלי.
-- `community_messages` (user_id,content) — קריאה לכולם, כתיבה/מחיקה לבעלים.
-- `game_requests` (created_by,age_group,game_date,location,note) — קריאה לכולם, כתיבה/מחיקה לבעלים.
-- `training_plans` (id,name,created_by, + `is_public` bool ברירת מחדל false) — owner (all) + select where is_public.
-- `plan_items` (plan_id, `drill_id` nullable, position, duration_minutes, note, + `title`,`description` לפריט מותאם) — דרך התוכנית (owner) + select אם התוכנית public.
-- `schedule_entries` (created_by, plan_id, note, + `date`,`hour`,`is_personal`; `team`/`day_of_week`/`time` legacy/nullable) — **פרטי** (owner).
+## 3. שני עולמות: מאמן ושחקן
 
-> הערה: שינויי הסכמה האחרונים (`drills.is_public`, `drills.board`, `training_plans.is_public`, `plan_items.title/description` + drill_id nullable, `schedule_entries.date/hour/is_personal`) הורצו כקטעי SQL ב-editor (לא נשמרו כקבצים). קבצי ה-SQL ההיסטוריים בשורש: setup, stage2, stage3, stage3_ratings, saved_drills, messages, training_plans, comments, community_chat, games, schedule.
+`profiles.role` = `'coach' | 'player'`. הבחירה נעשית ב-`ProfileForm` (כרטיסי תפקיד, שלב ראשון בהרשמה). `Dashboard.jsx:174` בודק `profile?.role === 'player'` ומחזיר `PlayerDashboard` — כלומר **שני דשבורדים נפרדים לגמרי**.
 
-## מבנה הקוד (src/)
-`App` · `Landing` (דף נחיתה ציבורי) · `Auth` (עם `onBack`) · `ResetPassword` · `Dashboard` (סרגל צד עם 7 פריטים: בית/פרופיל/מאמנים/תרגילים/תוכניות/לו"ז/הודעות, אייקוני lucide) · `Home` · `ProfileForm` · `MyStats` · `CoachFinder` · `CoachProfile` · `GamesBoard` · `DrillLibrary` · `DrillForm` · `DrillCard` · `TacticsBoard` · `TrainingPlans` (כולל PlanBuilder) · `PlanRunner` · `SmartBuilder` · `Schedule` · `Messages` · `CommunityChat` · `ThemeToggle` · `constants.js` · `supabaseClient.js` · `index.css`. (`DrillSketch.jsx` — legacy, הוחלף ב-TacticsBoard.)
+**ניווט מאמן** (`Dashboard.jsx` NAV): בית · קהילה · חיפוש מאמנים · הודעות · תרגילים · תוכניות · הקבוצות שלי · לו"ז · מדיה (+ "ניהול" ל-`is_admin`). בר תחתון במובייל: בית/קהילה/תרגילים/הודעות/פרופיל.
 
-## מערכת עיצוב (ראה SPEC.md)
-- טוקנים ב-`index.css`: רמפות צבע + טוקני תפקיד (`--bg`,`--surface`,`--surface-alt`,`--text`,`--text-muted`,`--border`,`--accent`,`--primary` נייבי לכפתורים), `--space-*`, `--radius-*`, `--shadow-*`, גופן Rubik. השמות הישנים (`--court`,`--paper`,`--navy`,`--white`...) הם **כינויים** לחדשים.
-- מצב כהה: בלוק `[data-theme="dark"]` שדורס טוקני תפקיד.
-- סגנון: מקצועי/נקי, בלי אימוג'ים בכפתורים (טקסט + אייקוני lucide), כפתור ראשי נייבי, כתום כהדגשה.
+**ניווט שחקן** (`PlayerDashboard.jsx` PLAYER_NAV): בית · התרגילים שלי · המטרות שלי\* · לו"ז\* · המאמן שלי\* · האימונים שלי\* · סרטונים · קהילה · הקבוצה שלי\* · פרופיל. (\* = מוצג רק לשחקן שמחובר לקבוצה.) בר תחתון: בית/תרגילים/מאמן/קהילה/פרופיל.
 
-## מה נשאר (Backlog, לפי בקשות המשתמש)
-- 🖼️ **יותר תמונות במסכים הפנימיים** — אווטארים למאמנים (ראשי תיבות בגרדיאנט), איורי מצב-ריק, תמונות־רקע לכרטיסים. ממקורות חוקיים בלבד (SVG מקורי / Unsplash). **טרם בוצע — הצעד הבא.**
-- 🔔 התראות (לא נקרא) · 🏷️ תגיות לתרגילים · 👥 סגל שחקנים · 🔍 חיפוש גלובלי · אונבורדינג · PWA.
-- דף הבית: קישורי פודקסטים/תוצאות משחקים (כרגע NBA/EuroLeague/FIBA סטטיים).
-- **תשלום/מנויים** (Stripe + טבלת subscriptions + Edge Function ל-webhooks) — לקראת launch.
+**החיבור ביניהם:** המאמן מייצר **קוד הצטרפות** לקבוצה (`team_join_codes`), השחקן מזין קוד → `team_memberships` בסטטוס `pending` → המאמן מאשר (`players.js: decideMembership`) → נוצרת שורת `team_players` מקושרת ב-`player_id` + התראה. הלוגיקה כולה ב-`src/players.js`.
 
-## עדכונים אחרונים (סבב עיצוב + פיצ'רים)
-- ✅ **לוח טקטיקה — חצים ואנימציה.** שלושה כלים: **חץ תנועה** (קו מלא נייבי), **חץ מסירה** (מקווקו), **זריקה לסל** (קשת כתומה/פרבולה). גרירה לציור, דאבל-קליק מוחק. מצב **"נגן אנימציה"** — תנועה חלקה בין שלבים (easing + השהייה, requestAnimationFrame); **זריקה לסל מונפשת בקשת** (פרבולה). **"שלב חדש" משכפל את הקודם, ואם יוצא חץ מאובייקט — הוא ממוקם בקצה החץ בשלב הבא** (כולל הכדור בזריקה). הכל ב-`drills.board` jsonb (אין שינוי סכמה).
-- ✅ **דף נחיתה ציבורי** (`Landing.jsx`) — נראה למי שלא מחובר. Hero דו-עמודתי, אילוסטרציית מגרש SVG מקורית, סטטיסטיקות, רשת פיצ'רים, "איך זה עובד", רצועת CTA, footer. `App.jsx`: לא-מחובר → Landing; "התחברות" → Auth (עם `onBack`).
-- ✅ **שדרוג עיצוב 2.0** — בלוק "Refresh" בסוף `index.css`: רוחב תוכן 720→1040, רקע עם עומק, כפתורים גדולים (`btn-lg`/`btn-soft`), אינדיקטור פעיל בסרגל, כרטיסים מוגבהים, פס גלילה מעוצב, אנימציית כניסה, ליטוש משותף ל-`welcome-card`/`section-title`/`coach-card`/`stat-card`.
-- ✅ **כתבות כדורסל חוקיות** (`Home.jsx` + `constants.js`) — אגרגטור: כותרת מקורית + תמונה + **שם מקור (קרדיט) + קישור למקור**, בלי AI ובלי העתקת תוכן. מקורות (`NEWS_SOURCES`, שליפה טורית + קאש 30 דק'): **שתי שאילתות Google News מסוננות-כדורסל מראש** (רחבה כללית קודם, ואז site:sport5.co.il). אין סינון מילות-מפתח (מיותר — השאילתה כבר כדורסל). `isSport5` מקפיץ את ערוץ הספורט לראש. `NEWS_FALLBACK_IMAGES` (Unsplash, חוקי) לכתבות בלי תמונה. `RSS2JSON_KEY` ריק — מפתח חינמי מ-rss2json.com מסיר הגבלת קצב.
-  - ⚠️ **תיקון באג:** הגרסה הקודמת סיננה לפי `BASKETBALL_HINTS` והרגה את כל הכתבות (כותרות כמו "קולסון למכבי ת\"א" לא מכילות "כדורסל"). הוסר. ynet כפיד ספורט כללי הוסר (סינון לא אמין); Google News מספק כדורסל ישראלי מדויק כולל Sport5.
+## 4. מה בנוי ועובד
 
-- ✅ **שדרוג UX 3.0 (מקצועיות).** קבצים חדשים: `toast.js` (store) + `Toaster.jsx` (ממומש ב-`main.jsx`) — **מערכת Toast** שמחליפה את כל ה-`alert()` הנייטיביים; משוב הצלחה אחרי כל שמירה/מחיקה. `Avatar.jsx` — **אווטאר ראשי-תיבות בגרדיאנט** (צבע דטרמיניסטי לפי שם), בשימוש ב-CoachFinder, CoachProfile, Messages, CommunityChat, Dashboard (הפרופיל שלי). **מחיקת הודעות פרטיות** נוספה ל-Messages (כפתור סל בכל בועה שלי) — **דורש מדיניות RLS** (ראה למטה). אישור מחיקה (`confirm`) + Toast הצלחה בכל המחיקות. כפתורי מחיקה ברורים יותר (`comment-del`/`msg-del`), טבעת פוקוס נגישה, גובה כפתורים אחיד, הסרת אימוג'י (🏗️), תיקון "את/ה"→"אני".
-  - ⚠️ **SQL שטרם הורץ:** מדיניות מחיקת הודעות פרטיות —
-    `create policy "delete own messages" on public.messages for delete to authenticated using (auth.uid() = sender_id); notify pgrst, 'reload schema';`
+**צד מאמן**
+- **בית** — כרטיס "אימון הבא" עם ספירה לאחור (`NextPractice`), משימות/היילייטס, כתבות כדורסל (אגרגטור Google News + קאש), ציטוט מתחלף (`QuoteStrip`), מאמן השבוע (`CoachOfWeek`, ניקוד בייסיאני).
+- **קהילה** (`Community.jsx`, 50KB) — פיד פוסטים עם תמונות וסוגי פוסט (שאלה/טיפ/וידאו/משרה/סקר), לייקים, תגובות, סקרים חיים, אירועים + RSVP, ערוצי צ'אט לפי קטגוריה, שיתוף בוואטסאפ. **זה הלב של האפליקציה.**
+- **התראות** (`Notifications.jsx` + `notify.js`) — פעמון עם מונה, Supabase Realtime.
+- **תרגילים** — `DrillLibrary`/`DrillForm`/`DrillCard`, כתיבה בסטייל "מחברת מאמן" (`NotebookPage`, `CourtDiagram`), **לוח טקטיקה** (`TacticsBoard`: שלבים, חצים תנועה/מסירה/זריקה, אנימציה), דירוגים, מועדפים, תגיות, טיוטות, דף ציבורי לתרגיל `#/drill/<id>` (`PublicDrill`).
+- **תוכניות אימון** — `TrainingPlans` (בונה + יעד 90 דק' + פירוק זמן צבעוני לפי קטגוריה), `SmartBuilder` (אוטומטי), `PlanRunner` (טיימר חי), `PlanNotebook` (מערך אימון להדפסה/PDF), שיתוף והעתקה בין מאמנים.
+- **קבוצות** (`Teams.jsx`, 58KB) — סגל, צוות מקצועי, נוכחות (`Attendance`), מטרות (`TeamGoalsBoard`), משחקים + **ייבוא מאיגוד הכדורסל** (`iba.js`, REST של ibasketball.co.il) + **טבלת ליגה** (`LeagueTable`), קודי הצטרפות ואישור שחקנים (`TeamConnect`), שעות אימון קבועות (`TeamSlots`), צ'אט קבוצתי (`TeamChat`), משימות (`TeamAssignments`).
+- **לו"ז** (`Schedule.jsx`) — לוח שבועי, אירועים חוזרים, בורר קבוצה, ייצוא לקלנדר (`ics.js`).
+- **סיכומי אימון** (`SessionDetail`, `sessionId.js`) — נוכחות, מאמץ 1–10, פידבק אישי, MVP לאימון.
+- **שליחה לשחקנים** (`SendToPlayers` + `sendToPlayers.js`) — דחיפת תרגילים/משימות לקבוצה או לשחקנים בודדים.
+- **מדיה** (`Media`/`Videos`) — פודקאסטים + סרטונים לפי קטגוריה, דירוגי סרטונים, ייבוא מיוטיוב (אדמין, `youtube.js`).
+- **תקשורת** — `Messages` (1:1), `ChatWindow`, `CommunityChat` דרך Community, `GamesBoard` (משחקי אימון).
+- **ניהול** (`Admin.jsx`) — סטטיסטיקות, אימות/חסימת מאמנים, תלונות (`ReportButton`), זיהוי התחזות.
 
-- ✅ **סבב QA אדוורסרי (workflow מרובה-סוכנים).** נמצאו ותוקנו 3 באגים + 14 פריטי ליטוש: (באגים) שיוך חץ→אובייקט בלוח הטקטיקה עכשיו חד-חד-ערכי עם סף הדוק; מיון תאריכי כתבות עם `parseDate` (replace ' '→'T', תקין גם ב-Safari/iOS); אזור ה-Toast (`Toaster`) מרונדר תמיד עם `role="alert"` לשגיאות (קוראי מסך). (ליטוש) כל ★/▲/▼/✓ הוחלפו באייקוני lucide (DrillCard, MyStats, TrainingPlans); מצבי-ריק עשירים (`.empty-state`) ל-DrillLibrary/TrainingPlans/GamesBoard; כפתורי מחיקה אחידים (`btn-ghost danger`); `confirm` + Toast הצלחה לכל מחיקה (כולל תגובות ומשחקים); קאש כתבות ישן משמש כגיבוי לכישלון שליפה; תמונות-גיבוי בלי כפילות; גלילה חלקה + scroll-margin בדף הנחיתה; `margin-top` של `btn-primary` הועבר להקשר `.auth-form` בלבד; pointer-capture בגרירה בלוח הטקטיקה; "התחל מהתחלה" באמת מנגן מחדש.
+**צד שחקן** (`PlayerDashboard.jsx`, 65KB — הקובץ הגדול ביותר אחרי ה-CSS)
+- בית שחקן מעוצב (כרטיס נייבי, רמה, רצף), מטרות אישיות + תיעוד עצמי (`PlayerGoals`), לו"ז, צ'אט עם המאמן (`CoachChat`), **האימונים שלי** — טיימליין היסטורי (`PlayerTimeline`) + טופס סיכום אימון (`FeedbackSheet`: מאמץ, מצב רוח, על מה עבדתי), תרגילים שהמאמן שלח, סרטונים, קהילת שחקנים (`PlayerCommunity`), פרופיל.
 
-- ✅ **קבוצות, מועדונים, טלפון, ועיצוב וואו.** `constants.js`: נוספה שכבת גיל **"בית ספר לכדורסל"** (ראשונה); `GENDERS=['בנים','בנות']` + `teamLabel/genderOf/ageOf` (קבוצה נשמרת ב-`age_groups` כמחרוזת "<שכבה> <מגדר>"); `ISRAELI_CLUBS` — **144 מועדונים** ממחקר איגוד הכדורסל. **ProfileForm נכתב מחדש** (מקצועי, סקשנים): בורר מועדון מרשימה (`<datalist>`) עם הוספה ידנית, שדה **טלפון + מתג הצגה/הסתרה** (`phone`,`phone_public`, ניתן לשינוי בכל עת), ורשת **קבוצות (שכבה×בנים/בנות)**. CoachFinder מסנן לפי `ageOf`; CoachProfile/Dashboard מציגים טלפון (לפי הרשאה). **עיצוב:** צ'אט מודרני (בועות גרדיאנט עם זנב, כפתור שליחה עגול עם אייקון), Home מפוצץ (זוהר כתום/נייבי, eyebrow זכוכיתי, כותרת גדולה).
-  - ⚠️ **SQL שטרם הורץ:** עמודות טלפון —
-    `alter table public.profiles add column if not exists phone text, add column if not exists phone_public boolean not null default false; notify pgrst, 'reload schema';`
+## 5. מסד נתונים (Supabase — הכול עם RLS)
 
-- ✅ **לו"ז מחדש, מדיה, עיצוב 3.0, והעלאת תמונות.**
-  - **לו"ז** (`Schedule.jsx`) נכתב מחדש: בחירת יום + **טווח שעות (התחלה→סיום)**, רשימת אימונים מסודרת, מצב ריק. דורש עמודות `start_time`,`end_time`.
-  - **עמוד מדיה** חדש (`Media.jsx` + פריט סרגל "מדיה"): טאב **פודקסטים** (סטטי מ-`PODCASTS`, פתיחה ישירה בספוטיפיי) + טאב **סרטונים** (`Videos.jsx`, טבלת `drill_videos`, הוספת קישור יוטיוב מסווג + סינון לפי קטגוריה + תמונה ממוזערת). `VIDEO_CATEGORIES` ב-constants.
-  - **עיצוב 3.0 (בנצ'מרק NBA/ESPN/Stripe/Linear, ממחקר workflow):** גופן כותרות Heebo 800 + tracking שלילי, סקאלת טיפוגרפיה גדולה, ניטרליים קרירים + borders דקים + צללים שכבתיים, **כתום כ-CTA ראשי** (`.btn-primary`), פחות גרדיאנטים (אריחי אייקון שטוחים, מספרים data-grade), hero ברודקאסט (בסיס `--ink-900` + scrim תחתון), eyebrow tokens, מיקרו-אינטראקציות מרוסנות. הכל בבלוק "עיצוב 3.0" בסוף `index.css` + טוקנים חדשים ב-`:root`.
-  - **העלאת תמונות** (`storage.js`, bucket ציבורי `media`): **תמונת פרופיל** ב-ProfileForm (+`profiles.avatar_url`, מוצגת ב-Avatar/CoachFinder/CoachProfile/Dashboard) ו**תמונת תרגיל** ב-DrillForm עם `capture` לצילום (+`drills.image_url`, מוצגת ב-DrillCard).
-  - ⚠️ **SQL שטרם הורץ** (ראה בלוק מרוכז בצ'אט): עמודות לו"ז, טבלת `drill_videos`+RLS, `avatar_url`/`image_url`, ו-bucket `media`+policies.
+**סדר הרצה** (idempotent; 1–7 כבר בייצור):
 
-- ✅ **התחברות בקוד (OTP) + תיקון פודקסטים.**
-  - **Auth.jsx** נכתב מחדש עם מצב **'otp'**: בחירת ערוץ (נייד SMS / מייל) → `signInWithOtp` → הזנת קוד → `verifyOtp`. מתאים גם להרשמה וגם להתחברות (אותו flow). `toE164` ממיר מספר ישראלי (05X → +9725X). כפתור "כניסה עם קוד" מתחת לטופס הסיסמה.
-  - ⚠️ **הגדרת Supabase נדרשת (לא SQL):** ל-SMS — Authentication → Providers → **Phone** → enable + ספק SMS (Twilio/MessageBird, בתשלום). ל-**קוד במייל** — Email Templates → Magic Link → להוסיף `{{ .Token }}` (אחרת נשלח קישור כניסה במקום קוד, שגם עובד). בלי ספק SMS — המייל עובד מיד.
-  - **פודקסטים** (`PODCASTS` ב-constants): הוחלפו מחיפוש כללי ל**קישורי show ישירים** אמיתיים (אומתו בחיפוש): ספיק נ' רול, ONE מכבי ת"א, ה-NBA של ערוץ הספורט, The Lowe Post, Old Man and the Three, Thinking Basketball, The Hoop Collective.
+| # | קבצים | מה |
+|---|---|---|
+| 1 | `supabase_setup.sql` | `profiles` + טריגר הרשמה |
+| 2 | `supabase_stage2/3/3_ratings.sql` | `drills`, `drill_ratings` |
+| 3 | `supabase_saved_drills.sql`, `supabase_comments.sql` | `saved_drills`, `drill_comments` |
+| 4 | `supabase_training_plans.sql` | `training_plans`, `plan_items` |
+| 5 | `supabase_messages.sql`, `supabase_community_chat.sql` | `messages`, `community_messages` |
+| 6 | `supabase_schedule.sql`, `supabase_games.sql`, `supabase_teams_admin.sql`, `supabase_attendance.sql` | `schedule_entries`, `game_requests`, `team_players/goals/games/staff/iba`, `reports`, `video_ratings`, `practice_attendance` |
+| 7 | `supabase_launch_migration.sql`, `supabase_security_hardening.sql` | `coach_meetings`, `drill_videos`, הקשחה |
+| 8 | `supabase_community.sql`, `supabase_community2.sql` | `community_posts/_likes/_comments` + ערוצים וסוגי פוסט |
+| 9 | `supabase_engagement.sql` | `notifications`, Realtime, `community_poll_votes`, `community_events`, `community_event_rsvps` |
+| 10 | `supabase_security2.sql` | מגבלות תוכן ו-constraints |
+| 11 | `supabase_players.sql`, `supabase_player_v2.sql` | `team_join_codes`, `team_memberships`, `player_assignments`, `assignment_completions`, `player_feedback`, `player_messages` |
+| 12 | `supabase_sessions.sql`, `supabase_game_reviews.sql`, `supabase_effort.sql` | `session_reviews`, `game_attendance`, `session_effort` |
+| 13 | `supabase_team_chat.sql`, `supabase_player_goals.sql`, `supabase_team_slots.sql` | `team_messages`, `player_goals`, `team_practice_slots`, `session_goal_marks` |
+| 14 | `supabase_feedback_sheet.sql`, `supabase_player_goal_logging.sql` | `session_effort.mood/focus` + RLS לתיעוד עצמי של השחקן |
 
-- ✅ **שדרוג UX/נגישות מבוסס-אודיט (לפי מסמך ההנחיות + workflow אודיט שמצא 64 ממצאים).** `AUDIT.md` ו-`DESIGN_RESEARCH.md` נכתבו. בוצע מצטבר:
-  - **שלב 1 — נגישות+עקביות:** פיצול הכתום — `--accent-fill #A8491A`/`--accent-strong` (כהה לרקע בהיר, בהיר לרקע כהה) לעמידה ב-WCAG AA (היה 2.96:1!). `:focus-visible` גלובלי, יעדי מגע ≥36px, איחוד רדיוס/אינפוט, `.welcome-badge` הירוק→eyebrow כתום, הכהיית error/success/tabs/placeholder.
-  - **שלב 2 — מובייל:** `.mobile-topbar` (מותג+מצב כהה+התנתקות) + **bottom tab bar** קבוע (Dashboard); `.court--full` (תיקון letterbox), רשת ביטחון `overflow-x`.
-  - **שלב 3 — מצבים:** `Skeleton.jsx` (`SkeletonCards`/`SkeletonStats`) ב-7 מסכים; **תיקון באג** Schedule+MyStats שהתעלמו משגיאות (סולם loading→error→empty); מצבי-ריק עם אייקון ל-CoachFinder/Messages/CommunityChat/CoachProfile.
-  - **שלב 4 (חלקי):** משוב OTP/DrillForm→Toast, `aria-label` לשדות placeholder-only, `aria-label` ללינק וידאו, `dir="ltr"` לשדות מספר/תאריך.
-  - ⏳ **נשאר:** שלב 4 (DrillForm→`.form-section`, busy flags, `aria-pressed` ל-chips), שלב 5 (ResetPassword show/hide+ולידציה חיה, היררכיית GamesBoard, progress ב-PlanRunner, אווטאר מטוקנים).
-- ⚠️ **באג OTP מייל:** הסיבה — **custom SMTP מופעל אך לא מוגדר** (Gmail בלי App Password) חוסם את כל המיילים. **פתרון:** Authentication → Emails → SMTP Settings → לכבות "Enable custom SMTP" → Save. הקוד עכשיו מציג את השגיאה ב-Toast.
+- נדרש **bucket ציבורי `media`** ב-Storage (העלאה ל-authenticated). העלאות עוברות דחיסה בצד הלקוח (`storage.js`).
+- `supabase_seed_drills.sql` — 30 תרגילי דוגמה · `supabase_cleanup_drills.sql` — מנקה אותם.
+- הקוד **סובלני לטבלאות חסרות** (בודק שגיאות "does not exist" ומדלג) — ולכן פיצ'ר שלא עובד הוא לרוב SQL שלא הורץ, לא באג.
 
-  - **שלב 4-5 (המשך):** OTP **מייל בלבד** (הוסר SMS שבתשלום), קוד עד 10 ספרות, **טיימר "שלח שוב" 60 שניות** (`cooldown`) למניעת היחסמות. **ResetPassword** — show/hide סיסמה (Eye/EyeOff) + ולידציית התאמה חיה + כפתור "המשך". **SmartBuilder** — toast סיכום תוצאה (כמה תרגילים/דקות מול היעד).
-  - ⏳ **נשאר בשלב 4-5:** DrillForm→`.form-section`, busy flags לפעולות אסינכרוניות, `aria-pressed` ל-chips, היררכיית GamesBoard, progress ב-PlanRunner, אווטאר מטוקנים, ניקוי `→` glyphs.
+## 6. מערכת העיצוב
 
-## אימייל (Resend + Supabase) — סטטוס
-- **Resend מחובר ועובד** (SMTP מותאם ב-Supabase: host `smtp.resend.com`, port 465, user `resend`, password=API key, sender `onboarding@resend.dev`). בלי דומיין מאומת — שולח רק למייל של חשבון Resend (`coachadiriagam@gmail.com`).
-- **מגבלת קצב:** Supabase → Authentication → **Rate Limits** → "emails per hour" ברירת מחדל **2** — להעלות ל-30. פר-משתמש: קוד כל ~60 שניות.
-- **תבנית מייל:** להוסיף `{{ .Token }}` ב-Magic Link template כדי שיישלח קוד (לא רק קישור).
-- ל-launch: לאמת דומיין ב-Resend כדי לשלוח לכל מאמן.
+- **מקור האמת = הטוקנים ב-`src/index.css`** (`:root` בראש הקובץ): רמפות `--orange-*` / `--navy-*` / `--gray-*`, טוקני תפקיד (`--bg`, `--surface`, `--surface-alt`, `--text`, `--text-muted`, `--border`, `--ink-900`), אקצנט מפוצל (`--accent` לגוונים, `--accent-fill` למילוי כפתורים, `--accent-strong` לטקסט — WCAG AA), `--primary` = נייבי, צבעי קטגוריה (`--c-blue/green/purple/navy/orange/red`), `--space-*`, `--radius-*`, `--shadow-*`, סקאלת טיפוגרפיה `--text-xs…`.
+- **גופנים:** Rubik (גוף) + Heebo 700–900 (כותרות), נטענים מ-`index.html`.
+- **שני מצבים:** בהיר = *Court Edition* (קנבס חמים) · כהה = *Broadcast Energy* (`[data-theme="dark"]`).
+- ⚠️ **`design-system/courtside/MASTER.md` הוא פלט אוטומטי גנרי (כחול/ירוק, Noto Sans) ולא מתאר את האפליקציה — להתעלם ממנו לטובת `index.css` + `SPEC.md`.**
+- ⚠️ **`src/index.css` שוקל 476KB** — הצטברות של שכבות "רענון" זו על גב זו (עשרות בלוקים מתוארכים בסוף הקובץ). זה החוב העיצובי הגדול: כפילויות של `.btn-primary`/`.card`/`.stat-card`, סלקטורים שנלחמים זה בזה, וקושי לשנות משהו בלי רגרסיה. כל עבודת עיצוב גדולה צריכה להתחיל בהחלטה אם מאחדים.
 
-  - **שלב 4-5 (הושלם ברובו):** טקסט כפתור "כניסה עם קוד למייל"; DrillForm — שדות מזווגים ב-`form-grid-2`; GamesBoard — `form-section` עם כותרת + סימון שדה חובה + כותרת "בקשות פתוחות" + skeleton; PlanRunner — `runner-progress` bar; ResetPassword/SmartBuilder כנ"ל.
-  - ⏳ **נשאר (low priority):** busy flags (רוב הפעולות מוגנות-DB), `aria-pressed` ל-chips, Avatar מטוקנים, ניקוי `→` glyphs.
+## 7. פעולות פתוחות (משתמש)
 
-## Backlog כללי (בקשות המשתמש להמשך)
-- **פריסה ל-Netlify** — הגרסה החיה ב-Netlify ישנה; כל שדרוגי העיצוב מקומיים. לפרוס מחדש כדי לראות במובייל.
-- נוחות/ליטוש כללי, **ציטוטים** מתחלפים, **מעברים/אנימציות** עדינות בין מסכים, ועוד.
-- אימות דומיין ב-Resend (ל-OTP/מיילים לכל המשתמשים) — לקראת launch.
+1. **להריץ שני ה-SQL האחרונים** אם עוד לא: `supabase_feedback_sheet.sql` + `supabase_player_goal_logging.sql` (בלעדיהם "סיכום אימון" ו"מטרות" של השחקן ייכשלו).
+2. **Resend / מיילים:** SMTP מותאם ב-Supabase עובד, אבל בלי דומיין מאומת נשלח **רק** ל-`coachadiriagam@gmail.com`. ל-launch: לאמת דומיין ב-Resend + להעלות Auth → Rate Limits → emails per hour (ברירת מחדל 2).
+3. **Magic Link template** צריך `{{ .Token }}` כדי שקוד ה-OTP יישלח כקוד ולא רק כקישור.
+4. Supabase → Auth → Providers → Email → Minimum password length = 8 (אכיפת שרת; בקליינט כבר נאכף).
 
-- ✅ **דף כניסה/הרשמה פרימיום + ציטוטים + מדיניות סיסמה.**
-  - **Auth** נכתב מחדש ללייאאוט **מפוצל** (`.auth-shell`): `.auth-brand-panel` כהה (ink-900 + זוהר כתום) עם לוגו, **ציטוט מתחלף** (7 שניות), וסימני אמון (Check). הטופס ב-`.auth-main`. במובייל הפאנל מוסתר (טופס בלבד).
-  - **`COACHING_QUOTES`** ב-constants (ווּדן/ג'ורדן/פופוביץ' וכו'). באנר ציטוט מתחלף גם ב-Home (`.quote-banner`).
-  - **סיסמה ≥ 8 תווים** — Auth (הרשמה בלבד, לא חוסם כניסה קיימת) + ResetPassword. ⚠️ לאכיפת-שרת: Supabase → Authentication → Providers → Email → Minimum password length = 8.
-  - **השלמת פרטים חובה** — כבר נאכף (אין ביטול כשהפרופיל לא שלם); נוסף מסגור "שלב אחרון בהרשמה" + טקסט מזמין ב-ProfileForm.
+## 8. חובות עיצוב/UX פתוחים (המשך העבודה מכאן)
 
-- ✅ **דף כניסה ממורכז + ציטוטים בכל המסכים.** Auth שוכתב ללייאאוט **ממורכז** (`.auth-page` > `.auth-topquote` + `.auth-center`) — בלי הפאנל הימני. ציטוט מתחלף (כל דקה) ברצועה בראש העמוד; סימני אמון כצ'יפים צבעוניים (ירוק/כחול/כתום). `QuoteStrip.jsx` בראש כל מסך ב-Dashboard (ממורכז, כחול, `--quote-color`). 22 ציטוטים ב-`COACHING_QUOTES`.
-- ✅ **כתבות מגוונות.** `NEWS_SOURCES` = 5 שאילתות לפי נושא (ליגת ווינר/NBA/יורוליג/נבחרת/ערוץ הספורט); Home משלב **round-robin** בין הנושאים (cache v4).
-- ✅ **תגיות לתרגילים.** `drills.tags text[]` (דורש SQL). DrillForm — הוספת תגיות חופשיות (chips + X); DrillCard — תגיות לחיצות (#tag) שמסננות; DrillLibrary — `tagFilter` + תגיות בחיפוש + אינדיקציית תגית פעילה.
-- ✅ **אונבורדינג.** כרטיס פתיחה בדף הבית למשתמש חדש (3 צעדים, נסגר ל-localStorage `onboarded_v1`).
-- ✅ **ליטוש.** גלילה חלקה לראש בכל מעבר מסך (Dashboard).
-  - ⚠️ **SQL לתגיות:** `alter table public.drills add column if not exists tags text[]; notify pgrst, 'reload schema';`
+- **איחוד ה-CSS** (476KB, כפילויות פרימיטיבים) — הפריט הכי משמעותי.
+- טקסט מסך שגיאת ההגדרות ב-`App.jsx` עוד מדבר על **Netlify** במקום Vercel.
+- `PlayerDashboard.jsx` (65KB) ו-`Teams.jsx` (58KB) — מונוליטים שראוי לפצל לרכיבים.
+- אין רכיבי UI משותפים ב-`main` (Modal/Button/Field) — יש `confirm.jsx` ו-`Skeleton.jsx` בלבד; דיאלוגים ומודלים מיושמים מקומית בכל מסך.
+- עקביות בין עולם המאמן (שנבנה בהדרגה) לעולם השחקן (שעוצב לאחרונה לפי ה-hi-fi handoff) — המאמן נראה "מבוגר" יותר.
+- נגישות: לבדוק ניגודיות במצב כהה, מצבי פוקוס, ויעדי מגע ≥44px במסכים החדשים.
 
-- ✅ **שם האפליקציה: `CourtSide`** (היה "עולם הכדורסל"). הוחלף בכל הקבצים (Auth/Dashboard/Home/Landing/ResetPassword) ובכותרת `index.html`. תיקיית הקוד נשארת `pinkas-hamaman`.
-- ✅ **ניווט מובייל = מגירה מימין** (לא בר תחתון). Dashboard: כפתור המבורגר (☰) ב-`.mobile-topbar` פותח `state drawerOpen`; ה-`<aside className="sidebar">` הופך ל-`.sidebar.open` (נשלף מימין, `transform: translateX`), עם `.drawer-overlay` ו-`.drawer-close` (X). נסגר בבחירת מסך/קליק על הרקע. CSS ב-`@media (max-width:768px)`.
+## 9. היסטוריה מקוצרת (PR #1–#73)
 
-## 🚀 פריסה (Deployment)
-- **חי ב-Netlify:** **https://thebasketballworldisrael.netlify.app** (פרויקט `thebasketballworldisrael`, צוות `agam15122003-lang`).
-- **לא מחובר ל-git** → פריסה **ידנית**: `npm run build` ואז גרירת תיקיית `dist` ל-Netlify → Deploys (drag&drop). אחרי כל שינוי צריך לפרוס מחדש.
-- מפתחות Supabase מוטמעים ב-build מ-`.env.local` (`VITE_SUPABASE_*`).
+- **#1–#10 (2–16.7)** — שדרוג עיצוב CourtSide, ערכת "ברודקאסט", 30 תרגילי דוגמה, launch-readiness (PWA, לגאלי), Court Edition + תיקוני E2E.
+- **#11–#23 (16–17.7)** — נוכחות בקליק, מצב כהה = Broadcast Energy, בית 2.0, התאמה למוקאפים (Auth קינמטי, סגל, בונה תוכניות, מדיה), תיקון אתר לבן (הקשחת ה-Supabase client).
+- **#24–#35 (18–19.7)** — Vercel/Cloudflare, עורך וידאו on-device (הוסר מאוחר יותר), אודיט מלא + תיקוני קריסה, **קהילה כלב האפליקציה**, ו-Design handoff שלב 1+2 (שפה מאוחדת, hero נייבי, בר תחתון).
+- **#36–#45 (20–21.7)** — Council review (46 ממצאים), מנוע אנגייג'מנט (התראות/Realtime/PWA/סקרים/אירועים), דחיסת תמונות, הקשחת אבטחה, CI + README, דיאלוגים מעוצבים.
+- **#46–#59 (21–22.7)** — **פלטפורמת השחקן**: הצטרפות בקוד, בית שחקן, צ'אט עם המאמן, סיכומי אימון (נוכחות/מאמץ/פידבק/MVP), ביקורות משחק, צ'אט קבוצתי, מטרות שבועיות/חודשיות/עונתיות, hub שליחה לשחקנים.
+- **#60–#73 (22–23.7)** — טיימליין אימונים לשחקן, כרטיס בית חכם למאמן, סבב "declutter" (הוסרו badges/XP ועורך הווידאו), ואז **עיצוב מחדש של כל מסכי השחקן לפי ה-hi-fi handoff** + פרופיל + מצב רוח/פוקוס שהמאמן רואה.
 
-## ⚠️ פעולות פתוחות (משתמש)
-1. **SQL לתגיות** (אם לא הורץ): `alter table public.drills add column if not exists tags text[]; notify pgrst, 'reload schema';`
-2. **פריסה מחדש** של `dist` (אחרי שינויי CourtSide + מגירה).
-3. **מובייל — "מלא באגים"** לפי המשתמש; צריך צילומי מסך לאבחון מדויק (המגירה תיקנה את הבר-התחתון הצפוף, אבל ייתכנו באגים נוספים).
-4. אימייל OTP עובד דרך **Resend** (SMTP מותאם ב-Supabase), אך בלי דומיין מאומת שולח **רק** ל-`coachadiriagam@gmail.com`. ל-launch: לאמת דומיין ב-Resend. להעלות email rate limit (Supabase → Auth → Rate Limits, ברירת מחדל 2/שעה).
+---
 
-**הצעד האחרון שנעשה:** שם → CourtSide, ניווט מובייל → מגירה מימין. **הבא:** פריסה מחדש, אבחון באגי מובייל (צילומי מסך), הרצת SQL התגיות.
+**הצעד האחרון:** PR #73 — עיצוב מחדש של הפרופיל + המאמן רואה מצב רוח ופוקוס. **הבא:** עבודת עיצוב ונוחות שימוש באתר (סעיף 8).

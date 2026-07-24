@@ -137,8 +137,10 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
 
           {/* חיפוש חופשי — שם או מועדון */}
           <div className="field-group" style={{ marginTop: 20 }}>
-            <span className="field-label">{L('חיפוש', 'Search')}</span>
+            {/* label אמיתי במקום span — כך קורא מסך מקשר בין הכיתוב לשדה */}
+            <label className="field-label" htmlFor="finder-search">{L('חיפוש', 'Search')}</label>
             <input
+              id="finder-search"
               className="finder-input"
               type="search"
               value={clubQuery}

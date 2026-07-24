@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
-import { searchYouTube, ytConfigured } from './youtube'
+import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonCards } from './Skeleton'
 import { L, tr } from './i18n'
 
@@ -215,7 +215,7 @@ export default function Videos({ session, profile }) {
                 </a>
                 <div className="video-body">
                   <span className="cat-badge">{tr(v.category)}</span>
-                  <span className="video-title">{v.title}</span>
+                  <span className="video-title" dir="auto">{cleanVideoTitle(v.title)}</span>
                   {v.note && <span className="muted small">{v.note}</span>}
 
                   {/* דירוג משתמשים */}

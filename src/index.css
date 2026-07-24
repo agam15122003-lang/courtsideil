@@ -12545,6 +12545,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .cm-hero-search input {
   flex: 1;
   min-width: 0;
+  /* השדה עצמו היה 18px גובה בתוך "גלולה" של 34px — הקשה על הריפוד פספסה אותו */
+  align-self: stretch;
+  padding-block: 8px;
   background: none;
   border: none;
   outline: none;
@@ -13821,6 +13824,13 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   letter-spacing: 0.3em; text-transform: uppercase;
   font-family: ui-monospace, 'SF Mono', monospace;
 }
+/* הריווח נועד לקוד באנגלית — על טקסט העזר בעברית הוא נראה כמו תקלה ("ק ו ד  ה ק ב ו צ ה") */
+.pl-code-input::placeholder {
+  letter-spacing: normal;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: var(--text-base);
+}
 .pl-waiting {
   display: inline-flex; align-items: center; gap: 8px;
   margin-top: 16px; padding: 8px 14px; border-radius: var(--radius-full);
@@ -13925,7 +13935,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .plh-sc-ic.brand { background: var(--accent-soft); color: var(--accent-strong); }
 .plh-sc-ic.green { background: var(--c-green-bg); color: var(--c-green); }
 .plh-sc-ic.purple { background: var(--c-purple-bg); color: var(--c-purple); }
+.plh-sc-body { display: grid; gap: 3px; }
 .plh-sc-txt { font-weight: 700; font-size: 14.5px; color: var(--text); }
+.plh-sc-sub { font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--text-muted); }
 
 /* כרטיס הודעה מהמאמן */
 .plh-coachmsg { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
@@ -14418,6 +14430,24 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-chip { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-full); padding: 7px 15px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .pl-chip.active { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 
+/* "עוד סרטונים" — טעינה מדורגת במקום 40 כרטיסים בבת אחת */
+.pl-more {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.pl-more:hover { background: var(--surface-alt); border-color: var(--border-hover); }
+
 /* כרטיס סרטון (כפתור לנגן מוטמע) */
 .pl-vid { cursor: pointer; text-align: start; padding: 0; font: inherit; color: inherit; width: 100%; transition: transform 0.15s, box-shadow 0.15s; }
 .pl-vid:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -14739,6 +14769,37 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pla-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pla-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 16.5px; color: var(--text); }
 .pla-desc { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+/* שלבי תרגיל כרשימה במקום קיר טקסט (DrillText.jsx) */
+.dt-intro { margin: 0 0 10px; }
+.dt-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: dt;
+  display: grid;
+  gap: 8px;
+}
+.dt-steps > li {
+  counter-increment: dt;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.dt-steps > li::before {
+  content: counter(dt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 .pla-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
 .pla-meta > span { display: inline-flex; align-items: center; gap: 4px; }
 .pla-video { position: relative; display: block; margin-top: 12px; height: 168px; border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt) center/cover no-repeat; }
@@ -14882,3 +14943,28 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-recap-date { font-weight: 700; color: var(--text); font-size: 13.5px; }
 .pl-recap-mvp { font-weight: 800; font-size: 12.5px; color: var(--accent-strong); }
 .pl-recap-note { margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — יעדי מגע במסכי מגע
+   נמדד באפליקציה החיה ברוחב 384: הפריטים כאן היו 27–39px גובה,
+   ואף כלל pointer:coarse קיים לא כיסה אותם.
+   ============================================================ */
+@media (pointer: coarse) {
+  .pla-tab,
+  .pl-chip,
+  .cm-type-chip,
+  .cm-attach,
+  .cm-aside-ch,
+  .cal-today,
+  .ntf-bell {
+    min-height: 44px;
+  }
+  .ntf-bell {
+    min-width: 44px;
+  }
+  .cm-type-chip,
+  .pl-chip {
+    display: inline-flex;
+    align-items: center;
+  }
+}

@@ -10,6 +10,7 @@ import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
 import Notifications from './Notifications'
 import PlayerDashboard from './PlayerDashboard'
+import ErrorBoundary from './ErrorBoundary'
 import { useLang, L } from './i18n'
 
 // מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
@@ -296,6 +297,9 @@ export default function Dashboard({ session }) {
         <div className="main-inner" key={showForm ? 'profile-form' : view}>
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2) */}
           {!loading && !showForm && <QuoteStrip />}
+          {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
+              ה-key על .main-inner גורם ל-boundary להתאפס בכל מעבר מסך. */}
+          <ErrorBoundary>
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>
@@ -460,6 +464,7 @@ export default function Dashboard({ session }) {
             </div>
           )}
           </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
 

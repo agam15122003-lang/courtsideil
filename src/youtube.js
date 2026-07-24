@@ -6,6 +6,16 @@ import { YOUTUBE_API_KEY } from './constants'
 
 export const ytConfigured = () => !!(YOUTUBE_API_KEY && YOUTUBE_API_KEY.trim())
 
+// כותרות יוטיוב מגיעות עם האשטגים ורעש ("... #nba #basketball #shorts") שלא אומרים כלום
+// לשחקן, ומאריכים את הכרטיס לשלוש שורות. מנקים לתצוגה בלבד (במסד נשמרת הכותרת המקורית).
+export function cleanVideoTitle(title) {
+  return String(title || '')
+    .replace(/#[\p{L}\p{N}_]+/gu, ' ')      // האשטגים
+    .replace(/\s*[|·–-]\s*$/, '')           // מפריד שנשאר בסוף
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 // חילוץ מזהה סרטון מקישור יוטיוב (watch / youtu.be / embed / shorts)
 export function getYouTubeId(url) {
   const m = String(url || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)

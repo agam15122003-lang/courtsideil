@@ -9,7 +9,9 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
-import SendToPlayers from './SendToPlayers'
+// סיומת מפורשת: ב-Windows (מערכת קבצים לא רגישה לאות גדולה) Vite היה פותר
+// את './SendToPlayers' לקובץ העזר sendToPlayers.js — ואז הרכיב קרס במסך לבן.
+import SendToPlayers from './SendToPlayers.jsx'
 import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
@@ -419,8 +421,10 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           </div>
           <div className="roster-add">
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
-              placeholder={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
-            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)} placeholder={L('מס׳', '#')} dir="ltr" />
+              placeholder={L('שם השחקן', 'Player name')} aria-label={L('שם השחקן', 'Player name')}
+              onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
+            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)}
+              placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
           {players.length === 0 ? (
@@ -478,8 +482,8 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
             <h3 className="staff-head"><Briefcase size={16} /> {L('צוות מקצועי', 'Professional staff')}</h3>
             <p className="muted small">{L('עוזר מאמן, מאמן גופני, פיזיותרפיסט, מנהל קבוצה ועוד — לחיצה לעריכה.', 'Assistant, fitness coach, physio, team manager and more — tap to edit.')}</p>
             <div className="staff-add">
-              <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
-              <select className="finder-input staff-role-sel" value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
+              <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} aria-label={L('שם איש הצוות', 'Staff member name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
+              <select className="finder-input staff-role-sel" aria-label={L('תפקיד', 'Role')} value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
                 {STAFF_ROLES.map((r) => <option key={r.key} value={r.key}>{L(r.he, r.en)}</option>)}
               </select>
               <button className="btn-primary" style={{ marginTop: 0 }} onClick={addStaff} aria-label={L('הוספת איש צוות', 'Add staff member')}><Plus size={16} /></button>
