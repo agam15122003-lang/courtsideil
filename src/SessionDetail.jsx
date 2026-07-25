@@ -138,6 +138,22 @@ export default function SessionDetail({ session, entry, onClose }) {
       notified.add(mvpP.player_id)
     }
 
+    // סיכום אוטומטי לצ'אט הקבוצה — בשמירה הראשונה בלבד, כדי לא להציף בעריכות.
+    // סוגר את המעגל: השחקנים רואים את השורה בלי שהמאמן יקליד אותה פעמיים.
+    if (!hadReview) {
+      const dateLbl2 = sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : ''
+      const parts = [
+        sessionType === 'game'
+          ? `📋 סיכום המשחק${entry.opponent ? ` נגד ${entry.opponent}` : ''}${dateLbl2 ? ` (${dateLbl2})` : ''}`
+          : `📋 סיכום האימון${dateLbl2 ? ` (${dateLbl2})` : ''}`,
+        overall.trim() || null,
+        mvpP ? `🏀 MVP: ${mvpP.name}` : null,
+      ].filter(Boolean)
+      if (parts.length > 1) {
+        await supabase.from('team_messages').insert({ coach_id: me, team, content: parts.join('\n') })
+      }
+    }
+
     // התראה אחת "הסיכום מוכן" לשחקנים שלא קיבלו התראה אישית — רק בשמירה הראשונה
     if (!hadReview) {
       const dateLbl = sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''

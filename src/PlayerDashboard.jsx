@@ -72,6 +72,29 @@ function JoinTeam({ session, onJoined, compact }) {
   }, [session.user.id])
   useEffect(() => { load() }, [load])
 
+  // הגעה מלינק הצטרפות (#/join/CODE): הקוד כבר נשמר — שולחים את הבקשה לבד
+  useEffect(() => {
+    let pendingCode = null
+    try { pendingCode = localStorage.getItem('pending_join_code') } catch { /* ignore */ }
+    if (!pendingCode) return
+    try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
+    setCode(pendingCode)
+    ;(async () => {
+      setBusy(true)
+      const res = await requestJoinByCode(session.user.id, pendingCode)
+      setBusy(false)
+      if (res.ok) {
+        setCode('')
+        toast.success(res.status === 'approved'
+          ? L('כבר אושרת לקבוצה!', "You're already approved!")
+          : L('הבקשה נשלחה למאמן לאישור', 'Request sent to your coach'))
+        if (res.status === 'approved') onJoined()
+        else load()
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.user.id])
+
   const submit = async () => {
     if (busy) return
     setBusy(true)
@@ -703,7 +726,39 @@ function PlayerSchedule({ session, membership }) {
           )}
         </>
       )}
+
+      {/* הסגל — עבר לכאן ממסך "הקבוצה שלי" שמוזג לתוך הלו"ז */}
+      <TeamRoster membership={membership} />
     </div>
+  )
+}
+
+// סגל הקבוצה — רשימה מקופלת בתחתית "הקבוצה והלו״ז"
+function TeamRoster({ membership }) {
+  const [mates, setMates] = useState(null)
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const { data } = await supabase.from('team_players')
+        .select('id, name, number, position')
+        .eq('coach_id', membership.coach_id).eq('team', membership.team).order('number')
+      setMates(data || [])
+    })()
+  }, [membership])
+  if (!mates || mates.length === 0) return null
+  return (
+    <details className="tg-collapse pls-roster">
+      <summary><Users size={15} /> {L(`הסגל (${mates.length})`, `Roster (${mates.length})`)}</summary>
+      <ul className="pls-roster-list">
+        {mates.map((m) => (
+          <li key={m.id}>
+            {m.number ? <span className="pl-mate-num">{m.number}</span> : <Avatar name={m.name} size={28} />}
+            <span className="pls-roster-name">{m.name}</span>
+            {m.position && <span className="muted small">{m.position}</span>}
+          </li>
+        ))}
+      </ul>
+    </details>
   )
 }
 
@@ -715,14 +770,22 @@ function PlayerVideos() {
   const [cat, setCat] = useState('all')
   const [playing, setPlaying] = useState(null) // {id(yt), title}
   const [limit, setLimit] = useState(PAGE) // הצגה מדורגת — 40 סרטונים בבת אחת זה קיר
+  const [allOpen, setAllOpen] = useState(false) // false = מדף המומלצים (אם יש)
 
   useEffect(() => {
     ;(async () => {
-      const { data } = await supabase
+      let { data, error } = await supabase
         .from('drill_videos')
-        .select('id, title, category, url, note')
+        .select('id, title, category, url, note, featured')
         .order('created_at', { ascending: false })
         .limit(120)
+      if (error) {
+        // עמודת featured עוד לא קיימת (SQL לא רץ) — נופלים לשליפה הישנה
+        const legacy = await supabase.from('drill_videos')
+          .select('id, title, category, url, note')
+          .order('created_at', { ascending: false }).limit(120)
+        data = legacy.data
+      }
       setVideos(data || [])
     })()
   }, [])
@@ -735,9 +798,14 @@ function PlayerVideos() {
 
   if (videos === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
 
+  // מדף "המאמן ממליץ": אם יש סרטונים מסומנים בכוכב, ברירת המחדל היא המדף
+  // הקטן — לא קיר של 106 סרטונים. "כל הסרטונים" פותח את הספרייה המלאה.
+  const featured = videos.filter((v) => v.featured)
+  const shelfMode = featured.length > 0 && !allOpen && cat === 'all'
   const cats = ['all', ...VIDEO_CATEGORIES.filter((c) => videos.some((v) => v.category === c))]
-  const shown = cat === 'all' ? videos : videos.filter((v) => v.category === cat)
-  const visible = shown.slice(0, limit)
+  const pool = shelfMode ? featured : videos
+  const shown = cat === 'all' ? pool : pool.filter((v) => v.category === cat)
+  const visible = shelfMode ? shown : shown.slice(0, limit)
 
   return (
     <div className="pl-screen pl-narrow">
@@ -752,14 +820,18 @@ function PlayerVideos() {
         </div>
       ) : (
         <>
-          <div className="pl-cat-chips">
-            {cats.map((c) => (
-              <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'}
-                onClick={() => { setCat(c); setLimit(PAGE) }}>
-                {c === 'all' ? L('הכל', 'All') : c}
-              </button>
-            ))}
-          </div>
+          {shelfMode ? (
+            <p className="pl-shelf-label"><Star size={14} fill="currentColor" /> {L('המאמן ממליץ', 'Coach recommends')}</p>
+          ) : (
+            <div className="pl-cat-chips">
+              {cats.map((c) => (
+                <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'}
+                  onClick={() => { setCat(c); setLimit(PAGE) }}>
+                  {c === 'all' ? L('הכל', 'All') : c}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="pl-vid-grid">
             {visible.map((v) => {
               const yt = getYouTubeId(v.url)
@@ -777,10 +849,23 @@ function PlayerVideos() {
               )
             })}
           </div>
-          {shown.length > limit && (
-            <button type="button" className="pl-more" onClick={() => setLimit((l) => l + PAGE)}>
-              {L(`עוד סרטונים (${shown.length - limit})`, `More videos (${shown.length - limit})`)}
+          {shelfMode ? (
+            <button type="button" className="pl-more" onClick={() => setAllOpen(true)}>
+              {L(`לכל הסרטונים (${videos.length})`, `All videos (${videos.length})`)}
             </button>
+          ) : (
+            <>
+              {featured.length > 0 && (
+                <button type="button" className="pl-more pl-back-shelf" onClick={() => { setAllOpen(false); setCat('all') }}>
+                  <Star size={14} fill="currentColor" /> {L('חזרה למומלצים של המאמן', "Back to coach's picks")}
+                </button>
+              )}
+              {shown.length > limit && (
+                <button type="button" className="pl-more" onClick={() => setLimit((l) => l + PAGE)}>
+                  {L(`עוד סרטונים (${shown.length - limit})`, `More videos (${shown.length - limit})`)}
+                </button>
+              )}
+            </>
           )}
         </>
       )}
@@ -841,9 +926,12 @@ function PrePracticeGoals({ session, membership }) {
 }
 
 // ---------- בית: כרטיס-הירו עם ספירה לאחור לאימון הבא + CTA לסיכום ----------
-function HomeHero({ profile, membership, onFeedback }) {
+function HomeHero({ profile, membership, onFeedback, refreshKey }) {
   const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
+  // 'ask' = היה אימון היום ואין עדיין סיכום → ההירו שואל "איך היה?"
+  // 'done' = הסיכום של היום כבר נשלח → שורת אישור קטנה
+  const [summary, setSummary] = useState(null)
 
   useEffect(() => {
     if (!membership) { setNext(null); return }
@@ -862,8 +950,19 @@ function HomeHero({ profile, membership, onFeedback }) {
         .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
         .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))[0]
       setNext(pick || null)
+
+      // הבית מתחלף אחרי אימון: אם אימון של היום כבר הסתיים — בודקים אם נשלח סיכום
+      const endedToday = cands.find((e) => {
+        if (e.date !== today) return false
+        const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`)
+        return !isNaN(end) && end.getTime() < nowTs
+      })
+      if (!endedToday) { setSummary(null); return }
+      const { data: eff } = await supabase.from('session_effort')
+        .select('id').eq('player_id', profile.id).eq('session_date', today).limit(1)
+      setSummary(eff && eff.length ? { state: 'done' } : { state: 'ask' })
     })()
-  }, [membership])
+  }, [membership, profile.id, refreshKey])
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
 
@@ -891,7 +990,16 @@ function HomeHero({ profile, membership, onFeedback }) {
         <span className="plh-hero-team">{membership ? `${trTeam(membership.team)} · ${coachName(membership.coach)}` : L('ברוך הבא לקורטסייד', 'Welcome to CourtSide')}</span>
       </div>
       <div className="plh-hero-foot">
-        {next ? (
+        {summary?.state === 'ask' ? (
+          /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
+          <div className="plh-ask">
+            <strong className="plh-ask-title">{L('איך היה האימון היום?', 'How was practice today?')}</strong>
+            <span className="plh-hero-meta">{L('דקה אחת — והמאמן יודע איפה אתה עומד', 'One minute — and your coach knows where you stand')}</span>
+            <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback}>
+              <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
+            </button>
+          </div>
+        ) : next ? (
           <>
             <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />{started ? L('האימון עכשיו', 'Practice now') : L('האימון הבא', 'Next practice')}</span>
             <strong className="plh-hero-title">{titleStr}</strong>
@@ -917,7 +1025,10 @@ function HomeHero({ profile, membership, onFeedback }) {
             <span className="plh-hero-meta">{L('כדי לראות את האימון הבא ולמלא סיכומים', 'to see your next practice and log summaries')}</span>
           </>
         )}
-        {membership && (
+        {summary?.state === 'done' && (
+          <span className="plh-done"><Check size={14} /> {L('הסיכום של היום אצל המאמן', "Today's summary is with your coach")}</span>
+        )}
+        {membership && summary?.state !== 'ask' && (
           <button className="plh-hero-cta" onClick={onFeedback}><Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}</button>
         )}
       </div>
@@ -973,19 +1084,52 @@ function Shortcuts({ setView }) {
   )
 }
 
+// הסיכום הקבוצתי האחרון מהמאמן — מוצג בבית במקום החדשות (sr_member_read קיימת)
+function LastTeamReview({ membership, me }) {
+  const [rev, setRev] = useState(null)
+  useEffect(() => {
+    ;(async () => {
+      const { data } = await supabase.from('session_reviews')
+        .select('overall_note, mvp_name, mvp_player_id, session_date, session_type')
+        .eq('coach_id', membership.coach_id).eq('team', membership.team)
+        .not('overall_note', 'is', null)
+        .order('session_date', { ascending: false }).limit(1)
+      setRev((data && data[0]) || null)
+    })()
+  }, [membership])
+  if (!rev) return null
+  const when = rev.session_date ? new Date(rev.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''
+  return (
+    <section className="pl-block plr-card">
+      <p className="pl-section-label">
+        {rev.session_type === 'game' ? L('סיכום המשחק האחרון', 'Last game recap') : L('סיכום האימון האחרון', 'Last practice recap')}
+        {when ? ` · ${when}` : ''}
+      </p>
+      <p className="plr-note">{rev.overall_note}</p>
+      {rev.mvp_name && (
+        <span className={rev.mvp_player_id === me ? 'plr-mvp me' : 'plr-mvp'}>
+          <Trophy size={13} /> MVP: {rev.mvp_player_id === me ? L('אתה! 🏀', 'You! 🏀') : rev.mvp_name}
+        </span>
+      )}
+    </section>
+  )
+}
+
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
+  const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
 
   const loadStats = useCallback(async () => {
-    const [asg, compl, fbLatest, att, gatt, eff] = await Promise.all([
+    const [asg, compl, fbLatest, att, gatt, eff, glogs] = await Promise.all([
       supabase.from('player_assignments').select('id'),
       supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
       supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
       supabase.from('practice_attendance').select('status'),
       supabase.from('game_attendance').select('status'),
-      supabase.from('session_effort').select('effort').eq('player_id', session.user.id),
+      supabase.from('session_effort').select('effort, created_at').eq('player_id', session.user.id),
+      supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
     ])
     const doneRows = compl.data || []
     const doneIds = new Set(doneRows.map((c) => c.assignment_id))
@@ -1000,14 +1144,20 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
     setStats({
       open, attendancePct, weekly, avgLoad,
       latestFb: (fbLatest.data && fbLatest.data[0]) || null,
-      streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)),
+      // הרצף סופר כל פעילות באפליקציה — ביצוע תרגיל, סיכום אימון ותיעוד מטרה.
+      // קודם נספרו רק תרגילים ששלח המאמן, ועם תרגיל אחד במסד הרצף היה תקוע על 0.
+      streak: computeStreak([
+        ...doneRows.map((c) => c.done_at),
+        ...(eff.data || []).map((r) => r.created_at),
+        ...(glogs.data || []).map((r) => r.created_at),
+      ].filter(Boolean)),
     })
   }, [session.user.id])
   useEffect(() => { loadStats() }, [loadStats])
 
   return (
     <div className="pl-screen pl-home-rich">
-      <HomeHero profile={profile} membership={membership} onFeedback={() => setFbOpen(true)} />
+      <HomeHero profile={profile} membership={membership} onFeedback={() => setFbOpen(true)} refreshKey={fbRefresh} />
 
       {!membership && (
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
@@ -1042,13 +1192,13 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         </div>
       )}
 
-      <div className="pl-stagger"><PlayerQuote /></div>
-
-      <div className="pl-stagger"><PlayerNews /></div>
+      {/* חדשות + ציטוט ירדו מהבית (משוב הבעלים: ממוקד) — במקומם: הסיכום
+          האחרון מהמאמן, שהוא תוכן שבאמת נוגע לשחקן. הרכיבים נשארו בקוד. */}
+      {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
 
       {membership && (
         <FeedbackSheet session={session} membership={membership} open={fbOpen}
-          onClose={() => setFbOpen(false)} onSent={loadStats} />
+          onClose={() => setFbOpen(false)} onSent={() => { loadStats(); setFbRefresh((k) => k + 1) }} />
       )}
     </div>
   )
@@ -1080,16 +1230,23 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
   const [st, setSt] = useState(null)
   useEffect(() => {
     ;(async () => {
-      const [compl, att] = await Promise.all([
+      const [compl, att, eff, glogs] = await Promise.all([
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
         supabase.from('practice_attendance').select('status'),
+        supabase.from('session_effort').select('created_at').eq('player_id', session.user.id),
+        supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
       ])
       const doneRows = compl.data || []
       const attRows = att.data || []
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-      setSt({ done: doneRows.length, streak: computeStreak(doneRows.map((c) => c.done_at).filter(Boolean)), attendancePct })
+      // רצף = כל פעילות (תרגיל / סיכום אימון / תיעוד מטרה) — כמו בבית
+      setSt({ done: doneRows.length, streak: computeStreak([
+        ...doneRows.map((c) => c.done_at),
+        ...(eff.data || []).map((r) => r.created_at),
+        ...(glogs.data || []).map((r) => r.created_at),
+      ].filter(Boolean)), attendancePct })
     })()
   }, [session.user.id])
 
@@ -1163,19 +1320,20 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 // ============================================================
 // האפליקציה של השחקן — מעטפת + ניווט
 // ============================================================
+// ניווט ממוקד (משוב הבעלים 25.7): "הקבוצה שלי" מוזג לתוך הלו"ז, צ'אט הקבוצה
+// עלה לניווט, והקהילה (0 פוסטים) ירדה — המסך נשאר בקוד וניתן להחזרה.
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
   { id: 'goals', label: ['המטרות שלי', 'My goals'], Icon: Target, team: true },
-  { id: 'schedule', label: ['לו״ז', 'Schedule'], Icon: CalendarDays, team: true },
+  { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], Icon: CalendarDays, team: true },
+  { id: 'teamchat', label: ['צ׳אט הקבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
-  { id: 'community', label: ['קהילה', 'Community'], Icon: Users2 },
-  { id: 'team', label: ['הקבוצה שלי', 'My team'], Icon: Users, team: true },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
-const PLAYER_BOTTOM = ['home', 'drills', 'coach', 'community', 'profile']
+const PLAYER_BOTTOM = ['home', 'drills', 'coach', 'teamchat', 'profile']
 
 export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const [view, setView] = useState('home')
@@ -1249,10 +1407,11 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
       case 'community': return <PlayerCommunity session={session} profile={profile} />
       case 'team':
+        // "הקבוצה שלי" מוזג ללו"ז — קישורים ישנים ממשיכים לעבוד
         return hasTeam
-          ? <MyTeam membership={membership} onNavigate={setView} />
+          ? <PlayerSchedule session={session} membership={membership} />
           : <LockedFeature session={session} onJoined={loadMemberships}
-              title={L('הקבוצה שלי', 'My team')}
+              title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />

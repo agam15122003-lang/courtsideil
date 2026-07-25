@@ -100,6 +100,17 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   // משוב לשחקן (בתוך מודל השחקן)
   const [fbText, setFbText] = useState('')
   const [fbRating, setFbRating] = useState(0)
+  const [fbHistory, setFbHistory] = useState([]) // 5 המשובים האחרונים לשחקן הפתוח
+  useEffect(() => {
+    if (!pEdit?.player_id) { setFbHistory([]); return }
+    ;(async () => {
+      const { data } = await supabase.from('player_feedback')
+        .select('id, content, rating, created_at')
+        .eq('coach_id', me).eq('player_id', pEdit.player_id)
+        .order('created_at', { ascending: false }).limit(5)
+      setFbHistory(data || [])
+    })()
+  }, [pEdit?.player_id, me])
   const sendFeedback = async () => {
     if (!pEdit?.player_id || !fbText.trim()) return
     const { error } = await supabase.from('player_feedback').insert({
@@ -109,6 +120,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     if (error) { toast.error(L('שליחת המשוב נכשלה: ', 'Failed to send feedback: ') + error.message); return }
     sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText(''); setFbRating(0)
+    setFbHistory((h) => [{ id: Date.now(), content: fbText.trim(), rating: fbRating || null, created_at: new Date().toISOString() }, ...h].slice(0, 5))
     toast.success(L('המשוב נשלח לשחקן', 'Feedback sent to the player'))
   }
 
@@ -855,6 +867,21 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
                 <button className="btn-soft" style={{ marginTop: 8 }} onClick={sendFeedback} disabled={!fbText.trim()}>
                   {L('שליחת המשוב', 'Send feedback')}
                 </button>
+                {/* מה כבר כתבת — הטופס היה insert בלבד והמאמן לא ראה את עצמו */}
+                {fbHistory.length > 0 && (
+                  <div className="tm-fb-history">
+                    <span className="tm-fb-history-lbl">{L('משובים אחרונים ששלחת', 'Recent feedback you sent')}</span>
+                    <ul>
+                      {fbHistory.map((f) => (
+                        <li key={f.id}>
+                          <span className="tm-fb-when">{ilNum(f.created_at?.slice(0, 10))}</span>
+                          {f.rating ? <span className="tm-fb-stars-mini"><Star size={11} fill="currentColor" /> {f.rating}</span> : null}
+                          <span className="tm-fb-text">{f.content}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
             {pEdit.player_id && (

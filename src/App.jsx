@@ -13,6 +13,16 @@ function publicDrillId() {
   return m ? m[1] : null
 }
 
+// לינק הצטרפות לקבוצה: #/join/<code> — שומר את הקוד, והשחקן שנרשם מגיע
+// עם הקוד כבר בפנים (JoinTeam קורא אותו). צעד אחד במקום חמישה.
+function captureJoinCode() {
+  const m = window.location.hash.match(/^#\/join\/([A-Z0-9]{4,10})/i)
+  if (!m) return false
+  try { localStorage.setItem('pending_join_code', m[1].toUpperCase()) } catch { /* ignore */ }
+  window.location.hash = ''
+  return true
+}
+
 export default function App() {
   useLang() // מנוי לשפה — החלפת שפה מרעננת את כל עץ הרכיבים
   const [session, setSession] = useState(null)
@@ -20,6 +30,12 @@ export default function App() {
   const [isRecoveryMode, setRecoveryMode] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [sharedDrill, setSharedDrill] = useState(publicDrillId)
+
+  // הגעה מלינק הצטרפות: שומרים את הקוד ופותחים ישר את מסך ההרשמה
+  useEffect(() => {
+    if (captureJoinCode() && !session) setShowAuth(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // מעקב אחרי שינויי hash (ניווט קדימה/אחורה)
   useEffect(() => {

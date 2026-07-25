@@ -15520,3 +15520,162 @@ html.a11y-motion *::after {
 .sg-cell.filled .sg-item.t2 { border-inline-start-color: #4FD09A; }
 .sg-cell.filled .sg-item.t3 { border-inline-start-color: #C9A0FF; }
 [data-theme='dark'] .sg-cell.filled { background: linear-gradient(150deg, #26385F, #182642); }
+
+/* ============================================================
+   באטץ' "הכול" 25.7.2026 — צד השחקן
+   ============================================================ */
+/* ההירו אחרי אימון: "איך היה האימון היום?" */
+.plh-ask { display: flex; flex-direction: column; gap: 6px; }
+.plh-ask-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.plh-ask-cta {
+  margin-top: 8px;
+  animation: plh-pulse 2.4s ease-in-out infinite;
+}
+@keyframes plh-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 118, 58, 0.45); }
+  50% { box-shadow: 0 0 0 10px rgba(232, 118, 58, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .plh-ask-cta { animation: none; } }
+html.a11y-motion .plh-ask-cta { animation: none; }
+/* אישור "הסיכום אצל המאמן" */
+.plh-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(31, 122, 68, 0.25);
+  color: #7DE0A8;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* גרף התקדמות מטרה — גם בעורך של המאמן */
+.pg-chart-btn.on { color: var(--accent-strong); background: var(--accent-soft); }
+.pg-chart-wrap { flex-basis: 100%; margin-top: 8px; }
+
+/* שיתוף סיכום שבועי להורים (האימונים שלי) */
+.plt-share {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--c-green);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.plt-share:hover { background: var(--c-green-bg); border-color: color-mix(in srgb, var(--c-green) 40%, transparent); }
+/* מד "מחוברים" בפאנל החיבור */
+.tc-meter {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.tc-meter.full { background: var(--c-green-bg); color: var(--c-green); }
+/* QR הצטרפות */
+.tc-qr {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.tc-qr img { border-radius: 8px; }
+/* משובים אחרונים ששלחת (מודל השחקן) */
+.tm-fb-history { margin-top: 12px; }
+.tm-fb-history-lbl { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
+.tm-fb-history ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tm-fb-history li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  font-size: 13px;
+}
+.tm-fb-when { flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.tm-fb-stars-mini { flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px; color: var(--c-gold, #A97B12); font-size: 12px; font-weight: 700; }
+.tm-fb-text { color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* מגמת המיקוד */
+.tf-trend { grid-column: 2; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; }
+.tf-trend b {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tf-trend b.on { background: var(--c-green-bg); color: var(--c-green); }
+.tf-trend b:not(:last-child)::after { content: ''; }
+
+/* הסיכום האחרון מהמאמן (בית השחקן) */
+.plr-card { margin-top: 4px; }
+.plr-note {
+  margin: 6px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--c-green-bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.plr-mvp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.plr-mvp.me { background: linear-gradient(135deg, var(--accent-fill), var(--accent-press)); color: #fff; }
+/* סגל בתוך "הקבוצה והלו״ז" */
+.pls-roster { margin-top: 16px; }
+.pls-roster-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pls-roster-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.pls-roster-name { font-weight: 700; color: var(--text); }
+
+/* מדף "המאמן ממליץ" (סרטוני השחקן) */
+.pl-shelf-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent-strong);
+}
+.pl-back-shelf { color: var(--accent-strong); }
+/* כפתור "המלץ" בספריית המאמן */
+.video-feature { font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+.video-feature.on { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent-strong) 45%, transparent); background: var(--accent-soft); }

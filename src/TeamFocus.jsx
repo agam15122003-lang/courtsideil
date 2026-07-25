@@ -50,21 +50,27 @@ export default function TeamFocus({ coachId, team }) {
     setEditing(rows.length === 0) // אין מיקוד? הריק הוא הטופס, לא פרסומת
     setDraft([rows[0]?.title || '', rows[1]?.title || '', rows[2]?.title || ''])
 
-    // מדידה: מתוך האימון האחרון שסומן — כמה שחקנים סימנו ✓ לכל נקודה
+    // מדידה: כמה שחקנים סימנו ✓ לכל נקודה — לא רק באימון האחרון אלא במגמה
+    // (עד 4 אימונים אחרונים), כדי שרואים אם הקבוצה מתקדמת: 2/6 → 4/6 → 5/6.
     if (rows.length === 0) { setMetBy({}); return }
     const { data: marks } = await supabase
       .from('session_goal_marks')
       .select('goal_id, met, session_id, created_at')
       .in('goal_id', rows.map((r) => r.id))
       .order('created_at', { ascending: false })
-    const latestSession = {}
-    const agg = {}
+    const perGoal = {}
     for (const m of marks || []) {
-      if (!latestSession[m.goal_id]) latestSession[m.goal_id] = m.session_id
-      if (m.session_id !== latestSession[m.goal_id]) continue
-      const a = (agg[m.goal_id] = agg[m.goal_id] || { met: 0, total: 0 })
+      const g = (perGoal[m.goal_id] = perGoal[m.goal_id] || new Map())
+      if (!g.has(m.session_id)) g.set(m.session_id, { met: 0, total: 0, ts: m.created_at })
+      const a = g.get(m.session_id)
       a.total += 1
       if (m.met) a.met += 1
+    }
+    const agg = {}
+    for (const [goalId, sessions] of Object.entries(perGoal)) {
+      agg[goalId] = [...sessions.values()]
+        .sort((a, b) => String(a.ts).localeCompare(String(b.ts)))
+        .slice(-4) // מהישן לחדש
     }
     setMetBy(agg)
   }, [coachId, team])
@@ -131,8 +137,9 @@ export default function TeamFocus({ coachId, team }) {
   if (points === null) return null
 
   const metLine = (id) => {
-    const a = metBy[id]
-    if (!a || !a.total) return L('עדיין לא סומן — יופיע אחרי האימון הבא', 'Not marked yet — appears after the next practice')
+    const arr = metBy[id]
+    if (!arr || !arr.length) return L('עדיין לא סומן — יופיע אחרי האימון הבא', 'Not marked yet — appears after the next practice')
+    const a = arr[arr.length - 1]
     return L(`באימון האחרון · ${a.met} מתוך ${a.total} סימנו`, `Last practice · ${a.met} of ${a.total} marked it`)
   }
 
@@ -152,7 +159,14 @@ export default function TeamFocus({ coachId, team }) {
             {points.map((p) => (
               <li key={p.id} className="tf-point">
                 <span className="tf-point-title">{p.title}</span>
-                <span className={metBy[p.id]?.total ? 'tf-met' : 'tf-met none'}>{metLine(p.id)}</span>
+                <span className={metBy[p.id]?.length ? 'tf-met' : 'tf-met none'}>{metLine(p.id)}</span>
+                {(metBy[p.id] || []).length >= 2 && (
+                  <span className="tf-trend" title={L('מהאימון הישן לחדש', 'Oldest to newest practice')}>
+                    {metBy[p.id].map((s, i) => (
+                      <b key={i} className={i === metBy[p.id].length - 1 ? 'on' : ''}>{s.met}/{s.total}</b>
+                    ))}
+                  </span>
+                )}
               </li>
             ))}
           </ol>

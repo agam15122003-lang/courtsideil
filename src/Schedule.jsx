@@ -9,6 +9,7 @@ import SessionDetail from './SessionDetail'
 import { planToNotebook } from './TrainingPlans'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
+import { useNetworkSmall } from './network'
 
 // טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
 const START_HOUR = 6
@@ -102,6 +103,7 @@ export default function Schedule({ session }) {
   const [invEnd, setInvEnd] = useState('19:00')
   const [invNote, setInvNote] = useState('')
   const [invSaving, setInvSaving] = useState(false)
+  const netSmall = useNetworkSmall() // זימון מאמן אחר דורש רשת — מוסתר כשהיא קטנה
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
@@ -387,9 +389,11 @@ export default function Schedule({ session }) {
           <span className="cal-weeklabel" dir="ltr">{weekLabel}</span>
         </div>
         <div className="cal-actions">
-          <button className="btn-soft" onClick={() => { setInviting(true); setSelected(null); setAdding(false) }}>
-            {L('זימון מאמן', 'Invite coach')}
-          </button>
+          {netSmall === false && (
+            <button className="btn-soft" onClick={() => { setInviting(true); setSelected(null); setAdding(false) }}>
+              {L('זימון מאמן', 'Invite coach')}
+            </button>
+          )}
           <button className="btn-primary cal-add" style={{ marginTop: 0 }} onClick={() => openAdd()}>
             <Plus size={18} /> {L('הוסף אימון', 'Add')}
           </button>
