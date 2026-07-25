@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target } from 'lucide-react'
+import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { downloadIcs } from './ics'
 import SessionDetail from './SessionDetail'
@@ -7,6 +7,7 @@ import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 
 const pad = (n) => String(n).padStart(2, '0')
+const ilNum = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear() }
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const hm = (t) => (t ? String(t).slice(0, 5) : '')
 
@@ -20,6 +21,7 @@ export default function NextPractice({ session, onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
   const [report, setReport] = useState(null) // entry לפתיחת SessionDetail
+  const [pendingGame, setPendingGame] = useState(null) // משחק מהשבוע בלי סיכום
 
   useEffect(() => {
     let alive = true
@@ -43,6 +45,23 @@ export default function NextPractice({ session, onNavigate }) {
 
       // הבא: הראשון שעוד לא נגמר
       setEntry(all.find((e) => !isNaN(endOf(e)) && endOf(e) >= nowTs) || null)
+
+      // משחק מהשבוע האחרון שעדיין בלי סיכום — קודם היה אפשר לסכם רק אימונים,
+      // ומשחקים נעלמו מהכרטיס בבית לגמרי.
+      if (me) {
+        const weekAgo = new Date(Date.now() - 7 * 86400000)
+        const [{ data: games }, { data: reviews }] = await Promise.all([
+          supabase.from('team_games').select('id, team, game_date, game_time, opponent')
+            .eq('coach_id', me).gte('game_date', ymd(weekAgo)).lte('game_date', ymd(today))
+            .order('game_date', { ascending: false }),
+          supabase.from('session_reviews').select('session_id').eq('coach_id', me).eq('session_type', 'game'),
+        ])
+        if (!alive) return
+        const reviewed = new Set((reviews || []).map((r) => r.session_id))
+        const g = (games || []).find((x) => !reviewed.has(x.id) &&
+          new Date(`${x.game_date}T${x.game_time || '23:59'}`).getTime() < nowTs)
+        setPendingGame(g || null)
+      }
 
       // האחרון שנגמר (קבוצתי בלבד) — לדוח המצב
       const done = all.filter((e) => e.team && !e.is_personal && !isNaN(endOf(e)) && endOf(e) < nowTs)
@@ -90,6 +109,20 @@ export default function NextPractice({ session, onNavigate }) {
     </button>
   )
 
+  // משחק שממתין לסיכום — פס נפרד, אותו דפוס בדיוק
+  const gameStrip = pendingGame && (
+    <button className="np-report np-game" onClick={() => setReport({ id: pendingGame.id, team: pendingGame.team, date: pendingGame.game_date, start_time: pendingGame.game_time, session_type: 'game', opponent: pendingGame.opponent })}>
+      <span className="np-report-ic"><Trophy size={17} /></span>
+      <span className="np-report-body">
+        <strong>{L('משחק ממתין לסיכום', 'Game awaiting review')} · {trTeam(pendingGame.team)}</strong>
+        <span className="np-report-meta">
+          {pendingGame.opponent ? `${L('נגד', 'vs')} ${pendingGame.opponent} · ` : ''}{ilNum(pendingGame.game_date)}
+        </span>
+      </span>
+      <span className="np-report-cta">{L('סכם', 'Review')}</span>
+    </button>
+  )
+
   if (!entry) {
     return (
       <div className="np-card np-empty">
@@ -100,6 +133,7 @@ export default function NextPractice({ session, onNavigate }) {
           <CalendarPlus size={17} /> {L('קביעת ימי אימון', 'Set practice days')}
         </button>
         {reportStrip}
+        {gameStrip}
         {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
       </div>
     )
@@ -161,6 +195,7 @@ export default function NextPractice({ session, onNavigate }) {
       </div>
 
       {reportStrip}
+      {gameStrip}
       {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
     </div>
   )

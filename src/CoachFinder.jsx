@@ -6,6 +6,7 @@ import CoachProfile from './CoachProfile'
 import GamesBoard from './GamesBoard'
 import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
+import { useNetworkSmall } from './network'
 import { SkeletonCards } from './Skeleton'
 import ReportButton, { VerifiedBadge } from './ReportButton'
 import { Users } from 'lucide-react'
@@ -15,6 +16,7 @@ import { Users } from 'lucide-react'
 //   session - המשתמש המחובר (כדי לא להציג אותך בתוצאות שלך עצמך)
 export default function CoachFinder({ session, initialCoach, onConsumeInitial, initialTab, onConsumeInitialTab }) {
   const [mode, setMode] = useState(initialTab || 'coaches') // 'coaches' | 'games'
+  const netSmall = useNetworkSmall()
   // ניתוב עומק — למשל "ללוח המשחקים" מטאב המשחקים בקבוצות
   useEffect(() => {
     if (initialTab) {
@@ -126,22 +128,25 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
         </div>
       </header>
 
-      <div className="tabs">
-        <button
-          className={mode === 'coaches' ? 'tab active' : 'tab'}
-          onClick={() => setMode('coaches')}
-        >
-          {L('מאתר מאמנים', 'Coach Finder')}
-        </button>
-        <button
-          className={mode === 'games' ? 'tab active' : 'tab'}
-          onClick={() => setMode('games')}
-        >
-          {L('לוח משחקי אימון', 'Scrimmage board')}
-        </button>
-      </div>
+      {/* לוח משחקי האימון דורש רשת של מאמנים — מוסתר כשהרשת קטנה (רעש) */}
+      {netSmall === false && (
+        <div className="tabs">
+          <button
+            className={mode === 'coaches' ? 'tab active' : 'tab'}
+            onClick={() => setMode('coaches')}
+          >
+            {L('מאתר מאמנים', 'Coach Finder')}
+          </button>
+          <button
+            className={mode === 'games' ? 'tab active' : 'tab'}
+            onClick={() => setMode('games')}
+          >
+            {L('לוח משחקי אימון', 'Scrimmage board')}
+          </button>
+        </div>
+      )}
 
-      {mode === 'games' ? (
+      {mode === 'games' && netSmall === false ? (
         <GamesBoard session={session} />
       ) : (
         <>

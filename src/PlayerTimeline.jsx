@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
-  Dumbbell, Volleyball, StickyNote, Send, TrendingUp,
+  Dumbbell, Volleyball, StickyNote, Send, TrendingUp, Share2,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L , cnt } from './i18n'
 import Avatar from './Avatar'
 import { expandSlots } from './sessionId'
+import { waShare } from './share'
 import FeedbackSheet from './FeedbackSheet'
 
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
@@ -158,6 +159,27 @@ export default function PlayerTimeline({ session, membership }) {
       )}
 
       {stats && stats.series && stats.series.length >= 2 && <LoadTrend series={stats.series} />}
+
+      {/* סיכום שבועי להורים — טקסט מוכן לוואטסאפ מהנתונים שכבר על המסך */}
+      {stats && stats.sessions > 0 && (
+        <button className="plt-share" onClick={() => {
+          const week = items.filter((c) => c.type !== 'note' && c.date >= ymdAgo(7))
+          const weekEff = week.map((c) => c.eff?.effort).filter((v) => v != null)
+          const mvpCard = week.find((c) => c.review && c.review.mvp_player_id === me)
+          const latestFb = items.find((c) => c.fb?.content)
+          const lines = [
+            L('סיכום שבועי מ-CourtSide 🏀', 'Weekly recap from CourtSide 🏀'),
+            L(`אימונים ומשחקים השבוע: ${week.length}`, `Sessions this week: ${week.length}`),
+            stats.attendancePct != null ? L(`נוכחות עונתית: ${stats.attendancePct}%`, `Season attendance: ${stats.attendancePct}%`) : null,
+            weekEff.length ? L(`עומס ממוצע השבוע: ${(weekEff.reduce((s, v) => s + v, 0) / weekEff.length).toFixed(1)}/10`, `Avg load this week: ${(weekEff.reduce((s, v) => s + v, 0) / weekEff.length).toFixed(1)}/10`) : null,
+            mvpCard ? L('⭐ נבחר/ה ל-MVP של אימון השבוע!', '⭐ Picked as MVP this week!') : null,
+            latestFb ? L(`מהמאמן: "${latestFb.fb.content.slice(0, 120)}"`, `From coach: "${latestFb.fb.content.slice(0, 120)}"`) : null,
+          ].filter(Boolean)
+          waShare(lines.join('\n'))
+        }}>
+          <Share2 size={15} /> {L('שיתוף סיכום להורים', 'Share recap with parents')}
+        </button>
+      )}
 
       {items.length === 0 ? (
         <div className="empty-state">

@@ -125,6 +125,15 @@ export default function Videos({ session, profile }) {
     toast.success(L('הסרטון נמחק', 'Video deleted')); load()
   }
 
+  // "המאמן ממליץ" — סימון כוכב שמרים סרטון למדף אצל השחקנים (supabase_engagement2.sql)
+  const toggleFeatured = async (v) => {
+    const next = v.featured !== true
+    const { error } = await supabase.rpc('set_video_featured', { p_id: v.id, p_featured: next })
+    if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
+    toast.success(next ? L('נוסף למדף "המאמן ממליץ"', 'Added to the recommended shelf') : L('הוסר מהמדף', 'Removed from the shelf'))
+    load()
+  }
+
   // אישור סרטון לשחקנים (אדמין בלבד; נאכף גם ב-RLS — supabase_privacy4.sql)
   const toggleApproved = async (v) => {
     const next = v.approved !== true // undefined (עמודה חסרה) => לאשר, לא לבטל
@@ -257,6 +266,13 @@ export default function Videos({ session, profile }) {
                     {isAdmin && (
                       <button type="button" className="btn-ghost video-approve" onClick={() => toggleApproved(v)}>
                         {v.approved === false ? L('אשר לשחקנים', 'Approve') : L('בטל אישור', 'Unapprove')}
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button type="button" className={v.featured ? 'btn-ghost video-feature on' : 'btn-ghost video-feature'}
+                        onClick={() => toggleFeatured(v)}
+                        title={L('מדף "המאמן ממליץ" אצל השחקנים', 'Players\' recommended shelf')}>
+                        <Star size={14} fill={v.featured ? 'currentColor' : 'none'} /> {v.featured ? L('מומלץ', 'Featured') : L('המלץ', 'Feature')}
                       </button>
                     )}
                     {v.created_by === me && (

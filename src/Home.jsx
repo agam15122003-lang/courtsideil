@@ -23,6 +23,7 @@ import {
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import CoachOfWeek from './CoachOfWeek'
+import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -232,6 +233,8 @@ function formatDate(d) {
 //   profile    - פרטי המאמן (לברכה אישית)
 //   onNavigate - (viewId) => מעבר לטאב אחר
 export default function Home({ session, profile, onNavigate, onOpenCoach }) {
+  const netSmall = useNetworkSmall() // פיצ'רי רשת מוסתרים כשיש מעט מאמנים
+
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   const stats = useHomeStats(profile?.id)
@@ -405,7 +408,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </>
       )}
 
-      <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
+      {netSmall === false && (
+        <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
+      )}
 
       <h2 className="section-title section-title--icon" style={{ marginTop: 32 }}>
         <Newspaper size={18} />

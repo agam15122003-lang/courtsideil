@@ -29,10 +29,21 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   const [target, setTarget] = useState('')
   const [unit, setUnit] = useState('')
   const [busy, setBusy] = useState(false)
+  // גרף ההתקדמות שהשחקן רואה — עכשיו גם אצל המאמן (pgl_coach_read קיימת)
+  const [chartId, setChartId] = useState(null)
+  const [logsBy, setLogsBy] = useState({})
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('player_goals').select('*').eq('coach_id', coachId).eq('player_id', playerId).order('created_at', { ascending: false })
     setGoals(data || [])
+    const ids = (data || []).filter((g) => g.target_value).map((g) => g.id)
+    if (ids.length) {
+      const { data: logs } = await supabase.from('player_goal_logs')
+        .select('goal_id, value, log_date, created_at').in('goal_id', ids).order('created_at', { ascending: true })
+      const by = {}
+      for (const r of logs || []) (by[r.goal_id] = by[r.goal_id] || []).push(r)
+      setLogsBy(by)
+    } else setLogsBy({})
   }, [coachId, playerId])
   useEffect(() => { load() }, [load])
 
@@ -106,6 +117,13 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
               </div>
               {g.target_value ? (
                 <div className="pg-ctl">
+                  {(logsBy[g.id] || []).length >= 2 && (
+                    <button className={chartId === g.id ? 'icon-btn pg-chart-btn on' : 'icon-btn pg-chart-btn'}
+                      onClick={() => setChartId(chartId === g.id ? null : g.id)}
+                      aria-expanded={chartId === g.id} aria-label={L('גרף התקדמות', 'Progress chart')}>
+                      <TrendingUp size={14} />
+                    </button>
+                  )}
                   <button className="icon-btn" onClick={() => bump(g, -1)} aria-label="-"><Minus size={14} /></button>
                   <button className="icon-btn" onClick={() => bump(g, 1)} aria-label="+"><Plus size={14} /></button>
                 </div>
@@ -113,6 +131,11 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
                 <button className={g.status === 'done' ? 'pg-check on' : 'pg-check'} onClick={() => toggleDone(g)} aria-label={L('הושג', 'Done')}><Check size={14} /></button>
               )}
               <button className="icon-btn danger" onClick={() => del(g.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={14} /></button>
+              {chartId === g.id && (logsBy[g.id] || []).length >= 2 && (
+                <div className="pg-chart-wrap">
+                  <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
