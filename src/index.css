@@ -15445,3 +15445,12 @@ html.a11y-motion *::after {
   font-weight: 600;
   line-height: 1.45;
 }
+
+/* מיזוג "מדיה" לתוך "תרגילים" — שורת טאבים קטנה בראש המסך */
+.drills-media-tabs { margin-bottom: 14px; }
+
+/* פס הציטוט במובייל תפס ~70px (8% מהמסך) בראש כל מסך, לפני הכותרת.
+   ההשראה נשארת בדסקטופ; בטלפון המסך מתחיל בתוכן. */
+@media (max-width: 640px) {
+  .quote-strip { display: none; }
+}
