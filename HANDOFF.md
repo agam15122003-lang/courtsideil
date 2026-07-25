@@ -55,6 +55,8 @@ PRs שמוזגו: #70 (בית+feedback), #71 (trainings+chart), #72 (goals self-
    מפורשת; `my_profile()` / `coach_directory` / `admin_profiles()`; שער גיל + הסכמת הורה מתחת ל-16;
    `drill_videos.approved` + `set_video_approved()`; טבלת `client_errors`. **(הורץ 24.7)**
 
+7. `supabase_engagement2.sql` — עמודת `featured` + `set_video_featured()` למדף "המאמן ממליץ". **(להריץ!)**
+
 > **אזהרה שנלמדה בדם:** אחרי `supabase_privacy4.sql` כל `select('*')` על `profiles` נכשל
 > ב-`permission denied`. הקוד חייב לרוץ דרך `my_profile()` / `coach_directory` / `admin_profiles()`.
 > ה-SQL הורץ לפני שהקוד נפרס, והאתר החי החזיר "לא הצלחנו לטעון את הפרופיל" — **תמיד לפרוס את הקוד
