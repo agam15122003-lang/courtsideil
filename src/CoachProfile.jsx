@@ -1,7 +1,7 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
-import { L, trTeam } from './i18n'
+import { L, trTeam , cnt } from './i18n'
 import DrillCard from './DrillCard'
 import Avatar from './Avatar'
 import { Dumbbell, ArrowRight } from 'lucide-react'
@@ -290,7 +290,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
                   <h3 className="coach-name">{p.name}</h3>
                 </div>
                 <p className="coach-club">
-                  {L(`${(p.plan_items || []).length} תרגילים`, `${(p.plan_items || []).length} drills`)}
+                  {L(`${cnt((p.plan_items || []).length, 'תרגיל אחד', 'תרגילים')}`, `${(p.plan_items || []).length} drills`)}
                 </p>
                 <div className="coach-card-actions">
                   <button

@@ -4,6 +4,7 @@ import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
+import useFocusTrap from './useFocusTrap'
 import { confirmDialog } from './confirm'
 import DrillForm from './DrillForm'
 import { sendNotification } from './notify'
@@ -16,6 +17,7 @@ import { SkeletonCards } from './Skeleton'
 // props:
 //   session - המשתמש המחובר
 export default function DrillLibrary({ session, profile }) {
+  // מלכודת פוקוס לבוררי "הוסף לתוכנית" / "שלח לשחקנים"
   const [drills, setDrills] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -42,6 +44,9 @@ export default function DrillLibrary({ session, profile }) {
   const [sendTargets, setSendTargets] = useState({ teams: [], players: [] })
   const [sending, setSending] = useState(false)
   const isCoach = (profile?.role || 'coach') !== 'player'
+
+  // מלכודת פוקוס לבוררי "הוספה לתוכנית" / "שליחה לשחקנים" (רק אחד פתוח בכל רגע)
+  const dlgRef = useFocusTrap(!!(planPicker || sendPicker), () => { setPlanPicker(null); setSendPicker(null) })
 
   const openSendPicker = async (drill) => {
     setSendPicker(drill)
@@ -282,7 +287,7 @@ export default function DrillLibrary({ session, profile }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('ספריית תרגילים', 'Drill library')}</div>
-          <h2>{L('מאגר התרגילים', 'Drill collection')}</h2>
+          <h1>{L('מאגר התרגילים', 'Drill collection')}</h1>
           <p className="page-desc">{L('חיפוש, דירוג ושמירת תרגילים מכל קהילת המאמנים.', 'Search, rate and save drills from the whole coaching community.')}</p>
         </div>
         <div className="page-header-actions">
@@ -323,37 +328,47 @@ export default function DrillLibrary({ session, profile }) {
           />
         </div>
       </div>
+      {/* סינון ומיון היו באותה שורת צ׳יפים ובאותו עיצוב — אי אפשר היה לדעת
+          מה מצמצם את הרשימה ומה רק משנה סדר. עכשיו שתי קבוצות מסומנות. */}
       <div className="filter-chips-row">
-        <button
-          type="button"
-          className={onlySaved ? 'chip selected' : 'chip'}
-          onClick={() => setOnlySaved(!onlySaved)}
-        >
-          {L('המועדפים שלי', 'My favorites')}
-        </button>
-        <button
-          type="button"
-          className={onlyMine ? 'chip selected' : 'chip'}
-          onClick={() => setOnlyMine(!onlyMine)}
-          aria-pressed={onlyMine}
-        >
-          {L('התרגילים שלי', 'My drills')}
-        </button>
-        <span className="filter-chips-sep" aria-hidden="true" />
-        <button
-          type="button"
-          className={sortBy === 'new' ? 'chip selected' : 'chip'}
-          onClick={() => setSortBy('new')}
-        >
-          {L('החדשים ביותר', 'Newest')}
-        </button>
-        <button
-          type="button"
-          className={sortBy === 'rating' ? 'chip selected' : 'chip'}
-          onClick={() => setSortBy('rating')}
-        >
-          {L('הכי מדורגים', 'Top rated')}
-        </button>
+        <span className="filter-group" role="group" aria-label={L('סינון', 'Filter')}>
+          <span className="filter-group-label">{L('סינון', 'Filter')}</span>
+          <button
+            type="button"
+            className={onlySaved ? 'chip selected' : 'chip'}
+            onClick={() => setOnlySaved(!onlySaved)}
+            aria-pressed={onlySaved}
+          >
+            {L('המועדפים שלי', 'My favorites')}
+          </button>
+          <button
+            type="button"
+            className={onlyMine ? 'chip selected' : 'chip'}
+            onClick={() => setOnlyMine(!onlyMine)}
+            aria-pressed={onlyMine}
+          >
+            {L('התרגילים שלי', 'My drills')}
+          </button>
+        </span>
+        <span className="filter-group" role="group" aria-label={L('סדר', 'Sort')}>
+          <span className="filter-group-label">{L('סדר', 'Sort')}</span>
+          <button
+            type="button"
+            className={sortBy === 'new' ? 'chip sort selected' : 'chip sort'}
+            onClick={() => setSortBy('new')}
+            aria-pressed={sortBy === 'new'}
+          >
+            {L('החדשים ביותר', 'Newest')}
+          </button>
+          <button
+            type="button"
+            className={sortBy === 'rating' ? 'chip sort selected' : 'chip sort'}
+            onClick={() => setSortBy('rating')}
+            aria-pressed={sortBy === 'rating'}
+          >
+            {L('דירוג גבוה', 'Highest rated')}
+          </button>
+        </span>
       </div>
 
       {tagFilter && (
@@ -395,7 +410,7 @@ export default function DrillLibrary({ session, profile }) {
             </div>
             <p className="muted small">
               {onlySaved
-                ? L('לחץ על "שמירה" בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap "Save" on a drill card to keep it here.')
+                ? L('לחצו על אייקון הסימנייה בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap the bookmark icon on a drill card to keep it here.')
                 : drills.length === 0
                 ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
                 : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}
@@ -437,7 +452,7 @@ export default function DrillLibrary({ session, profile }) {
       {/* בורר תוכנית — הוספת תרגיל לתוכנית אימון קיימת או חדשה */}
       {planPicker && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setPlanPicker(null)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-head">
               <h3>{L('הוספה לתוכנית', 'Add to a plan')}</h3>
               <button className="tm-close" onClick={() => setPlanPicker(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -476,7 +491,7 @@ export default function DrillLibrary({ session, profile }) {
       {/* בורר שליחה לשחקנים — קבוצה שלמה או שחקן מחובר */}
       {sendPicker && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setSendPicker(null)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-head">
               <h3>{L('שליחת התרגיל לשחקנים', 'Send drill to players')}</h3>
               <button className="tm-close" onClick={() => setSendPicker(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>

@@ -269,7 +269,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const onboardSteps = [
     { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
-    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בונים אימון מלא — ידני או עם בנאי חכם', 'Build a full practice — manually or with the smart builder') },
+    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בנה אימון מלא — ידני או עם בנאי חכם','Build a full practice — manually or with the smart builder') },
   ]
 
   const shortcuts = [
@@ -294,7 +294,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         <div className="home-hero-text">
           <span className="home-greet-date">{dateLabel}</span>
           <h1 className="home-greet-title">
-            {greet}, <span className="hero-title-accent">{name}</span> 🏀
+            {greet}, <span className="hero-title-accent">{name}</span>{' '}
+            {/* דקורטיבי — aria-hidden כדי שקורא מסך לא יקרא "אימוג'י כדורסל" בכותרת */}
+            <span aria-hidden="true">🏀</span>
           </h1>
           <p className="home-hero-sub">
             {stats.week != null && stats.week > 0

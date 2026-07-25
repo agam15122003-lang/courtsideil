@@ -14,6 +14,7 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notReady, setNotReady] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false) // תקלת טעינה != צ׳אט ריק
   const [announceOnly, setAnnounceOnly] = useState(false)
   const namesRef = useRef({})
 
@@ -30,7 +31,13 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
       .eq('coach_id', coachId).eq('team', team)
       .order('created_at', { ascending: true })
       .limit(500)
-    if (error) { if (error.code === '42P01') setNotReady(true); setLoading(false); return }
+    if (error) {
+      if (error.code === '42P01') setNotReady(true)
+      // תקלת רשת החזירה עד עכשיו צ׳אט ריק בשקט — נראה כאילו כל ההודעות נעלמו
+      else { setLoadFailed(true); toast.error(L('טעינת הצ׳אט נכשלה — בדוק חיבור', 'Failed to load the chat — check your connection')) }
+      setLoading(false); return
+    }
+    setLoadFailed(false)
     const msgs = data || []
     setMessages(msgs)
     const missing = [...new Set(msgs.map((m) => m.user_id))].filter((id) => !namesRef.current[id])
@@ -81,6 +88,20 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
           <span className="empty-ic"><Users size={26} /></span>
           <div className="empty-title">{L('הצ׳אט כמעט מוכן', 'Chat is almost ready')}</div>
           <p className="muted small">{L('צריך להריץ פעם אחת את supabase_team_chat.sql ב-Supabase.', 'Run supabase_team_chat.sql once in Supabase.')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadFailed && messages.length === 0) {
+    return (
+      <div className="pl-screen">
+        <h2 className="pl-h2">{L('צ׳אט הקבוצה', 'Team chat')}</h2>
+        <div className="empty-state" role="alert">
+          <span className="empty-ic"><Users size={26} /></span>
+          <div className="empty-title">{L('לא הצלחנו לטעון את הצ׳אט', 'Could not load the chat')}</div>
+          <p className="muted small">{L('ההודעות לא נמחקו — זו תקלת טעינה.', 'No messages were deleted — this is a loading error.')}</p>
+          <button type="button" className="btn-primary" onClick={() => load()}>{L('נסה שוב', 'Try again')}</button>
         </div>
       </div>
     )

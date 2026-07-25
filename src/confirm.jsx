@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { L } from './i18n'
+import useFocusTrap from './useFocusTrap'
 
 // דיאלוג אישור מעוצב בשפת האתר — מחליף את window.confirm המכוער.
 // שימוש: const confirm = useConfirm(); ... if (await confirm({ title, message, danger })) { ... }
@@ -33,30 +34,26 @@ export function ConfirmHost() {
     })
   }, [])
 
-  useEffect(() => {
-    if (!state) return
-    const onKey = (e) => {
-      if (e.key === 'Escape') close(false)
-      if (e.key === 'Enter') close(true)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [state, close])
+  // Escape + מלכודת פוקוס + החזרת פוקוס. שים לב: אין כאן Enter גלובלי —
+  // קודם לכן הקשה על Enter בכל מקום במסך אישרה את הפעולה ההרסנית.
+  // כפתור האישור מקבל פוקוס אוטומטי, ולכן Enter עובד ממילא כשהכוונה היא לאשר.
+  const trapRef = useFocusTrap(!!state, () => close(false))
 
   if (!state) return null
   const { opts } = state
   const danger = opts.danger !== false // ברירת מחדל: אדום (מחיקה)
 
   return (
-    <div className="cf-overlay" onClick={() => close(false)} role="dialog" aria-modal="true">
-      <div className="cf-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="cf-overlay" onClick={() => close(false)}>
+      <div className="cf-modal" ref={trapRef} role="dialog" aria-modal="true"
+        aria-labelledby="cf-title" onClick={(e) => e.stopPropagation()}>
         <button className="cf-x" onClick={() => close(false)} aria-label={L('סגור', 'Close')}>
           <X size={18} />
         </button>
         <div className={danger ? 'cf-ic danger' : 'cf-ic'}>
           <AlertTriangle size={22} />
         </div>
-        <h3 className="cf-title">{opts.title || L('לאשר פעולה?', 'Confirm action?')}</h3>
+        <h3 className="cf-title" id="cf-title">{opts.title || L('לאשר פעולה?', 'Confirm action?')}</h3>
         {opts.message && <p className="cf-msg">{opts.message}</p>}
         <div className="cf-actions">
           <button className="btn-ghost" onClick={() => close(false)}>

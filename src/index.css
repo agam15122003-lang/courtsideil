@@ -36,7 +36,9 @@
   --surface: #FFFFFF;
   --surface-alt: #EDF2F8;
   --text: #0F1F33;
-  --text-muted: #5B6B82;
+  /* הוכהה מ-#5B6B82: על משטחי הקנבס הקרם והאפרסק הוא נמדד 4.33:1 (WCAG AA דורש 4.5).
+     עכשיו 4.8:1 על הקרם, 5.3:1 על האפרסק, 6.0:1 על לבן. מצב כהה מוגדר בנפרד. */
+  --text-muted: #55647A;
   --border: #E3EAF3;
   --border-hover: #C9D4E2;
   --ink-900: #0A0E18;                /* בסיס ברודקאסט כהה (hero/band) */
@@ -9779,7 +9781,11 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 }
 @media (max-width: 780px) { .home-duo { grid-template-columns: 1fr; } }
 
-.video-card {
+/* הבלוק הזה נכתב לכרטיס-טיזר וידאו בדף הבית, אבל היה חסר-הקשר — ולכן חטף את
+   כרטיסי הסרטונים במסך המדיה (המשתמש היחיד ב-.video-card, Videos.jsx:213):
+   רקע נייבי-גרדיאנט וטקסט לבן במקום כרטיס לבן, וכותרות כהות על כהה.
+   מוגבל ל-.home כדי שההגדרות המקוריות של מסך המדיה יחזרו לפעול. */
+.home .video-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -9797,7 +9803,7 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
   text-align: start;
   transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease;
 }
-.video-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.home .video-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .video-badge {
   position: absolute;
   inset-block-start: 14px;
@@ -12497,7 +12503,8 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   color: #fff;
   animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
-.cm-hero h2 {
+.cm-hero h2,
+.cm-hero h1 {
   margin: 10px 0 6px;
   color: #fff;
   font-family: var(--font-display);
@@ -12545,6 +12552,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .cm-hero-search input {
   flex: 1;
   min-width: 0;
+  /* השדה עצמו היה 18px גובה בתוך "גלולה" של 34px — הקשה על הריפוד פספסה אותו */
+  align-self: stretch;
+  padding-block: 8px;
   background: none;
   border: none;
   outline: none;
@@ -13621,7 +13631,10 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   padding: 16px 18px;
   border: none;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #1F7A44, #145A30);
+  /* היה ירוק (#1F7A44 = --success) — צבע סטטוס, והמשטח היחיד באפליקציה
+     שיצא ממערכת נייבי+כתום. עכשיו נייבי המותג עם הדגשה כתומה. */
+  background: linear-gradient(135deg, var(--navy-2, #1E3050), var(--navy-900, #1B2A4A));
+  box-shadow: inset 0 0 0 1px rgba(232, 118, 58, 0.35);
   color: #fff;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
@@ -13821,6 +13834,13 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   letter-spacing: 0.3em; text-transform: uppercase;
   font-family: ui-monospace, 'SF Mono', monospace;
 }
+/* הריווח נועד לקוד באנגלית — על טקסט העזר בעברית הוא נראה כמו תקלה ("ק ו ד  ה ק ב ו צ ה") */
+.pl-code-input::placeholder {
+  letter-spacing: normal;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: var(--text-base);
+}
 .pl-waiting {
   display: inline-flex; align-items: center; gap: 8px;
   margin-top: 16px; padding: 8px 14px; border-radius: var(--radius-full);
@@ -13925,7 +13945,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .plh-sc-ic.brand { background: var(--accent-soft); color: var(--accent-strong); }
 .plh-sc-ic.green { background: var(--c-green-bg); color: var(--c-green); }
 .plh-sc-ic.purple { background: var(--c-purple-bg); color: var(--c-purple); }
+.plh-sc-body { display: grid; gap: 3px; }
 .plh-sc-txt { font-weight: 700; font-size: 14.5px; color: var(--text); }
+.plh-sc-sub { font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--text-muted); }
 
 /* כרטיס הודעה מהמאמן */
 .plh-coachmsg { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
@@ -14472,6 +14494,24 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-chip { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-full); padding: 7px 15px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .pl-chip.active { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 
+/* "עוד סרטונים" — טעינה מדורגת במקום 40 כרטיסים בבת אחת */
+.pl-more {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.pl-more:hover { background: var(--surface-alt); border-color: var(--border-hover); }
+
 /* כרטיס סרטון (כפתור לנגן מוטמע) */
 .pl-vid { cursor: pointer; text-align: start; padding: 0; font: inherit; color: inherit; width: 100%; transition: transform 0.15s, box-shadow 0.15s; }
 .pl-vid:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -14793,6 +14833,37 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pla-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pla-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 16.5px; color: var(--text); }
 .pla-desc { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+/* שלבי תרגיל כרשימה במקום קיר טקסט (DrillText.jsx) */
+.dt-intro { margin: 0 0 10px; }
+.dt-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: dt;
+  display: grid;
+  gap: 8px;
+}
+.dt-steps > li {
+  counter-increment: dt;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.dt-steps > li::before {
+  content: counter(dt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 .pla-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
 .pla-meta > span { display: inline-flex; align-items: center; gap: 4px; }
 .pla-video { position: relative; display: block; margin-top: 12px; height: 168px; border-radius: var(--radius-md); overflow: hidden; background: var(--surface-alt) center/cover no-repeat; }
@@ -14946,3 +15017,244 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-recap-date { font-weight: 700; color: var(--text); font-size: 13.5px; }
 .pl-recap-mvp { font-weight: 800; font-size: 12.5px; color: var(--accent-strong); }
 .pl-recap-note { margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — יעדי מגע במסכי מגע
+   נמדד באפליקציה החיה ברוחב 384: הפריטים כאן היו 27–39px גובה,
+   ואף כלל pointer:coarse קיים לא כיסה אותם.
+   ============================================================ */
+@media (pointer: coarse) {
+  .pla-tab,
+  .pl-chip,
+  .cm-type-chip,
+  .cm-attach,
+  .cm-aside-ch,
+  .cal-today,
+  .ntf-bell,
+  .drill-foot .drill-bookmark {
+    min-height: 44px;
+  }
+  .ntf-bell,
+  .drill-foot .drill-bookmark {
+    min-width: 44px;
+  }
+  .cm-type-chip,
+  .pl-chip {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — רצפת גודל טקסט 12px
+   נמדד באפליקציה החיה: שמונה מקומות ירדו ל-10.5–11.5px, מתחת לרצפה
+   שהפרויקט קבע לעצמו (AUDIT.md). הבלוק בסוף הקובץ כדי לנצח את
+   ההגדרות הכפולות שפזורות למעלה, בלי לגעת בהן אחת-אחת.
+   חריג מכוון: .bn-item (תוויות הבר התחתון) נשאר 11px — זו הקונבנציה
+   של tab bar במובייל, ו-12px שובר את חמשת הפריטים ברוחב 384.
+   ============================================================ */
+.land-stat-label,
+.stat-tile-label,
+.news-source,
+.mini-tag,
+.verified-badge,
+.podcast-lang,
+.roster-cols .rc-num,
+.roster-cols .rc-name,
+.roster-cols .rc-att,
+.roster-cols .rc-status,
+.cal-hour,
+.cal-hour span,
+.cal-event-time {
+  font-size: 12px;
+}
+
+/* ============================================================
+   סקירת עיצוב 24.7.2026 — תיקוני ניגודיות על רקעים כהים
+   שני הממצאים האלה התגלו רק בבדיקה ידנית: סורק ניגודיות אוטומטי מדלג על
+   אלמנטים שהרקע שלהם גרדיאנט, והסייד-בר הוא גרדיאנט נייבי.
+   ============================================================ */
+/* שם המאמן בכרטיס המשתמש היה שחור על נייבי — 1.03:1, כלומר בלתי קריא בפועל.
+   גם הגבול וה-hover היו טוקנים של רקע בהיר על גבי הסייד-בר הכהה. */
+.sidebar-user { border-top-color: rgba(226, 234, 246, 0.14); }
+.sidebar-user:hover { background: rgba(255, 255, 255, 0.06); }
+.sidebar-user-info strong { color: #FFFFFF; }
+.sidebar-user-info span { color: rgba(226, 234, 246, 0.72); }
+
+/* .btn-soft:hover צבע את הטקסט ב---accent (הכתום הבהיר) = 2.97:1 על לבן.
+   --accent-strong הוא אותו כתום בגרסה שעוברת AA. */
+.btn-soft:hover { color: var(--accent-strong); }
+
+/* אחות לא-מדווחת של .cal-event-time באותה קופסה */
+.cal-event-plan { font-size: 12px; }
+
+/* ============================================================
+   שער גיל והסכמת הורה בהרשמת שחקן (supabase_privacy4.sql)
+   ============================================================ */
+.pf-req { color: var(--error); font-weight: 800; }
+.pf-guardian {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+.pf-guardian-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.pf-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.pf-consent input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--accent-fill);
+}
+
+/* סרטון שממתין לאישור מנהל — לא מוצג לשחקנים (supabase_privacy4.sql) */
+.video-pending {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--c-orange-bg);
+  color: var(--c-orange);
+  font-size: 12px;
+  font-weight: 700;
+}
+.video-approve { font-size: 13px; }
+
+/* הפחתת אנימציות (ווידג'ט הנגישות + העדפת המערכת): לא רק משך האנימציה אלא גם
+   ההשהיה. עם animation-fill-mode: both, השהיה שלא חלפה משאירה את הכרטיס
+   ב-opacity 0 — כלומר תוכן בלתי נראה עד שהאנימציה מתחילה. */
+html.a11y-motion *,
+html.a11y-motion *::before,
+html.a11y-motion *::after {
+  animation-delay: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-delay: 0s !important;
+  }
+}
+
+/* שורת סינון/מיון בספריית התרגילים — שתי קבוצות מובחנות, כי צ׳יפ שמצמצם
+   רשימה וצ׳יפ שמשנה סדר נראו עד עכשיו זהים לגמרי */
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.filter-group + .filter-group {
+  padding-inline-start: 12px;
+  margin-inline-start: 6px;
+  border-inline-start: 1px solid var(--border);
+}
+.filter-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+.chip.sort::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+}
+.chip.sort.selected::before { opacity: 1; }
+@media (max-width: 560px) {
+  .filter-group + .filter-group {
+    padding-inline-start: 0;
+    margin-inline-start: 0;
+    border-inline-start: none;
+    margin-top: 6px;
+  }
+}
+
+/* פוטר כרטיס התרגיל — היררכיה: פתיחה = ראשי, "לתוכנית"/"לשחקנים" = משניים */
+.drill-foot .btn-details { flex: 1 1 auto; min-width: 140px; margin-top: 0; }
+.drill-foot .btn-toplan.secondary { opacity: 0.92; }
+
+/* ============================================================
+   כותרת מסך = H1 (מסך אחד, כותרת ראשית אחת)
+   הכותרות בהירו היו h2 ועוצבו דרך ".welcome-card h2" בחמש הגדרות שונות.
+   כאן h1 מקבל את אותו מראה בדיוק (נמדד מהאפליקציה החיה) כדי שהמעבר
+   הסמנטי לא ישנה ולו פיקסל.
+   ============================================================ */
+/* גיאומטריה וגופן — מקביל ל-.page-header h2 (שורות 9001 + 9143) */
+.page-header h1 {
+  margin: 6px 0 0;
+  font-size: clamp(30px, 3.6vw, 42px);
+  letter-spacing: var(--tracking-snug);
+}
+/* לבן — רק על רצועת ההירו הנייבי, שהיא .welcome-card > .page-header (שורה 12143).
+   אסור להרחיב ל-".welcome-card .page-header-text h1": בונה האימונים משתמש
+   ב-.pb-header על הקנבס הבהיר בתוך .welcome-card, וכותרתו הייתה נעלמת (לבן על בהיר). */
+.welcome-card > .page-header h1 {
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+/* בונה האימונים — הכותרת הייתה h2 ואיבדה את העיצוב במעבר ל-h1 (שורה 10598) */
+.pb-header .page-header-text h1 {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 3vw, 34px);
+  color: var(--text);
+}
+
+/* כותרת לקוראי מסך בלבד — למשל בתצוגת שיחה פתוחה בהודעות, שאין בה כותרת עמוד */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* שלושה שרידים אחרונים מהמדידה החיה (24.7): */
+/* מצב השיחה בכותרת הצ'אט היה ירוק בהיר על לבן — 1.93:1 */
+.chat-status { color: var(--c-green); }
+.chat-status-dot { background: var(--c-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-green) 18%, transparent); }
+/* מתחת לרצפת 12px */
+.chat-time,
+.admin-stat-l { font-size: 12px; }
+
+/* ============================================================
+   תיקוני נגישות 25.7.2026 (ביקורת קוד מרובת-סוכנים)
+   ============================================================ */
+/* צ׳יפ קטגוריה פעיל במסכי השחקן: במצב כהה --accent-strong הוא כתום בהיר
+   (#F0A878), וטקסט לבן עליו נמדד 1.98:1. הטקסט הופך לכהה — הצ׳יפ נשאר מלא
+   וזהה בצורתו, ומצב בהיר לא משתנה בכלל. */
+[data-theme='dark'] .pl-chip.active { color: #0A0E18; }
+
+/* גיליונות תחתונים: גלילה בתוך הגיליון גררה את הדף שמאחור (scroll chaining) */
+.fbs-sheet,
+.sd-scroll,
+.pl-sheet,
+.pg-sheet { overscroll-behavior: contain; }

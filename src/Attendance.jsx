@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L } from './i18n'
+import { L , cnt } from './i18n'
 
 // ---- עזרי תאריך (תצוגה ישראלית) ----
 const pad = (n) => String(n).padStart(2, '0')
@@ -121,7 +121,7 @@ export default function Attendance({ session, team, players }) {
       .upsert(rows, { onConflict: 'coach_id,team,session_date,player_id' })
     if (error) { console.error('attendance save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     setSeasonRows((rs) => [...rs, ...rows])
-    toast.success(L(`${rows.length} שחקנים סומנו כנוכחים`, `${rows.length} players marked present`))
+    toast.success(L(`${cnt(rows.length, 'שחקן אחד', 'שחקנים')} סומנו כנוכחים`, `${rows.length} players marked present`))
   }
 
   if (loading) {
@@ -228,7 +228,7 @@ export default function Attendance({ session, team, players }) {
             <p className="muted small">
               {sessionsCount === 1
                 ? L('אימון אחד סומן עד כה', '1 practice marked so far')
-                : L(`${sessionsCount} אימונים סומנו עד כה`, `${sessionsCount} practices marked so far`)}
+                : L(`${cnt(sessionsCount, 'אימון אחד', 'אימונים')} סומנו עד כה`, `${sessionsCount} practices marked so far`)}
             </p>
             <ul className="att-stats">
               {players.map((p) => {

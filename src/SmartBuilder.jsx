@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
-import { L, tr, trTeam } from './i18n'
+import { L, tr, trTeam , cnt } from './i18n'
 import MultiSelect from './MultiSelect'
 
 const DEFAULT_DRILL_MINUTES = 10 // משך ברירת מחדל לתרגיל בלי משך מוגדר
@@ -110,7 +110,7 @@ export default function SmartBuilder({ session, onCreated, onCancel }) {
     }
 
     // סיכום תוצאה — שקיפות (כמה תרגילים, כמה דקות מול היעד)
-    toast.success(L(`נבנו ${chosen.length} תרגילים · כ-${totalMin} דקות`, `Built ${chosen.length} drills · about ${totalMin} min`))
+    toast.success(L(`נבנו ${cnt(chosen.length, 'תרגיל אחד', 'תרגילים')} · כ-${totalMin} דקות`, `Built ${chosen.length} drills · about ${totalMin} min`))
     if (totalMin < Number(target)) {
       toast.info(L('האימון קצר מהיעד — לא נמצאו מספיק תרגילים מתאימים. אפשר להוסיף ידנית.', 'The practice is shorter than the target — not enough matching drills. You can add more manually.'))
     }

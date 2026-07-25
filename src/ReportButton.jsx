@@ -3,6 +3,7 @@ import { Flag, X, ShieldCheck } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L } from './i18n'
+import useFocusTrap from './useFocusTrap'
 
 const REASONS = [
   { key: 'impersonation', he: 'התחזות (לא המאמן/מועדון האמיתי)', en: 'Impersonation (not the real coach/club)' },
@@ -24,6 +25,7 @@ export function VerifiedBadge({ verified }) {
 // כפתור דיווח כללי. props: session, targetType, targetId, targetLabel
 export default function ReportButton({ session, targetType, targetId, targetLabel, className = 'link-button' }) {
   const [open, setOpen] = useState(false)
+  const dlgRef = useFocusTrap(open, () => setOpen(false))
   const [reason, setReason] = useState('impersonation')
   const [details, setDetails] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,7 +49,7 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
       </button>
       {open && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('דיווח', 'Report')}{targetLabel ? ` · ${targetLabel}` : ''}</strong>
               <button className="icon-btn" onClick={() => setOpen(false)} aria-label={L('סגור', 'Close')}><X size={18} /></button>

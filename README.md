@@ -50,8 +50,17 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 9 | `supabase_community2.sql` | תיקון קשרים + ערוצי צ'אט + סוגי פוסט |
 | 10 | `supabase_engagement.sql` | התראות, Realtime, סקרים, אירועים, דף תרגיל ציבורי |
 | 11 | `supabase_security2.sql` | מגבלות תוכן ו-constraints |
+| 12 | `supabase_players.sql`, `supabase_player_v2.sql` | עולם השחקן: הצטרפות בקוד, שיגורים, משוב |
+| 13 | `supabase_sessions.sql`, `supabase_game_reviews.sql`, `supabase_effort.sql` | סיכומי אימון, ביקורות משחק, מאמץ |
+| 14 | `supabase_team_chat.sql`, `supabase_player_goals.sql`, `supabase_team_slots.sql` | צ׳אט קבוצה, מטרות, שעות אימון |
+| 15 | `supabase_feedback_sheet.sql`, `supabase_player_goal_logging.sql` | מצב רוח/פוקוס, תיעוד עצמי |
+| 16 | `supabase_migrations_ledger.sql` | רישום מה הורץ (schema_migrations) |
+| 17 | `supabase_security3.sql` | נעילת role, קהילת שחקנים, קודי הצטרפות |
+| 18 | `supabase_privacy4.sql` | **חובה** — סגירת PII, הסכמת הורה, אישור סרטונים, לוג שגיאות |
 
-> **סביבת ייצור קיימת?** שלבים 1–7 כבר רצים אצלך; ודא ש-8–11 הורצו.
+> **סביבת ייצור קיימת?** שלבים 1–15 כבר רצים אצלך; **16–18 חדשים מ-24.7.2026 וחייבים לרוץ** —
+> בלי 18 כל משתמש מחובר יכול לקרוא טלפון ומייל של כל שחקן. אחרי ההרצה:
+> `select * from public.schema_migrations order by ran_at;`
 > `supabase_cleanup_drills.sql` — אופציונלי, מוחק תרגילי דוגמה.
 > נדרש גם bucket ציבורי בשם `media` ב-Storage (עם מדיניות העלאה ל-authenticated).
 

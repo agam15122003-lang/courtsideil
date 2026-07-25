@@ -18,16 +18,27 @@ export default function Admin({ session, profile }) {
   const [coaches, setCoaches] = useState([])
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [q, setQ] = useState('')
 
   async function load() {
     setLoading(true)
+    // admin_profiles() — נתיב אדמין מפורש; select('*') על profiles כבר לא כולל
+    // phone/email (ההרשאה נשללה כדי להגן על PII של קטינים).
     const [pf, rp] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.rpc('admin_profiles'),
       supabase.from('reports').select('*').order('created_at', { ascending: false }),
     ])
-    setCoaches(pf.error ? [] : pf.data || [])
+    let list = pf.error ? null : pf.data
+    if (!list) {
+      const legacy = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      list = legacy.error ? [] : legacy.data || []
+    }
+    setCoaches(list)
     setReports(rp.error ? [] : rp.data || [])
+    // "אין דיווחים" ו"הטעינה נכשלה" נראו עד עכשיו זהים לחלוטין
+    setLoadFailed(!!rp.error)
+    if (rp.error) toast.error(L('טעינת הדיווחים נכשלה — רענן', 'Failed to load reports — refresh'))
     setLoading(false)
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
@@ -58,9 +69,13 @@ export default function Admin({ session, profile }) {
   })
   const duplicates = Object.entries(dupKeys).filter(([, arr]) => arr.length > 1)
 
-  const complete = coaches.filter((c) => c.first_name && c.club)
+  // "מאמנים" חייב להיות מאמנים בלבד: הסינון הקודם היה first_name && club, ולכן
+  // חשבון שחקן עם מועדון נספר כמאמן והופיע ברשימת המאמנים עם כפתורי אימות/חסימה.
+  const complete = coaches.filter((c) => c.first_name && c.club && (c.role || 'coach') !== 'player')
+  const players = coaches.filter((c) => c.role === 'player')
   const stats = {
     total: complete.length,
+    players: players.length,
     verified: complete.filter((c) => c.verified).length,
     pending: complete.filter((c) => !c.verified && !c.banned).length,
     banned: complete.filter((c) => c.banned).length,
@@ -80,7 +95,7 @@ export default function Admin({ session, profile }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('ניהול מערכת', 'Administration')}</div>
-          <h2 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h2>
+          <h1 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h1>
           <p className="page-desc">{L('מאמנים, אימות (אנטי-התחזות) ודיווחים.', 'Coaches, verification (anti-impersonation), and reports.')}</p>
         </div>
       </header>
@@ -100,6 +115,7 @@ export default function Admin({ session, profile }) {
         <div className="team-section">
           <div className="admin-stats">
             <div className="admin-stat"><span className="admin-stat-n">{stats.total}</span><span className="admin-stat-l">{L('מאמנים', 'Coaches')}</span></div>
+            <div className="admin-stat"><span className="admin-stat-n">{stats.players}</span><span className="admin-stat-l">{L('שחקנים', 'Players')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.verified}</span><span className="admin-stat-l">{L('מאומתים', 'Verified')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.pending}</span><span className="admin-stat-l">{L('ממתינים', 'Pending')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.banned}</span><span className="admin-stat-l">{L('חסומים', 'Banned')}</span></div>
@@ -162,9 +178,14 @@ export default function Admin({ session, profile }) {
       ) : (
         <div className="team-section">
           {reports.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state" role={loadFailed ? 'alert' : undefined}>
               <span className="empty-ic"><Flag size={26} /></span>
-              <div className="empty-title">{L('אין דיווחים', 'No reports')}</div>
+              <div className="empty-title">
+                {loadFailed ? L('טעינת הדיווחים נכשלה', 'Failed to load reports') : L('אין דיווחים', 'No reports')}
+              </div>
+              {loadFailed && (
+                <button type="button" className="btn-primary" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+              )}
             </div>
           ) : (
             <ul className="admin-list">

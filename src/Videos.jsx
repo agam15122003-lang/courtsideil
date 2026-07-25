@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
-import { searchYouTube, ytConfigured } from './youtube'
+import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonCards } from './Skeleton'
 import { L, tr } from './i18n'
 
@@ -25,6 +25,9 @@ export default function Videos({ session, profile }) {
 
   const [filterCat, setFilterCat] = useState('')
   const [search, setSearch] = useState('')
+  // כל כרטיס סרטון הוא ~30 אלמנטים (כולל 5 כוכבי דירוג); 106 סרטונים = 4,300 אלמנטים
+  // ומסך שנתקע בטלפון. מציגים 12 ומרחיבים לפי בקשה.
+  const [limit, setLimit] = useState(12)
 
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -122,6 +125,15 @@ export default function Videos({ session, profile }) {
     toast.success(L('הסרטון נמחק', 'Video deleted')); load()
   }
 
+  // אישור סרטון לשחקנים (אדמין בלבד; נאכף גם ב-RLS — supabase_privacy4.sql)
+  const toggleApproved = async (v) => {
+    const next = v.approved !== true // undefined (עמודה חסרה) => לאשר, לא לבטל
+    const { error } = await supabase.rpc('set_video_approved', { p_id: v.id, p_approved: next })
+    if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
+    toast.success(next ? L('הסרטון אושר לשחקנים', 'Video approved') : L('האישור בוטל', 'Approval removed'))
+    load()
+  }
+
   const results = videos
     .filter((v) => {
       const catOk = !filterCat || v.category === filterCat
@@ -177,13 +189,13 @@ export default function Videos({ session, profile }) {
       )}
 
       <div className="chips" style={{ marginTop: 16 }}>
-        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => setFilterCat('')}>{L('הכל', 'All')}</button>
+        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(''); setLimit(12) }}>{L('הכל', 'All')}</button>
         {VIDEO_CATEGORIES.map((c) => (
-          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => setFilterCat(c)}>{tr(c)}</button>
+          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(c); setLimit(12) }}>{tr(c)}</button>
         ))}
       </div>
 
-      <input className="finder-input" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+      <input className="finder-input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setLimit(12) }}
         aria-label={L('חיפוש סרטונים', 'Search videos')} placeholder={L('חיפוש חופשי בסרטונים...', 'Search videos...')} style={{ marginTop: 12 }} />
 
       {loading ? (
@@ -203,7 +215,7 @@ export default function Videos({ session, profile }) {
         </div>
       ) : (
         <div className="video-grid">
-          {results.map((v) => {
+          {results.slice(0, limit).map((v) => {
             const id = ytId(v.url)
             const r = ratings[v.id] || { avg: 0, count: 0, mine: 0 }
             return (
@@ -215,7 +227,7 @@ export default function Videos({ session, profile }) {
                 </a>
                 <div className="video-body">
                   <span className="cat-badge">{tr(v.category)}</span>
-                  <span className="video-title">{v.title}</span>
+                  <span className="video-title" dir="auto">{cleanVideoTitle(v.title)}</span>
                   {v.note && <span className="muted small">{v.note}</span>}
 
                   {/* דירוג משתמשים */}
@@ -233,8 +245,20 @@ export default function Videos({ session, profile }) {
                     </span>
                   </div>
 
+                  {v.approved === false && (
+                    <span className="video-pending">
+                      {isAdmin
+                        ? L('ממתין לאישור — לא מוצג לשחקנים', 'Pending approval — hidden from players')
+                        : L('ממתין לאישור מנהל', 'Pending admin approval')}
+                    </span>
+                  )}
                   <div className="video-actions">
                     <a className="btn-soft video-watch" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {L('צפה ביוטיוב', 'Watch on YouTube')}</a>
+                    {isAdmin && (
+                      <button type="button" className="btn-ghost video-approve" onClick={() => toggleApproved(v)}>
+                        {v.approved === false ? L('אשר לשחקנים', 'Approve') : L('בטל אישור', 'Unapprove')}
+                      </button>
+                    )}
                     {v.created_by === me && (
                       <button type="button" className="msg-del" onClick={() => remove(v.id)} aria-label={L('מחיקת סרטון', 'Delete video')} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={16} /></button>
                     )}
@@ -244,6 +268,11 @@ export default function Videos({ session, profile }) {
             )
           })}
         </div>
+      )}
+      {results.length > limit && (
+        <button type="button" className="pl-more" onClick={() => setLimit((l) => l + 12)}>
+          {L(`עוד סרטונים (${results.length - limit})`, `More videos (${results.length - limit})`)}
+        </button>
       )}
     </>
   )

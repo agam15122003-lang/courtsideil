@@ -17,4 +17,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # בדיקת ייבוא: מונעת ייבוא עמום שמתנהג אחרת ב-Windows ובלינוקס
+      - run: npm run check
       - run: npm run build

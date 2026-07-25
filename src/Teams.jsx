@@ -9,13 +9,16 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
 import SessionDetail from './SessionDetail'
-import SendToPlayers from './SendToPlayers'
+// סיומת מפורשת: ב-Windows (מערכת קבצים לא רגישה לאות גדולה) Vite היה פותר
+// את './SendToPlayers' לקובץ העזר sendToPlayers.js — ואז הרכיב קרס במסך לבן.
+import SendToPlayers from './SendToPlayers.jsx'
 import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
 import TeamGoalsBoard from './TeamGoalsBoard'
 import { PlayerGoalsEditor } from './PlayerGoals'
-import { L, trTeam } from './i18n'
+import { L, trTeam, cnt } from './i18n'
+import useFocusTrap from './useFocusTrap'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
 import TeamConnect from './TeamConnect'
@@ -75,6 +78,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   const [games, setGames] = useState([])
   const [iba, setIba] = useState(null) // קישור שמור לליגה באיגוד
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false) // טעינה שנכשלה != סגל ריק
 
   // הוספת שחקן / משחק / צוות
   const [pName, setPName] = useState('')
@@ -131,6 +135,13 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [pEdit, gEdit, sEdit, imp])
 
+  // מלכודת פוקוס לכל המודאלים (רק אחד פתוח בכל רגע)
+  const anyDialog = pEdit || gEdit || sEdit || imp || gpEdit
+  const dlgRef = useFocusTrap(!!anyDialog, () => {
+    if (pEdit) setPEdit(null); else if (gEdit) setGEdit(null); else if (sEdit) setSEdit(null)
+    else if (imp) setImp(null); else if (gpEdit) setGpEdit(null)
+  })
+
   const [leaguesAll, setLeaguesAll] = useState([])
   const loadTokenRef = useRef(0) // הגנה מפני מרוץ טעינות בהחלפת קבוצה מהירה
 
@@ -149,7 +160,9 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     ])
     if (token !== loadTokenRef.current) return // קבוצה אחרת נבחרה בינתיים — מתעלמים
     // אם קריאה מרכזית נכשלה (רשת) — מודיעים שזו תקלת טעינה, לא קבוצה ריקה
-    if (pl.error || gm.error) toast.error(L('טעינת הקבוצה נכשלה — בדוק חיבור ורענן', 'Failed to load the team — check your connection and refresh'))
+    const failed = !!(pl.error || gm.error)
+    setLoadFailed(failed)
+    if (failed) toast.error(L('טעינת הקבוצה נכשלה — בדוק חיבור ורענן', 'Failed to load the team — check your connection and refresh'))
     setStaff(st && !st.error ? st.data || [] : [])
     setPlayers(pl.error ? [] : pl.data || [])
     // נוכחות עונתית לכל שחקן: נוכח/איחר מתוך סך האימונים שסומנו
@@ -352,7 +365,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         <header className="page-header">
           <div className="page-header-text">
             <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-            <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+            <h1>{L('ניהול קבוצה', 'Team Management')}</h1>
           </div>
         </header>
         <div className="empty-state">
@@ -377,7 +390,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-          <h2>{L('ניהול קבוצה', 'Team Management')}</h2>
+          <h1>{L('ניהול קבוצה', 'Team Management')}</h1>
           <p className="page-desc">{L('סגל, מטרות, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, goals, games and league table — for every team you coach.')}</p>
         </div>
       </header>
@@ -407,7 +420,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           <TeamConnect coachId={me} team={team} onApproved={load} />
           <div className="roster-meta-row">
             <p className="muted small" style={{ margin: 0 }}>
-              {L(`${players.length} שחקנים`, `${players.length} players`)}
+              {L(`${cnt(players.length, 'שחקן אחד', 'שחקנים')}`, `${players.length} players`)}
               {injured > 0 ? L(` · ${injured} לא זמינים`, ` · ${injured} unavailable`) : ''}
               {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
             </p>
@@ -419,11 +432,21 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           </div>
           <div className="roster-add">
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
-              placeholder={L('שם השחקן', 'Player name')} onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
-            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)} placeholder={L('מס׳', '#')} dir="ltr" />
+              placeholder={L('שם השחקן', 'Player name')} aria-label={L('שם השחקן', 'Player name')}
+              onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
+            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)}
+              placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
-          {players.length === 0 ? (
+          {players.length === 0 && loadFailed ? (
+            /* חשוב להבדיל: סגל ריק זה מצב תקין, אבל טעינה שנכשלה נראתה עד עכשיו
+               בדיוק אותו דבר — כאילו כל השחקנים נמחקו. */
+            <p className="alert alert-error" style={{ marginTop: 12 }}>
+              {L('לא הצלחנו לטעון את הסגל. זו תקלת טעינה — השחקנים לא נמחקו. ',
+                 'We could not load the roster. This is a loading error — no players were deleted. ')}
+              <button type="button" className="link-button" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+            </p>
+          ) : players.length === 0 ? (
             <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין שחקנים בסגל.', 'No players in the roster yet.')}</p>
           ) : (
             <>
@@ -478,8 +501,8 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
             <h3 className="staff-head"><Briefcase size={16} /> {L('צוות מקצועי', 'Professional staff')}</h3>
             <p className="muted small">{L('עוזר מאמן, מאמן גופני, פיזיותרפיסט, מנהל קבוצה ועוד — לחיצה לעריכה.', 'Assistant, fitness coach, physio, team manager and more — tap to edit.')}</p>
             <div className="staff-add">
-              <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
-              <select className="finder-input staff-role-sel" value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
+              <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} aria-label={L('שם איש הצוות', 'Staff member name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
+              <select className="finder-input staff-role-sel" aria-label={L('תפקיד', 'Role')} value={sForm.role} onChange={(e) => setSForm((f) => ({ ...f, role: e.target.value }))}>
                 {STAFF_ROLES.map((r) => <option key={r.key} value={r.key}>{L(r.he, r.en)}</option>)}
               </select>
               <button className="btn-primary" style={{ marginTop: 0 }} onClick={addStaff} aria-label={L('הוספת איש צוות', 'Add staff member')}><Plus size={16} /></button>
@@ -684,7 +707,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       {/* ===================== מודאל: ייבוא מהאיגוד ===================== */}
       {imp && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setImp(null)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('קישור לאיגוד הכדורסל', 'Link to the association')}</strong>
               <button className="icon-btn" onClick={() => setImp(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -750,7 +773,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       {/* ===================== מודאל: פרטי שחקן ===================== */}
       {pEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true">
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי שחקן', 'Player details')}</strong>
               <button className="icon-btn" onClick={() => setPEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -816,7 +839,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
                 <span className="tm-connect-hint-ic"><Target size={16} /></span>
                 <div>
                   <strong>{L('מטרות ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
-                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בטאב הצטרפות). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
+                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (מופיע בראש טאב "סגל"). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
                 </div>
               </div>
             )}
@@ -827,7 +850,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       {/* ===================== מודאל: עריכת משחק ===================== */}
       {gEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true">
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('עריכת משחק', 'Edit game')}</strong>
               <button className="icon-btn" onClick={() => setGEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -854,7 +877,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       {/* ===================== מודאל: איש צוות ===================== */}
       {sEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true">
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי איש צוות', 'Staff details')}</strong>
               <button className="icon-btn" onClick={() => setSEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -900,7 +923,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       {/* מטרות מהירות לשחקן — נגיש מהסגל, לא קבור בעריכה */}
       {gpEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setGpEdit(null)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong><Target size={16} /> {L('מטרות', 'Goals')} · {gpEdit.name}</strong>
               <button className="icon-btn" onClick={() => setGpEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>

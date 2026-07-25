@@ -16,6 +16,8 @@ import Avatar from './Avatar'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
+import ErrorBoundary from './ErrorBoundary'
+import DrillText from './DrillText'
 import CoachChat from './CoachChat'
 import TeamChat from './TeamChat'
 import { MyGoals } from './PlayerGoals'
@@ -26,7 +28,7 @@ import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
 import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
-import { getYouTubeId } from './youtube'
+import { getYouTubeId, cleanVideoTitle } from './youtube'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
@@ -348,7 +350,7 @@ function AssignmentCard({ a, doneSet, onToggleDone }) {
         <h3>{title}</h3>
         {cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}
       </div>
-      {desc && <p className="pla-desc">{desc}</p>}
+      {desc && <DrillText text={desc} className="pla-desc" />}
       <div className="pla-meta">
         {drill?.duration_minutes && <span><Clock size={13} /> {drill.duration_minutes} {L("דק'", 'min')}</span>}
         {a.due_date && <span><CalendarDays size={13} /> {L('עד', 'by')} {new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</span>}
@@ -706,10 +708,13 @@ function PlayerSchedule({ session, membership }) {
 }
 
 // ---------- מסך: וידאו (סינון לפי קטגוריה + נגן מוטמע) ----------
+const PAGE = 12 // כמה סרטונים מוצגים בכל פעם
+
 function PlayerVideos() {
   const [videos, setVideos] = useState(null)
   const [cat, setCat] = useState('all')
   const [playing, setPlaying] = useState(null) // {id(yt), title}
+  const [limit, setLimit] = useState(PAGE) // הצגה מדורגת — 40 סרטונים בבת אחת זה קיר
 
   useEffect(() => {
     ;(async () => {
@@ -732,6 +737,7 @@ function PlayerVideos() {
 
   const cats = ['all', ...VIDEO_CATEGORIES.filter((c) => videos.some((v) => v.category === c))]
   const shown = cat === 'all' ? videos : videos.filter((v) => v.category === cat)
+  const visible = shown.slice(0, limit)
 
   return (
     <div className="pl-screen pl-narrow">
@@ -748,13 +754,14 @@ function PlayerVideos() {
         <>
           <div className="pl-cat-chips">
             {cats.map((c) => (
-              <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'} onClick={() => setCat(c)}>
+              <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'}
+                onClick={() => { setCat(c); setLimit(PAGE) }}>
                 {c === 'all' ? L('הכל', 'All') : c}
               </button>
             ))}
           </div>
           <div className="pl-vid-grid">
-            {shown.map((v) => {
+            {visible.map((v) => {
               const yt = getYouTubeId(v.url)
               return (
                 <button key={v.id} className="pl-vid" onClick={() => yt ? setPlaying({ id: yt, title: v.title }) : window.open(safeUrl(v.url) || '#', '_blank')}>
@@ -762,13 +769,19 @@ function PlayerVideos() {
                     <span className="pl-vid-play"><Play size={18} fill="#fff" /></span>
                   </span>
                   <span className="pl-vid-body">
-                    <span className="pl-vid-title">{v.title}</span>
+                    {/* dir=auto — כותרות באנגלית בתוך עמוד RTL הציגו סימני פיסוק בצד הלא נכון */}
+                    <span className="pl-vid-title" dir="auto">{cleanVideoTitle(v.title)}</span>
                     {v.category && <span className="cat-badge" data-cat={v.category}>{v.category}</span>}
                   </span>
                 </button>
               )
             })}
           </div>
+          {shown.length > limit && (
+            <button type="button" className="pl-more" onClick={() => setLimit((l) => l + PAGE)}>
+              {L(`עוד סרטונים (${shown.length - limit})`, `More videos (${shown.length - limit})`)}
+            </button>
+          )}
         </>
       )}
 
@@ -935,20 +948,24 @@ function StatTrio({ attendancePct, streak, avgLoad }) {
 
 // ---------- בית: קיצורי דרך 2×2 ----------
 function Shortcuts({ setView }) {
+  // שורת הסבר לכל קיצור — בלעדיה הכרטיסים היו אייקון ומילה אחת על שטח גדול וריק
   const items = [
-    ['goals', L('המטרות שלי', 'My goals'), Target, 'brand'],
-    ['drills', L('התרגילים שלי', 'My drills'), Dumbbell, 'green'],
-    ['videos', L('סרטונים', 'Videos'), MonitorPlay, 'purple'],
-    ['community', L('קהילה', 'Community'), Users2, 'brand'],
+    ['goals', L('המטרות שלי', 'My goals'), Target, 'brand', L('מה לשפר החודש והשבוע', 'What to improve this week')],
+    ['drills', L('התרגילים שלי', 'My drills'), Dumbbell, 'green', L('מה המאמן שלח לתרגל בבית', 'What your coach sent you')],
+    ['videos', L('סרטונים', 'Videos'), MonitorPlay, 'purple', L('סרטוני תרגול לפי נושא', 'Practice clips by topic')],
+    ['community', L('קהילה', 'Community'), Users2, 'brand', L('מה קורה אצל שחקנים אחרים', 'What other players are up to')],
   ]
   return (
     <>
       <p className="plh-sc-label pl-stagger">{L('קיצורי דרך', 'Shortcuts')}</p>
       <div className="plh-shortcuts pl-stagger">
-        {items.map(([id, label, Icon, tone]) => (
+        {items.map(([id, label, Icon, tone, sub]) => (
           <button key={id} className="plh-sc" onClick={() => setView(id)}>
             <span className={`plh-sc-ic ${tone}`}><Icon size={21} /></span>
-            <span className="plh-sc-txt">{label}</span>
+            <span className="plh-sc-body">
+              <span className="plh-sc-txt">{label}</span>
+              <span className="plh-sc-sub">{sub}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -1289,7 +1306,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
 
       <main className="main-content" id="main">
         <div className="main-inner" key={editing ? 'edit' : view}>
-          {renderView()}
+          {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
+          <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
         </div>
       </main>
 

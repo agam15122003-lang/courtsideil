@@ -35,10 +35,22 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
   useEffect(() => {
     async function loadCoaches() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
+      // coach_directory הוא VIEW שמחזיר מאמנים בלבד, בלי מייל, ועם טלפון רק אם
+      // המאמן סימן אותו כציבורי. קודם לכן נשלפה כל טבלת הפרופילים עם select('*'),
+      // כלומר גם טלפון ושנת לידה של שחקנים קטינים.
+      let { data, error } = await supabase
+        .from('coach_directory')
+        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public')
         .neq('id', session.user.id)
+      if (error) {
+        // נפילה לאחור עד שה-SQL ירוץ
+        const legacy = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone_public, role')
+          .neq('id', session.user.id)
+        data = (legacy.data || []).filter((c) => (c.role || 'coach') === 'coach')
+        error = legacy.error
+      }
 
       if (error) {
         setError(L('שגיאה בטעינת המאמנים: ', 'Error loading coaches: ') + error.message)
@@ -109,7 +121,7 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
         <div className="page-header-text">
           {/* [12] שם ייחודי — "קהילת המאמנים" שמור לעמוד הקהילה */}
           <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
-          <h2>{L('חיפוש מאמנים', 'Find coaches')}</h2>
+          <h1>{L('חיפוש מאמנים', 'Find coaches')}</h1>
           <p className="page-desc">{L('חפשו מאמנים לפי שם, מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by name, club or age group, view their drills, and get in touch.')}</p>
         </div>
       </header>
@@ -137,8 +149,10 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
 
           {/* חיפוש חופשי — שם או מועדון */}
           <div className="field-group" style={{ marginTop: 20 }}>
-            <span className="field-label">{L('חיפוש', 'Search')}</span>
+            {/* label אמיתי במקום span — כך קורא מסך מקשר בין הכיתוב לשדה */}
+            <label className="field-label" htmlFor="finder-search">{L('חיפוש', 'Search')}</label>
             <input
+              id="finder-search"
               className="finder-input"
               type="search"
               value={clubQuery}

@@ -28,7 +28,7 @@ import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
 import { SkeletonCards } from './Skeleton'
-import { L } from './i18n'
+import { L , cnt } from './i18n'
 import { safeUrl } from './constants'
 
 const MAX_IMAGES = 4
@@ -392,7 +392,7 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
         >
           <MessageCircle size={17} />
           {comments.length > 0
-            ? L(`${comments.length} תגובות`, `${comments.length} comments`)
+            ? L(`${cnt(comments.length, 'תגובה אחת', 'תגובות')}`, `${comments.length} comments`)
             : L('תגובה', 'Comment')}
         </button>
         <button type="button" className="cm-action" onClick={share}>
@@ -1183,9 +1183,23 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const { count } = await supabase
-        .from('profiles')
+      // ספירה מ-coach_directory ולא מ-profiles: הכותרת אומרת "מאמנים", אבל
+      // profiles כולל גם שחקנים וגם פרופילים שלא הושלמו — הוצג "6 מאמנים"
+      // כשבפועל היו 3.
+      // אותו תנאי שלמות שמאתר המאמנים מסנן לפיו, כדי שהמספר בכותרת יתאים
+      // למספר המאמנים שאפשר בפועל למצוא ולפנות אליהם.
+      let { count } = await supabase
+        .from('coach_directory')
         .select('id', { count: 'exact', head: true })
+        .not('first_name', 'is', null)
+        .not('club', 'is', null)
+      if (count == null) {
+        const legacy = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'coach')
+        count = legacy.count
+      }
       if (alive && count != null) setCoachCount(count)
     })()
     return () => { alive = false }
@@ -1201,7 +1215,7 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
       {/* הירו ממורכז — כותרת, סטטיסטיקות חיות וחיפוש */}
       <header className="cm-hero">
         <div className="welcome-badge">{L('הקהילה', 'Community')}</div>
-        <h2>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h2>
+        <h1>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h1>
         <p className="cm-hero-sub">{L('שאלות, טיפים, סרטונים וצילומים — הכול במקום אחד.', 'Questions, tips, videos and photos — all in one place.')}</p>
         <div className="cm-hero-stats" dir="rtl">
           <span className="cm-stat"><strong>{coachCount ?? '—'}</strong> {L('מאמנים', 'coaches')}</span>

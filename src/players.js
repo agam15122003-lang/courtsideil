@@ -43,11 +43,22 @@ export async function requestJoinByCode(playerId, rawCode) {
   const code = (rawCode || '').trim().toUpperCase()
   if (code.length < 4) return { ok: false, reason: 'bad-code' }
 
-  const { data: row } = await supabase
-    .from('team_join_codes')
-    .select('coach_id, team')
-    .eq('code', code)
-    .maybeSingle()
+  // פענוח הקוד דרך RPC: כך אין צורך בהרשאת קריאה לכל טבלת הקודים
+  // (קריאה חופשית שם אפשרה לשלוף את כל הקודים והקבוצות באפליקציה).
+  let row = null
+  const { data: rpc, error: rpcErr } = await supabase
+    .rpc('resolve_join_code', { p_code: code })
+  if (!rpcErr) {
+    row = Array.isArray(rpc) ? rpc[0] : rpc
+  } else {
+    // נפילה לאחור למי שעוד לא הריץ את supabase_security3.sql
+    const { data: legacy } = await supabase
+      .from('team_join_codes')
+      .select('coach_id, team')
+      .eq('code', code)
+      .maybeSingle()
+    row = legacy
+  }
   if (!row) return { ok: false, reason: 'not-found' }
 
   // כבר קיימת בקשה?

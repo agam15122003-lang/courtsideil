@@ -51,8 +51,18 @@ export default function CoachOfWeek({ onOpenCoach }) {
       if (ranked.length === 0) { if (alive) { setWinner(null); setLoading(false) } return }
 
       const top = ranked[0]
-      const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', top.owner).single()
+      // coach_directory: בלי מייל, וטלפון רק אם סומן ציבורי (supabase_privacy4.sql)
+      let { data: prof } = await supabase
+        .from('coach_directory')
+        .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone, phone_public')
+        .eq('id', top.owner).maybeSingle()
+      if (!prof) {
+        const legacy = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, club, age_groups, avatar_url, verified, phone_public')
+          .eq('id', top.owner).maybeSingle()
+        prof = legacy.data
+      }
 
       if (alive) { setWinner({ ...top, profile: prof }); setLoading(false) }
     })()

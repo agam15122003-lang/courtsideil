@@ -102,7 +102,7 @@ export default function Landing({ onEnter }) {
 
   const STATS = [
     { num: L('הכול', 'All'), label: L('הכלים במקום אחד', 'tools in one place') },
-    { num: L('קהילה', 'Community'), label: L('של מאמנים ששיתפים ידע', 'of coaches sharing knowledge') },
+    { num: L('קהילה', 'Community'), label: L('של מאמנים שמשתפים ידע', 'of coaches sharing knowledge') },
     { num: L('חינם', 'Free'), label: L('לכל מאמן', 'for every coach') },
   ]
 
