@@ -69,9 +69,13 @@ export default function Admin({ session, profile }) {
   })
   const duplicates = Object.entries(dupKeys).filter(([, arr]) => arr.length > 1)
 
-  const complete = coaches.filter((c) => c.first_name && c.club)
+  // "מאמנים" חייב להיות מאמנים בלבד: הסינון הקודם היה first_name && club, ולכן
+  // חשבון שחקן עם מועדון נספר כמאמן והופיע ברשימת המאמנים עם כפתורי אימות/חסימה.
+  const complete = coaches.filter((c) => c.first_name && c.club && (c.role || 'coach') !== 'player')
+  const players = coaches.filter((c) => c.role === 'player')
   const stats = {
     total: complete.length,
+    players: players.length,
     verified: complete.filter((c) => c.verified).length,
     pending: complete.filter((c) => !c.verified && !c.banned).length,
     banned: complete.filter((c) => c.banned).length,
@@ -111,6 +115,7 @@ export default function Admin({ session, profile }) {
         <div className="team-section">
           <div className="admin-stats">
             <div className="admin-stat"><span className="admin-stat-n">{stats.total}</span><span className="admin-stat-l">{L('מאמנים', 'Coaches')}</span></div>
+            <div className="admin-stat"><span className="admin-stat-n">{stats.players}</span><span className="admin-stat-l">{L('שחקנים', 'Players')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.verified}</span><span className="admin-stat-l">{L('מאומתים', 'Verified')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.pending}</span><span className="admin-stat-l">{L('ממתינים', 'Pending')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.banned}</span><span className="admin-stat-l">{L('חסומים', 'Banned')}</span></div>

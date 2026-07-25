@@ -1183,9 +1183,23 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const { count } = await supabase
-        .from('profiles')
+      // ספירה מ-coach_directory ולא מ-profiles: הכותרת אומרת "מאמנים", אבל
+      // profiles כולל גם שחקנים וגם פרופילים שלא הושלמו — הוצג "6 מאמנים"
+      // כשבפועל היו 3.
+      // אותו תנאי שלמות שמאתר המאמנים מסנן לפיו, כדי שהמספר בכותרת יתאים
+      // למספר המאמנים שאפשר בפועל למצוא ולפנות אליהם.
+      let { count } = await supabase
+        .from('coach_directory')
         .select('id', { count: 'exact', head: true })
+        .not('first_name', 'is', null)
+        .not('club', 'is', null)
+      if (count == null) {
+        const legacy = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'coach')
+        count = legacy.count
+      }
       if (alive && count != null) setCoachCount(count)
     })()
     return () => { alive = false }
