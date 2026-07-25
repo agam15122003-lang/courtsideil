@@ -6,9 +6,9 @@
 -- הבעיה המרכזית שזה מתקן:
 -- המדיניות "profiles_select_authenticated" (supabase_stage2.sql) היא
 -- using (true) — כלומר כל משתמש מחובר יכול לשלוף את כל טבלת הפרופילים,
--- כולל טלפון, מייל ושנת לידה של שחקנים שהם קטינים.
+-- כולל טלפון ושנת לידה של שחקנים שהם קטינים.
 -- RLS עובד על שורות, לא על עמודות, ולכן הפתרון הוא:
---   1) לשלול הרשאת קריאה על העמודות הרגישות (phone, email),
+--   1) להעניק הרשאת קריאה רק לעמודות הלא-רגישות (phone נשאר בחוץ),
 --   2) לתת למשתמש את השורה המלאה של עצמו דרך פונקציה,
 --   3) לתת לחיפוש המאמנים VIEW שמסתיר טלפון שלא סומן כציבורי,
 --   4) לתת לאדמין נתיב נפרד ומפורש.
@@ -16,8 +16,35 @@
 
 -- ------------------------------------------------------------
 -- 1) שלילת קריאה ישירה של העמודות הרגישות
+--
+-- שתי מלכודות שחייבות טיפול כאן:
+-- (א) הרשאות ב-Postgres מצטברות: "revoke select (phone)" לא עושה כלום כל עוד
+--     קיימת הרשאת select על כל הטבלה (וזו ברירת המחדל של Supabase). לכן
+--     מסירים קודם את ההרשאה הרוחבית, ואז מעניקים רק את העמודות הלא-רגישות.
+-- (ב) העמודה email כבר נמחקה מהטבלה ב-supabase_security_hardening.sql, ולכן
+--     אסור להזכיר אותה בשם — היא תפיל את כל הסקריפט. הרשימה נבנית דינמית
+--     מתוך העמודות שקיימות בפועל, כך שהקובץ עובד בכל מצב סכמה.
 -- ------------------------------------------------------------
-revoke select (phone, email) on public.profiles from authenticated, anon;
+do $cols$
+declare
+  allowed text;
+begin
+  select string_agg(quote_ident(column_name), ', ' order by column_name)
+    into allowed
+    from information_schema.columns
+   where table_schema = 'public'
+     and table_name = 'profiles'
+     and column_name in (
+       -- מה שמסכי האפליקציה באמת קוראים על משתמשים אחרים:
+       'id', 'first_name', 'last_name', 'club', 'age_groups', 'avatar_url',
+       'verified', 'banned', 'role', 'position', 'phone_public', 'is_admin',
+       'created_at', 'updated_at'
+     );
+
+  -- אנון לא צריך את profiles בכלל (הדף הציבורי היחיד קורא רק את טבלת drills)
+  revoke select on public.profiles from anon, authenticated;
+  execute format('grant select (%s) on public.profiles to authenticated', allowed);
+end $cols$;
 
 -- ------------------------------------------------------------
 -- 2) הפרופיל של עצמי — כולל הטלפון והמייל
@@ -42,7 +69,7 @@ grant execute on function public.my_profile() to authenticated;
 -- ------------------------------------------------------------
 drop view if exists public.coach_directory;
 create view public.coach_directory
-with (security_invoker = off)
+with (security_invoker = false)
 as
   select
     p.id,
@@ -129,16 +156,17 @@ alter table public.drill_videos add column if not exists approved_by uuid;
 alter table public.drill_videos add column if not exists approved_at timestamptz;
 update public.drill_videos set approved = true where approved = false and created_at < now();
 
-do $$
-begin
-  -- קריאה: מאמן/אדמין רואה הכול (כדי לאשר); שחקן רק מאושרים
-  execute 'drop policy if exists "videos_select_all" on public.drill_videos';
-  execute 'drop policy if exists "drill_videos_select" on public.drill_videos';
-  execute 'drop policy if exists "videos_read" on public.drill_videos';
-  execute 'create policy "videos_read" on public.drill_videos
-    for select to authenticated
-    using (approved or not public.is_player())';
-end $$;
+-- קריאה: מאמן/אדמין רואה הכול (כדי לאשר); שחקן רק מאושרים.
+-- שם המדיניות הקיימת הוא "drill_videos_select_all" (using true) — חייבים למחוק
+-- דווקא אותה, כי מדיניות RLS מצטברת ב-OR: מדיניות מתירה אחת שנשארת מבטלת
+-- את כל ההגבלה.
+drop policy if exists "drill_videos_select_all" on public.drill_videos;
+drop policy if exists "videos_select_all" on public.drill_videos;
+drop policy if exists "drill_videos_select" on public.drill_videos;
+drop policy if exists "videos_read" on public.drill_videos;
+create policy "videos_read" on public.drill_videos
+  for select to authenticated
+  using (approved or not public.is_player());
 
 -- רק אדמין מאשר/מבטל אישור
 create or replace function public.set_video_approved(p_id uuid, p_approved boolean)
