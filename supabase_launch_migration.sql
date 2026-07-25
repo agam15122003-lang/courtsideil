@@ -110,7 +110,21 @@ alter table public.drill_videos enable row level security;
 drop policy if exists "drill_videos_select_all"    on public.drill_videos;
 drop policy if exists "drill_videos_insert_own"    on public.drill_videos;
 drop policy if exists "drill_videos_delete_own"    on public.drill_videos;
-create policy "drill_videos_select_all" on public.drill_videos for select using (true);
+-- קריאה: אם supabase_privacy4.sql כבר רץ (קיימת עמודת approved) — שחקן רואה רק
+-- סרטונים מאושרים. בלי התנאי הזה, הרצה חוזרת של הקובץ הזה הייתה מחזירה מדיניות
+-- "using (true)" ומבטלת בשקט את שער האישור לקטינים.
+do $vid$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'drill_videos' and column_name = 'approved'
+  ) then
+    execute 'create policy "drill_videos_select_all" on public.drill_videos
+      for select to authenticated using (approved or not public.is_player())';
+  else
+    execute 'create policy "drill_videos_select_all" on public.drill_videos for select using (true)';
+  end if;
+end $vid$;
 create policy "drill_videos_insert_own" on public.drill_videos for insert with check (auth.uid() = created_by);
 create policy "drill_videos_delete_own" on public.drill_videos for delete using (auth.uid() = created_by);
 

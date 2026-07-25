@@ -5,14 +5,16 @@ import { supabase } from './supabaseClient'
 
 // שולח את השגיאה לטבלת client_errors (supabase_privacy4.sql) כדי שקריסה אצל
 // מאמן בשדה לא תישאר סוד. נכשל בשקט אם הטבלה עוד לא קיימת.
-async function report(error, info) {
+async function report(error, info, screen) {
   try {
     const { data } = await supabase.auth.getUser()
     await supabase.from('client_errors').insert({
       user_id: data?.user?.id || null,
       message: String(error?.message || error).slice(0, 500),
       stack: String(info?.componentStack || error?.stack || '').slice(0, 4000),
-      screen: window.location.hash || window.location.pathname,
+      // שם המסך מגיע כ-prop מהדשבורד. אין router באפליקציה, ולכן
+      // location.pathname הוא תמיד "/" — העמודה הייתה חסרת ערך.
+      screen: screen || window.location.hash || 'unknown',
       user_agent: navigator.userAgent.slice(0, 300),
     })
   } catch {
@@ -34,7 +36,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('[CourtSide] שגיאה במסך:', error, info?.componentStack)
-    report(error, info)
+    report(error, info, this.props.screen)
   }
 
   render() {

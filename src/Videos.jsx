@@ -127,7 +127,7 @@ export default function Videos({ session, profile }) {
 
   // אישור סרטון לשחקנים (אדמין בלבד; נאכף גם ב-RLS — supabase_privacy4.sql)
   const toggleApproved = async (v) => {
-    const next = v.approved === false
+    const next = v.approved !== true // undefined (עמודה חסרה) => לאשר, לא לבטל
     const { error } = await supabase.rpc('set_video_approved', { p_id: v.id, p_approved: next })
     if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
     toast.success(next ? L('הסרטון אושר לשחקנים', 'Video approved') : L('האישור בוטל', 'Approval removed'))

@@ -1294,7 +1294,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       <main className="main-content" id="main">
         <div className="main-inner" key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
-          <ErrorBoundary>{renderView()}</ErrorBoundary>
+          <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
         </div>
       </main>
 

@@ -321,7 +321,7 @@ export default function Dashboard({ session }) {
           {!loading && !showForm && <QuoteStrip />}
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
               ה-key על .main-inner גורם ל-boundary להתאפס בכל מעבר מסך. */}
-          <ErrorBoundary>
+          <ErrorBoundary screen={showForm ? 'profile-form' : view}>
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>
