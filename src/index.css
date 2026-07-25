@@ -15308,3 +15308,140 @@ html.a11y-motion *::after {
    #EDF2F8 — נמדד ~1.03:1, כלומר בלתי נראה במצב בהיר לכל שחקן מתחת ל-85%.
    מצב כהה כבר נדרס בשורות 10109-10111 ולא נוגעים בו. */
 .roster-att-bar > span { background: var(--navy-500); }
+
+/* ============================================================
+   "המיקוד של הקבוצה" — TeamFocus.jsx, 25.7.2026
+   מחליף שלוש תיבות טקסט חופשי (שבוע/חודש/עונה) בנקודות שמגיעות לשחקנים.
+   ============================================================ */
+.tg-lede {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.tf-card {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.tf-top { display: flex; align-items: flex-start; gap: 11px; }
+.tf-top h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--text);
+}
+.tf-top p { margin: 2px 0 0; }
+.tf-top-ic {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* כחול, כדי שלא יתבלבל עם הכתום של המטרות האישיות */
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+}
+.tf-points {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  counter-reset: tf;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.tf-point {
+  counter-increment: tf;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 52px;
+  padding: 11px 13px;
+  background: var(--surface);
+}
+.tf-point + .tf-point { border-top: 1px solid var(--border); }
+.tf-point::before {
+  content: counter(tf);
+  grid-row: span 2;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.tf-point-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.tf-met { grid-column: 2; font-size: 12px; font-weight: 600; color: var(--c-green); }
+.tf-met.none { color: var(--text-muted); font-weight: 500; }
+.tf-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--c-green-bg);
+  color: var(--c-green);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.tf-note > svg { flex-shrink: 0; margin-top: 1px; }
+.tf-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.tf-row .finder-input { flex: 1; min-width: 0; }
+.tf-clear { flex-shrink: 0; }
+.tf-chips { margin-top: 12px; }
+.tf-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+}
+.tg-season { padding-top: 4px; }
+.tg-h4 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.tg-hist {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* הערה בכרטיס מטרה של השחקן כשהמטרה קבוצתית (אין לו הרשאה לעדכן אותה) */
+.plg2-teamnote {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
