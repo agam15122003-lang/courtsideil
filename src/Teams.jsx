@@ -585,39 +585,59 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         </div>
       ) : tab === 'goals' ? (
         /* ===================== מטרות =====================
-           לפני: שלוש תיבות טקסט חופשי כמעט זהות (שבוע/חודש/עונה), כל אחת עם
-           בורר תקופה וכפתור שמירה נפרד — 22 פקדים, ואף שחקן לא ראה מהן אות.
-           עכשיו: "המיקוד של הקבוצה" (עד 3 נקודות שמגיעות לשחקנים ונמדדות
-           בסיכום האימון) → מטרות אישיות → מגירה עם יעדי העונה וההיסטוריה.
-           שום שורה ב-team_goals לא נמחקת. */
+           החלטת הבעלים 25.7: מטרות שבוע/חודש/עונה נשארות ובולטות (לא במגירה).
+           היררכיה: המיקוד (מה שהשחקנים רואים) → שלושת כרטיסי התכנון של המאמן
+           → מטרות אישיות לשחקנים. */
         <div className="team-section">
           <p className="tg-lede">
-            {L('המיקוד של הקבוצה מגיע לכל השחקנים; מטרה אישית מגיעה לשחקן אחד; יעדי העונה נשארים רק אצלך.',
-               'The team focus reaches every player; a personal goal reaches one player; season targets stay with you only.')}
+            {L('המיקוד מגיע לכל השחקנים ונמדד בסוף כל אימון · מטרות שבוע/חודש/עונה הן התכנון שלך · מטרה אישית מגיעה לשחקן אחד.',
+               'The focus reaches every player and is measured after each practice · week/month/season goals are your planning · a personal goal reaches one player.')}
           </p>
-          <TeamFocus coachId={me} team={team} />
-          <TeamGoalsBoard coachId={me} team={team} />
-          <details className="tg-collapse">
-            <summary><Target size={15} /> {L('יעדי העונה והיסטוריה', 'Season targets and history')}</summary>
-            <div className="tg-season">
-              <h4 className="tg-h4">{L('יעדי העונה', 'Season targets')}</h4>
-              <p className="muted small" style={{ margin: '0 0 8px' }}>{L('היעדים הגדולים של העונה כולה — לשימושך בלבד, השחקנים לא רואים אותם.', 'The big targets for the whole season — for you only; players do not see them.')}</p>
-              <textarea className="finder-input goal-text" rows={5} value={sText} onChange={(e) => setSText(e.target.value)} placeholder={L('יעדי העונה...', 'Season targets...')} />
-              <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירת יעדי העונה', 'Save season targets')}</button>
 
-              {(wText.trim() || mText.trim()) && (
-                <>
-                  <h4 className="tg-h4" style={{ marginTop: 18 }}>{L('מטרות קבוצתיות קודמות (טקסט חופשי)', 'Previous team goals (free text)')}</h4>
-                  <p className="muted small" style={{ margin: '0 0 8px' }}>
-                    {L('אלה התיבות הישנות. השחקנים לא ראו אותן. אפשר להעביר שורה למיקוד שכולם רואים.',
-                       'These are the old boxes. Players never saw them. You can move a line into the focus everyone sees.')}
-                  </p>
-                  {wText.trim() && <pre className="tg-hist">{wText}</pre>}
-                  {mText.trim() && <pre className="tg-hist">{mText}</pre>}
-                </>
+          <TeamFocus coachId={me} team={team} />
+
+          <h3 className="tg-section-title"><Target size={17} /> {L('מטרות הקבוצה', 'Team goals')}</h3>
+          <div className="goals-grid2 tg-cards">
+            {/* שבוע */}
+            <div className="goal-card-v2 gc-week">
+              <div className="goal-card-top"><span className="goal-ic"><CalendarRange size={17} /></span><h3>{L('השבוע', 'This week')}</h3></div>
+              <div className="period-pill">
+                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, -7))} aria-label={L('שבוע קודם', 'Prev week')}><ChevronRight size={17} /></button>
+                <span className="period-text" dir="ltr">{weekLabel(gWeek)}</span>
+                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, 7))} aria-label={L('שבוע הבא', 'Next week')}><ChevronLeft size={17} /></button>
+              </div>
+              {ymd(gWeek) !== ymd(sundayOf(new Date())) && (
+                <button className="period-today2" onClick={() => setGWeek(sundayOf(new Date()))}><RotateCcw size={13} /> {L('חזרה לשבוע הנוכחי', 'Back to this week')}</button>
               )}
+              <textarea className="finder-input goal-text" rows={4} value={wText} onChange={(e) => setWText(e.target.value)} placeholder={L('מה רוצים להשיג השבוע...', 'What to achieve this week...')} />
+              <button className="btn-primary goal-save" onClick={() => saveGoal('week', ymd(gWeek), wText)}><Save size={15} /> {L('שמירה', 'Save')}</button>
             </div>
-          </details>
+
+            {/* חודש */}
+            <div className="goal-card-v2 gc-month">
+              <div className="goal-card-top"><span className="goal-ic"><CalendarDays size={17} /></span><h3>{L('החודש', 'This month')}</h3></div>
+              <div className="period-pill">
+                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, -1))} aria-label={L('חודש קודם', 'Prev month')}><ChevronRight size={17} /></button>
+                <span className="period-text">{monthLabel(gMonth)}</span>
+                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, 1))} aria-label={L('חודש הבא', 'Next month')}><ChevronLeft size={17} /></button>
+              </div>
+              {monthKey(gMonth) !== monthKey(new Date()) && (
+                <button className="period-today2" onClick={() => setGMonth(addMonths(new Date(), 0))}><RotateCcw size={13} /> {L('חזרה לחודש הנוכחי', 'Back to this month')}</button>
+              )}
+              <textarea className="finder-input goal-text" rows={4} value={mText} onChange={(e) => setMText(e.target.value)} placeholder={L('מה רוצים להשיג החודש...', 'What to achieve this month...')} />
+              <button className="btn-primary goal-save" onClick={() => saveGoal('month', monthKey(gMonth), mText)}><Save size={15} /> {L('שמירה', 'Save')}</button>
+            </div>
+
+            {/* עונה */}
+            <div className="goal-card-v2 gc-season">
+              <div className="goal-card-top"><span className="goal-ic"><Trophy size={17} /></span><h3>{L('העונה', 'This season')}</h3></div>
+              <p className="muted small" style={{ margin: '0 0 8px' }}>{L('היעדים הגדולים של העונה כולה.', 'The big targets for the whole season.')}</p>
+              <textarea className="finder-input goal-text" rows={4} value={sText} onChange={(e) => setSText(e.target.value)} placeholder={L('יעדי העונה...', 'Season targets...')} />
+              <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירה', 'Save')}</button>
+            </div>
+          </div>
+
+          <TeamGoalsBoard coachId={me} team={team} />
         </div>
       ) : tab === 'games' ? (
         /* ===================== משחקים ===================== */

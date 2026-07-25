@@ -15454,3 +15454,69 @@ html.a11y-motion *::after {
 @media (max-width: 640px) {
   .quote-strip { display: none; }
 }
+
+/* ============================================================
+   טאב המטרות — סבב משוב הבעלים 25.7.2026
+   שבוע/חודש/עונה חוזרים כבולטים (לא במגירה), עם כותרת סקשן ברורה.
+   ============================================================ */
+.tg-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0 12px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+}
+.tg-section-title > svg { color: var(--accent-strong); }
+.tg-cards { margin-bottom: 20px; }
+.tg-cards .goal-card-v2 { box-shadow: var(--shadow-sm); }
+.tg-cards .goal-card-v2::before { height: 5px; }
+.tg-cards .goal-card-top h3 { font-size: 17px; }
+.tg-cards .period-pill { margin-bottom: 8px; }
+.tg-cards .goal-text { margin-top: 4px; }
+
+/* ============================================================
+   טבלת הלו״ז הקבוע — גרסה בולטת (משוב הבעלים 25.7.2026)
+   כל 7 הימים תמיד, "היום" מודגש, אימון = בלוק נייבי שקופץ מהדף.
+   הכללים כאן דורסים את הבסיס משורות 14291-14308 (מאוחר יותר בקובץ).
+   ============================================================ */
+.sg-day {
+  position: relative;
+  min-height: 44px;
+  font-size: 13px;
+  flex-direction: column;
+  gap: 1px;
+}
+.sg-day.today {
+  background: linear-gradient(150deg, var(--accent-fill), var(--accent-press));
+  box-shadow: 0 4px 12px -4px rgba(179, 78, 28, 0.55);
+}
+.sg-today-tag {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+.sg-cell.todaycol:not(.filled) {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* אימון = בלוק נייבי מלא, טקסט לבן — קריא מרחוק כמו לוח שידורים */
+.sg-cell.filled {
+  padding: 9px 10px;
+  background: linear-gradient(150deg, var(--hero-navy), var(--hero-navy-2));
+  border: none;
+  box-shadow: var(--shadow-md);
+}
+.sg-cell.filled .sg-team { color: #FFB88C; font-size: 12.5px; }
+.sg-cell.filled .sg-loc { color: rgba(255, 255, 255, 0.92); }
+.sg-cell.filled .sg-loc.muted { color: rgba(255, 255, 255, 0.75); }
+.sg-cell.filled .sg-loc > svg { color: #FFB88C; }
+/* גיוון לפי קבוצה — פס צבע בצד הבלוק */
+.sg-cell.filled .sg-item { padding-inline-start: 8px; border-inline-start: 3px solid #FFB88C; }
+.sg-cell.filled .sg-item.t1 { border-inline-start-color: #7AA9FF; }
+.sg-cell.filled .sg-item.t2 { border-inline-start-color: #4FD09A; }
+.sg-cell.filled .sg-item.t3 { border-inline-start-color: #C9A0FF; }
+[data-theme='dark'] .sg-cell.filled { background: linear-gradient(150deg, #26385F, #182642); }
