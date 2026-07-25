@@ -32,6 +32,8 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
 
   const [note, setNote] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [target, setTarget] = useState('') // יעד כמותי, למשל 200
+  const [unit, setUnit] = useState('')     // יחידה, למשל "זריקות"
   const [sending, setSending] = useState(false)
   const [feed, setFeed] = useState(null)
 
@@ -92,13 +94,14 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
       coachId: me, mode, team,
       players: roster.players.filter((p) => picked.has(p.player_id)),
       content: buildContent(), note: note.trim(), dueDate: dueDate || null,
+      target: target || null, unit,
     })
     setSending(false)
     if (!res.ok) { toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + res.error); return }
     toast.success(mode === 'team'
       ? L(`נשלח ל${trTeam(team)} (${res.count} שחקנים)`, `Sent to ${trTeam(team)} (${res.count} players)`)
       : L(`נשלח ל-${res.count} שחקנים`, `Sent to ${res.count} players`))
-    setContentId(null); setTaskTitle(''); setNote(''); setDueDate(''); setPicked(new Set())
+    setContentId(null); setTaskTitle(''); setNote(''); setDueDate(''); setTarget(''); setUnit(''); setPicked(new Set())
     refreshFeed(roster)
   }
 
@@ -156,6 +159,11 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
               </ul>
             )}
 
+            <div className="sp-target-row">
+              <span className="sp-target-lbl">{L('יעד כמותי (לא חובה):', 'Target (optional):')}</span>
+              <input type="number" dir="ltr" min="1" className="finder-input sp-target-num" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="100" aria-label={L('כמות יעד', 'Target amount')} />
+              <input className="finder-input sp-target-unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={L('זריקות', 'shots')} maxLength={30} aria-label={L('יחידה', 'Unit')} />
+            </div>
             <div className="sp-mini-opts">
               <input type="date" dir="ltr" className="finder-input sp-mini-date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={L('תאריך יעד', 'Due date')} />
               <input className="finder-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('הערה (לא חובה)', 'Note (optional)')} maxLength={400} />
@@ -262,6 +270,13 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
               <label className="pf-label" style={{ flex: 1 }}>
                 <span><CalendarDays size={14} /> {L('תאריך יעד (לא חובה)', 'Due date (optional)')}</span>
                 <input type="date" className="finder-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </label>
+              <label className="pf-label" style={{ flex: 1 }}>
+                <span><Dumbbell size={14} /> {L('יעד כמותי (לא חובה)', 'Target amount (optional)')}</span>
+                <div className="sp-target-row">
+                  <input type="number" dir="ltr" min="1" className="finder-input sp-target-num" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="100" aria-label={L('כמות יעד', 'Target amount')} />
+                  <input className="finder-input sp-target-unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={L('זריקות', 'shots')} maxLength={30} aria-label={L('יחידה', 'Unit')} />
+                </div>
               </label>
             </div>
             <textarea className="finder-input sp-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('הערה לשחקנים (לא חובה)', 'Note to players (optional)')} rows={2} maxLength={400} />

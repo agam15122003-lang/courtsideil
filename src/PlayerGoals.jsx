@@ -192,7 +192,8 @@ function AddGoalSheet({ open, onClose, onAdd }) {
 }
 
 // גרף התקדמות למטרה ספציפית — קו+שטח של ההתקדמות לאורך זמן, עם קו יעד מקווקו
-function GoalChart({ logs, target, goalId }) {
+// (מיוצא — דף הבית של השחקן מציג אותו בכרטיסי המטרות)
+export function GoalChart({ logs, target, goalId }) {
   const series = logs.map((l) => Number(l.value))
   if (series.length < 2) return null
   const W = 280, H = 64, p = 6, n = series.length

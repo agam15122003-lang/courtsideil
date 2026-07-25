@@ -28,18 +28,28 @@ export default function TeamAssignments({ coachId, team }) {
     const mine = (asg || []).filter((a) => a.team === team || authIds.has(a.player_id))
     if (mine.length === 0) { setItems([]); return }
 
-    const { data: compl } = await supabase
+    // בוצע = done_at מלא; שורה בלי done_at = התקדמות חלקית. fallback אם המיגרציה טרם רצה.
+    let { data: compl, error } = await supabase
       .from('assignment_completions')
-      .select('assignment_id, player_id')
+      .select('assignment_id, player_id, done_at, progress_value')
       .in('assignment_id', mine.map((a) => a.id))
+    if (error) {
+      const legacy = await supabase.from('assignment_completions')
+        .select('assignment_id, player_id, done_at').in('assignment_id', mine.map((a) => a.id))
+      compl = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+    }
     const doneBy = {}
-    for (const c of compl || []) (doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.player_id)
+    const progBy = {} // assignment_id -> { player_id: progress_value }
+    for (const c of compl || []) {
+      if (c.done_at) (doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.player_id)
+      if (Number(c.progress_value) > 0) (progBy[c.assignment_id] = progBy[c.assignment_id] || {})[c.player_id] = Number(c.progress_value)
+    }
 
     setItems(mine.map((a) => {
       const title = a.drill?.title || a.plan?.name || a.title || (a.video_url ? L('סרטון', 'Video') : L('משימה', 'Task'))
       const targets = a.player_id ? players.filter((p) => p.player_id === a.player_id) : players
       const doneSet = doneBy[a.id] || new Set()
-      return { ...a, title, targets, doneSet, done: targets.filter((p) => doneSet.has(p.player_id)).length, total: targets.length }
+      return { ...a, title, targets, doneSet, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(p.player_id)).length, total: targets.length }
     }))
   }, [coachId, team])
 
@@ -80,10 +90,14 @@ export default function TeamAssignments({ coachId, team }) {
                       <li className="muted small" style={{ padding: '6px 4px' }}>{L('אין שחקנים מחוברים ליעד הזה.', 'No connected players for this target.')}</li>
                     ) : a.targets.map((p) => {
                       const done = a.doneSet.has(p.player_id)
+                      const prog = a.prog[p.player_id]
                       return (
                         <li key={p.id} className="ta-player">
                           {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
                           <span className="ta-player-name">{p.name}</span>
+                          {!done && a.target_value && prog > 0 && (
+                            <span className="ta-partial" dir="ltr">{prog}/{a.target_value}</span>
+                          )}
                           <span className={done ? 'ta-status done' : 'ta-status'}>{done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('ממתין', 'Pending')}</>}</span>
                         </li>
                       )

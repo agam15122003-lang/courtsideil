@@ -19,8 +19,8 @@ export async function loadRoster(coachId) {
 }
 
 // שולח שיגור אחד או יותר.
-// opts: { coachId, mode:'team'|'players', team, players:[{player_id,...}], content:{drillId,planId,videoUrl,title,kind}, note, dueDate }
-export async function sendAssignments({ coachId, mode, team, players = [], content = {}, note, dueDate }) {
+// opts: { coachId, mode:'team'|'players', team, players:[{player_id,...}], content:{drillId,planId,videoUrl,title,kind}, note, dueDate, target, unit }
+export async function sendAssignments({ coachId, mode, team, players = [], content = {}, note, dueDate, target, unit }) {
   const base = { coach_id: coachId }
   if (content.drillId) base.drill_id = content.drillId
   if (content.planId) base.plan_id = content.planId
@@ -28,6 +28,8 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   if (content.title) base.title = content.title
   if (note) base.note = note
   if (dueDate) base.due_date = dueDate
+  // יעד כמותי (למשל 200 זריקות) — שיגור קבוצתי הוא שורה אחת, אז היעד אחיד לכולם
+  if (Number(target) > 0) { base.target_value = Number(target); base.unit = (unit || '').trim() || null }
 
   const label = content.title || L('תרגיל', 'a drill')
   let rows = []
@@ -67,12 +69,13 @@ export async function loadSentFeed(coachId, roster) {
   const rows = asg || []
   if (rows.length === 0) return []
   const ids = rows.map((r) => r.id)
+  // בוצע = done_at מלא; שורה עם done_at=null היא התקדמות חלקית בלבד
   const { data: compl } = await supabase
     .from('assignment_completions')
-    .select('assignment_id')
+    .select('assignment_id, done_at')
     .in('assignment_id', ids)
   const doneBy = {}
-  for (const c of compl || []) doneBy[c.assignment_id] = (doneBy[c.assignment_id] || 0) + 1
+  for (const c of compl || []) if (c.done_at) doneBy[c.assignment_id] = (doneBy[c.assignment_id] || 0) + 1
 
   // גודל קבוצה = כמה שחקנים מחוברים בקבוצה (למכנה של אחוז הביצוע)
   const teamSize = {}

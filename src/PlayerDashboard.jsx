@@ -20,9 +20,9 @@ import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import CoachChat from './CoachChat'
 import TeamChat from './TeamChat'
-import { MyGoals } from './PlayerGoals'
+import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
-import FeedbackSheet from './FeedbackSheet'
+import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import ScheduleGrid from './ScheduleGrid'
 import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
@@ -345,14 +345,27 @@ function PlayerQuote() {
 }
 
 // ---------- כרטיס שיגור בודד ----------
-function AssignmentCard({ a, doneSet, onToggleDone }) {
-  const done = doneSet.has(a.id)
+// תרגיל עם target_value מציג פס התקדמות ורישום הדרגתי (100 מתוך 200);
+// תרגיל בלי יעד נשאר בוצע/לא-בוצע. compl = השורה שלי מ-assignment_completions.
+function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
+  const [custom, setCustom] = useState('') // קלט "כמה עשיתי?"
+  const [customOpen, setCustomOpen] = useState(false)
+  const done = compl?.done_at != null
+  const prog = Number(compl?.progress_value) || 0
+  const hasTarget = Number(a.target_value) > 0
   const drill = a.drill
   const yt = a.video_url ? getYouTubeId(a.video_url) : null
   const vidUrl = a.video_url ? safeUrl(a.video_url) : null
   const title = drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
   const cat = drill?.category
   const desc = drill?.description || a.note
+  const unitStr = a.unit ? ` ${a.unit}` : ''
+
+  const logCustom = () => {
+    const n = Number(custom)
+    if (n > 0) onProgress(a, n)
+    setCustom(''); setCustomOpen(false)
+  }
 
   if (done) {
     return (
@@ -360,7 +373,11 @@ function AssignmentCard({ a, doneSet, onToggleDone }) {
         <span className="pla-check on"><Check size={16} /></span>
         <span className="pla-done-body">
           <span className="pla-done-title">{title}{cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}</span>
-          <span className="muted small">{L('בוצע · כל הכבוד', 'Done · nice work')}</span>
+          <span className="muted small">
+            {hasTarget
+              ? L(`בוצע · ${a.target_value}/${a.target_value}${unitStr} · אלוף!`, `Done · ${a.target_value}/${a.target_value}${unitStr} · champ!`)
+              : L('בוצע · כל הכבוד', 'Done · nice work')}
+          </span>
         </span>
         <span className="pla-done-badge">{L('בוצע', 'Done')}</span>
       </button>
@@ -391,17 +408,40 @@ function AssignmentCard({ a, doneSet, onToggleDone }) {
           <span className="pla-video-tag">{L('לצפייה בסרטון', 'Watch video')}</span>
         </a>
       )}
-      <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
-        <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
-      </button>
+      {hasTarget ? (
+        <div className="pla-prog">
+          <div className="pla-prog-top">
+            <span>{L('ההתקדמות שלך', 'Your progress')}</span>
+            <b dir="ltr">{prog}/{a.target_value}{unitStr}</b>
+          </div>
+          <div className="pla-prog-bar"><span style={{ width: `${Math.min(100, Math.round((prog / a.target_value) * 100))}%` }} /></div>
+          <div className="pla-quick">
+            <button onClick={() => onProgress(a, 10)}>+10</button>
+            <button onClick={() => onProgress(a, 25)}>+25</button>
+            {customOpen ? (
+              <span className="pla-quick-custom">
+                <input type="number" dir="ltr" min="1" autoFocus value={custom} onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') logCustom() }} placeholder="50" aria-label={L('כמה ביצעת?', 'How many did you do?')} />
+                <button className="on" onClick={logCustom}><Check size={14} /></button>
+              </span>
+            ) : (
+              <button onClick={() => setCustomOpen(true)}>{L('כמה עשיתי?', 'Log amount')}</button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
+          <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
+        </button>
+      )}
     </article>
   )
 }
 
-// ---------- מסך: התרגילים שלי (עם סינון והתקדמות) ----------
+// ---------- מסך: התרגילים שלי (עם סינון והתקדמות, כולל התקדמות חלקית) ----------
 function MyAssignments({ session }) {
   const [items, setItems] = useState(null)
-  const [doneSet, setDoneSet] = useState(new Set())
+  const [complBy, setComplBy] = useState({}) // assignment_id -> { progress_value, done_at }
   const [filter, setFilter] = useState('open') // open | all | done
 
   const load = useCallback(async () => {
@@ -411,29 +451,66 @@ function MyAssignments({ session }) {
       .order('created_at', { ascending: false })
       .limit(100)
     setItems(data || [])
-    const { data: compl } = await supabase
+    // fallback לסכמה ישנה (לפני supabase_assignments_progress.sql): בלי progress_value
+    let { data: compl, error } = await supabase
       .from('assignment_completions')
-      .select('assignment_id')
+      .select('assignment_id, done_at, progress_value')
       .eq('player_id', session.user.id)
-    setDoneSet(new Set((compl || []).map((c) => c.assignment_id)))
+    if (error) {
+      const legacy = await supabase.from('assignment_completions')
+        .select('assignment_id, done_at').eq('player_id', session.user.id)
+      compl = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+    }
+    const by = {}
+    for (const c of compl || []) by[c.assignment_id] = { progress_value: Number(c.progress_value) || 0, done_at: c.done_at }
+    setComplBy(by)
   }, [session.user.id])
   useEffect(() => { load() }, [load])
 
-  const toggleDone = async (id, isDone) => {
-    setDoneSet((cur) => { const n = new Set(cur); isDone ? n.delete(id) : n.add(id); return n })
-    if (isDone) {
-      await supabase.from('assignment_completions').delete().eq('assignment_id', id).eq('player_id', session.user.id)
+  const isDone = (a) => complBy[a.id]?.done_at != null
+  const frac = (a) => Number(a.target_value) > 0
+    ? Math.min(1, (complBy[a.id]?.progress_value || 0) / a.target_value)
+    : (isDone(a) ? 1 : 0)
+
+  // תרגיל בוצע/לא-בוצע (בלי יעד), או פתיחה מחדש של תרגיל עם יעד (שומרת את ההתקדמות)
+  const toggleDone = async (id, wasDone) => {
+    const a = items.find((x) => x.id === id)
+    const keepProgress = Number(a?.target_value) > 0
+    if (wasDone) {
+      setComplBy((m) => ({ ...m, [id]: { progress_value: keepProgress ? (m[id]?.progress_value || 0) : 0, done_at: null } }))
+      if (keepProgress) {
+        await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: null })
+      } else {
+        await supabase.from('assignment_completions').delete().eq('assignment_id', id).eq('player_id', session.user.id)
+      }
     } else {
-      await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id })
+      setComplBy((m) => ({ ...m, [id]: { progress_value: m[id]?.progress_value || 0, done_at: 'x' } }))
+      await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: new Date().toISOString() })
       toast.success(L('כל הכבוד! 💪', 'Nice work! 💪'))
     }
   }
 
+  // רישום התקדמות הדרגתי — delta חיובי, נחתך ליעד; בהגעה ליעד מסומן בוצע אוטומטית
+  const addProgress = async (a, delta) => {
+    const cur = complBy[a.id]?.progress_value || 0
+    const next = Math.max(0, Math.min(Number(a.target_value), cur + delta))
+    if (next === cur) return
+    const reached = next >= Number(a.target_value)
+    const done_at = reached ? new Date().toISOString() : null
+    setComplBy((m) => ({ ...m, [a.id]: { progress_value: next, done_at } }))
+    const { error } = await supabase.from('assignment_completions')
+      .upsert({ assignment_id: a.id, player_id: session.user.id, progress_value: next, done_at })
+    if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); load(); return }
+    if (reached) toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉'))
+    else toast.success(L(`נרשם! ${next}/${a.target_value}`, `Logged! ${next}/${a.target_value}`))
+  }
+
   if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
-  const openCount = items.filter((a) => !doneSet.has(a.id)).length
+  const openCount = items.filter((a) => !isDone(a)).length
   const doneCount = items.length - openCount
-  const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0
-  const shown = items.filter((a) => filter === 'all' ? true : filter === 'done' ? doneSet.has(a.id) : !doneSet.has(a.id))
+  // האחוז מחשיב גם התקדמות חלקית — 100 מתוך 200 שווה חצי תרגיל
+  const pct = items.length ? Math.round((items.reduce((s, a) => s + frac(a), 0) / items.length) * 100) : 0
+  const shown = items.filter((a) => filter === 'all' ? true : filter === 'done' ? isDone(a) : !isDone(a))
 
   return (
     <div className="pl-screen pl-narrow">
@@ -465,7 +542,7 @@ function MyAssignments({ session }) {
       ) : shown.length === 0 ? (
         <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד! 💪', 'No open drills — nice! 💪')}</p>
       ) : (
-        shown.map((a) => <AssignmentCard key={a.id} a={a} doneSet={doneSet} onToggleDone={toggleDone} />)
+        shown.map((a) => <AssignmentCard key={a.id} a={a} compl={complBy[a.id]} onToggleDone={toggleDone} onProgress={addProgress} />)
       )}
     </div>
   )
@@ -937,14 +1014,26 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
     if (!membership) { setNext(null); return }
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
-      const [{ data }, { data: slots }] = await Promise.all([
+      const [{ data }, { data: slots }, { data: games }] = await Promise.all([
         supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(10),
         supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
+        supabase.from('team_games').select('id, game_date, game_time, opponent, location').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(10),
       ])
       const nowTs = Date.now()
+      // למשחק אין שעת סיום — נותנים שעתיים כדי שיישאר "עכשיו" בזמן המשחק
+      const gameEnd = (t) => {
+        if (!t) return null
+        const [h, m] = String(t).slice(0, 5).split(':').map(Number)
+        return `${String(Math.min(23, h + 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      }
       const cands = [
-        ...(data || []).map((e) => ({ date: e.date, start_time: e.start_time, end_time: e.end_time, title: e.plan?.name || null, location: e.location })),
-        ...expandSlots(slots || [], 0, 30).map((o) => ({ date: o.date, start_time: o.start_time, end_time: o.end_time, title: null, location: o.location })),
+        ...(data || []).map((e) => ({ kind: 'practice', date: e.date, start_time: e.start_time, end_time: e.end_time, title: e.plan?.name || null, location: e.location })),
+        ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', date: o.date, start_time: o.start_time, end_time: o.end_time, title: null, location: o.location })),
+        ...(games || []).map((g) => ({
+          kind: 'game', date: g.game_date, start_time: g.game_time ? String(g.game_time).slice(0, 5) : null,
+          end_time: gameEnd(g.game_time), location: g.location,
+          title: g.opponent ? L(`משחק נגד ${g.opponent}`, `Game vs ${g.opponent}`) : L('משחק', 'Game'),
+        })),
       ]
       const pick = cands
         .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
@@ -960,7 +1049,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
       if (!endedToday) { setSummary(null); return }
       const { data: eff } = await supabase.from('session_effort')
         .select('id').eq('player_id', profile.id).eq('session_date', today).limit(1)
-      setSummary(eff && eff.length ? { state: 'done' } : { state: 'ask' })
+      setSummary(eff && eff.length ? { state: 'done' } : { state: 'ask', kind: endedToday.kind })
     })()
   }, [membership, profile.id, refreshKey])
 
@@ -979,9 +1068,10 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
     whenStr = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' }) + (next.start_time ? ` · ${next.start_time.slice(0, 5)}` : '') + (next.location ? ` · ${next.location}` : '')
     titleStr = next.title || L('אימון קבוצתי', 'Team practice')
   }
+  const isGame = next?.kind === 'game'
 
   return (
-    <div className="plh-hero pl-stagger">
+    <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
       <span className="plh-hero-glow" aria-hidden="true" />
       <span className="plh-hero-ball" aria-hidden="true">🏀</span>
       <div className="plh-hero-head">
@@ -993,7 +1083,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
         {summary?.state === 'ask' ? (
           /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
           <div className="plh-ask">
-            <strong className="plh-ask-title">{L('איך היה האימון היום?', 'How was practice today?')}</strong>
+            <strong className="plh-ask-title">{summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}</strong>
             <span className="plh-hero-meta">{L('דקה אחת — והמאמן יודע איפה אתה עומד', 'One minute — and your coach knows where you stand')}</span>
             <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback}>
               <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
@@ -1001,7 +1091,11 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
           </div>
         ) : next ? (
           <>
-            <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />{started ? L('האימון עכשיו', 'Practice now') : L('האימון הבא', 'Next practice')}</span>
+            <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />
+              {started
+                ? (isGame ? L('המשחק עכשיו! 🏀', 'Game time! 🏀') : L('האימון עכשיו', 'Practice now'))
+                : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
+            </span>
             <strong className="plh-hero-title">{titleStr}</strong>
             <span className="plh-hero-meta">{whenStr}</span>
             {!started ? (
@@ -1011,7 +1105,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
                 <span className="plh-cd-cell"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
                 <span className="plh-cd-cell secs"><b>{ss}</b><i>{L('שניות', 'sec')}</i></span>
               </div>
-            ) : <div className="plh-cd-live">{L('בהצלחה באימון! 🔥', 'Have a great practice! 🔥')}</div>}
+            ) : <div className="plh-cd-live">{isGame ? L('בהצלחה במשחק! 🏆', 'Good luck! 🏆') : L('בהצלחה באימון! 🔥', 'Have a great practice! 🔥')}</div>}
           </>
         ) : membership ? (
           <>
@@ -1116,23 +1210,246 @@ function LastTeamReview({ membership, me }) {
 }
 
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
+// ---------- בית: כרטיס מטרה בודד — צבעוני, עם פס התקדמות וגרף ----------
+function HomeGoalCard({ g, logs, tone }) {
+  const target = Number(g.target_value) || 0
+  const prog = Number(g.progress_value) || 0
+  const done = g.status === 'done' || (target > 0 && prog >= target)
+  const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : (done ? 100 : 0)
+  return (
+    <div className={`plhg-card ${tone}${done ? ' done' : ''}`}>
+      <div className="plhg-card-top">
+        <strong className="plhg-title">{g.title}</strong>
+        {!g.player_id && <span className="plhg-team"><Users2 size={12} /> {L('קבוצתי', 'Team')}</span>}
+        {done && <span className="plhg-donetag"><Check size={13} /> {L('הושג!', 'Done!')}</span>}
+      </div>
+      {target > 0 ? (
+        <>
+          <div className="plhg-nums"><b dir="ltr">{prog}/{target}</b>{g.unit ? ` ${g.unit}` : ''} · {pct}%</div>
+          <div className="plhg-bar"><span style={{ width: `${pct}%` }} /></div>
+        </>
+      ) : (
+        <div className="plhg-checkline">
+          {done ? L('כל הכבוד! המשך כך 🔥', 'Nice! Keep it up 🔥') : L('מסמנים אם עמדת בה בסיכום שאחרי האימון', 'Mark it in your post-practice summary')}
+        </div>
+      )}
+      {(logs || []).length >= 2 && <GoalChart logs={logs} target={g.target_value} goalId={g.id} />}
+    </div>
+  )
+}
+
+// ---------- בית: המטרות שלי בגדול — מטרות לאימון + מטרות כלליות לשיפור ----------
+function HomeGoals({ session, membership, setView }) {
+  const [goals, setGoals] = useState(null)
+  const [logsBy, setLogsBy] = useState({})
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      // RLS מחזיר לבד את המטרות שלי + המטרות הקבוצתיות של הקבוצה
+      const { data } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
+      const list = data || []
+      setGoals(list)
+      const ids = list.filter((g) => g.target_value).map((g) => g.id)
+      if (!ids.length) { setLogsBy({}); return }
+      const { data: logs, error } = await supabase.from('player_goal_logs')
+        .select('goal_id, value, created_at').in('goal_id', ids).order('created_at', { ascending: true })
+      if (error) { setLogsBy({}); return } // הטבלה אולי חסרה בפרוד — פשוט בלי גרפים
+      const by = {}
+      for (const r of logs || []) (by[r.goal_id] = by[r.goal_id] || []).push(r)
+      setLogsBy(by)
+    })()
+  }, [membership, session.user.id])
+
+  if (!membership || goals === null) return null
+  const goalFrac = (g) => g.target_value ? Math.min(1, (g.progress_value || 0) / g.target_value) : (g.status === 'done' ? 1 : 0)
+  const overall = goals.length ? Math.round((goals.reduce((s, g) => s + goalFrac(g), 0) / goals.length) * 100) : 0
+  const activeFirst = (list) => [...list].sort((a, b) => (a.status === 'done') - (b.status === 'done'))
+  const sessionGoals = activeFirst(goals.filter((g) => g.period === 'session'))
+  const improveGoals = activeFirst(goals.filter((g) => g.period !== 'session'))
+
+  return (
+    <section className="pl-block plhg">
+      <div className="plhg-head">
+        <p className="pl-section-label"><Target size={15} /> {L('המטרות שלי', 'My goals')}</p>
+        <button className="plhg-all" onClick={() => setView('goals')}>{L('לכל המטרות', 'All goals')} <ArrowLeft size={14} /></button>
+      </div>
+
+      {goals.length === 0 ? (
+        <div className="plhg-empty">
+          <span className="plhg-empty-ic"><Target size={22} /></span>
+          <strong>{L('המאמן עוד לא הגדיר לך מטרות', 'No goals from your coach yet')}</strong>
+          <span className="muted small">{L('אפשר גם להוסיף מטרה משלך במסך המטרות', 'You can also add your own goal')}</span>
+          <button className="btn-soft" onClick={() => setView('goals')}>{L('למסך המטרות', 'Go to goals')}</button>
+        </div>
+      ) : (
+        <>
+          <div className="plhg-overall">
+            <div className="plhg-overall-top"><span>{L('ההתקדמות הכוללת שלך', 'Your overall progress')}</span><b>{overall}%</b></div>
+            <div className="plhg-overall-bar"><span style={{ width: `${overall}%` }} /></div>
+          </div>
+          {sessionGoals.length > 0 && (
+            <>
+              <p className="plhg-cat orange"><Zap size={14} /> {L('מטרות לאימון', 'Practice goals')}</p>
+              <div className="plhg-cards">
+                {sessionGoals.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone="orange" />)}
+              </div>
+            </>
+          )}
+          {improveGoals.length > 0 && (
+            <>
+              <p className="plhg-cat purple"><Sparkles size={14} /> {L('מטרות כלליות לשיפור', 'Improvement goals')}</p>
+              <div className="plhg-cards">
+                {improveGoals.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone="purple" />)}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+// ---------- בית: המשוב מהאימון האחרון — מה מילאתי + מה המאמן אמר ----------
+function LastPracticeFeedback({ session, membership, setView }) {
+  const [data, setData] = useState(null) // { eff, fb, marks }
+  const me = session.user.id
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      // select('*') בכוונה — coach_ack נוסף במיגרציה מאוחרת ואולי חסר בפרוד
+      const [{ data: effRows }, { data: fbRows }] = await Promise.all([
+        supabase.from('session_effort').select('*').eq('player_id', me).order('session_date', { ascending: false }).limit(1),
+        supabase.from('player_feedback').select('*').eq('player_id', me).order('created_at', { ascending: false }).limit(1),
+      ])
+      const eff = effRows?.[0] || null
+      const fb = fbRows?.[0] || null
+      let marks = []
+      if (eff) {
+        const { data: mk } = await supabase.from('session_goal_marks')
+          .select('met, goal:player_goals(title)').eq('player_id', me).eq('session_id', eff.session_id)
+        marks = (mk || []).filter((m) => m.goal?.title)
+      }
+      setData({ eff, fb, marks })
+    })()
+  }, [membership, me])
+
+  if (!membership || !data || (!data.eff && !data.fb)) return null
+  const { eff, fb, marks } = data
+  const mood = eff?.mood ? MOOD_BY_KEY[eff.mood] : null
+  const dateStr = eff?.session_date ? new Date(eff.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : null
+
+  return (
+    <section className="pl-block plfb">
+      <div className="plhg-head">
+        <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('המשוב מהאימון האחרון', 'Last session feedback')}</p>
+        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל האימונים', 'All sessions')} <ArrowLeft size={14} /></button>
+      </div>
+      <div className="plfb-card">
+        {eff && (
+          <div className="plfb-half me">
+            <span className="plfb-lbl">{L('מה מילאת', 'What you filled')}{dateStr ? ` · ${dateStr}` : ''}</span>
+            <div className="plfb-eff">
+              <Flame size={17} /> <b>{eff.effort}/10</b> <span className="muted small">{L('רמת קושי', 'difficulty')}</span>
+              {mood && <span className="plfb-mood" style={{ color: mood.col }}>· {L(mood.label[0], mood.label[1])}</span>}
+            </div>
+            {Array.isArray(eff.focus) && eff.focus.length > 0 && (
+              <div className="plfb-tags">{eff.focus.map((f) => <span key={f}>{f}</span>)}</div>
+            )}
+            {marks.length > 0 && (
+              <div className="plfb-marks">
+                {marks.map((m, i) => (
+                  <span key={i} className={m.met ? 'plfb-mark on' : 'plfb-mark'}>
+                    {m.met ? <Check size={12} /> : <X size={12} />} {m.goal.title}
+                  </span>
+                ))}
+              </div>
+            )}
+            {eff.note && <p className="plfb-note">„{eff.note}”</p>}
+            {eff.coach_ack && <span className="plfb-ack"><Eye size={13} /> {L('המאמן ראה את הסיכום שלך', 'Your coach saw your summary')}</span>}
+          </div>
+        )}
+        {fb && (
+          <div className="plfb-half coach">
+            <span className="plfb-lbl">{L('מה המאמן אמר', 'From your coach')}</span>
+            {fb.rating > 0 && (
+              <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= fb.rating ? 'currentColor' : 'none'} />)}</span>
+            )}
+            {fb.content && <p className="plfb-coach-txt">{fb.content}</p>}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// ---------- בית: הודעות מהמאמן — צ'אט קבוצה + אישי, האחרונות קופצות בבית ----------
+function CoachMessages({ session, membership, setView }) {
+  const [msgs, setMsgs] = useState(null)
+  const me = session.user.id
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const [{ data: tm }, { data: dm }] = await Promise.all([
+        supabase.from('team_messages').select('id, content, created_at')
+          .eq('coach_id', membership.coach_id).eq('team', membership.team).eq('user_id', membership.coach_id)
+          .order('created_at', { ascending: false }).limit(5),
+        supabase.from('messages').select('id, content, created_at')
+          .eq('sender_id', membership.coach_id).eq('recipient_id', me)
+          .order('created_at', { ascending: false }).limit(5),
+      ])
+      setMsgs([
+        ...(tm || []).map((m) => ({ ...m, src: 'team' })),
+        ...(dm || []).map((m) => ({ ...m, src: 'dm' })),
+      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 3))
+    })()
+  }, [membership, me])
+
+  if (!membership || msgs === null) return null
+  return (
+    <section className="pl-block plcm">
+      <p className="pl-section-label"><MessagesSquare size={15} /> {L('הודעות מהמאמן', 'From your coach')}</p>
+      <div className="plcm-card">
+        <div className="plcm-head">
+          <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={40} />
+          <strong>{coachName(membership.coach)}</strong>
+        </div>
+        {msgs.length === 0 ? (
+          <div className="plcm-bubble empty">{L('עוד אין הודעות מהמאמן — הישאר מחובר 💬', 'No messages yet — stay tuned 💬')}</div>
+        ) : msgs.map((m) => (
+          <div key={`${m.src}-${m.id}`} className="plcm-bubble">
+            <span className="plcm-meta">
+              <i className={m.src === 'team' ? 'plcm-tag team' : 'plcm-tag'}>{m.src === 'team' ? L('קבוצה', 'Team') : L('אישי', 'Personal')}</i>
+              {timeAgo(m.created_at)}
+            </span>
+            <p>{m.content}</p>
+          </div>
+        ))}
+        <div className="plcm-cta">
+          <button className="plcm-btn" onClick={() => setView('coach')}><Send size={15} /> {L('השב למאמן', 'Reply to coach')}</button>
+          <button className="plcm-btn ghost" onClick={() => setView('teamchat')}><MessagesSquare size={15} /> {L('לצ׳אט הקבוצה', 'Team chat')}</button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
 
   const loadStats = useCallback(async () => {
-    const [asg, compl, fbLatest, att, gatt, eff, glogs] = await Promise.all([
+    const [asg, compl, att, gatt, eff, glogs] = await Promise.all([
       supabase.from('player_assignments').select('id'),
       supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
-      supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', session.user.id).order('created_at', { ascending: false }).limit(1),
       supabase.from('practice_attendance').select('status'),
       supabase.from('game_attendance').select('status'),
       supabase.from('session_effort').select('effort, created_at').eq('player_id', session.user.id),
       supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
     ])
     const doneRows = compl.data || []
-    const doneIds = new Set(doneRows.map((c) => c.assignment_id))
+    // בוצע = done_at מלא; שורה בלי done_at היא רק התקדמות חלקית
+    const doneIds = new Set(doneRows.filter((c) => c.done_at).map((c) => c.assignment_id))
     const open = (asg.data || []).filter((a) => !doneIds.has(a.id)).length
     const attRows = [...(att.data || []), ...(gatt.data || [])]
     const attTotal = attRows.length
@@ -1143,7 +1460,6 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
     const avgLoad = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null
     setStats({
       open, attendancePct, weekly, avgLoad,
-      latestFb: (fbLatest.data && fbLatest.data[0]) || null,
       // הרצף סופר כל פעילות באפליקציה — ביצוע תרגיל, סיכום אימון ותיעוד מטרה.
       // קודם נספרו רק תרגילים ששלח המאמן, ועם תרגיל אחד במסד הרצף היה תקוע על 0.
       streak: computeStreak([
@@ -1155,6 +1471,8 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   }, [session.user.id])
   useEffect(() => { loadStats() }, [loadStats])
 
+  // סדר הבית לפי הבעלים: טיימר → מטרות בגדול → המשוב האחרון → סיכום המאמן
+  // → הודעות מהמאמן → סטטיסטיקות → כתבות. הציטוט מגיע מה-shell לכל המסכים.
   return (
     <div className="pl-screen pl-home-rich">
       <HomeHero profile={profile} membership={membership} onFeedback={() => setFbOpen(true)} refreshKey={fbRefresh} />
@@ -1163,7 +1481,13 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
       )}
 
-      {membership && <div className="pl-stagger"><PrePracticeGoals session={session} membership={membership} /></div>}
+      {membership && <div className="pl-stagger"><HomeGoals session={session} membership={membership} setView={setView} key={`g${fbRefresh}`} /></div>}
+
+      {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
+
+      {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
+
+      {membership && <div className="pl-stagger"><CoachMessages session={session} membership={membership} setView={setView} /></div>}
 
       {membership && <StatTrio attendancePct={stats?.attendancePct} streak={stats?.streak || 0} avgLoad={stats?.avgLoad} />}
 
@@ -1171,30 +1495,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
       <Shortcuts setView={setView} />
 
-      {membership && (
-        <div className="plh-coachmsg pl-stagger">
-          <div className="plh-coachmsg-head">
-            <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={42} />
-            <div className="plh-coachmsg-who">
-              <strong>{L('הודעה מהמאמן', 'Coach message')}</strong>
-              <span className="muted small">{coachName(membership.coach)}</span>
-            </div>
-            {stats?.latestFb?.rating > 0 && (
-              <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= stats.latestFb.rating ? 'currentColor' : 'none'} />)}</span>
-            )}
-          </div>
-          <div className={stats?.latestFb ? 'plh-coachmsg-bubble' : 'plh-coachmsg-bubble empty'}>
-            {stats?.latestFb ? stats.latestFb.content : L('עוד אין הודעה מהמאמן — הישאר מחובר 💬', 'No message from your coach yet — stay tuned 💬')}
-          </div>
-          <button className="plh-coachmsg-btn" onClick={() => setView('coach')}>
-            <Send size={16} /> {L('השב למאמן', 'Reply to coach')}
-          </button>
-        </div>
-      )}
-
-      {/* חדשות + ציטוט ירדו מהבית (משוב הבעלים: ממוקד) — במקומם: הסיכום
-          האחרון מהמאמן, שהוא תוכן שבאמת נוגע לשחקן. הרכיבים נשארו בקוד. */}
-      {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
+      <PlayerNews />
 
       {membership && (
         <FeedbackSheet session={session} membership={membership} open={fbOpen}
@@ -1241,8 +1542,9 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-      // רצף = כל פעילות (תרגיל / סיכום אימון / תיעוד מטרה) — כמו בבית
-      setSt({ done: doneRows.length, streak: computeStreak([
+      // רצף = כל פעילות (תרגיל / סיכום אימון / תיעוד מטרה) — כמו בבית.
+      // בוצע = done_at מלא (שורה בלי done_at = התקדמות חלקית בלבד)
+      setSt({ done: doneRows.filter((c) => c.done_at).length, streak: computeStreak([
         ...doneRows.map((c) => c.done_at),
         ...(eff.data || []).map((r) => r.created_at),
         ...(glogs.data || []).map((r) => r.created_at),

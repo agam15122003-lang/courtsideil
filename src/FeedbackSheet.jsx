@@ -124,7 +124,7 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
           </div>
         ) : pending ? (
           <>
-            <div className="fbs-q">{L('כמה השקעת היום?', 'How hard did you go?')} <b className="fbs-q-val">{effort}/10</b></div>
+            <div className="fbs-q">{L('כמה קשה היה האימון היום?', 'How hard was practice today?')} <b className="fbs-q-val">{effort}/10</b></div>
             <div className="fbs-effort">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                 <button key={n} className={effort === n ? 'fbs-eff on' : 'fbs-eff'} onClick={() => setEffort(n)} aria-pressed={effort === n}>{n}</button>
