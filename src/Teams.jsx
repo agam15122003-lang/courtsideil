@@ -228,7 +228,10 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   }
   const cycleStatus = async (p) => {
     const next = STATUSES[(STATUSES.findIndex((s) => s.key === p.status) + 1) % STATUSES.length].key
-    await supabase.from('team_players').update({ status: next }).eq('id', p.id); load()
+    // כשל עדכון היה נבלע בשקט: הצ׳יפ חוזר לערך הקודם בטעינה הבאה בלי הסבר
+    const { error } = await supabase.from('team_players').update({ status: next }).eq('id', p.id)
+    if (error) { toast.error(L('עדכון הסטטוס נכשל', 'Status update failed')); return }
+    load()
   }
   const savePlayer = async () => {
     const p = pEdit
@@ -401,7 +404,10 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         ))}
       </div>
 
-      <div className="tabs" style={{ marginTop: 14 }}>
+      {/* team-tabs: שורת הטאבים של המסך הזה בלבד. ב-384px שבעה טאבים ברוחב 574px
+          נחתכו בתוך מכל של 350px (overflow-x: visible, flex-wrap: nowrap) —
+          "שיגורים", "צ׳אט" ו"טבלה" היו בלתי נגישים לחלוטין בטלפון. */}
+      <div className="tabs team-tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
         <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('ימי אימון', 'Practices')}</button>
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
@@ -417,7 +423,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         /* ===================== סגל (פריסת מסך היעד 09: טבלה + פאנל צד) ===================== */
         <div className="team-split">
         <div className="team-section team-split-main">
-          <TeamConnect coachId={me} team={team} onApproved={load} />
           <div className="roster-meta-row">
             <p className="muted small" style={{ margin: 0 }}>
               {L(`${cnt(players.length, 'שחקן אחד', 'שחקנים')}`, `${players.length} players`)}
@@ -496,9 +501,13 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
             </>
           )}
 
-          {/* ---- צוות מקצועי ---- */}
-          <div className="staff-block">
-            <h3 className="staff-head"><Briefcase size={16} /> {L('צוות מקצועי', 'Professional staff')}</h3>
+          {/* קוד ההצטרפות ירד לכאן: הסגל הוא הסיבה שנכנסים לטאב הזה, והקוד
+              תפס את כל החלק העליון של המסך בכל כניסה. */}
+          <TeamConnect coachId={me} team={team} onApproved={load} />
+
+          {/* ---- צוות מקצועי — מקופל: רוב מאמני הנוער לא מנהלים צוות ---- */}
+          <details className="tg-collapse staff-block">
+            <summary><Briefcase size={15} /> {L('צוות מקצועי', 'Professional staff')}</summary>
             <p className="muted small">{L('עוזר מאמן, מאמן גופני, פיזיותרפיסט, מנהל קבוצה ועוד — לחיצה לעריכה.', 'Assistant, fitness coach, physio, team manager and more — tap to edit.')}</p>
             <div className="staff-add">
               <input className="finder-input" type="text" value={sForm.name} onChange={(e) => setSForm((f) => ({ ...f, name: e.target.value }))} placeholder={L('שם', 'Name')} aria-label={L('שם איש הצוות', 'Staff member name')} onKeyDown={(e) => e.key === 'Enter' && addStaff()} />
@@ -524,10 +533,12 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
                 ))}
               </ul>
             )}
-          </div>
+          </details>
         </div>
 
-        {/* ---- פאנל צד: המשחק הבא + טבלת הליגה (מסך היעד 09) ---- */}
+        {/* ---- פאנל צד: המשחק הבא + טבלת הליגה (מסך היעד 09) ----
+             דסקטופ בלבד — מוסתר מתחת ל-940px, כי שם הוא נשפך מתחת לסגל
+             ומציג בפעם השנייה תוכן שיש לו טאבים משלו. */}
         <aside className="team-side">
           {(() => {
             const today = ymd(new Date())
@@ -559,8 +570,9 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           })()}
           {iba?.league_id ? (
             <div className="pr-card team-side-league">
-              <h3 className="pr-card-title"><Trophy size={15} /> {L('טבלת הליגה', 'League table')}</h3>
-              <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || profile?.club} compact />
+              {/* הכותרת הוסרה: LeagueTable מרנדר כותרת בעצמו, כך ש"טבלת הליגה"
+                  הופיע פעמיים. גם ה-prop compact הוסר — הרכיב לא מקבל אותו. */}
+              <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || profile?.club} />
             </div>
           ) : (
             <div className="pr-card team-side-league">
