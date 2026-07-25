@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, Trophy } from 'lucide-react'
+import { RefreshCw, Trophy, Share2 } from 'lucide-react'
 import { leagueStandings, clubCore } from './iba'
+import { waShare } from './share'
 import { L } from './i18n'
 
 // טבלת ליגה חיה מהאיגוד — נבנית מנתונים אמיתיים ומתעדכנת בכל טעינה.
@@ -36,9 +37,26 @@ export default function LeagueTable({ leagueId, leagueName, highlight }) {
           <Trophy size={15} /> {L('טבלת הליגה', 'League table')}
           {leagueName ? ` · ${leagueName}` : ''}
         </span>
-        <button className="icon-btn" onClick={load} aria-label={L('רענון', 'Refresh')} disabled={state.loading}>
-          <RefreshCw size={15} className={state.loading ? 'spin' : ''} />
-        </button>
+        <span className="lt-actions">
+          {/* שיתוף "מקום X בליגה" — גאוות קבוצה שנוסעת בוואטסאפ של ההורים */}
+          {state.hasTable && (() => {
+            const myRow = state.rows.find((r) => isMine(r.name))
+            if (!myRow) return null
+            return (
+              <button className="icon-btn" aria-label={L('שיתוף מצב בליגה', 'Share league standing')}
+                title={L('שיתוף בוואטסאפ', 'Share on WhatsApp')}
+                onClick={() => waShare(L(
+                  `🏀 ${myRow.name} — מקום ${myRow.pos} ב${leagueName || 'ליגה'}!\n${myRow.w} ניצחונות · ${myRow.l} הפסדים · ${myRow.pts} נק׳\n${window.location.origin}`,
+                  `🏀 ${myRow.name} — #${myRow.pos} in ${leagueName || 'the league'}!\n${myRow.w}W · ${myRow.l}L · ${myRow.pts} pts\n${window.location.origin}`
+                ))}>
+                <Share2 size={15} />
+              </button>
+            )
+          })()}
+          <button className="icon-btn" onClick={load} aria-label={L('רענון', 'Refresh')} disabled={state.loading}>
+            <RefreshCw size={15} className={state.loading ? 'spin' : ''} />
+          </button>
+        </span>
       </div>
 
       {state.loading ? (

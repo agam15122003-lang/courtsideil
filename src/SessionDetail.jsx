@@ -26,6 +26,7 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [roster, setRoster] = useState(null)
   const [att, setAtt] = useState({})        // {rosterId: status}
   const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — קריאה בלבד (דירוג עצמי של השחקן)
+  const [acks, setAcks] = useState({}) // {rosterId: {auth, acked}} — 'ראיתי' על סיכום השחקן
   const [playerNotes, setPlayerNotes] = useState({}) // {rosterId: מה שהשחקן רשם}
   const [moods, setMoods] = useState({})     // {rosterId: moodKey}
   const [focuses, setFocuses] = useState({}) // {rosterId: [labels]}
@@ -50,13 +51,22 @@ export default function SessionDetail({ session, entry, onClose }) {
     const attP = sessionType === 'game'
       ? supabase.from('game_attendance').select('player_id, status').eq('game_id', sessionId)
       : supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team).eq('session_date', sessionDate)
-    const [{ data: aRows }, { data: fRows }, { data: rev }, { data: eRows }, { data: gmRows }] = await Promise.all([
+    const [{ data: aRows }, { data: fRows }, { data: rev }, effRes, { data: gmRows }] = await Promise.all([
       attP,
       supabase.from('player_feedback').select('id, player_id, content').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_reviews').select('*').eq('coach_id', me).eq('session_type', sessionType).eq('session_id', sessionId).maybeSingle(),
-      supabase.from('session_effort').select('player_id, effort, note, mood, focus').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_effort').select('player_id, effort, note, mood, focus, coach_ack').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_goal_marks').select('player_id, met, goal:player_goals(title)').eq('coach_id', me).eq('session_id', sessionId),
     ])
+    // עמודת coach_ack עוד לא קיימת (supabase_engagement2.sql לא רץ)? נופלים
+    // לשליפה הישנה — שתצוגת המאמץ/מצב הרוח לא תיעלם למאמן בגלל פיצ'ר חדש.
+    let eRows = effRes.data
+    let ackSupported = !effRes.error
+    if (effRes.error) {
+      const legacy = await supabase.from('session_effort')
+        .select('player_id, effort, note, mood, focus').eq('coach_id', me).eq('session_id', sessionId)
+      eRows = legacy.data
+    }
     const a = {}; for (const r of aRows || []) a[r.player_id] = r.status; setAtt(a)
     const nt = {}, fid = {}
     for (const r of fRows || []) {
@@ -65,15 +75,16 @@ export default function SessionDetail({ session, entry, onClose }) {
       fid[rid] = r.id
     }
     setNote(nt); setFbId(fid)
-    const ef = {}, pn = {}, md = {}, fc = {}
+    const ef = {}, pn = {}, md = {}, fc = {}, ak = {}
     for (const r of eRows || []) {
       const rid = byAuth[r.player_id]; if (!rid) continue
       ef[rid] = r.effort
       if (r.note) pn[rid] = r.note
       if (r.mood) md[rid] = r.mood
       if (Array.isArray(r.focus) && r.focus.length) fc[rid] = r.focus
+      if (ackSupported) ak[rid] = { auth: r.player_id, acked: r.coach_ack === true }
     }
-    setEfforts(ef); setPlayerNotes(pn); setMoods(md); setFocuses(fc)
+    setEfforts(ef); setPlayerNotes(pn); setMoods(md); setFocuses(fc); setAcks(ak)
     const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('מטרה', 'Goal'), met: r.met }) }
     setGoalMarks(gm)
     setHadReview(!!rev)
@@ -251,6 +262,21 @@ export default function SessionDetail({ session, entry, onClose }) {
                     )}
                     {connected && playerNotes[p.id] && (
                       <div className="sd-player-note"><span className="sd-player-note-lbl">{L('השחקן רשם:', 'Player wrote:')}</span> {playerNotes[p.id]}</div>
+                    )}
+                    {/* "ראיתי 👍" — טאפ אחד שאומר לנער שהסיכום שלו לא נעלם לחלל */}
+                    {connected && acks[p.id] && (
+                      acks[p.id].acked ? (
+                        <span className="sd-ack done"><Check size={13} /> {L('סימנת שראית', 'Marked as seen')}</span>
+                      ) : (
+                        <button type="button" className="sd-ack" onClick={async () => {
+                          const { error } = await supabase.rpc('ack_session_effort', { p_session_id: sessionId, p_player_id: acks[p.id].auth })
+                          if (error) { toast.error(L('הסימון נכשל', 'Failed to mark')); return }
+                          setAcks((a) => ({ ...a, [p.id]: { ...a[p.id], acked: true } }))
+                          sendNotification({ to: acks[p.id].auth, actor: me, type: 'message', content: L('המאמן ראה את הסיכום שלך 👍', 'Your coach saw your summary 👍'), nav: 'feedback' })
+                        }}>
+                          👍 {L('ראיתי — שלח לשחקן', 'Seen — tell the player')}
+                        </button>
+                      )
                     )}
                     {connected && goalMarks[p.id] && goalMarks[p.id].length > 0 && (
                       <div className="sd-goal-marks">

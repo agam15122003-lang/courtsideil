@@ -4,6 +4,8 @@ import {
   Dumbbell, Volleyball, StickyNote, Send, TrendingUp, Share2,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { toast } from './toast'
+import { sendNotification } from './notify'
 import { L , cnt } from './i18n'
 import Avatar from './Avatar'
 import { expandSlots } from './sessionId'
@@ -43,6 +45,28 @@ function LoadTrend({ series }) {
         <circle cx={last[0]} cy={last[1]} r="5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2.5" />
       </svg>
     </div>
+  )
+}
+
+// תגובת אמוג'י על משוב מהמאמן — טאפ אחד שסוגר את המעגל בחזרה אליו.
+// דורש את react_to_feedback() מ-supabase_engagement2.sql; אם ה-RPC חסר —
+// הכפתורים פשוט לא ישנו כלום והשגיאה תוצג בטוסט.
+const REACTIONS = ['👍', '🔥', '💪', '🙏']
+function FbReact({ fb, coachId, me }) {
+  const [chosen, setChosen] = useState(fb?.player_reaction || null)
+  if (!fb?.id) return null
+  if (chosen) return <span className="th-react-done">{chosen} {L('הגבת', 'You reacted')}</span>
+  return (
+    <span className="th-react">
+      {REACTIONS.map((r) => (
+        <button key={r} type="button" onClick={async () => {
+          const { error } = await supabase.rpc('react_to_feedback', { p_id: fb.id, p_reaction: r })
+          if (error) { toast.error(L('התגובה לא נשלחה', 'Reaction failed')); return }
+          setChosen(r)
+          sendNotification({ to: coachId, actor: me, type: 'message', content: L(`השחקן הגיב ${r} על המשוב שלך`, `Player reacted ${r} to your feedback`), nav: 'teams' })
+        }} aria-label={L(`הגב ${r}`, `React ${r}`)}>{r}</button>
+      ))}
+    </span>
   )
 }
 
@@ -206,6 +230,7 @@ export default function PlayerTimeline({ session, membership }) {
                       <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
                     )}
                     {c.fb?.content && <p className="th-msg-txt">{c.fb.content}</p>}
+                    <FbReact fb={c.fb} coachId={membership.coach_id} me={me} />
                   </div>
                 )
               }
@@ -250,6 +275,7 @@ export default function PlayerTimeline({ session, membership }) {
                           <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={12} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
                         )}
                         {c.fb.content && <p>{c.fb.content}</p>}
+                        <FbReact fb={c.fb} coachId={membership.coach_id} me={me} />
                       </div>
                     </div>
                   )}
