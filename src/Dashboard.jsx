@@ -56,7 +56,6 @@ const NAV = [
   { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teams', Icon: Shield },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
-  { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
 
 // התפריט התחתון במובייל — חמשת היעדים המרכזיים
@@ -76,6 +75,7 @@ export default function Dashboard({ session }) {
   const [editing, setEditing] = useState(false)
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drillsTab, setDrillsTab] = useState('library') // 'library' | 'media' — מדיה אוחדה לתרגילים
   const sidebarRef = useRef(null)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
@@ -89,6 +89,9 @@ export default function Dashboard({ session }) {
   const navigate = (id) => {
     if (id === 'community-chats') { setCommunityTab('chats'); setView('community'); return }
     if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
+    // "מדיה" כבר לא מסך נפרד — קישורים ישנים מגיעים לטאב המדיה בתוך תרגילים
+    if (id === 'media') { setDrillsTab('media'); setView('drills'); return }
+    if (id === 'drills') setDrillsTab('library')
     setView(id)
   }
 
@@ -386,7 +389,21 @@ export default function Dashboard({ session }) {
               onConsumeInitialTab={() => setFinderTab(null)}
             />
           ) : view === 'drills' ? (
-            <DrillLibrary session={session} profile={profile} />
+            /* "מדיה" אוחדה לתוך "תרגילים": סרטוני האימון הם חלק מאותה משימה
+               ("מה מתרגלים"), ופריט ניווט שלם עבורם רק העמיס על הסרגל. */
+            <>
+              <div className="tabs drills-media-tabs">
+                <button className={drillsTab === 'library' ? 'tab active' : 'tab'} onClick={() => setDrillsTab('library')}>
+                  <Dumbbell size={15} /> {t('nav.drills')}
+                </button>
+                <button className={drillsTab === 'media' ? 'tab active' : 'tab'} onClick={() => setDrillsTab('media')}>
+                  <MonitorPlay size={15} /> {t('nav.media')}
+                </button>
+              </div>
+              {drillsTab === 'library'
+                ? <DrillLibrary session={session} profile={profile} />
+                : <Media session={session} profile={profile} />}
+            </>
           ) : view === 'plans' ? (
             <TrainingPlans session={session} />
           ) : view === 'schedule' ? (
@@ -397,8 +414,6 @@ export default function Dashboard({ session }) {
             <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
           ) : view === 'admin' && profile?.is_admin ? (
             <Admin session={session} profile={profile} />
-          ) : view === 'media' ? (
-            <Media session={session} profile={profile} />
           ) : view === 'messages' ? (
             <Messages session={session} onNavigate={navigate} />
           ) : (
