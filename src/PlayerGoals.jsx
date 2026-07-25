@@ -315,6 +315,13 @@ export function MyGoals({ session, membership }) {
                     : isCount ? <span className="plg2-pct">{pct}%</span> : null}
                 </div>
                 <div className="plg2-bar"><span className={isDone ? 'done' : ''} style={{ width: `${pct}%` }} /></div>
+                {/* מיקוד קבוצתי (player_id = null): ה-RLS מתיר לשחקן לעדכן רק את
+                    השורות שלו, ולכן +/- ו"סמן שבוצע" היו מסננים 0 שורות ומחזירים
+                    204 — הכפתור "עבד" למראית עין וחזר לאחור בטעינה הבאה.
+                    את המיקוד הקבוצתי מסמנים בסיכום האימון. */}
+                {!g.player_id ? (
+                  <p className="plg2-teamnote">{L('מיקוד של כל הקבוצה — סמן אותו בסיכום האימון בסוף האימון.', 'A whole-team focus — mark it in your post-practice summary.')}</p>
+                ) : (
                 <div className="plg2-log">
                   {isCount ? (
                     <div className="plg2-step">
@@ -327,6 +334,7 @@ export function MyGoals({ session, membership }) {
                     <Check size={14} /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
                   </button>
                 </div>
+                )}
 
                 {isCount && (
                   <button className="plg2-more" onClick={() => setOpenId(openId === g.id ? null : g.id)} aria-expanded={openId === g.id}>
