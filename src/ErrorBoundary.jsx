@@ -8,7 +8,9 @@ import { supabase } from './supabaseClient'
 async function report(error, info, screen) {
   try {
     const { data } = await supabase.auth.getUser()
-    await supabase.from('client_errors').insert({
+    // supabase-js לא זורק על דחיית RLS/סשן שפג — בלי בדיקת השגיאה, דווקא
+    // הקריסות שהכי חשוב לראות היו נעלמות בשקט.
+    const { error: insErr } = await supabase.from('client_errors').insert({
       user_id: data?.user?.id || null,
       message: String(error?.message || error).slice(0, 500),
       stack: String(info?.componentStack || error?.stack || '').slice(0, 4000),
@@ -17,6 +19,7 @@ async function report(error, info, screen) {
       screen: screen || window.location.hash || 'unknown',
       user_agent: navigator.userAgent.slice(0, 300),
     })
+    if (insErr) console.warn('[CourtSide] דיווח הקריסה לא נשמר:', insErr.message)
   } catch {
     /* לא קריטי */
   }
