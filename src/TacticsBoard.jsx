@@ -318,7 +318,7 @@ function Board({
 
 // לוח טקטיקה — מגרש (חצי/שלם), אובייקטים נגררים, חצים, וריבוי שלבים.
 // value/onChange: { fullCourt, steps:[{objects:[], arrows:[]}] }
-export default function TacticsBoard({ value, onChange, readOnly }) {
+export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
   const initial =
     value && value.steps ? value : { fullCourt: false, steps: [{ objects: [], arrows: [] }] }
   const [fullCourt, setFullCourt] = useState(!!initial.fullCourt)
@@ -330,6 +330,23 @@ export default function TacticsBoard({ value, onChange, readOnly }) {
   const [tool, setTool] = useState('select')
   const [frame, setFrame] = useState({ idx: 0, p: 0 })
   const [paused, setPaused] = useState(false)
+
+  // autoPlay: פתיחת תרגיל מתניעה את האנימציה לבד — רגע ה"וואו" של הלוח.
+  // מדלג כשמבקשים פחות תנועה (מערכת/ווידג'ט נגישות) או כשאין מספיק שלבים.
+  useEffect(() => {
+    if (!autoPlay || !readOnly) return
+    if (!initial.steps || initial.steps.length < 2) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (document.documentElement.classList.contains('a11y-motion')) return
+    const t = setTimeout(() => {
+      setFrame({ idx: 0, p: 0 })
+      setPaused(false)
+      setLayout('play')
+    }, 400)
+    return () => clearTimeout(t)
+    // מכוון: רץ פעם אחת במאונט בלבד
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const dim = fullCourt ? FULL : HALF
 

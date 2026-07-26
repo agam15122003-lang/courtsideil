@@ -18,7 +18,6 @@ import {
   NEWS_COUNT,
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
-  NEWS_FALLBACK_IMAGES,
   CONTENT_LINKS, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
@@ -28,6 +27,32 @@ import NextPractice from './NextPractice'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+// ספירה-למעלה של מספר סטטיסטיקה (לוח תוצאות, לא אקסל). מכבד reduced-motion.
+function useCountUp(target, dur = 700) {
+  const [val, setVal] = useState(target)
+  useEffect(() => {
+    if (typeof target !== 'number' || !isFinite(target)) { setVal(target); return }
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      || document.documentElement.classList.contains('a11y-motion')) { setVal(target); return }
+    let raf
+    const t0 = performance.now()
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur)
+      setVal(target * (1 - Math.pow(1 - p, 3))) // ease-out cubic
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, dur])
+  return val
+}
+
+function StatNum({ value, decimals = 0 }) {
+  const v = useCountUp(typeof value === 'number' ? value : null)
+  if (typeof value !== 'number') return '—'
+  return Number(v).toFixed(decimals)
+}
 
 // סטטיסטיקות דף הבית — נשלפות פעם אחת, עם ברירת מחדל 0 אם אין נתונים.
 function useHomeStats(userId) {
@@ -193,12 +218,9 @@ function useNews() {
         r++
       }
 
-      // תמונת גיבוי לכתבות בלי תמונה — מונה נפרד כדי שלא יחזרו תמונות זהות זו ליד זו
-      let fb = 0
-      const items = mixed.map((a) => ({
-        ...a,
-        image: a.image || NEWS_FALLBACK_IMAGES[fb++ % NEWS_FALLBACK_IMAGES.length],
-      }))
+      // בלי תמונות סטוק אקראיות (DESIGN.md: אין תוכן מזויף) —
+      // כתבה בלי תמונה אמיתית מקבלת placeholder ממותג ב-CSS
+      const items = mixed
 
       // אם השליפה לא החזירה כלום אבל יש קאש ישן — עדיף להציג אותו מאשר שגיאה
       if (items.length === 0 && staleItems) {
@@ -246,10 +268,10 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
   const STAT_TILES = [
-    { key: 'rating', Icon: Star, num: stats.rating != null ? stats.rating.toFixed(1) : '—', label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true, c: 'orange' },
-    { key: 'week', Icon: CalendarDays, num: stats.week ?? '—', label: L('אימונים השבוע', 'Practices this week'), c: 'green' },
-    { key: 'plans', Icon: ClipboardList, num: stats.plans ?? '—', label: L('תוכניות אימון', 'Practice plans'), c: 'purple' },
-    { key: 'saved', Icon: Bookmark, num: stats.saved ?? '—', label: L('תרגילים שמורים', 'Saved drills'), c: 'blue' },
+    { key: 'rating', Icon: Star, value: stats.rating, dec: 1, label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true, c: 'orange' },
+    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים השבוע', 'Practices this week'), c: 'green' },
+    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות אימון', 'Practice plans'), c: 'purple' },
+    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('תרגילים שמורים', 'Saved drills'), c: 'blue' },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
@@ -327,7 +349,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             <span className="stat-tile-ic"><t.Icon size={17} /></span>
             <span className="stat-tile-num">
               {t.star && <Star size={15} className="stat-star" aria-hidden="true" />}
-              <bdi>{t.num}</bdi>
+              <bdi><StatNum value={t.value} decimals={t.dec} /></bdi>
             </span>
             <span className="stat-tile-label">{t.label}</span>
           </div>
@@ -363,7 +385,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </div>
       )}
 
-      <h2 className="section-title" style={{ marginTop: 32 }}>
+      <span className="sec-kicker">{L('כלים', 'Tools')}</span>
+      <h2 className="section-title">
         {L('קיצורי דרך', 'Shortcuts')}
       </h2>
       <div className="home-grid">
@@ -382,6 +405,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
       {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
       {communityPosts.length > 0 && (
         <>
+          <span className="sec-kicker">{L('קהילה', 'Community')}</span>
           <div className="home-community-head">
             <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
             <button type="button" className="link-button" onClick={() => onNavigate('community')}>
@@ -412,7 +436,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
       )}
 
-      <h2 className="section-title section-title--icon" style={{ marginTop: 32 }}>
+      <span className="sec-kicker">{L('השראה', 'Inspiration')}</span>
+      <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
         {L('כתבות כדורסל', 'Basketball news')}
       </h2>
@@ -446,7 +471,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
                 {a.source && <span className="news-source">{a.source}</span>}
               </div>
               <div className="news-body">
-                <span className="news-title">{a.title}</span>
+                {/* bdi — כותרות עם תוצאות ("79:66") מתהפכות בלי בידוד כיוון */}
+                <span className="news-title"><bdi>{a.title}</bdi></span>
                 <span className="news-meta">
                   {a.date ? formatDate(a.date) : a.source}
                 </span>

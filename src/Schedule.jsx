@@ -406,7 +406,8 @@ export default function Schedule({ session }) {
         <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
       ) : (
         <div className="cal-scroll" ref={calRef}>
-          <div className="cal-grid">
+          {/* key לפי שבוע — החלפת שבוע נכנסת ב-fade קצר במקום swap יבש */}
+          <div className="cal-grid" key={ymd(weekStart)}>
             <div className="cal-corner" />
             {days.map((d, i) => {
               const ds = ymd(d)

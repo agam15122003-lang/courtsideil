@@ -13,6 +13,8 @@ import {
   Zap,
   Quote,
   ChevronDown,
+  Send,
+  Eye,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
@@ -154,17 +156,18 @@ export default function Landing({ onEnter }) {
         </div>
       </header>
 
-      <section className="land-hero">
+      <section className="land-hero land-hero-night">
+        <span className="lhn-glow" aria-hidden="true" />
         <div className="land-hero-text">
           <span className="land-eyebrow">
-            <Star size={14} /> {L('הבית הדיגיטלי של מאמן הכדורסל', "The basketball coach's digital home")}
+            <Star size={14} /> {L('חינם · בעברית · למאמנים ולשחקנים', 'Free · in Hebrew · for coaches & players')}
           </span>
           <h1 className="land-title">
-            {L('כל הידע של האימון שלך —', 'All your coaching knowledge —')}<br />
-            <span className="land-title-accent">{L('במקום אחד.', 'in one place.')}</span>
+            {L('הבית הדיגיטלי של', 'The digital home of')}<br />
+            <span className="land-title-accent">{L('הכדורסל הישראלי.', 'Israeli basketball.')}</span>
           </h1>
           <p className="land-sub">
-            {L('תרגילים, תוכניות אימון, לוח טקטיקה, לו"ז וקהילת מאמנים. פלטפורמה מקצועית אחת — מהירה מספיק לשימוש תוך כדי אימון על המגרש.', 'Drills, practice plans, a tactics board, a schedule and a coaching community. One professional platform — fast enough to use right on the court during practice.')}
+            {L('מהתרגיל שהמאמן שולח ועד הדיווח של השחקן — תרגילים, תוכניות, לוח טקטיקה, לו"ז וקהילה. פלטפורמה אחת, מהירה מספיק למגרש.', "From the drill a coach sends to the player's report — drills, plans, a tactics board, a schedule and a community. One platform, fast enough for the court.")}
           </p>
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>
@@ -187,6 +190,30 @@ export default function Landing({ onEnter }) {
         </div>
         <div className="land-hero-art">
           <CourtArt />
+        </div>
+      </section>
+
+      {/* הלולאה מאמן↔שחקן — הבידול של CourtSide, הסיפור שהעיצוב צועק */}
+      <section className="land-section land-loop reveal">
+        <span className="land-kicker">{L('הלולאה', 'The Loop')}</span>
+        <h2 className="land-h2">{L('מאמן ↔ שחקן. זה כל הסיפור.', 'Coach ↔ player. That’s the whole story.')}</h2>
+        <p className="land-lead">{L('מה שאף קבוצת וואטסאפ לא נותנת: מעגל אימון סגור, שרואים אותו.', 'What no WhatsApp group gives you: a closed training loop you can actually see.')}</p>
+        <div className="land-loop-grid">
+          <div className="land-loop-step">
+            <span className="lls-ic orange"><Send size={22} /></span>
+            <h3 className="land-feature-title">{L('המאמן שולח', 'The coach sends')}</h3>
+            <p className="land-feature-desc">{L('תרגיל עם יעד כמותי — "200 זריקות עונשין עד שלישי".', 'A drill with a target — “200 free throws by Tuesday”.')}</p>
+          </div>
+          <div className="land-loop-step">
+            <span className="lls-ic green"><Dumbbell size={22} /></span>
+            <h3 className="land-feature-title">{L('השחקן מתאמן ומדווח', 'The player trains & reports')}</h3>
+            <p className="land-feature-desc">{L('מסמן התקדמות מהטלפון — גם 100 מתוך 200 נספרות, וכל אימון מקבל סיכום.', 'Logs progress from their phone — even 100 of 200 counts, and every practice gets a summary.')}</p>
+          </div>
+          <div className="land-loop-step">
+            <span className="lls-ic navy"><Eye size={22} /></span>
+            <h3 className="land-feature-title">{L('המאמן רואה ומגיב', 'The coach sees & responds')}</h3>
+            <p className="land-feature-desc">{L('מי ביצע, כמה קשה היה, ומשוב אישי שסוגר את המעגל — ומתחיל אותו מחדש.', 'Who did it, how hard it felt, and personal feedback that closes the loop — and starts it again.')}</p>
+          </div>
         </div>
       </section>
 

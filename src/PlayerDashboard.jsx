@@ -26,8 +26,9 @@ import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import ScheduleGrid from './ScheduleGrid'
 import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
+import { burstConfetti } from './confetti'
 import { expandSlots } from './sessionId'
-import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_FALLBACK_IMAGES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
+import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
@@ -294,7 +295,8 @@ function PlayerNews() {
               const t = String(it.title || '').split(' - ')
               out.push({
                 title: t[0], source: t[1] || src.name, link: it.link,
-                image: it.thumbnail || it.enclosure?.link || NEWS_FALLBACK_IMAGES[(out.length + i) % NEWS_FALLBACK_IMAGES.length],
+                // בלי תמונות סטוק (DESIGN.md) — אין תמונה אמיתית? placeholder ממותג ב-CSS
+                image: it.thumbnail || it.enclosure?.link || null,
               })
             })
           }
@@ -313,9 +315,9 @@ function PlayerNews() {
       <div className="pl-news">
         {items.map((n, i) => (
           <a key={i} className="pl-news-card" href={safeUrl(n.link) || '#'} target="_blank" rel="noopener noreferrer">
-            <span className="pl-news-thumb" style={{ backgroundImage: `url("${n.image}")` }} />
+            <span className="pl-news-thumb" style={n.image ? { backgroundImage: `url("${n.image}")` } : undefined} />
             <span className="pl-news-body">
-              <span className="pl-news-title">{n.title}</span>
+              <span className="pl-news-title"><bdi>{n.title}</bdi></span>
               <span className="pl-news-src">{n.source}</span>
             </span>
           </a>
@@ -375,7 +377,7 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
           <span className="pla-done-title">{title}{cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}</span>
           <span className="muted small">
             {hasTarget
-              ? L(`בוצע · ${a.target_value}/${a.target_value}${unitStr} · אלוף!`, `Done · ${a.target_value}/${a.target_value}${unitStr} · champ!`)
+              ? L(`בוצע · ${prog}/${a.target_value}${unitStr} · אלוף!`, `Done · ${prog}/${a.target_value}${unitStr} · champ!`)
               : L('בוצע · כל הכבוד', 'Done · nice work')}
           </span>
         </span>
@@ -428,6 +430,12 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
               <button onClick={() => setCustomOpen(true)}>{L('כמה עשיתי?', 'Log amount')}</button>
             )}
           </div>
+          {/* תרגיל שנפתח מחדש כשההתקדמות כבר על היעד — דרך מפורשת לסמן שוב בוצע */}
+          {prog >= Number(a.target_value) && (
+            <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
+              <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
+            </button>
+          )}
         </div>
       ) : (
         <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
@@ -468,9 +476,10 @@ function MyAssignments({ session }) {
   useEffect(() => { load() }, [load])
 
   const isDone = (a) => complBy[a.id]?.done_at != null
-  const frac = (a) => Number(a.target_value) > 0
+  // תרגיל שסומן בוצע נספר 1 גם אם progress נמוך מהיעד (למשל סימון מגרסה ישנה של האפליקציה)
+  const frac = (a) => isDone(a) ? 1 : (Number(a.target_value) > 0
     ? Math.min(1, (complBy[a.id]?.progress_value || 0) / a.target_value)
-    : (isDone(a) ? 1 : 0)
+    : 0)
 
   // תרגיל בוצע/לא-בוצע (בלי יעד), או פתיחה מחדש של תרגיל עם יעד (שומרת את ההתקדמות)
   const toggleDone = async (id, wasDone) => {
@@ -487,21 +496,23 @@ function MyAssignments({ session }) {
       setComplBy((m) => ({ ...m, [id]: { progress_value: m[id]?.progress_value || 0, done_at: 'x' } }))
       await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: new Date().toISOString() })
       toast.success(L('כל הכבוד! 💪', 'Nice work! 💪'))
+      burstConfetti()
     }
   }
 
-  // רישום התקדמות הדרגתי — delta חיובי, נחתך ליעד; בהגעה ליעד מסומן בוצע אוטומטית
+  // רישום התקדמות הדרגתי — delta חיובי, נחתך ליעד; בהגעה ליעד מסומן בוצע אוטומטית.
+  // כשכבר עומדים על היעד (תרגיל שנפתח מחדש) אסור לצאת מוקדם — הלחיצה מסמנת שוב בוצע.
   const addProgress = async (a, delta) => {
     const cur = complBy[a.id]?.progress_value || 0
     const next = Math.max(0, Math.min(Number(a.target_value), cur + delta))
-    if (next === cur) return
     const reached = next >= Number(a.target_value)
+    if (next === cur && !reached) return
     const done_at = reached ? new Date().toISOString() : null
     setComplBy((m) => ({ ...m, [a.id]: { progress_value: next, done_at } }))
     const { error } = await supabase.from('assignment_completions')
       .upsert({ assignment_id: a.id, player_id: session.user.id, progress_value: next, done_at })
     if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); load(); return }
-    if (reached) toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉'))
+    if (reached) { toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉')); burstConfetti() }
     else toast.success(L(`נרשם! ${next}/${a.target_value}`, `Logged! ${next}/${a.target_value}`))
   }
 
@@ -1769,6 +1780,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         <div className="main-inner" key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
+          {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}
+          {!editing && !['teamchat', 'coach', 'community'].includes(view) && <PlayerQuote />}
         </div>
       </main>
 

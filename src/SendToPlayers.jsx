@@ -98,6 +98,7 @@ export default function SendToPlayers({ session, embedded, initialTeam }) {
     })
     setSending(false)
     if (!res.ok) { toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + res.error); return }
+    if (res.warn) toast.error(res.warn)
     toast.success(mode === 'team'
       ? L(`נשלח ל${trTeam(team)} (${res.count} שחקנים)`, `Sent to ${trTeam(team)} (${res.count} players)`)
       : L(`נשלח ל-${res.count} שחקנים`, `Sent to ${res.count} players`))

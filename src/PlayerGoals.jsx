@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
 import { L } from './i18n'
+import { burstConfetti } from './confetti'
 
 export const PERIODS = [
   { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון', 'Session'] },
@@ -252,7 +253,7 @@ export function MyGoals({ session, membership }) {
     setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
     await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     await recordLog(g.id, next)
-    if (done && g.status !== 'done') toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉'))
+    if (done && g.status !== 'done') { toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉')); burstConfetti() }
   }
 
   const bump = async (g, dir) => {

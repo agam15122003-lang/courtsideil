@@ -15721,3 +15721,666 @@ html.a11y-motion .plh-ask-cta { animation: none; }
   font-size: 12.5px;
   font-weight: 700;
 }
+
+/* ============================================================
+   באטץ' "הבית של השחקן" 25.7.2026 — צבע לילדים
+   בית לפי סדר הבעלים: טיימר (גם משחקים) → מטרות בגדול → המשוב
+   האחרון → סיכום המאמן → הודעות מהמאמן → כתבות.
+   התקדמות חלקית בתרגילים + ציטוטים בכל המסכים.
+   ============================================================ */
+
+/* הירו של משחק — סגול חגיגי במקום הנייבי של אימון */
+.plh-hero.game { background: linear-gradient(158deg, #3A1E55, #472368 46%, #5B2E88); }
+[data-theme='dark'] .plh-hero.game { background: linear-gradient(158deg, #241238, #2F1849 46%, #3B2059); }
+
+/* --- כותרת מקטע עם כפתור "לכל..." --- */
+.plhg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.plhg-head .pl-section-label { margin: 0; }
+.plhg-all {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; background: none; padding: 6px 4px;
+  color: var(--accent-strong); font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.plhg-all:hover { text-decoration: underline; }
+
+/* --- המטרות שלי בגדול --- */
+.plhg-overall { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px 14px; box-shadow: var(--shadow-sm); margin-bottom: 12px; }
+.plhg-overall-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+.plhg-overall-top b { color: var(--accent-strong); font-size: 16px; }
+.plhg-overall-bar { height: 12px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; }
+.plhg-overall-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--orange-500), var(--c-purple)); transition: width 0.6s var(--ease-spring); }
+.plhg-cat { display: flex; align-items: center; gap: 6px; margin: 14px 2px 8px; font-family: var(--font-display); font-size: 15px; font-weight: 800; }
+.plhg-cat.orange { color: var(--c-orange); }
+.plhg-cat.purple { color: var(--c-purple); }
+.plhg-cards { display: grid; gap: 10px; }
+@media (min-width: 720px) { .plhg-cards { grid-template-columns: 1fr 1fr; } }
+.plhg-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 15px 14px 13px; box-shadow: var(--shadow-sm); overflow: hidden; }
+.plhg-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 5px; }
+.plhg-card.orange::before { background: linear-gradient(90deg, var(--orange-500), #F5B041); }
+.plhg-card.purple::before { background: linear-gradient(90deg, var(--c-purple), #9F6FE8); }
+.plhg-card.done { background: var(--c-green-bg); border-color: color-mix(in srgb, var(--c-green) 30%, transparent); }
+.plhg-card.done::before { background: var(--c-green); }
+.plhg-card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.plhg-title { font-family: var(--font-display); font-size: 17px; font-weight: 800; color: var(--text); }
+.plhg-team { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--c-blue); background: var(--c-blue-bg); border-radius: var(--radius-full); padding: 3px 9px; }
+.plhg-donetag { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto; font-size: 12.5px; font-weight: 800; color: var(--c-green); }
+.plhg-nums { margin-top: 8px; font-size: 13.5px; font-weight: 700; color: var(--text-muted); }
+.plhg-nums b { color: var(--text); font-size: 15.5px; }
+.plhg-bar { height: 10px; margin-top: 6px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; }
+.plhg-bar span { display: block; height: 100%; border-radius: inherit; transition: width 0.6s var(--ease-spring); }
+.plhg-card.orange .plhg-bar span { background: linear-gradient(90deg, var(--orange-500), #F5B041); }
+.plhg-card.purple .plhg-bar span { background: linear-gradient(90deg, var(--c-purple), #9F6FE8); }
+.plhg-card.done .plhg-bar span { background: var(--c-green); }
+.plhg-checkline { margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.plhg-card .plg2-chart { width: 100%; height: 52px; margin-top: 8px; }
+.plhg-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; background: var(--surface); border: 1px dashed var(--border-hover); border-radius: 18px; padding: 22px 16px; }
+.plhg-empty-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: var(--radius-full); background: var(--accent-soft); color: var(--accent-strong); }
+
+/* --- המשוב מהאימון האחרון: שני חצאים, שלי + של המאמן --- */
+.plfb-card { display: grid; gap: 10px; }
+@media (min-width: 720px) { .plfb-card { grid-template-columns: 1fr 1fr; } }
+.plfb-half { border: 1px solid var(--border); border-radius: 18px; padding: 13px 14px; box-shadow: var(--shadow-sm); }
+.plfb-half.me { background: linear-gradient(180deg, var(--c-blue-bg), var(--surface) 72%); }
+.plfb-half.coach { background: linear-gradient(180deg, var(--c-green-bg), var(--surface) 72%); }
+.plfb-lbl { display: block; font-size: 12.5px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; }
+.plfb-eff { display: flex; align-items: center; gap: 6px; color: var(--c-orange); font-weight: 700; flex-wrap: wrap; }
+.plfb-eff b { font-size: 21px; color: var(--text); }
+.plfb-mood { font-weight: 800; }
+.plfb-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.plfb-tags span { font-size: 12px; font-weight: 700; background: var(--surface-alt); color: var(--text); border-radius: var(--radius-full); padding: 3px 10px; }
+.plfb-marks { display: flex; flex-direction: column; gap: 5px; margin-top: 9px; }
+.plfb-mark { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.plfb-mark.on { color: var(--c-green); }
+.plfb-note { margin: 9px 0 0; font-size: 13.5px; font-style: italic; color: var(--text); }
+.plfb-ack { display: inline-flex; align-items: center; gap: 5px; margin-top: 9px; font-size: 12.5px; font-weight: 700; color: var(--c-green); background: var(--c-green-bg); border-radius: var(--radius-full); padding: 4px 10px; }
+.plfb-coach-txt { margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: var(--text); }
+
+/* --- הודעות מהמאמן --- */
+.plcm-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 13px 14px; box-shadow: var(--shadow-sm); }
+.plcm-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; font-size: 14.5px; }
+.plcm-bubble { background: var(--surface-alt); border-radius: 4px 16px 16px 16px; padding: 9px 12px; margin-bottom: 8px; }
+.plcm-bubble.empty { color: var(--text-muted); font-size: 13.5px; }
+.plcm-bubble p { margin: 3px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.plcm-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.plcm-tag { font-style: normal; font-weight: 800; font-size: 12px; color: var(--c-blue); background: var(--c-blue-bg); border-radius: var(--radius-full); padding: 2px 8px; }
+.plcm-tag.team { color: var(--c-purple); background: var(--c-purple-bg); }
+.plcm-cta { display: flex; gap: 8px; margin-top: 10px; }
+.plcm-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; border: none; border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-press));
+  color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
+}
+.plcm-btn.ghost { background: var(--surface-alt); color: var(--text); }
+
+/* --- התקדמות חלקית בתרגיל (צד שחקן) --- */
+.pla-prog { margin-top: 10px; }
+.pla-prog-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; }
+.pla-prog-top b { color: var(--text); font-size: 14.5px; }
+.pla-prog-bar { height: 12px; border-radius: var(--radius-full); background: var(--surface-alt); overflow: hidden; }
+.pla-prog-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--c-green), #4CC38A); transition: width 0.6s var(--ease-spring); }
+.pla-quick { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.pla-quick > button, .pla-quick-custom button {
+  border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface);
+  color: var(--accent-strong); font-family: inherit; font-size: 13.5px; font-weight: 800;
+  padding: 8px 16px; min-height: 38px; cursor: pointer;
+}
+.pla-quick > button:hover { background: var(--accent-soft); border-color: var(--accent); }
+.pla-quick-custom { display: inline-flex; align-items: center; gap: 6px; }
+.pla-quick-custom input { width: 80px; min-height: 38px; border: 1px solid var(--accent); border-radius: var(--radius-full); padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--text); }
+.pla-quick-custom button.on { background: var(--c-green); border-color: var(--c-green); color: #fff; }
+@media (pointer: coarse) {
+  .pla-quick > button, .pla-quick-custom button, .pla-quick-custom input { min-height: 44px; }
+}
+
+/* --- התקדמות חלקית במעקב המאמן --- */
+.ta-partial { font-size: 12.5px; font-weight: 800; color: var(--c-orange); background: var(--c-orange-bg); border-radius: var(--radius-full); padding: 3px 9px; }
+
+/* --- שורת יעד כמותי בטופס השליחה --- */
+.sp-target-row { display: flex; align-items: center; gap: 8px; }
+.sp-mini .sp-target-row { margin-bottom: 8px; }
+.sp-target-lbl { font-size: 12.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.sp-target-num { width: 92px; flex: 0 0 auto; }
+.sp-target-unit { flex: 1; min-width: 0; }
+
+/* --- ציטוט למאמן גם במובייל (היה display:none מתחת ל-640px) --- */
+@media (max-width: 640px) {
+  .quote-strip { display: flex; align-items: center; gap: 8px; padding: 7px 12px; }
+  .quote-strip-mark { display: none; }
+  .quote-strip-text { font-size: 12.5px; }
+  .quote-strip-author { font-size: 12px; }
+}
+
+/* כיבוי אנימציות לפי העדפת המשתמש / ווידג'ט הנגישות */
+@media (prefers-reduced-motion: reduce) {
+  .plhg-overall-bar span, .plhg-bar span, .pla-prog-bar span { transition: none; }
+}
+html.a11y-motion .plhg-overall-bar span,
+html.a11y-motion .plhg-bar span,
+html.a11y-motion .pla-prog-bar span { transition: none; }
+
+/* ============================================================
+   באטץ' "פרקט ולילה" 26.7.2026 — שלב 1: טוקנים 2.0 + טיפוגרפיה
+   מהפכת העיצוב שאושרה בראיון הבעלים: נייבי-לילה עמוק של ערב
+   משחק, כתום לוהט של כדור וזרקורים, ירוק הצלחה, וזהב פרקט
+   לרגעים גדולים. Karantina לכותרות-ענק ומספרים (--font-sport).
+   דורס את :root ואת התמה הכהה — append-only, הארכיטקטורה נשמרת.
+   ============================================================ */
+
+:root {
+  /* לילה — נייבי עמוק ודרמטי */
+  --navy-900: #0A1020;
+  --navy-800: #101A33;
+  --navy-700: #1A2747;
+  --navy-500: #35486F;
+  --hero-navy: #0A1020;
+  --hero-navy-2: #16233F;
+  --primary: #0A1020;
+  --primary-press: #101A33;
+
+  /* כתום לוהט */
+  --orange-700: #9A3412;
+  --orange-600: #EA580C;
+  --orange-500: #F97316;
+  --orange-300: #FDBA74;
+  --orange-100: #FFEDD5;
+  --orange-50: #FFF7ED;
+  --accent: #F97316;
+  --accent-fill: #C2410C;      /* מילוי כפתורים — לבן עליו ‎5.5:1 */
+  --accent-fill-press: #9A3412;
+  --accent-press: #9A3412;
+  --accent-strong: #9A3412;    /* טקסט כתום על קנבס בהיר — ‎7:1+ */
+  --accent-soft: rgba(249, 115, 22, 0.12);
+
+  /* הצלחה */
+  --success: #15803D;
+  --c-green: #15803D;
+
+  /* קטגוריית כתום מיושרת ללוהט */
+  --c-orange: #9A3412;
+  --c-orange-bg: rgba(249, 115, 22, 0.14);
+
+  /* קנבס בהיר קריר ונקי */
+  --bg: #F6F7FB;
+
+  /* זהב פרקט — MVP, מאמן השבוע, הישגים */
+  --gold-wood: #C8873F;
+  --gold-wood-bg: rgba(200, 135, 63, 0.14);
+
+  /* צל לילה עמוק */
+  --shadow-sm: 0 1px 2px rgba(10, 16, 32, 0.08);
+  --shadow-md: 0 4px 14px rgba(10, 16, 32, 0.12);
+  --shadow-lg: 0 14px 34px rgba(10, 16, 32, 0.18);
+
+  /* טיפוגרפיית ספורט — כותרות ענק ומספרים בלבד */
+  --font-sport: 'Karantina', 'Heebo', 'Rubik', sans-serif;
+}
+
+[data-theme='dark'] {
+  --bg: #070C18;
+  --surface: #0F1930;
+  --surface-alt: #182444;
+  --border: #2B3A5C;
+  --accent: #FB923C;
+  --accent-strong: #FDBA74;
+  --accent-fill: #C2410C;
+  --c-orange: #FDBA74;
+  --c-orange-bg: rgba(251, 146, 60, 0.16);
+  --hero-navy: #060B16;
+  --hero-navy-2: #101B33;
+  --gold-wood: #E0A45F;
+  --gold-wood-bg: rgba(224, 164, 95, 0.16);
+}
+
+/* --- מחלקות עזר טיפוגרפיות --- */
+.disp { font-family: var(--font-display); }
+.stat-num {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* --- החלה ספורטיבית בעולם השחקן --- */
+.plh-hero { background: linear-gradient(158deg, #101A33, var(--hero-navy) 46%, var(--hero-navy-2)); }
+.plh-hero-name { font-family: var(--font-sport); font-size: 44px; font-weight: 700; letter-spacing: 0.01em; line-height: 1; }
+.plh-ask-title { font-family: var(--font-sport); font-size: 34px; font-weight: 700; }
+.plh-cd-cell b { font-family: var(--font-sport); font-size: 32px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.plh-stat-num { font-family: var(--font-sport); font-size: 28px; font-weight: 700; }
+.plfb-eff b { font-family: var(--font-sport); font-size: 28px; }
+.plhg-overall-top b { font-family: var(--font-sport); font-size: 24px; }
+
+/* MVP וזהב פרקט */
+.plr-mvp { background: var(--gold-wood-bg); color: var(--gold-wood); }
+.plr-mvp.me { background: linear-gradient(135deg, var(--gold-wood), #A96F2E); color: #fff; }
+
+/* ============================================================
+   "פרקט ולילה" שלב 2 — דף הנחיתה: הירו ענק + סקשן הלולאה
+   ============================================================ */
+
+/* ההירו — לילה עמוק, זרקור כתום, טיפוגרפיית ענק */
+.land-hero-night { position: relative; overflow: hidden; }
+.lhn-glow {
+  position: absolute;
+  inset: auto -20% -55% -20%;
+  height: 130%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(249, 115, 22, 0.22), rgba(249, 115, 22, 0) 62%);
+  pointer-events: none;
+}
+.land-hero-night .land-hero-text,
+.land-hero-night .land-hero-art { position: relative; }
+.land-hero .land-title {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-size: clamp(56px, 8.5vw, 104px);
+  line-height: 0.92;
+  letter-spacing: 0.005em;
+}
+.land-hero-night .land-title-accent { color: #FB923C; }
+.land-hero .land-sub { font-size: 18px; line-height: 1.6; max-width: 560px; }
+.land-hero .land-stat-num {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  color: #FDBA74;
+}
+.land-cta .btn-primary.btn-lg {
+  background: linear-gradient(135deg, #EA580C, #C2410C);
+  border: none;
+  box-shadow: 0 10px 28px rgba(234, 88, 12, 0.38);
+  font-size: 17px;
+  padding: 15px 30px;
+  border-radius: var(--radius-full);
+}
+.land-cta .btn-primary.btn-lg:hover { background: linear-gradient(135deg, #F97316, #EA580C); transform: translateY(-2px); }
+.land-hero-night .btn-soft.btn-lg {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  border-radius: var(--radius-full);
+}
+.land-hero-night .btn-soft.btn-lg:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* סקשן הלולאה — שלושה צעדים מחוברים בחץ */
+.land-loop-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 26px;
+}
+.land-loop-step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px 20px;
+  box-shadow: var(--shadow-sm);
+  text-align: right;
+}
+.land-loop-grid::before,
+.land-loop-grid::after { content: none; }
+.land-loop-step + .land-loop-step { position: relative; }
+/* חיצים בין הצעדים — RTL: הזרימה שמאלה */
+.land-loop-grid > .land-loop-step:not(:last-child) { grid-column: auto; }
+.land-loop-arrow { display: grid; place-items: center; color: var(--accent-strong); }
+.lls-ic {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  color: #fff;
+}
+.lls-ic.orange { background: linear-gradient(135deg, #F97316, #C2410C); }
+.lls-ic.green { background: linear-gradient(135deg, #22C55E, #15803D); }
+.lls-ic.navy { background: linear-gradient(135deg, #35486F, #0A1020); }
+/* חץ מצויר בין כרטיסים במסך רחב, ומוסתר בערימה במובייל */
+@media (min-width: 860px) {
+  .land-loop-grid { grid-template-columns: repeat(3, 1fr); gap: 34px; }
+  .land-loop-step { position: relative; }
+  .land-loop-step:not(:last-child)::after {
+    content: '←';
+    position: absolute;
+    top: 50%;
+    left: -29px;
+    transform: translateY(-50%);
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--accent-strong);
+  }
+}
+@media (max-width: 859px) {
+  .land-loop-grid { grid-template-columns: 1fr; }
+  .land-loop-step:not(:last-child)::after {
+    content: '↓';
+    display: block;
+    text-align: center;
+    margin: 12px auto -26px;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--accent-strong);
+  }
+}
+
+/* כרטיסי כלים/למה — בלוקים נקיים ברדיוס אחיד */
+.land-feature, .land-why-item, .land-step { border-radius: 20px; }
+
+/* פס הסיום — לילה + כותרת ספורט ענקית */
+.land-band {
+  background: linear-gradient(150deg, #0A1020, #16233F);
+  border-radius: 26px;
+  position: relative;
+  overflow: hidden;
+}
+.land-band::after {
+  content: '';
+  position: absolute;
+  inset: auto -25% -70% -25%;
+  height: 120%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0) 60%);
+  pointer-events: none;
+}
+.land-band-title {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-size: clamp(42px, 6vw, 72px);
+  line-height: 0.95;
+  color: #fff;
+  position: relative;
+}
+.land-band-sub { color: rgba(255, 255, 255, 0.75); position: relative; }
+.land-band .btn-hero {
+  background: linear-gradient(135deg, #EA580C, #C2410C);
+  box-shadow: 0 10px 28px rgba(234, 88, 12, 0.38);
+  border-radius: var(--radius-full);
+  position: relative;
+}
+
+/* כותרות סקשן — נשארות Heebo (רציני), רק גדולות ונושמות יותר */
+.land-h2 { font-size: clamp(30px, 4vw, 40px); letter-spacing: -0.025em; }
+.land-section { padding-top: 72px; padding-bottom: 72px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .land-cta .btn-primary.btn-lg:hover { transform: none; }
+}
+
+/* ============================================================
+   "פרקט ולילה" שלבים 3-4 — בית המאמן פרימיום + קונפטי לשחקן
+   ============================================================ */
+
+/* --- שלב 3: בית המאמן — רציני, גדול, נושם --- */
+.home-greet-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(30px, 3.6vw, 40px);
+  letter-spacing: -0.03em;
+}
+.stat-tile-num {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.np-timer {
+  font-family: var(--font-sport);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: 0.02em;
+}
+.home-card, .home-stats, .onboard-card { border-radius: 20px; }
+.section-title { font-size: 22px; letter-spacing: -0.02em; }
+
+/* --- שלב 4: קונפטי לרגעי הצלחה (שחקן) --- */
+.pl-confetti {
+  position: fixed;
+  inset: 16% 0 auto 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 120;
+}
+.pl-confetti i {
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  animation: pl-confetti-fall var(--cd, 0.9s) var(--ease-out) forwards;
+}
+@keyframes pl-confetti-fall {
+  0% { opacity: 1; transform: translate(0, -12px) rotate(0); }
+  100% { opacity: 0; transform: translate(var(--cx, 0), 46vh) rotate(var(--cr, 180deg)); }
+}
+/* בטיחות כפולה — גם אם ה-JS כבר יצר את האלמנט */
+@media (prefers-reduced-motion: reduce) { .pl-confetti { display: none; } }
+html.a11y-motion .pl-confetti { display: none; }
+
+/* ספציפיות: הכללים המקוריים יושבים על סלקטורים מקוננים */
+.home-hero .home-greet-title { font-family: var(--font-display); font-weight: 900; font-size: clamp(30px, 3.6vw, 40px); letter-spacing: -0.03em; }
+.home-hero-card .np-timer { font-family: var(--font-sport); font-weight: 700; font-size: 34px; letter-spacing: 0.02em; }
+
+/* תיקון AA לזהב הפרקט: 3.0:1 כטקסט קטן נכשל — גוון טקסט כהה נפרד (5.9:1) */
+:root { --gold-wood-text: #8A5A22; }
+[data-theme="dark"] { --gold-wood-text: #E0A45F; }
+.plr-mvp { color: var(--gold-wood-text); }
+.plr-mvp.me { background: linear-gradient(135deg, #8A5A22, #75491A); color: #fff; }
+
+/* ============================================================
+   באטץ' "יצירת מופת" 26.7.2026 — סבב 1: תיקוני הביקורת (1-6)
+   נמדד לפני: 5 רדיוסים במסך, 12px הגודל הדומיננטי, 7 גרדיאנטים
+   בבית. אחרי: סקאלה של 3 רדיוסים (16 כרטיס / 10 פקד / full גלולה),
+   מטא-טקסט 13px, גרדיאנט רק ל-hero+CTA, count-up וטאבים עם fade.
+   ============================================================ */
+
+/* --- 1. איחוד רדיוסים: הטוקן עולה ל-16, וחריגים קשיחים מיושרים --- */
+:root {
+  --radius-card: 16px;   /* היה 10 — כרטיס ראשי אחיד */
+  --radius-sm: 10px;     /* היה 8 — פקדים/שדות */
+}
+.home-card, .home-stats, .onboard-card, .home-community-card,
+.stat-card, .pr-card, .team-section, .tm-modal, .sp-card,
+.drill-compact, .drill-card, .news-card { border-radius: 16px; }
+.cal-event { border-radius: 10px; } /* היה 7 — ערך יתום */
+
+/* --- 2. הרמת סקאלת הטקסט: המטא מפסיק ללחוש (12 → 13) --- */
+.stat-tile-label, .home-card-desc, .home-greet-date,
+.cal-hour, .cal-event-time, .cal-event-plan,
+.news-meta, .land-stat-label { font-size: 13px; }
+
+/* --- 3. שיטוח אריחי הקיצור: הצבע עובר לאייקון, הגרדיאנט נשאר ל-hero+CTA בלבד --- */
+.home-card.grad-blue, .home-card.grad-green,
+.home-card.grad-purple, .home-card.grad-orange {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.home-card.grad-blue .home-card-title, .home-card.grad-green .home-card-title,
+.home-card.grad-purple .home-card-title, .home-card.grad-orange .home-card-title { color: var(--text); }
+.home-card.grad-blue .home-card-desc, .home-card.grad-green .home-card-desc,
+.home-card.grad-purple .home-card-desc, .home-card.grad-orange .home-card-desc { color: var(--text-muted); }
+.home-card.grad-blue .home-card-chev, .home-card.grad-green .home-card-chev,
+.home-card.grad-purple .home-card-chev, .home-card.grad-orange .home-card-chev { color: var(--text-muted); }
+.home-card.grad-blue .home-ic { background: var(--c-blue-bg); color: var(--c-blue); }
+.home-card.grad-green .home-ic { background: var(--c-green-bg); color: var(--c-green); }
+.home-card.grad-purple .home-ic { background: var(--c-purple-bg); color: var(--c-purple); }
+.home-card.grad-orange .home-ic { background: var(--c-orange-bg); color: var(--c-orange); }
+
+/* --- 4. מעבר טאבים בקבוצות: תוכן נכנס ב-fade קצר במקום קפיצה --- */
+@keyframes sectionIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.team-section { animation: sectionIn 160ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .team-section { animation: none; } }
+html.a11y-motion .team-section { animation: none; }
+
+/* השלמות סבב 1: צ'יפים פנימיים על 10, וה-onboard שטוח כמו שאר הכרטיסים */
+.stat-tile-ic, .np-report { border-radius: 10px; }
+.onboard-card { background: var(--surface); }
+
+/* ============================================================
+   באטץ' "יצירת מופת" 26.7.2026 — סבב 2: ליטוש הדשבורד (5 שיפורים)
+   1) CTA אחד בהירו  2) פס סטטיסטיקה כלוח תוצאות  3) eyebrow אחיד
+   4) placeholder ממותג לכתבות  5) ריתמוס אנכי + onboarding דק
+   ============================================================ */
+
+/* --- 1. CTA אחד: הפעולות בכרטיס הזכוכית של "האימון הבא" נרגעות --- */
+.home-hero-card .np-actions .btn-primary,
+.home-hero-card .np-actions .btn-soft {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  box-shadow: none;
+  font-size: 13.5px;
+  min-height: 38px;
+  padding: 8px 14px;
+}
+.home-hero-card .np-actions .btn-primary:hover,
+.home-hero-card .np-actions .btn-soft:hover {
+  background: rgba(255, 255, 255, 0.17);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+/* --- 2. לוח תוצאות: פס אחד מחובר, מפרידי hairline, מספרים ענקיים --- */
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 4px 0;
+}
+.stat-tile {
+  border-inline-start: 1px solid var(--border);
+  padding: 16px 20px;
+  background: none;
+  box-shadow: none;
+}
+.stat-tile:first-child { border-inline-start: none; }
+.stat-tile-ic { display: none; } /* הצבע עובר לנקודה עדינה ליד התווית */
+.stat-tile-num { font-size: 34px; }
+.stat-tile-label { display: inline-flex; align-items: center; gap: 6px; }
+.stat-tile-label::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.stat-tile[data-c='orange'] .stat-tile-label::before { background: var(--accent); }
+.stat-tile[data-c='green'] .stat-tile-label::before { background: var(--c-green); }
+.stat-tile[data-c='purple'] .stat-tile-label::before { background: var(--c-purple); }
+.stat-tile[data-c='blue'] .stat-tile-label::before { background: var(--c-blue); }
+@media (max-width: 640px) {
+  .home-stats { grid-template-columns: repeat(2, 1fr); }
+  .stat-tile:nth-child(3) { border-inline-start: none; }
+  .stat-tile:nth-child(n + 3) { border-top: 1px solid var(--border); }
+}
+
+/* --- 3. eyebrow אחיד לסקשנים (דפוס "מוצר עריכתי") --- */
+.sec-kicker {
+  display: block;
+  margin: 44px 0 2px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: var(--accent-strong);
+}
+.sec-kicker + .section-title,
+.sec-kicker + .home-community-head { margin-top: 0; }
+.section-title { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; }
+
+/* --- 4. placeholder ממותג לכתבות בלי תמונה (במקום סטוק אקראי) --- */
+.news-thumb:not([style]),
+.pl-news-thumb:not([style]) {
+  background: linear-gradient(150deg, var(--hero-navy), var(--hero-navy-2));
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* --- 5. ריתמוס אנכי + onboarding כפס checklist דק --- */
+.onboard-card { padding: 14px 18px; }
+.onboard-title { font-size: 16px; margin: 0 0 2px; }
+.onboard-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.onboard-step { padding: 10px 12px; }
+@media (max-width: 720px) { .onboard-steps { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   באטץ' "יצירת מופת" 26.7.2026 — סבב 3: שורות 8-10 מהביקורת
+   פאנל תרגיל צף, autoplay ללוח, רוסטר עם נשמה, fade לשבוע
+   ============================================================ */
+
+/* --- שורה 8: פאנל תרגיל צף מעל הרשימה --- */
+.drill-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(10, 16, 32, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.drill-overlay-panel {
+  position: relative;
+  width: min(1080px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  padding: 18px 20px;
+  animation: drillPanelIn 200ms var(--ease-out);
+}
+.drill-overlay-x {
+  position: sticky;
+  top: 0;
+  margin-inline-start: auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  z-index: 2;
+}
+.drill-overlay-x:hover { background: var(--surface-alt); }
+@keyframes drillPanelIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 640px) {
+  .drill-overlay { padding: 0; }
+  .drill-overlay-panel { width: 100%; height: 100%; max-height: 100vh; border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .drill-overlay-panel { animation: none; } }
+html.a11y-motion .drill-overlay-panel { animation: none; }
+
+/* --- שורה 10: רוסטר עם נשמה — מספר חולצה כמו על גופיה, שורות נושמות --- */
+.roster-jersey {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-sport);
+  font-size: 23px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(150deg, var(--hero-navy), var(--hero-navy-2));
+  color: #fff;
+}
+.roster-row { padding-block: 12px; transition: background var(--dur-fast) var(--ease-out); }
+.roster-row:hover { background: var(--surface-alt); }
+.roster-name { font-size: 15.5px; font-weight: 700; }
+/* בעכבר: פעולות השורה מתגלות ב-hover — פחות רעש; במגע נשארות גלויות */
+@media (pointer: fine) {
+  .roster-row .icon-btn { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+  .roster-row:hover .icon-btn,
+  .roster-row:focus-within .icon-btn { opacity: 1; }
+}
+
+/* --- fade להחלפת שבוע בלו"ז --- */
+.cal-grid { animation: sectionIn 160ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .cal-grid { animation: none; } }
+html.a11y-motion .cal-grid { animation: none; }

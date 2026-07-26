@@ -49,13 +49,24 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
     recipients = players.map((p) => p.player_id).filter(Boolean)
   }
 
-  const { error } = await supabase.from('player_assignments').insert(rows)
+  let { error } = await supabase.from('player_assignments').insert(rows)
+  let warn = null
+  // מיגרציית היעד (supabase_assignments_progress.sql) אולי טרם רצה בפרוד — עמודה חסרה
+  // מפילה את כל ה-insert. במקרה כזה שולחים שוב בלי היעד, כדי שהשיגור עצמו לא ייכשל.
+  if (error && base.target_value != null && (error.code === 'PGRST204' || /target_value|unit/i.test(error.message || ''))) {
+    const stripped = rows.map(({ target_value: _t, unit: _u, ...r }) => r)
+    const retry = await supabase.from('player_assignments').insert(stripped)
+    if (!retry.error) {
+      error = null
+      warn = L('נשלח בלי היעד הכמותי — צריך להריץ את מיגרציית ה-SQL החדשה', 'Sent without the target — the new SQL migration must be run')
+    }
+  }
   if (error) return { ok: false, error: error.message }
 
   for (const to of recipients) {
     sendNotification({ to, actor: coachId, type: 'message', content: L('המאמן שלח לך תרגול חדש', 'Your coach sent you new training'), nav: 'drills' })
   }
-  return { ok: true, count: mode === 'team' ? recipients.length : rows.length }
+  return { ok: true, count: mode === 'team' ? recipients.length : rows.length, warn }
 }
 
 // טוען את השיגורים האחרונים של המאמן + כמה סימנו בוצע

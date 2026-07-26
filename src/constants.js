@@ -217,7 +217,7 @@ export const NEWS_FALLBACK_IMAGES = [
 // כמה כתבות להציג, וכל כמה זמן לרענן (קאשינג ב-localStorage).
 export const NEWS_COUNT = 8
 export const NEWS_CACHE_MINUTES = 15
-export const NEWS_CACHE_KEY = 'home_news_cache_v5'
+export const NEWS_CACHE_KEY = 'home_news_cache_v6'
 
 // קישורי תוכן קבועים (גיבוי + השראה) — מוצגים תחת הכתבות.
 export const CONTENT_LINKS = [

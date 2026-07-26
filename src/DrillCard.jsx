@@ -1,6 +1,7 @@
 import { toast } from './toast'
-import { useState } from 'react'
-import { Star, Bookmark, BookOpen, ChevronUp, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send, PlayCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { Star, Bookmark, BookOpen, X, Clock, Users, Package, Gauge, Plus, Pencil, Share2, Send, PlayCircle } from 'lucide-react'
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam , cnt } from './i18n'
@@ -36,6 +37,15 @@ export default function DrillCard({
   const [loadingC, setLoadingC] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [sendingC, setSendingC] = useState(false)
+
+  // הפאנל הצף: Escape סוגר ונועל את גלילת הרקע (הרשימה נשארת שלמה מאחור)
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false) }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [expanded])
 
   const loadComments = async () => {
     setLoadingC(true)
@@ -99,7 +109,8 @@ export default function DrillCard({
   const hasBoard = drill.board && drill.board.steps && drill.board.steps.length > 0
 
   return (
-    <div className={expanded ? 'drill-card is-expanded' : 'drill-card'}>
+    <>
+    <div className="drill-card">
       {/* תגיות + סטטוס פרטי (הכותרת והפרטים כבר בתוך המחברת) */}
       {(drill.is_public === false || (drill.tags && drill.tags.length > 0)) && (
         <div className="drill-toprow">
@@ -125,9 +136,8 @@ export default function DrillCard({
         </div>
       )}
 
-      {!expanded ? (
-        /* תצוגה קומפקטית — כותרת, קטגוריה, שכבות, וקצה מהתיאור */
-        <div className="drill-compact">
+      {/* תצוגה קומפקטית — נשארת ברשימה גם כשהפאנל הצף פתוח */}
+      <div className="drill-compact">
           <div className="drill-compact-head">
             <h3 className="drill-compact-title">{drill.title}</h3>
             {drill.category && (
@@ -203,11 +213,14 @@ export default function DrillCard({
             </button>
           </div>
         </div>
-      ) : (
-        /* תצוגה מלאה — מחברת המאמן (ימין) + מגרש מונפש (שמאל) */
-        <>
-          <button className="link-button" onClick={() => setExpanded(false)}>
-            <ChevronUp size={15} /> {L('הסתר', 'Collapse')}
+    </div>
+
+    {/* תצוגה מלאה — פאנל צף מעל הרשימה (מחברת + מגרש מונפש), במקום לנפח את הכרטיס */}
+    {expanded && createPortal(
+      <div className="drill-overlay" onClick={() => setExpanded(false)}>
+        <div className="drill-overlay-panel drill-card is-expanded" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={drill.title}>
+          <button className="drill-overlay-x" onClick={() => setExpanded(false)} aria-label={L('סגור', 'Close')}>
+            <X size={18} />
           </button>
           <div className={hasBoard ? 'drill-notebook-view' : ''}>
             <NotebookPage
@@ -220,7 +233,7 @@ export default function DrillCard({
             {hasBoard && (
               <div className="dnv-court">
                 <span className="detail-label">{L('על המגרש (נגן אנימציה)', 'On court (play animation)')}</span>
-                <TacticsBoard value={drill.board} readOnly />
+                <TacticsBoard value={drill.board} readOnly autoPlay />
               </div>
             )}
           </div>
@@ -229,11 +242,6 @@ export default function DrillCard({
               <img src={safeUrl(drill.image_url)} alt={drill.title} loading="lazy" />
             </a>
           )}
-        </>
-      )}
-
-      {expanded && (
-      <>
       {/* דירוג: ממוצע + הדירוג האישי שלי */}
       <div className="drill-rating">
         <div className="rating-summary">
@@ -359,9 +367,11 @@ export default function DrillCard({
           </div>
         )}
       </div>
-      </>
-      )}
-    </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }
 
