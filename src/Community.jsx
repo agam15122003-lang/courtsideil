@@ -29,6 +29,7 @@ import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
 import { SkeletonCards } from './Skeleton'
 import { L , cnt } from './i18n'
+import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
 
 const MAX_IMAGES = 4
@@ -304,7 +305,7 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
   }
 
   const remove = async () => {
-    if (!window.confirm(L('למחוק את הפוסט?', 'Delete this post?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את הפוסט?', 'Delete this post?'), danger: true }))) return
     const { error } = await supabase.from('community_posts').delete().eq('id', post.id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message)
@@ -883,7 +884,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   }
 
   const remove = async (id) => {
-    if (!window.confirm(L('למחוק את ההודעה?', 'Delete this message?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את ההודעה?', 'Delete this message?'), danger: true }))) return
     const { error } = await supabase.from('community_messages').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message)
@@ -1059,7 +1060,7 @@ function EventsCard({ session }) {
   }
 
   const removeEvent = async (ev) => {
-    if (!window.confirm(L('למחוק את האירוע?', 'Delete this event?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את האירוע?', 'Delete this event?'), danger: true }))) return
     const { error } = await supabase.from('community_events').delete().eq('id', ev.id)
     if (error) { toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message); return }
     load()

@@ -19,6 +19,7 @@ import TeamGoalsBoard from './TeamGoalsBoard'
 import TeamFocus from './TeamFocus'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
+import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
@@ -258,7 +259,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load()
   }
   const delPlayer = async (id) => {
-    if (!window.confirm(L('להסיר את השחקן?', 'Remove this player?'))) return
+    if (!(await confirmDialog({ message: L('להסיר את השחקן?', 'Remove this player?'), danger: true }))) return
     await supabase.from('team_players').delete().eq('id', id); setPEdit(null); load()
   }
 
@@ -276,7 +277,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     toast.success(L('פרטי הצוות נשמרו', 'Staff saved')); setSEdit(null); load()
   }
   const delStaff = async (id) => {
-    if (!window.confirm(L('להסיר מאיש הצוות?', 'Remove this staff member?'))) return
+    if (!(await confirmDialog({ message: L('להסיר מאיש הצוות?', 'Remove this staff member?'), danger: true }))) return
     await supabase.from('team_staff').delete().eq('id', id); setSEdit(null); load()
   }
 
@@ -311,7 +312,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     toast.success(L('המשחק עודכן', 'Game updated')); setGEdit(null); load()
   }
   const delGame = async (id) => {
-    if (!window.confirm(L('למחוק את המשחק?', 'Delete this game?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return
     await supabase.from('team_games').delete().eq('id', id); load()
   }
 

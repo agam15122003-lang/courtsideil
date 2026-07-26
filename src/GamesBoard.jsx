@@ -4,6 +4,7 @@ import { CalendarClock } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS } from './constants'
 import { L, tr } from './i18n'
+import { confirmDialog } from './confirm'
 import { SkeletonCards } from './Skeleton'
 
 function fmtDate(d) {
@@ -87,7 +88,7 @@ export default function GamesBoard({ session }) {
   }
 
   const remove = async (id) => {
-    if (!window.confirm(L('למחוק את הבקשה?', 'Delete this request?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את הבקשה?', 'Delete this request?'), danger: true }))) return
     const { error } = await supabase.from('game_requests').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)

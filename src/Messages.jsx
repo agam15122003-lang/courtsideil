@@ -7,6 +7,7 @@ import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
 import { L } from './i18n'
+import { confirmDialog } from './confirm'
 
 // בונה רשימת שיחות מקובצות לפי המאמן השני בשיחה
 function buildConversations(messages, myId) {
@@ -186,7 +187,7 @@ export default function Messages({ session, onNavigate }) {
   }
 
   const deleteMessage = async (id) => {
-    if (!window.confirm(L('למחוק את ההודעה? פעולה זו אינה הפיכה.', 'Delete this message? This cannot be undone.'))) return
+    if (!(await confirmDialog({ message: L('למחוק את ההודעה? פעולה זו אינה הפיכה.', 'Delete this message? This cannot be undone.'), danger: true }))) return
     const { data, error } = await supabase.from('messages').delete().eq('id', id).select('id')
     if (error || !data || data.length === 0) {
       toast.error(L('המחיקה נכשלה — נסה שוב', 'Failed to delete — try again'))

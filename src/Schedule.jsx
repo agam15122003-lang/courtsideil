@@ -9,6 +9,7 @@ import SessionDetail from './SessionDetail'
 import { planToNotebook } from './TrainingPlans'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
+import { confirmDialog } from './confirm'
 import { useNetworkSmall } from './network'
 
 // טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
@@ -224,7 +225,7 @@ export default function Schedule({ session }) {
   }
 
   const removeMeeting = async (id) => {
-    if (!window.confirm(L('למחוק את הפגישה?', 'Delete this meeting?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את הפגישה?', 'Delete this meeting?'), danger: true }))) return
     const { error } = await supabase.from('coach_meetings').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
@@ -297,7 +298,7 @@ export default function Schedule({ session }) {
   }
 
   const removeEntry = async (id) => {
-    if (!window.confirm(L('למחוק את האימון מהלו"ז?', 'Remove this practice from the schedule?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את האימון מהלו"ז?', 'Remove this practice from the schedule?'), danger: true }))) return
     const { error } = await supabase.from('schedule_entries').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)

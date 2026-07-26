@@ -5,6 +5,7 @@ import Dashboard from './Dashboard'
 import ResetPassword from './ResetPassword'
 import Landing from './Landing'
 import PublicDrill from './PublicDrill'
+import { ConfirmHost } from './confirm'
 import { useLang } from './i18n'
 
 // קישור ציבורי לתרגיל: #/drill/<id> — נפתח גם בלי חשבון
@@ -149,6 +150,8 @@ export default function App() {
     return (
       <div className="app">
         <Dashboard session={session} />
+        {/* דיאלוג אישור מעוצב — חייב להיות מרונדר פעם אחת בשורש */}
+        <ConfirmHost />
       </div>
     )
   }
@@ -161,6 +164,7 @@ export default function App() {
       ) : (
         <Landing onEnter={() => setShowAuth(true)} />
       )}
+      <ConfirmHost />
     </div>
   )
 }

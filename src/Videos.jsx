@@ -6,6 +6,7 @@ import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } fro
 import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonCards } from './Skeleton'
 import { L, tr } from './i18n'
+import { confirmDialog } from './confirm'
 
 // מזהה סרטון יוטיוב מתוך קישור (לבניית תמונה ממוזערת)
 function ytId(url) {
@@ -119,7 +120,7 @@ export default function Videos({ session, profile }) {
   }
 
   const remove = async (id) => {
-    if (!window.confirm(L('למחוק את הסרטון?', 'Delete this video?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את הסרטון?', 'Delete this video?'), danger: true }))) return
     const { error } = await supabase.from('drill_videos').delete().eq('id', id)
     if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return }
     toast.success(L('הסרטון נמחק', 'Video deleted')); load()

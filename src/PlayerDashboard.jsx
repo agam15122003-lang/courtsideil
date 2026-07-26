@@ -5,7 +5,7 @@ import {
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
-  MapPin, Volleyball, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil,
+  MapPin, Volleyball, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -1122,8 +1122,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
               <div className="plh-cd">
                 <span className="plh-cd-cell"><b>{dd}</b><i>{L('ימים', 'days')}</i></span>
                 <span className="plh-cd-cell"><b>{hh}</b><i>{L('שעות', 'hrs')}</i></span>
-                <span className="plh-cd-cell"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
-                <span className="plh-cd-cell secs"><b>{ss}</b><i>{L('שניות', 'sec')}</i></span>
+                <span className="plh-cd-cell hot"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
               </div>
             ) : <div className="plh-cd-live">{isGame ? L('בהצלחה במשחק!', 'Good luck!') : L('בהצלחה באימון!', 'Have a great practice!')}</div>}
           </>
@@ -1151,22 +1150,24 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
 }
 
 // ---------- בית: שלישיית סטטיסטיקה — נוכחות / רצף / עומס ממוצע ----------
-function StatTrio({ attendancePct, streak, avgLoad }) {
+// דפוס 3 במסמך העיצוב — שלושה טיילים בצבע מלא (כתום/ירוק/כחול),
+// אייקון לבן ומספר גדול. הרצף/XP/רמות הוסרו לפי החלטת הבעלים.
+function StatTrio({ openDrills, attendancePct, feedbackCount, setView }) {
+  const tiles = [
+    { k: 'drills', tone: 'orange', Icon: Dumbbell, num: openDrills ?? 0, top: L('תרגילים', 'Drills'), sub: L('לביצוע', 'to do'), go: 'drills' },
+    { k: 'att', tone: 'green', Icon: UserCheck, num: attendancePct != null ? `${attendancePct}%` : '—', top: L('נוכחות', 'Attendance'), sub: L('העונה', 'season'), go: 'schedule' },
+    { k: 'fb', tone: 'blue', Icon: MessageSquareHeart, num: feedbackCount ?? 0, top: L('משובים', 'Feedback'), sub: L('מהמאמן', 'from coach'), go: 'feedback' },
+  ]
   return (
     <div className="plh-trio pl-stagger">
-      <div className="plh-stat">
-        <AttendanceRing pct={attendancePct ?? null} size={58} />
-        <span className="plh-stat-lbl">{L('נוכחות', 'Attendance')}</span>
-      </div>
-      <div className="plh-stat">
-        <span className="plh-stat-circle brand"><Flame size={24} /></span>
-        <b className="plh-stat-num">{streak}</b>
-        <span className="plh-stat-lbl">{L('רצף ימים', 'Day streak')}</span>
-      </div>
-      <div className="plh-stat">
-        <span className="plh-stat-circle purple">{avgLoad ?? '—'}</span>
-        <span className="plh-stat-lbl">{L('עומס ממוצע', 'Avg load')}</span>
-      </div>
+      {tiles.map((t) => (
+        <button key={t.k} className={`plh-tile ${t.tone}`} onClick={() => setView(t.go)}>
+          <t.Icon size={18} aria-hidden="true" />
+          <span className="plh-tile-top">{t.top}</span>
+          <b className="plh-tile-num"><bdi>{t.num}</bdi></b>
+          <span className="plh-tile-sub">{t.sub}</span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -1365,6 +1366,12 @@ function LastPracticeFeedback({ session, membership, setView }) {
         <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל האימונים', 'All sessions')} <ArrowLeft size={14} /></button>
       </div>
       <div className="plfb-card">
+        {/* דפוס 2 במסמך העיצוב — פס כותרת כתום מלא, אחד למסך */}
+        <div className="plfb-bar">
+          {L('סיכום האימון האחרון', 'Last session summary')}
+          {dateStr && <span>{dateStr}</span>}
+        </div>
+        <div className="plfb-body">
         {eff && (
           <div className="plfb-half me">
             <span className="plfb-lbl">{L('מה מילאת', 'What you filled')}{dateStr ? ` · ${dateStr}` : ''}</span>
@@ -1397,6 +1404,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
             {fb.content && <p className="plfb-coach-txt">{fb.content}</p>}
           </div>
         )}
+        </div>
       </div>
     </section>
   )
@@ -1459,13 +1467,14 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
 
   const loadStats = useCallback(async () => {
-    const [asg, compl, att, gatt, eff, glogs] = await Promise.all([
+    const [asg, compl, att, gatt, eff, glogs, fbc] = await Promise.all([
       supabase.from('player_assignments').select('id'),
       supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
       supabase.from('practice_attendance').select('status'),
       supabase.from('game_attendance').select('status'),
       supabase.from('session_effort').select('effort, created_at').eq('player_id', session.user.id),
       supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
+      supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
     ])
     const doneRows = compl.data || []
     // בוצע = done_at מלא; שורה בלי done_at היא רק התקדמות חלקית
@@ -1479,7 +1488,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
     const effVals = (eff.data || []).map((r) => r.effort).filter((v) => v != null)
     const avgLoad = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null
     setStats({
-      open, attendancePct, weekly, avgLoad,
+      open, attendancePct, weekly, avgLoad, fbCount: fbc?.count ?? 0,
       // הרצף סופר כל פעילות באפליקציה — ביצוע תרגיל, סיכום אימון ותיעוד מטרה.
       // קודם נספרו רק תרגילים ששלח המאמן, ועם תרגיל אחד במסד הרצף היה תקוע על 0.
       streak: computeStreak([
@@ -1509,7 +1518,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
 
       {membership && <div className="pl-stagger"><CoachMessages session={session} membership={membership} setView={setView} /></div>}
 
-      {membership && <StatTrio attendancePct={stats?.attendancePct} streak={stats?.streak || 0} avgLoad={stats?.avgLoad} />}
+      {membership && <StatTrio openDrills={stats?.open} attendancePct={stats?.attendancePct} feedbackCount={stats?.fbCount} setView={setView} />}
 
       {membership && <div className="pl-stagger"><WeeklyMission done={stats?.weekly || 0} /></div>}
 

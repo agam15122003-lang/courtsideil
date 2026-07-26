@@ -3,6 +3,7 @@ import { CalendarClock, Plus, ClipboardCheck, CalendarDays } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import { confirmDialog } from './confirm'
 import { WEEKDAYS, expandSlots } from './sessionId'
 import ScheduleGrid from './ScheduleGrid'
 
@@ -43,7 +44,7 @@ export default function TeamSlots({ coachId, team, onReview }) {
   }
 
   const del = async (id) => {
-    if (!window.confirm(L('להסיר את יום האימון הקבוע?', 'Remove this fixed practice day?'))) return
+    if (!(await confirmDialog({ message: L('להסיר את יום האימון הקבוע?', 'Remove this fixed practice day?'), danger: true }))) return
     const { error } = await supabase.from('team_practice_slots').delete().eq('id', id)
     if (error) { toast.error(L('המחיקה נכשלה', 'Delete failed')); return }
     toast.success(L('יום האימון הוסר', 'Practice day removed'))

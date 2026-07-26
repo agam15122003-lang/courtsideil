@@ -5,6 +5,7 @@ import { Star, Bookmark, BookOpen, X, Clock, Users, Package, Gauge, Plus, Pencil
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam , cnt } from './i18n'
+import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
 import TacticsBoard from './TacticsBoard'
 import NotebookPage from './NotebookPage'
@@ -80,7 +81,7 @@ export default function DrillCard({
   }
 
   const deleteComment = async (id) => {
-    if (!window.confirm(L('למחוק את התגובה?', 'Delete this comment?'))) return
+    if (!(await confirmDialog({ message: L('למחוק את התגובה?', 'Delete this comment?'), danger: true }))) return
     const { error } = await supabase.from('drill_comments').delete().eq('id', id)
     if (error) {
       toast.error(L('מחיקת התגובה נכשלה: ', 'Deleting comment failed: ') + error.message)
