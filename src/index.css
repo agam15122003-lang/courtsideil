@@ -16384,3 +16384,95 @@ html.a11y-motion .drill-overlay-panel { animation: none; }
 .cal-grid { animation: sectionIn 160ms var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .cal-grid { animation: none; } }
 html.a11y-motion .cal-grid { animation: none; }
+
+/* ============================================================
+   באטץ' "בועט ומלהיב" 26.7.2026 — האנרגיה של עולם השחקן
+   הבריף מהראיון: רציני למאמן, שובב לשחקן. כאן נכנסת הבעיטה:
+   כדור מקפץ, להבת רצף פועמת, פסים שמתמלאים בקפיץ, משוב מגע.
+   כל אנימציה כבויה תחת prefers-reduced-motion ו-html.a11y-motion.
+   + hero "המשחק הבא" למאמן.
+   ============================================================ */
+
+/* --- הכדור בהירו מקפץ באמת (היה סטטי ב-opacity .07) --- */
+@keyframes plBallBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  35% { transform: translateY(-16px) rotate(-8deg); }
+  70% { transform: translateY(-4px) rotate(4deg); }
+}
+.plh-hero-ball {
+  opacity: 0.13;
+  animation: plBallBounce 3.2s var(--ease-spring) infinite;
+}
+
+/* --- להבת הרצף פועמת (הסטטיסטיקה שהילד חוזר בשבילה) --- */
+@keyframes plFlamePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.34); }
+  55% { transform: scale(1.06); box-shadow: 0 0 0 12px rgba(249, 115, 22, 0); }
+}
+.plh-stat-circle.brand { animation: plFlamePulse 2.6s var(--ease-out) infinite; }
+
+/* --- משוב מגע: כרטיס שנלחץ נלחץ באמת --- */
+.pla, .plhg-card, .plh-sc, .plcm-btn, .fbs-eff, .fbs-mood, .fbs-pill, .pla-quick > button {
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.plh-sc:active, .plcm-btn:active, .pla-quick > button:active,
+.fbs-eff:active, .fbs-mood:active, .fbs-pill:active { transform: scale(0.96); }
+.plhg-card:hover, .pla:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+/* --- פסי התקדמות: מתמלאים בקפיץ עם ברק שעובר --- */
+.plhg-bar span, .plhg-overall-bar span, .pla-prog-bar span, .pl-mission-bar span {
+  transition: width 0.7s var(--ease-spring);
+  position: relative;
+  overflow: hidden;
+}
+@keyframes plBarShine {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+.plhg-bar span::after, .pla-prog-bar span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0));
+  animation: plBarShine 2.4s var(--ease-out) infinite;
+}
+
+/* --- כותרות מסך של השחקן: אייקון עם אנרגיה --- */
+.pl-head-ic { border-radius: 16px; }
+.pl-screen .pl-section-label { font-size: 13.5px; }
+
+/* --- קיצורי הבית: אייקון גדול וצבעוני יותר (זה מסך של ילד) --- */
+.plh-sc-ic { width: 46px; height: 46px; border-radius: 15px; }
+.plh-sc-ic svg { width: 23px; height: 23px; }
+
+/* --- ניווט תחתון: הפריט הפעיל מזנק --- */
+.bn-item.active .bn-ic { transform: translateY(-2px) scale(1.1); transition: transform var(--dur-base) var(--ease-spring); }
+
+/* --- כרטיס "המשחק הבא" אצל המאמן (סגול חגיגי, כמו אצל השחקן) --- */
+.np-card.game { background: linear-gradient(158deg, #3A1E55, #472368 52%, #5B2E88); }
+[data-theme='dark'] .np-card.game { background: linear-gradient(158deg, #241238, #2F1849 52%, #3B2059); }
+.np-card.game .np-eyebrow { color: #E9D5FF; }
+
+/* --- ייצוא הסגל: אייקון דיסקרטי --- */
+.roster-export { color: var(--text-muted); }
+.roster-export:hover { color: var(--accent-strong); }
+
+/* --- כיבוי מלא לפי העדפת המשתמש --- */
+@media (prefers-reduced-motion: reduce) {
+  .plh-hero-ball, .plh-stat-circle.brand,
+  .plhg-bar span::after, .pla-prog-bar span::after { animation: none; }
+  .plhg-bar span, .plhg-overall-bar span, .pla-prog-bar span, .pl-mission-bar span { transition: none; }
+  .plh-sc:active, .plcm-btn:active, .pla-quick > button:active,
+  .fbs-eff:active, .fbs-mood:active, .fbs-pill:active { transform: none; }
+  .plhg-card:hover, .pla:hover { transform: none; }
+  .bn-item.active .bn-ic { transform: none; }
+}
+html.a11y-motion .plh-hero-ball,
+html.a11y-motion .plh-stat-circle.brand,
+html.a11y-motion .plhg-bar span::after,
+html.a11y-motion .pla-prog-bar span::after { animation: none; }
+html.a11y-motion .plhg-card:hover,
+html.a11y-motion .pla:hover,
+html.a11y-motion .bn-item.active .bn-ic { transform: none; }

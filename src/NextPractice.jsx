@@ -29,16 +29,28 @@ export default function NextPractice({ session, onNavigate }) {
       const today = new Date()
       const from = new Date(Date.now() - 2 * 86400000)
       const until = new Date(Date.now() + 14 * 86400000)
-      const [{ data: entries }, { data: slots }] = await Promise.all([
+      const [{ data: entries }, { data: slots }, { data: upGames }] = await Promise.all([
         supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').gte('date', ymd(from)).lte('date', ymd(until)).order('date').order('start_time'),
         me ? supabase.from('team_practice_slots').select('*').eq('coach_id', me) : Promise.resolve({ data: [] }),
+        me ? supabase.from('team_games').select('id, team, game_date, game_time, opponent, location').eq('coach_id', me).gte('game_date', ymd(today)).lte('game_date', ymd(until)).order('game_date') : Promise.resolve({ data: [] }),
       ])
       if (!alive) return
       const occs = expandSlotsRange(slots || [], from, until).map((o) => ({
         id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time,
         team: o.team, location: o.location, _recurring: true,
       }))
-      const all = [...(entries || []), ...occs]
+      // גם משחקים נכנסים לספירה — "המשחק הבא" מנצח אימון אם הוא קודם.
+      // אין שעת סיום למשחק — שעתיים סינתטיות כדי שיישאר "מתקיים עכשיו" בזמן המשחק.
+      const gEnd = (t) => {
+        if (!t) return null
+        const [h, m] = String(t).slice(0, 5).split(':').map(Number)
+        return `${String(Math.min(23, h + 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      }
+      const gameOccs = (upGames || []).map((g) => ({
+        id: g.id, date: g.game_date, start_time: g.game_time ? String(g.game_time).slice(0, 5) : null,
+        end_time: gEnd(g.game_time), team: g.team, location: g.location, _game: true, opponent: g.opponent,
+      }))
+      const all = [...(entries || []), ...occs, ...gameOccs]
         .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))
       const nowTs = Date.now()
       const endOf = (e) => new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`).getTime()
@@ -148,11 +160,14 @@ export default function NextPractice({ session, onNavigate }) {
   const mm = Math.floor((totalSec % 3600) / 60)
   const ss = totalSec % 60
 
-  const title = entry.title || (entry.team ? trTeam(entry.team) : L('אימון', 'Practice'))
+  const isGame = !!entry._game
+  const title = isGame
+    ? (entry.opponent ? L(`נגד ${entry.opponent}`, `vs ${entry.opponent}`) : L('משחק', 'Game')) + (entry.team ? ` · ${trTeam(entry.team)}` : '')
+    : entry.title || (entry.team ? trTeam(entry.team) : L('אימון', 'Practice'))
 
   return (
-    <div className="np-card">
-      <span className="np-eyebrow"><span className="np-dot" /> {L('האימון הבא', 'Next practice')}</span>
+    <div className={isGame ? 'np-card game' : 'np-card'}>
+      <span className="np-eyebrow"><span className="np-dot" /> {isGame ? L('המשחק הבא 🏆', 'Next game 🏆') : L('האימון הבא', 'Next practice')}</span>
       <h3 className="np-title">{title}</h3>
       <div className="np-meta">
         <span><Clock size={14} /> {hm(entry.start_time)}{entry.end_time ? `–${hm(entry.end_time)}` : ''}</span>
@@ -160,10 +175,14 @@ export default function NextPractice({ session, onNavigate }) {
       </div>
 
       {started ? (
-        <div className="np-live"><span className="np-live-dot" /> {L('מתקיים עכשיו', 'Happening now')}</div>
+        <div className="np-live"><span className="np-live-dot" /> {isGame ? L('המשחק עכשיו!', 'Game time!') : L('מתקיים עכשיו', 'Happening now')}</div>
       ) : (
         <>
-          <span className="np-count-label">{days > 0 ? L(`בעוד ${days} ימים · עד תחילת האימון`, `In ${days} days · until start`) : L('עד תחילת האימון', 'Until practice starts')}</span>
+          <span className="np-count-label">
+            {isGame
+              ? (days > 0 ? L(`בעוד ${days} ימים · עד המשחק`, `In ${days} days · until tip-off`) : L('עד תחילת המשחק', 'Until tip-off'))
+              : (days > 0 ? L(`בעוד ${days} ימים · עד תחילת האימון`, `In ${days} days · until start`) : L('עד תחילת האימון', 'Until practice starts'))}
+          </span>
           <div className="np-timer" dir="ltr" aria-label={L('ספירה לאחור', 'Countdown')}>
             {pad(hh)}:{pad(mm)}:{pad(ss)}
           </div>

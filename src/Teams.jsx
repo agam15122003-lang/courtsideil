@@ -443,8 +443,10 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
               {L(' · לחיצה על שחקן לפרטים מלאים', ' · tap a player for full details')}
             </p>
             {players.length > 0 && (
-              <button type="button" className="link-button" onClick={exportRosterCsv}>
-                <Download size={14} /> {L('ייצוא CSV', 'Export CSV')}
+              /* ייצוא = פעולת אדמין נדירה — אייקון בלבד, לא טקסט בזרימה הראשית */
+              <button type="button" className="icon-btn roster-export" onClick={exportRosterCsv}
+                aria-label={L('ייצוא הסגל לקובץ CSV', 'Export roster to CSV')} title={L('ייצוא CSV', 'Export CSV')}>
+                <Download size={15} />
               </button>
             )}
           </div>
