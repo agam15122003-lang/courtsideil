@@ -321,7 +321,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           <h1 className="home-greet-title">
             {greet}, <span className="hero-title-accent">{name}</span>{' '}
             {/* דקורטיבי — aria-hidden כדי שקורא מסך לא יקרא "אימוג'י כדורסל" בכותרת */}
-            <span aria-hidden="true">🏀</span>
+            
           </h1>
           <p className="home-hero-sub">
             {stats.week != null && stats.week > 0
@@ -423,7 +423,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
                   {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}
                   <span className="hc-body">
                     <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
-                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון 📷', 'Shared practice photos 📷')}</span>
+                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</span>
                   </span>
                 </button>
               )

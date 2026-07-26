@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CourtSide — השוואת פלטות · בית השחקן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@700;800;900&family=Karantina:wght@300;400;700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Rubik', system-ui, sans-serif; background: #E9EDF3; color: #0F1F33; padding: 22px 16px 60px; }
+.page-head { max-width: 1000px; margin: 0 auto 22px; text-align: center; }
+.page-head h1 { font-family: 'Heebo'; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
+.page-head p { color: #55647A; font-size: 14px; margin-top: 6px; }
+.switch { display: inline-flex; gap: 6px; margin-top: 14px; background: #fff; padding: 5px; border-radius: 999px; box-shadow: 0 2px 10px rgba(15,31,51,.10); }
+.switch button { border: none; background: none; font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 8px 18px; border-radius: 999px; cursor: pointer; color: #55647A; }
+.switch button.on { background: #0F1F33; color: #fff; }
+
+.compare { display: flex; gap: 26px; justify-content: center; align-items: flex-start; flex-wrap: wrap; max-width: 1000px; margin: 0 auto; }
+.col { width: 390px; }
+.col-head { text-align: center; margin-bottom: 10px; }
+.col-head b { font-family: 'Heebo'; font-size: 17px; font-weight: 900; }
+.col-head span { display: block; font-size: 12.5px; color: #55647A; margin-top: 3px; }
+.phone { width: 390px; border-radius: 30px; overflow: hidden; box-shadow: 0 18px 46px rgba(15,31,51,.24); border: 1px solid rgba(15,31,51,.10); }
+
+/* ============ A · פרקט ולילה ============ */
+.pal-a {
+  --brand: #F97316; --brand-strong: #C2410C; --brand-text: #9A3412;
+  --brand-soft: rgba(249,115,22,.12); --brand-grad-2: #FDBA74;
+  --navy-1: #16233F; --navy-2: #0A1020;
+  --bg: #F6F7FB; --sf: #FFFFFF; --sf2: #EDF2F8; --tx: #0F1F33; --mut: #55647A; --ln: #E3EAF3;
+  --ok: #15803D; --ok-soft: #E6F4EC; --info: #1F57B0; --info-soft: #E8F0FC; --danger: #B0392F;
+  --num-font: 'Karantina', 'Heebo', sans-serif; --num-w: 700; --num-scale: 1.32;
+}
+.pal-a.dark { --bg: #070C18; --sf: #0F1930; --sf2: #182444; --tx: #F4F6FB; --mut: #9AA6BB; --ln: #2B3A5C;
+  --navy-1: #101B33; --navy-2: #060B16; --brand-text: #FDBA74; --ok-soft: rgba(34,197,94,.16); --info-soft: rgba(96,165,250,.16); }
+
+/* ============ B · פלטת המסמך ============ */
+.pal-b {
+  --brand: #E8763A; --brand-strong: #B34E1C; --brand-text: #A8491A;
+  --brand-soft: rgba(232,118,58,.12); --brand-grad-2: #F0A878;
+  --navy-1: #17264A; --navy-2: #0A1428;
+  --bg: #F4F7FB; --sf: #FFFFFF; --sf2: #EDF2F8; --tx: #0E1B2E; --mut: #5B6B82; --ln: #E3EAF3;
+  --ok: #1F7A44; --ok-soft: #E6F4EC; --info: #1F57B0; --info-soft: #E8F0FC; --danger: #B0392F;
+  --num-font: 'Heebo', sans-serif; --num-w: 900; --num-scale: 1;
+}
+.pal-b.dark { --bg: #0F141E; --sf: #1B2230; --sf2: #242E41; --tx: #EEF2F8; --mut: #9AA6BB; --ln: #2C374D;
+  --navy-1: #1E2A47; --navy-2: #111A2E; --brand-text: #F0A878; --ok-soft: rgba(76,195,138,.16); --info-soft: rgba(138,180,248,.16); }
+
+/* ============ המסך עצמו (זהה לשתי הפלטות) ============ */
+.scr { background: var(--bg); padding-bottom: 68px; position: relative; min-height: 720px; }
+
+/* דפוס 1 — Hero נייבי עם סימן-מים של מגרש */
+.hero { position: relative; background: linear-gradient(158deg, var(--navy-1), var(--navy-2)); color: #fff; padding: 18px 18px 22px; overflow: hidden; }
+.hero-court { position: absolute; inset: auto -10% -34% -10%; width: 120%; opacity: .11; }
+.hero-top { display: flex; align-items: center; gap: 10px; position: relative; }
+.avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--brand); display: grid; place-items: center; font-family: 'Heebo'; font-weight: 900; font-size: 17px; flex-shrink: 0; }
+.hero-greet { flex: 1; }
+.hero-greet small { display: block; font-size: 12.5px; opacity: .72; }
+.hero-greet b { font-family: 'Heebo'; font-weight: 900; font-size: 19px; }
+.bell { position: relative; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.12); display: grid; place-items: center; }
+.bell i { position: absolute; top: 8px; inset-inline-end: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); border: 2px solid var(--navy-2); }
+.tag-next { display: inline-block; margin: 16px 0 10px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 800; padding: 5px 13px; border-radius: 999px; position: relative; }
+.cd { display: flex; gap: 9px; position: relative; }
+.cd-cell { flex: 1; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; padding: 9px 4px 8px; text-align: center; }
+.cd-cell.hot { background: var(--brand); border-color: transparent; }
+.cd-cell b { display: block; font-family: var(--num-font); font-weight: var(--num-w); font-size: calc(34px * var(--num-scale)); line-height: 1; font-variant-numeric: tabular-nums; }
+.cd-cell span { font-size: 11.5px; opacity: .78; }
+.hero-loc { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; opacity: .85; position: relative; }
+
+.body { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* דפוס 2 — כרטיס עם פס כותרת כתום מלא (אחד למסך) */
+.card { background: var(--sf); border: 1px solid var(--ln); border-radius: 20px; overflow: hidden; }
+.card-bar { background: var(--brand-strong); color: #fff; padding: 11px 15px; font-family: 'Heebo'; font-weight: 800; font-size: 14.5px; display: flex; align-items: center; justify-content: space-between; }
+.card-bar span { font-size: 12px; opacity: .82; font-weight: 600; }
+.card-in { padding: 14px 15px; }
+
+/* דפוס 4 — באנרי סטטוס בגוון רך */
+.banner { display: flex; align-items: center; gap: 9px; border-radius: 14px; padding: 10px 13px; font-size: 13.5px; font-weight: 700; }
+.banner.mvp { background: var(--brand-soft); color: var(--brand-text); }
+.banner.ok { background: var(--ok-soft); color: var(--ok); }
+
+.metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 12px; }
+.metric { background: var(--sf2); border-radius: 14px; padding: 10px 8px; text-align: center; }
+.metric b { display: block; font-family: var(--num-font); font-weight: var(--num-w); font-size: calc(21px * var(--num-scale)); line-height: 1.1; color: var(--tx); }
+.metric span { font-size: 11.5px; color: var(--mut); }
+.fb { margin-top: 12px; border-top: 1px solid var(--ln); padding-top: 11px; }
+.fb-head { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--mut); font-weight: 700; }
+.stars { color: var(--brand); letter-spacing: 1px; font-size: 13px; }
+.fb p { font-size: 13.5px; line-height: 1.55; color: var(--tx); margin-top: 5px; }
+.link { display: block; text-align: center; margin-top: 11px; font-size: 13px; font-weight: 800; color: var(--brand-text); }
+
+/* דפוס 3 — טיילים בצבע מלא (צד שחקן) */
+.tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.tile { border-radius: 20px; padding: 14px 10px; color: #fff; text-align: center; }
+.tile.t1 { background: var(--brand); } .tile.t2 { background: var(--ok); } .tile.t3 { background: var(--info); }
+.tile b { display: block; font-family: var(--num-font); font-weight: var(--num-w); font-size: calc(24px * var(--num-scale)); line-height: 1.15; margin-top: 5px; }
+.tile span { font-size: 11.5px; opacity: .9; }
+
+/* דפוס 5 — פסי התקדמות עבים */
+.sec-t { font-family: 'Heebo'; font-weight: 800; font-size: 15px; color: var(--tx); margin-bottom: 9px; display: flex; justify-content: space-between; align-items: center; }
+.sec-t em { font-style: normal; font-size: 12.5px; color: var(--mut); font-weight: 600; }
+.bar { height: 10px; border-radius: 999px; background: var(--sf2); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand), var(--brand-grad-2)); }
+.goal { padding: 13px 15px; }
+.goal + .goal { border-top: 1px solid var(--ln); }
+.goal-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.goal-h b { font-size: 14.5px; font-weight: 700; color: var(--tx); }
+.goal-n { font-family: var(--num-font); font-weight: var(--num-w); font-size: calc(17px * var(--num-scale)); color: var(--tx); font-variant-numeric: tabular-nums; }
+.goal-btns { display: flex; gap: 7px; margin-top: 9px; }
+.gb { flex: 1; border: 1px solid var(--ln); background: var(--sf); color: var(--brand-text); border-radius: 999px; padding: 8px; font-family: inherit; font-weight: 800; font-size: 14px; }
+.gb.plus { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.msg-btn { width: 100%; background: var(--brand-strong); color: #fff; border: none; border-radius: 999px; padding: 14px; font-family: inherit; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* ניווט תחתון */
+.nav { position: absolute; inset-inline: 0; bottom: 0; background: var(--sf); border-top: 1px solid var(--ln); display: grid; grid-template-columns: repeat(5,1fr); padding: 8px 0 10px; }
+.nav div { text-align: center; font-size: 10.5px; color: var(--mut); font-weight: 600; }
+.nav div.on { color: var(--brand-text); }
+.nav i { display: block; width: 20px; height: 20px; margin: 0 auto 3px; border-radius: 6px; background: currentColor; opacity: .85; }
+svg.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>בית השחקן — שתי פלטות, אותו מבנה</h1>
+  <p>המבנה לפי מסמך המסירה (5 הדפוסים). ההבדל היחיד: צבע וטיפוגרפיית מספרים.</p>
+  <div class="switch">
+    <button id="bLight" class="on">☀ בהיר</button>
+    <button id="bDark">☾ כהה</button>
+  </div>
+</div>
+
+<div class="compare">
+  <div class="col">
+    <div class="col-head"><b>A · פרקט ולילה</b><span>כתום לוהט #F97316 · נייבי עמוק · Karantina</span></div>
+    <div class="phone"><div class="scr pal-a" id="pa"></div></div>
+  </div>
+  <div class="col">
+    <div class="col-head"><b>B · פלטת המסמך</b><span>כתום #E8763A · נייבי בהיר · Heebo 900</span></div>
+    <div class="phone"><div class="scr pal-b" id="pb"></div></div>
+  </div>
+</div>
+
+<script>
+const COURT = `<svg class="hero-court" viewBox="0 0 400 200" fill="none" stroke="#fff" stroke-width="2">
+  <rect x="4" y="4" width="392" height="192" rx="8"/><line x1="200" y1="4" x2="200" y2="196"/>
+  <circle cx="200" cy="100" r="34"/><rect x="4" y="58" width="76" height="84"/><rect x="320" y="58" width="76" height="84"/>
+  <path d="M80 4 A96 96 0 0 1 80 196"/><path d="M320 4 A96 96 0 0 0 320 196"/></svg>`;
+
+const ic = (d) => `<svg class="ic" viewBox="0 0 24 24">${d}</svg>`;
+const I = {
+  bell: ic('<path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/>'),
+  pin: ic('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1116 0z"/><circle cx="12" cy="10" r="3"/>'),
+  trophy: ic('<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/>'),
+  check: ic('<path d="M20 6L9 17l-5-5"/>'),
+  send: ic('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>'),
+};
+
+function screen() {
+  return `
+  <div class="hero">
+    ${COURT}
+    <div class="hero-top">
+      <div class="avatar">א</div>
+      <div class="hero-greet"><small>ערב טוב</small><b>אגם</b></div>
+      <div class="bell">${I.bell}<i></i></div>
+    </div>
+    <div class="tag-next">מחר · 18:00</div>
+    <div class="cd">
+      <div class="cd-cell"><b>01</b><span>ימים</span></div>
+      <div class="cd-cell"><b>04</b><span>שעות</span></div>
+      <div class="cd-cell hot"><b>32</b><span>דקות</span></div>
+    </div>
+    <div class="hero-loc">${I.pin} אולם ויתקין · קטסל א׳ בנים</div>
+  </div>
+
+  <div class="body">
+    <div class="card">
+      <div class="card-bar">סיכום האימון האחרון <span>יום ג׳ · 22.7</span></div>
+      <div class="card-in">
+        <div class="banner mvp">${I.trophy} אתה ה-MVP של האימון! 🏀</div>
+        <div class="metrics">
+          <div class="metric"><b>נוכח</b><span>נוכחות</span></div>
+          <div class="metric"><b>8/10</b><span>עומס</span></div>
+          <div class="metric"><b>✓</b><span>מטרה</span></div>
+        </div>
+        <div class="fb">
+          <div class="fb-head">משוב מהמאמן <span class="stars">★★★★★</span></div>
+          <p>עבודה יפה בהגנה היום. תמשיך ככה — הרגליים היו שם בכל החזרה.</p>
+        </div>
+        <a class="link">כל הסיכומים והמשובים ←</a>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile t1"><span>תרגילים</span><b>3</b><span>לביצוע</span></div>
+      <div class="tile t2"><span>נוכחות</span><b>92%</b><span>העונה</span></div>
+      <div class="tile t3"><span>משובים</span><b>12</b><span>מהמאמן</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-in">
+        <div class="sec-t">המשימה השבועית <em>3 מתוך 4</em></div>
+        <div class="bar"><i style="width:75%"></i></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-in" style="padding-bottom:4px"><div class="sec-t">המטרות שלי <em>לצפייה בהכל ←</em></div></div>
+      <div class="goal">
+        <div class="goal-h"><b>200 זריקות עונשין</b><span class="goal-n">120/200</span></div>
+        <div class="bar"><i style="width:60%"></i></div>
+        <div class="goal-btns"><button class="gb">−</button><button class="gb plus">+ הוספתי</button></div>
+      </div>
+      <div class="goal">
+        <div class="banner ok">${I.check} יד שמאל בכדרור — הושג! המאמן אישר</div>
+      </div>
+    </div>
+
+    <button class="msg-btn">${I.send} שלח הודעה למאמן</button>
+  </div>
+
+  <div class="nav">
+    <div class="on"><i></i>בית</div><div><i></i>תרגילים</div><div><i></i>המאמן</div><div><i></i>קהילה</div><div><i></i>פרופיל</div>
+  </div>`;
+}
+
+document.getElementById('pa').innerHTML = screen();
+document.getElementById('pb').innerHTML = screen();
+
+const bL = document.getElementById('bLight'), bD = document.getElementById('bDark');
+function mode(dark) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('dark', dark));
+  bL.classList.toggle('on', !dark); bD.classList.toggle('on', dark);
+  document.body.style.background = dark ? '#151A24' : '#E9EDF3';
+  document.querySelectorAll('.page-head h1, .col-head b').forEach((e) => e.style.color = dark ? '#F4F6FB' : '');
+  document.querySelectorAll('.page-head p, .col-head span').forEach((e) => e.style.color = dark ? '#9AA6BB' : '');
+}
+bL.onclick = () => mode(false); bD.onclick = () => mode(true);
+</script>
+</body>
+</html>

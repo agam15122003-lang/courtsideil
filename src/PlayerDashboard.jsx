@@ -216,7 +216,7 @@ function Countdown({ membership, onNavigate }) {
 
   return (
     <button className="pl-count" onClick={() => onNavigate?.('team')}>
-      <span className="pl-count-label"><Timer size={16} /> {started ? L('האימון עכשיו! 🔥', 'Practice now! 🔥') : L('האימון הבא', 'Next practice')}</span>
+      <span className="pl-count-label"><Timer size={16} /> {started ? L('האימון עכשיו', 'Practice now') : L('האימון הבא', 'Next practice')}</span>
       {!started ? (
         <div className="pl-count-clock">
           {d > 0 && <Unit v={d} lbl={L('ימים', 'days')} />}
@@ -264,7 +264,7 @@ function WeeklyMission({ done }) {
           </div>
           <div className="pl-mission-bar"><span style={{ width: `${pct}%` }} /></div>
           <span className="muted small">
-            {complete ? L('כל הכבוד! השלמת את המשימה 🎉', 'Awesome! Mission complete 🎉')
+            {complete ? L('כל הכבוד! השלמת את המשימה', 'Awesome! Mission complete')
                       : L(`בצעו ${WEEKLY_TARGET} תרגילים השבוע — נשארו ${WEEKLY_TARGET - done}`, `Do ${WEEKLY_TARGET} drills this week — ${WEEKLY_TARGET - done} to go`)}
           </span>
         </div>
@@ -551,7 +551,7 @@ function MyAssignments({ session }) {
           <p className="muted small">{L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
         </div>
       ) : shown.length === 0 ? (
-        <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד! 💪', 'No open drills — nice! 💪')}</p>
+        <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד!', 'No open drills — nice!')}</p>
       ) : (
         shown.map((a) => <AssignmentCard key={a.id} a={a} compl={complBy[a.id]} onToggleDone={toggleDone} onProgress={addProgress} />)
       )}
@@ -560,7 +560,7 @@ function MyAssignments({ session }) {
 }
 
 // ---------- מסך: הקבוצה שלי ----------
-const MOOD_EMOJI = { tough: '😤', good: '💪', great: '🔥' }
+const MOOD_LABEL = { tough: ['קשה', 'Tough'], good: ['טוב', 'Good'], great: ['מצוין', 'Great'] }
 
 function MyTeam({ membership, onNavigate }) {
   const [teammates, setTeammates] = useState([])
@@ -605,7 +605,7 @@ function MyTeam({ membership, onNavigate }) {
         title={L('הקבוצה שלי', 'My team')}
         subtitle={L('הסגל, האימון הבא והסיכומים של הקבוצה', 'Your squad, next practice and recaps')} />
       <div className="plt-hero">
-        <span className="plt-hero-court" aria-hidden="true">🏀</span>
+        
         <div className="plt-hero-top">
           <span className="plt-badge"><Trophy size={20} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -640,11 +640,11 @@ function MyTeam({ membership, onNavigate }) {
                 <li key={r.id} className={isMvp ? 'pl-recap mvp' : 'pl-recap'}>
                   <div className="pl-recap-head">
                     <span className="pl-recap-date">
-                      {r.mood ? `${MOOD_EMOJI[r.mood] || ''} ` : ''}
+                      {r.mood && MOOD_LABEL[r.mood] ? `${L(MOOD_LABEL[r.mood][0], MOOD_LABEL[r.mood][1])} · ` : ''}
                       {r.session_type === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}
                       {r.session_date ? ` · ${new Date(r.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short', day: 'numeric', month: 'numeric' })}` : ''}
                     </span>
-                    {isMvp ? <span className="pl-recap-mvp">🏆 {L('היית ה-MVP!', "You were MVP!")}</span>
+                    {isMvp ? <span className="pl-recap-mvp"><Trophy size={14} /> {L('היית ה-MVP!', "You were MVP!")}</span>
                       : r.mvp_name ? <span className="muted small">{L('MVP: ', 'MVP: ')}{r.mvp_name}</span> : null}
                   </div>
                   {r.overall_note && <p className="pl-recap-note">{r.overall_note}</p>}
@@ -754,7 +754,7 @@ function PlayerSchedule({ session, membership }) {
         <>
           {next && (
             <div className={`pl-next-up ${next.kind}`}>
-              <span className="pl-next-up-court" aria-hidden="true">🏀</span>
+              
               <span className="pl-next-up-label">{next.kind === 'game' ? <Volleyball size={13} /> : <Flame size={13} />} {L('הבא בתור', 'Next up')}</span>
               <h3>{next.title}</h3>
               <div className="pl-next-up-meta">
@@ -1002,7 +1002,7 @@ function PrePracticeGoals({ session, membership }) {
       <div className="pl-pregoals">
         <span className="pl-pregoals-ic"><Target size={18} /></span>
         <div className="pl-pregoals-body">
-          <strong>{L('המטרות שלך לאימון הקרוב 🎯', 'Your goals for the next practice 🎯')}</strong>
+          <strong>{L('המטרות שלך לאימון הקרוב', 'Your goals for the next practice')}</strong>
           <span className="muted small">{L('תגיע לאימון כשאתה יודע על מה אתה עובד. בסוף האימון תסמן אם עמדת בהן.', 'Arrive knowing what you’re working on. Mark them at wrap-up.')}</span>
           <div className="pl-pregoals-chips">
             {goals.map((g) => <span key={g.id} className="pl-pregoal">{g.title}</span>)}
@@ -1084,7 +1084,16 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
   return (
     <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
       <span className="plh-hero-glow" aria-hidden="true" />
-      <span className="plh-hero-ball" aria-hidden="true">🏀</span>
+      {/* סימן-מים של מגרש (דפוס 1 במסמך העיצוב) — מחליף את אימוג'י הכדור */}
+      <svg className="plh-hero-court" viewBox="0 0 400 200" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <rect x="4" y="4" width="392" height="192" rx="8" />
+        <line x1="200" y1="4" x2="200" y2="196" />
+        <circle cx="200" cy="100" r="34" />
+        <rect x="4" y="58" width="76" height="84" />
+        <rect x="320" y="58" width="76" height="84" />
+        <path d="M80 4 A96 96 0 0 1 80 196" />
+        <path d="M320 4 A96 96 0 0 0 320 196" />
+      </svg>
       <div className="plh-hero-head">
         <span className="plh-hero-greet">{greet},</span>
         <span className="plh-hero-name">{profile.first_name}</span>
@@ -1104,7 +1113,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
           <>
             <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />
               {started
-                ? (isGame ? L('המשחק עכשיו! 🏀', 'Game time! 🏀') : L('האימון עכשיו', 'Practice now'))
+                ? (isGame ? L('המשחק עכשיו!', 'Game time!') : L('האימון עכשיו', 'Practice now'))
                 : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
             </span>
             <strong className="plh-hero-title">{titleStr}</strong>
@@ -1116,7 +1125,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
                 <span className="plh-cd-cell"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
                 <span className="plh-cd-cell secs"><b>{ss}</b><i>{L('שניות', 'sec')}</i></span>
               </div>
-            ) : <div className="plh-cd-live">{isGame ? L('בהצלחה במשחק! 🏆', 'Good luck! 🏆') : L('בהצלחה באימון! 🔥', 'Have a great practice! 🔥')}</div>}
+            ) : <div className="plh-cd-live">{isGame ? L('בהצלחה במשחק!', 'Good luck!') : L('בהצלחה באימון!', 'Have a great practice!')}</div>}
           </>
         ) : membership ? (
           <>
@@ -1213,7 +1222,7 @@ function LastTeamReview({ membership, me }) {
       <p className="plr-note">{rev.overall_note}</p>
       {rev.mvp_name && (
         <span className={rev.mvp_player_id === me ? 'plr-mvp me' : 'plr-mvp'}>
-          <Trophy size={13} /> MVP: {rev.mvp_player_id === me ? L('אתה! 🏀', 'You! 🏀') : rev.mvp_name}
+          <Trophy size={13} /> MVP: {rev.mvp_player_id === me ? L('אתה!', 'You!') : rev.mvp_name}
         </span>
       )}
     </section>
@@ -1241,7 +1250,7 @@ function HomeGoalCard({ g, logs, tone }) {
         </>
       ) : (
         <div className="plhg-checkline">
-          {done ? L('כל הכבוד! המשך כך 🔥', 'Nice! Keep it up 🔥') : L('מסמנים אם עמדת בה בסיכום שאחרי האימון', 'Mark it in your post-practice summary')}
+          {done ? L('כל הכבוד! המשך כך', 'Nice! Keep it up') : L('מסמנים אם עמדת בה בסיכום שאחרי האימון', 'Mark it in your post-practice summary')}
         </div>
       )}
       {(logs || []).length >= 2 && <GoalChart logs={logs} target={g.target_value} goalId={g.id} />}
@@ -1425,7 +1434,7 @@ function CoachMessages({ session, membership, setView }) {
           <strong>{coachName(membership.coach)}</strong>
         </div>
         {msgs.length === 0 ? (
-          <div className="plcm-bubble empty">{L('עוד אין הודעות מהמאמן — הישאר מחובר 💬', 'No messages yet — stay tuned 💬')}</div>
+          <div className="plcm-bubble empty">{L('עוד אין הודעות מהמאמן — הישאר מחובר', 'No messages yet — stay tuned')}</div>
         ) : msgs.map((m) => (
           <div key={`${m.src}-${m.id}`} className="plcm-bubble">
             <span className="plcm-meta">

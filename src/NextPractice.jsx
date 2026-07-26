@@ -167,7 +167,7 @@ export default function NextPractice({ session, onNavigate }) {
 
   return (
     <div className={isGame ? 'np-card game' : 'np-card'}>
-      <span className="np-eyebrow"><span className="np-dot" /> {isGame ? L('המשחק הבא 🏆', 'Next game 🏆') : L('האימון הבא', 'Next practice')}</span>
+      <span className="np-eyebrow"><span className="np-dot" /> {isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice')}</span>
       <h3 className="np-title">{title}</h3>
       <div className="np-meta">
         <span><Clock size={14} /> {hm(entry.start_time)}{entry.end_time ? `–${hm(entry.end_time)}` : ''}</span>

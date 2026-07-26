@@ -303,7 +303,7 @@ export function MyGoals({ session, membership }) {
           <h2>{L('המטרות שלי', 'My goals')}</h2>
           <p>{total === 0 ? L('היעדים שלך — מהמאמן וגם שלך', 'Your targets — from your coach and your own')
             : inProg > 0 ? L(`${inProg} מתוך ${total} מטרות בתהליך`, `${inProg} of ${total} goals in progress`)
-            : L('כל המטרות הושלמו — כל הכבוד 🎉', 'All goals complete — nice work 🎉')}</p>
+            : L('כל המטרות הושלמו — כל הכבוד', 'All goals complete — nice work')}</p>
         </div>
       </header>
 
@@ -371,7 +371,7 @@ export function MyGoals({ session, membership }) {
                   <div className="plg2-prog">
                     {(logsBy[g.id] || []).length >= 2
                       ? <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
-                      : <p className="muted small plg2-prog-empty">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא 📈', 'Log your progress — the chart will start filling up 📈')}</p>}
+                      : <p className="muted small plg2-prog-empty">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא', 'Log your progress — the chart will start filling up')}</p>}
                     <div className="plg2-amt">
                       <input className="plg2-amt-input" dir="ltr" inputMode="numeric"
                         placeholder={L('כמה ביצעת?', 'How much?')}
