@@ -4,6 +4,7 @@ import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
+import { ErrorState } from './states'
 import useFocusTrap from './useFocusTrap'
 import { confirmDialog } from './confirm'
 import DrillForm from './DrillForm'
@@ -395,7 +396,7 @@ export default function DrillLibrary({ session, profile }) {
         {loading ? (
           <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
+          <ErrorState message={error} onRetry={() => loadDrills()} />
         ) : results.length === 0 ? (
           <div className="empty-state">
             <span className="empty-ic">

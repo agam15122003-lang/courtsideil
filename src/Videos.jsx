@@ -6,6 +6,7 @@ import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } fro
 import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonCards } from './Skeleton'
 import { L, tr } from './i18n'
+import { ErrorState } from './states'
 import { confirmDialog } from './confirm'
 
 // מזהה סרטון יוטיוב מתוך קישור (לבניית תמונה ממוזערת)
@@ -211,7 +212,7 @@ export default function Videos({ session, profile }) {
       {loading ? (
         <SkeletonCards count={3} />
       ) : error ? (
-        <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
+        <ErrorState message={error} onRetry={load} />
       ) : results.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><PlayCircle size={26} /></span>

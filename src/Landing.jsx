@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
+import { ArrowFwd } from './DirIcon'
 import { COACHING_QUOTES } from './constants'
 
 // reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
@@ -172,7 +173,7 @@ export default function Landing({ onEnter }) {
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>
               {L('התחל עכשיו — חינם', 'Start now — free')}
-              <ArrowLeft size={18} />
+              <ArrowFwd size={18} />
             </button>
             <a className="btn-soft btn-lg" href="#features">
               <PlayCircle size={18} />
@@ -310,7 +311,7 @@ export default function Landing({ onEnter }) {
         <p className="land-band-sub">{L('בחינם ובעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'Free and in Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')}</p>
         <button className="btn-hero btn-lg" onClick={onEnter}>
           {L('הצטרפות חינם', 'Join free')}
-          <ArrowLeft size={18} />
+          <ArrowFwd size={18} />
         </button>
       </section>
 

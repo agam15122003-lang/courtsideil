@@ -8,6 +8,7 @@ import PlanNotebook from './PlanNotebook'
 import NotebookPage from './NotebookPage'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
+import { ErrorState } from './states'
 import { safeUrl } from './constants'
 import { waShare } from './share'
 import { confirmDialog } from './confirm'
@@ -329,7 +330,7 @@ export default function TrainingPlans({ session }) {
         {loading ? (
           <SkeletonCards count={3} />
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
+          <ErrorState message={error} onRetry={loadPlans} />
         ) : myPlans.length === 0 ? (
           <div className="empty-state">
             <span className="empty-ic">
@@ -928,7 +929,7 @@ function PlanBuilder({ planId, plan, onBack }) {
         {loading ? (
           <p className="muted">{L('טוען...', 'Loading...')}</p>
         ) : error ? (
-          <div className="alert alert-error">{error}</div>
+          <ErrorState message={error} onRetry={loadItems} />
         ) : items.length === 0 ? (
           <div className="empty-state">
             <span className="empty-ic">

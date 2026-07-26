@@ -10,6 +10,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import { ArrowFwd } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Avatar from './Avatar'
@@ -1292,7 +1293,7 @@ function HomeGoals({ session, membership, setView }) {
     <section className="pl-block plhg">
       <div className="plhg-head">
         <p className="pl-section-label"><Target size={15} /> {L('המטרות שלי', 'My goals')}</p>
-        <button className="plhg-all" onClick={() => setView('goals')}>{L('לכל המטרות', 'All goals')} <ArrowLeft size={14} /></button>
+        <button className="plhg-all" onClick={() => setView('goals')}>{L('לכל המטרות', 'All goals')} <ArrowFwd size={14} /></button>
       </div>
 
       {goals.length === 0 ? (
@@ -1363,7 +1364,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
     <section className="pl-block plfb">
       <div className="plhg-head">
         <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('המשוב מהאימון האחרון', 'Last session feedback')}</p>
-        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל האימונים', 'All sessions')} <ArrowLeft size={14} /></button>
+        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל האימונים', 'All sessions')} <ArrowFwd size={14} /></button>
       </div>
       <div className="plfb-card">
         {/* דפוס 2 במסמך העיצוב — פס כותרת כתום מלא, אחד למסך */}

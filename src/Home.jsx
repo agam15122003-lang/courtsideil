@@ -21,6 +21,7 @@ import {
   CONTENT_LINKS, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+import { ChevronFwd } from './DirIcon'
 import CoachOfWeek from './CoachOfWeek'
 import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
@@ -397,7 +398,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             </span>
             <span className="home-card-title">{s.title}</span>
             <span className="home-card-desc">{s.desc}</span>
-            <ChevronLeft size={16} className="home-card-chev" aria-hidden="true" />
+            <ChevronFwd size={16} className="home-card-chev" />
           </button>
         ))}
       </div>
@@ -409,7 +410,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           <div className="home-community-head">
             <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
             <button type="button" className="link-button" onClick={() => onNavigate('community')}>
-              {L('לכל הפיד', 'Open the feed')} <ChevronLeft size={14} />
+              {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} />
             </button>
           </div>
           <div className="home-community-grid">

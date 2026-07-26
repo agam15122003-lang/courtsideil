@@ -16665,3 +16665,54 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
   .plfb-body { display: grid; grid-template-columns: 1fr 1fr; }
   .plfb-half.coach { border-top: none; border-inline-start: 1px solid var(--ln); }
 }
+
+/* ============================================================
+   שפה אחת למצבים — כרטיס שגיאה עם התאוששות (states.jsx)
+   ============================================================ */
+.state-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  border-radius: 20px;
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.state-error.compact { padding: 11px 13px; border-radius: 14px; gap: 9px; }
+.state-error-ic {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+.state-error.compact .state-error-ic { width: 30px; height: 30px; border-radius: 10px; }
+.state-error-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.state-error-body strong { font-size: 14.5px; color: var(--tx); }
+.state-error-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-full);
+  background: var(--sf);
+  color: var(--tx);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.state-error-retry:hover { background: var(--sf2); border-color: var(--border-hover); }
+.empty-cta { margin-top: 10px; }
+@media (max-width: 560px) {
+  .state-error { flex-wrap: wrap; }
+  .state-error-retry { width: 100%; justify-content: center; }
+}
+@media (pointer: coarse) { .state-error-retry { min-height: 44px; } }
