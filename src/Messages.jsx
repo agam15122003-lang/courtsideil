@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
-import { SkeletonCards } from './Skeleton'
+import { SkeletonConvos } from './Skeleton'
 import { L } from './i18n'
 import { confirmDialog } from './confirm'
 
@@ -317,7 +317,7 @@ export default function Messages({ session, onNavigate }) {
 
           <div className="finder-results">
             {loading ? (
-              <SkeletonCards count={3} />
+              <SkeletonConvos count={5} />
             ) : error ? (
               <div className="alert alert-error">{error}</div>
             ) : conversations.length === 0 ? (

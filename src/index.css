@@ -16779,3 +16779,60 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
 }
 /* פס האקצנט ב-hover — צבע אחיד; הסוויפ של 26.7 פספס אותו */
 .podcast-card::after { background: var(--brand); }
+
+/* ============================================================
+   שלדי טעינה תואמי-צורה (27.7.2026)
+   מפרט המסמך: "סקלטון תואם-צורה לכל מסך — לא ספינר, לא 'טוען...'".
+   כל שלד משכפל את הפריסה האמיתית של המסך שלו כדי שלא תהיה
+   קפיצת layout ברגע שהנתונים מגיעים.
+   האנימציה עצמה היא .skeleton הקיים — הוא כבר מכובה גם תחת
+   prefers-reduced-motion (שורה 1976) וגם תחת html.a11y-motion.
+   ============================================================ */
+.skel-rows { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-4); }
+
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--ln);
+  border-radius: 20px;
+  background: var(--sf);
+}
+.skel-row-main { flex: 1; min-width: 0; }
+.skel-sq { width: 42px; height: 42px; border-radius: 14px; flex-shrink: 0; }
+.skel-avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; }
+.skel-pill { width: 62px; height: 24px; border-radius: var(--radius-full); flex-shrink: 0; }
+.skel-time { width: 38px; height: 11px; border-radius: var(--radius-sm); flex-shrink: 0; }
+
+.skel-post {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px 16px;
+  border: 1px solid var(--ln);
+  border-radius: 20px;
+  background: var(--sf);
+}
+.skel-post-head { display: flex; align-items: center; gap: 11px; }
+
+.skel-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: var(--space-4);
+}
+.skel-media-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--ln);
+  border-radius: 20px;
+  background: var(--sf);
+}
+.skel-thumb { width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; }
+@media (max-width: 560px) {
+  .skel-media { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .skel-row, .skel-post { padding: 11px 13px; }
+}

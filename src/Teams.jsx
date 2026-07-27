@@ -25,6 +25,7 @@ import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCo
 import LeagueTable from './LeagueTable'
 import TeamConnect from './TeamConnect'
 import { sendNotification } from './notify'
+import { SkeletonRoster } from './Skeleton'
 
 // ---- סטטוס שחקן ----
 const STATUSES = [
@@ -432,7 +433,7 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
       </div>
 
       {loading ? (
-        <p className="muted" style={{ marginTop: 16 }}>{L('טוען...', 'Loading...')}</p>
+        <SkeletonRoster count={6} />
       ) : tab === 'roster' ? (
         /* ===================== סגל (פריסת מסך היעד 09: טבלה + פאנל צד) ===================== */
         <div className="team-split">

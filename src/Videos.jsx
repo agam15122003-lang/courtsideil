@@ -4,7 +4,7 @@ import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud } from 'luc
 import { supabase } from './supabaseClient'
 import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
 import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
-import { SkeletonCards } from './Skeleton'
+import { SkeletonMedia } from './Skeleton'
 import { L, tr } from './i18n'
 import { ErrorState } from './states'
 import { confirmDialog } from './confirm'
@@ -210,7 +210,7 @@ export default function Videos({ session, profile }) {
         aria-label={L('חיפוש סרטונים', 'Search videos')} placeholder={L('חיפוש חופשי בסרטונים...', 'Search videos...')} style={{ marginTop: 12 }} />
 
       {loading ? (
-        <SkeletonCards count={3} />
+        <SkeletonMedia count={6} />
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : results.length === 0 ? (

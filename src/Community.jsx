@@ -26,7 +26,7 @@ import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
 import { ChevronBack, ChevronFwd } from './DirIcon'
-import { SkeletonCards } from './Skeleton'
+import { SkeletonConvos, SkeletonFeed } from './Skeleton'
 import { L , cnt } from './i18n'
 import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
@@ -726,7 +726,7 @@ function Feed({ session, profile, search, onCount }) {
       {/* הפיד */}
       <div className="cm-feed">
         {loading ? (
-          <SkeletonCards count={3} />
+          <SkeletonFeed count={3} />
         ) : error ? (
           <div className="alert alert-error">
             {error}
@@ -893,7 +893,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   }
 
   if (needsSql) return <SetupCard file={needsSql} onRetry={() => load()} />
-  if (loading) return <SkeletonCards count={3} />
+  if (loading) return <SkeletonConvos count={5} />
   if (error) {
     return (
       <div className="alert alert-error">
