@@ -144,6 +144,13 @@ export default function DrillCard({
             {drill.category && (
               <span className="cat-badge" data-cat={drill.category}>{tr(drill.category)}</span>
             )}
+            {/* מפרט המסמך: תג שמציין לוח טקטיקה מונפש ומספר השלבים */}
+            {hasBoard && (
+              <span className="board-badge">
+                <PlayCircle size={12} aria-hidden="true" />
+                {L(`לוח מונפש · ${drill.board.steps.length} שלבים`, `Animated board · ${drill.board.steps.length} steps`)}
+              </span>
+            )}
             {count > 0 && (
               <span className="drill-rating-pill" title={L(`ממוצע של ${cnt(count, 'דירוג אחד', 'דירוגים')}`, `Average of ${count} ratings`)}>
                 <Star size={13} fill="currentColor" strokeWidth={0} />
@@ -192,7 +199,7 @@ export default function DrillCard({
           <div className="drill-foot">
             <button className="btn-primary btn-details" onClick={() => setExpanded(true)}>
               <BookOpen size={15} aria-hidden="true" /> {L('פתח תרגיל', 'Open drill')}
-              {hasBoard && <PlayCircle size={14} aria-hidden="true" title={L('כולל לוח מונפש', 'includes animated board')} />}
+              
             </button>
             {onAddToPlan && (
               <button className="btn-toplan" onClick={() => onAddToPlan(drill)} title={L('הוספה לתוכנית אימון', 'Add to a training plan')}>

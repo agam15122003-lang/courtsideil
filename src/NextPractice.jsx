@@ -165,6 +165,16 @@ export default function NextPractice({ session, onNavigate }) {
     ? (entry.opponent ? L(`נגד ${entry.opponent}`, `vs ${entry.opponent}`) : L('משחק', 'Game')) + (entry.team ? ` · ${trTeam(entry.team)}` : '')
     : entry.title || (entry.team ? trTeam(entry.team) : L('אימון', 'Practice'))
 
+  // מפרט המסמך: שעה גדולה + תג "בעוד X" — בהיר יותר מספירה מפוצלת HH:MM:SS
+  const whenTag = days > 1
+    ? L(`בעוד ${days} ימים`, `in ${days} days`)
+    : days === 1
+      ? L('מחר', 'tomorrow')
+      : hh >= 1
+        ? L(`בעוד ${hh} שעות`, `in ${hh} hours`)
+        : L(`בעוד ${mm} דקות`, `in ${mm} min`)
+  const dayLabel = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
+
   return (
     <div className={isGame ? 'np-card game' : 'np-card'}>
       <span className="np-eyebrow"><span className="np-dot" /> {isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice')}</span>
@@ -178,14 +188,16 @@ export default function NextPractice({ session, onNavigate }) {
         <div className="np-live"><span className="np-live-dot" /> {isGame ? L('המשחק עכשיו!', 'Game time!') : L('מתקיים עכשיו', 'Happening now')}</div>
       ) : (
         <>
-          <span className="np-count-label">
-            {isGame
-              ? (days > 0 ? L(`בעוד ${days} ימים · עד המשחק`, `In ${days} days · until tip-off`) : L('עד תחילת המשחק', 'Until tip-off'))
-              : (days > 0 ? L(`בעוד ${days} ימים · עד תחילת האימון`, `In ${days} days · until start`) : L('עד תחילת האימון', 'Until practice starts'))}
-          </span>
-          <div className="np-timer" dir="ltr" aria-label={L('ספירה לאחור', 'Countdown')}>
-            {pad(hh)}:{pad(mm)}:{pad(ss)}
+          {/* מפרט המסמך: שעה גדולה + תג "בעוד X" במקום ספירה מפוצלת.
+              הספירה המדויקת נשארת כטקסט משני לשעה הקרובה. */}
+          <div className="np-when">
+            <div className="np-timer" dir="ltr">{hm(entry.start_time) || '—'}</div>
+            <span className="np-when-tag">{whenTag}</span>
           </div>
+          <span className="np-count-label">
+            {dayLabel}
+            {days === 0 && hh < 1 && ` · ${pad(mm)}:${pad(ss)}`}
+          </span>
         </>
       )}
 
