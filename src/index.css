@@ -36,7 +36,7 @@
   --surface: #FFFFFF;
   --surface-alt: #EDF2F8;
   --text: #0F1F33;
-  /* הוכהה מ-#5B6B82: על משטחי הקנבס הקרם והאפרסק הוא נמדד 4.33:1 (WCAG AA דורש 4.5).
+  /* הוכהה מ-var(--mut): על משטחי הקנבס הקרם והאפרסק הוא נמדד 4.33:1 (WCAG AA דורש 4.5).
      עכשיו 4.8:1 על הקרם, 5.3:1 על האפרסק, 6.0:1 על לבן. מצב כהה מוגדר בנפרד. */
   --text-muted: #55647A;
   --border: #E3EAF3;
@@ -1199,7 +1199,7 @@ body {
 }
 
 [data-theme="dark"] .brand-mark {
-  background: #2a3b5c;
+  background: var(--navy-700);
 }
 
 /* ===== פריסה עם סרגל צד (Sidebar) ===== */
@@ -3860,7 +3860,7 @@ textarea {
   color: var(--ok);
 }
 .auth-trust-inline li:nth-child(2) {
-  background: #e8f0fe;
+  background: var(--info-soft);
   color: var(--info);
 }
 .auth-trust-inline li:nth-child(3) {
@@ -4598,7 +4598,7 @@ html.a11y-spacing * {
   gap: 6px;
   padding: 4px 12px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #f4b740, #e89b1f);
+  background: linear-gradient(135deg, var(--warn), var(--warn));
   color: var(--navy-1);
   font-size: 12.5px;
   font-weight: 800;
@@ -4625,7 +4625,7 @@ html.a11y-spacing * {
   width: 28px;
   height: 28px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #f4b740, #e89b1f);
+  background: linear-gradient(135deg, var(--warn), var(--warn));
   color: var(--navy-1);
   display: flex;
   align-items: center;
@@ -4657,14 +4657,14 @@ html.a11y-spacing * {
   color: rgba(255, 255, 255, 0.28);
 }
 .cow-star.on {
-  color: #f4b740;
-  fill: #f4b740;
+  color: var(--warn);
+  fill: var(--warn);
 }
 .cow-avg {
   margin-inline-start: 8px;
   font-size: 15px;
   font-weight: 800;
-  color: #f4b740;
+  color: var(--warn);
 }
 .cow-stats {
   display: flex;
@@ -4679,7 +4679,7 @@ html.a11y-spacing * {
 }
 .cow-stat strong {
   font-weight: 800;
-  color: #f4b740;
+  color: var(--warn);
 }
 .cow-empty-text {
   margin: var(--space-3) 0 0;
@@ -4816,8 +4816,8 @@ html.a11y-spacing * {
   background: var(--primary);
 }
 [data-theme="dark"] .auth-trust-inline li:nth-child(2) {
-  background: #1e2c47;
-  color: #9ec1ff;
+  background: var(--navy-1);
+  color: var(--info);
 }
 [data-theme="dark"] .auth-trust-inline li:nth-child(3) {
   background: var(--court-soft);
@@ -5679,8 +5679,8 @@ html.a11y-spacing * {
   flex-wrap: wrap;
 }
 .cal-event.meeting {
-  border-inline-start-color: #7c4dff;
-  background: color-mix(in srgb, #7c4dff 16%, var(--surface));
+  border-inline-start-color: var(--info);
+  background: color-mix(in srgb, var(--info) 16%, var(--surface));
 }
 .cal-event.meeting .cal-event-time {
   color: #6a3fd6;
@@ -6181,8 +6181,8 @@ html.a11y-spacing * {
 .vstar-btn { border: none; background: transparent; padding: 1px; cursor: pointer; line-height: 0; }
 .vstar { color: var(--border); transition: transform .1s, color .1s; }
 .vstar.avg { color: #f0b429; fill: #f0b429; opacity: .55; }
-.vstar.mine { color: #f0a019; fill: #f0a019; }
-.vstar-btn:hover .vstar { transform: scale(1.18); color: #f0a019; }
+.vstar.mine { color: var(--warn); fill: var(--warn); }
+.vstar-btn:hover .vstar { transform: scale(1.18); color: var(--warn); }
 .video-rate-meta { white-space: nowrap; }
 .video-rank-badge {
   position: absolute; top: 8px; inset-inline-start: 8px;
@@ -6679,7 +6679,7 @@ html[data-theme='dark'] .sidebar {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
   unicode-bidi: isolate; /* ספרות = תת-רצף LTR בתוך RTL */
-  color: #F4B740;
+  color: var(--warn);
 }
 .cow-avg {
   font-variant-numeric: tabular-nums;
@@ -6768,9 +6768,9 @@ html[data-theme='dark'] .sidebar {
   border: 1px solid transparent;
 }
 .cat-badge[data-cat="יסודות"]      { background: #E8EEF9; color: #2F4068; }
-.cat-badge[data-cat="הגנה"]        { background: #E8F0FE; color: var(--info); }
+.cat-badge[data-cat="הגנה"]        { background: var(--info-soft); color: var(--info); }
 .cat-badge[data-cat="התקפה"]       { background: var(--orange-50); color: var(--orange-700); }
-.cat-badge[data-cat="ניהול אימון"] { background: #E6F4EC; color: var(--ok); }
+.cat-badge[data-cat="ניהול אימון"] { background: var(--ok-soft); color: var(--ok); }
 .cat-badge[data-cat="ניהול משחק"]  { background: #F0EAFB; color: #5B3BA6; }
 .cat-badge[data-cat="פיתוח שחקן"]  { background: #E3F3F2; color: #0F6B62; }
 [data-theme="dark"] .cat-badge[data-cat] {
@@ -6907,7 +6907,7 @@ html[data-theme='dark'] .sidebar {
   background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 17%, var(--surface)), color-mix(in srgb, var(--primary) 9%, var(--surface)));
 }
 .cal-event.meeting {
-  background: linear-gradient(180deg, color-mix(in srgb, #7c4dff 17%, var(--surface)), color-mix(in srgb, #7c4dff 9%, var(--surface)));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--info) 17%, var(--surface)), color-mix(in srgb, var(--info) 9%, var(--surface)));
 }
 .cal-detail,
 .cal-form {
@@ -9257,18 +9257,18 @@ html[data-theme='dark'] .main-content .chat { background: var(--surface); }
 }
 .att-btn.att-on-present { background: var(--ok); color: #fff; }
 .att-btn.att-on-late { background: var(--warn); color: #fff; }
-.att-btn.att-on-absent { background: #B3382E; color: #fff; }
+.att-btn.att-on-absent { background: var(--danger); color: #fff; }
 .att-btn.att-on-present:hover,
 .att-btn.att-on-late:hover,
 .att-btn.att-on-absent:hover { color: #fff; }
 .att-btn.att-on-present:hover { background: var(--ok); }
 .att-btn.att-on-late:hover { background: var(--warn); }
-.att-btn.att-on-absent:hover { background: #B3382E; }
+.att-btn.att-on-absent:hover { background: var(--danger); }
 
 /* שורה מסומנת — פס צבע עדין בצד */
 .att-marked-present { border-inline-start: 3px solid var(--ok); }
 .att-marked-late { border-inline-start: 3px solid var(--warn); }
-.att-marked-absent { border-inline-start: 3px solid #B3382E; }
+.att-marked-absent { border-inline-start: 3px solid var(--danger); }
 
 /* ---- סיכום עונתי ---- */
 .att-stats {
@@ -11401,7 +11401,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   min-width: 40px;
   font-size: 17px;
   line-height: 1.4;
-  border-bottom: 1.5px dashed #b7c0d0;
+  border-bottom: 1.5px dashed var(--border-hover);
   padding-bottom: 1px;
 }
 .nb-slot-in:focus {
@@ -11948,7 +11948,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   border-bottom-color: var(--navy-1);
 }
 [data-theme='dark'] .nb-slot-in {
-  border-bottom-color: #b7c0d0;
+  border-bottom-color: var(--border-hover);
 }
 [data-theme='dark'] .nb-write-title:focus,
 [data-theme='dark'] .nb-slot-in:focus {
@@ -13726,7 +13726,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   flex: 0 0 46px;
   text-align: center;
   font-size: 16px;
-  border-bottom: 1px dashed #b7c0d0;
+  border-bottom: 1px dashed var(--border-hover);
   -moz-appearance: textfield;
 }
 .pn-seg-min::-webkit-outer-spin-button,
@@ -15306,7 +15306,7 @@ html.a11y-motion *::after {
 }
 
 /* [4] בר הנוכחות העונתית: המילוי היה rgba(255,255,255,0.35) על מסלול
-   #EDF2F8 — נמדד ~1.03:1, כלומר בלתי נראה במצב בהיר לכל שחקן מתחת ל-85%.
+   var(--sf2) — נמדד ~1.03:1, כלומר בלתי נראה במצב בהיר לכל שחקן מתחת ל-85%.
    מצב כהה כבר נדרס בשורות 10109-10111 ולא נוגעים בו. */
 .roster-att-bar > span { background: var(--navy-500); }
 
@@ -16025,14 +16025,14 @@ html.a11y-motion .pla-prog-bar span { transition: none; }
   color: var(--orange-300);
 }
 .land-cta .btn-primary.btn-lg {
-  background: linear-gradient(135deg, #EA580C, #C2410C);
+  background: linear-gradient(135deg, var(--orange-600), var(--brand-strong));
   border: none;
   box-shadow: 0 10px 28px rgba(234, 88, 12, 0.38);
   font-size: 17px;
   padding: 15px 30px;
   border-radius: var(--radius-full);
 }
-.land-cta .btn-primary.btn-lg:hover { background: linear-gradient(135deg, #F97316, #EA580C); transform: translateY(-2px); }
+.land-cta .btn-primary.btn-lg:hover { background: linear-gradient(135deg, #F97316, var(--orange-600)); transform: translateY(-2px); }
 .land-hero-night .btn-soft.btn-lg {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -16072,7 +16072,7 @@ html.a11y-motion .pla-prog-bar span { transition: none; }
   margin-bottom: 12px;
   color: #fff;
 }
-.lls-ic.orange { background: linear-gradient(135deg, #F97316, #C2410C); }
+.lls-ic.orange { background: linear-gradient(135deg, #F97316, var(--brand-strong)); }
 .lls-ic.green { background: linear-gradient(135deg, #22C55E, #15803D); }
 .lls-ic.navy { background: linear-gradient(135deg, #35486F, #0A1020); }
 /* חץ מצויר בין כרטיסים במסך רחב, ומוסתר בערימה במובייל */
@@ -16131,7 +16131,7 @@ html.a11y-motion .pla-prog-bar span { transition: none; }
 }
 .land-band-sub { color: rgba(255, 255, 255, 0.75); position: relative; }
 .land-band .btn-hero {
-  background: linear-gradient(135deg, #EA580C, #C2410C);
+  background: linear-gradient(135deg, var(--orange-600), var(--brand-strong));
   box-shadow: 0 10px 28px rgba(234, 88, 12, 0.38);
   border-radius: var(--radius-full);
   position: relative;
@@ -16750,3 +16750,15 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* ============================================================
+   חוק שני הגרדיאנטים — סגירת החריגים האחרונים (26.7.2026)
+   נשארו רק: hero נייבי ומילוי התקדמות כתום. השאר צבע אחיד.
+   (שלד טעינה, שורות מחברת, scrim על תמונות ופסי "ממתין" בעורך
+   הווידאו אינם גרדיאנטים דקורטיביים ולכן נשארים.)
+   ============================================================ */
+.cow-badge, .cow-trophy { background: var(--warn-soft); color: var(--warn); }
+.gc-week::before { background: var(--info); }
+.stat-card { background: var(--sf); }
+.cal-event.meeting { background: color-mix(in srgb, var(--info) 15%, var(--sf)); }
+[data-theme='dark'] .cal-event.meeting { background: color-mix(in srgb, var(--info) 22%, var(--sf)); }
