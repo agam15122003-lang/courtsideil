@@ -16762,3 +16762,20 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
 .stat-card { background: var(--sf); }
 .cal-event.meeting { background: color-mix(in srgb, var(--info) 15%, var(--sf)); }
 [data-theme='dark'] .cal-event.meeting { background: color-mix(in srgb, var(--info) 22%, var(--sf)); }
+
+/* ============================================================
+   מדיה — אייקון פודקאסט בגוון רך (27.7.2026)
+   מפרט המסמך: "פודקאסטים: אייקון בגוון". סוגר את משפחת
+   הגרדיאנטים השלישית (ירוק ספוטיפיי) ושני hex גולמיים.
+   אות הזיהוי לספוטיפיי נשמר בקישור "פתח בספוטיפיי" + אייקון
+   היציאה שמתחתיו — לכן לא אבד שום מידע.
+   מבטל במפורש את ההחלטה מ-24.7 ("נשאר ירוק-ספוטיפיי כעוגן זיהוי")
+   שקדמה למסמך המסירה.
+   ============================================================ */
+.podcast-ic {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  box-shadow: none;
+}
+/* פס האקצנט ב-hover — צבע אחיד; הסוויפ של 26.7 פספס אותו */
+.podcast-card::after { background: var(--brand); }

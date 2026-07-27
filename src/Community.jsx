@@ -14,8 +14,6 @@ import {
   Users,
   Trophy,
   Target,
-  ChevronRight,
-  ChevronLeft,
   Search,
   Share2,
 } from 'lucide-react'
@@ -27,6 +25,7 @@ import { waShare, copyText, inviteText } from './share'
 import Avatar from './Avatar'
 import ChatWindow from './ChatWindow'
 import CoachOfWeek from './CoachOfWeek'
+import { ChevronBack, ChevronFwd } from './DirIcon'
 import { SkeletonCards } from './Skeleton'
 import { L , cnt } from './i18n'
 import { confirmDialog } from './confirm'
@@ -937,7 +936,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
               aria-label={L('חזרה לכל הערוצים', 'Back to all channels')}
               title={L('חזרה', 'Back')}
             >
-              <ChevronRight size={20} />
+              <ChevronBack size={20} />
             </button>
             <span className="ch-chat-ic"><ch.Icon size={19} /></span>
             <span className="chat-header-text">
@@ -1278,7 +1277,7 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
                   <button key={c.id} type="button" className="cm-aside-ch" onClick={() => openChannel(c.id)}>
                     <c.Icon size={15} />
                     <span>{channelName(c)}</span>
-                    <ChevronLeft size={14} className="cm-aside-chev" />
+                    <ChevronFwd size={14} className="cm-aside-chev" />
                   </button>
                 ))}
               </div>
