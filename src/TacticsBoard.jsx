@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X } from 'lucide-react'
 import { L } from './i18n'
 
 const HALF = { w: 500, h: 470 }
@@ -330,6 +331,18 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
   const [tool, setTool] = useState('select')
   const [frame, setFrame] = useState({ idx: 0, p: 0 })
   const [paused, setPaused] = useState(false)
+  // מסך מלא — מפרט המסמך: הלוח הוא קנבס, לא "שדה טופס (לא חובה)".
+  // אותו דפוס portal שכבר עובד בפאנל התרגיל ב-DrillCard.
+  const [full, setFull] = useState(false)
+
+  // מסך מלא: Escape סוגר ונועל את גלילת הרקע (אותו חוזה כמו הפאנלים האחרים)
+  useEffect(() => {
+    if (!full) return
+    const onKey = (e) => { if (e.key === 'Escape') setFull(false) }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [full])
 
   // autoPlay: פתיחת תרגיל מתניעה את האנימציה לבד — רגע ה"וואו" של הלוח.
   // מדלג כשמבקשים פחות תנועה (מערכת/ווידג'ט נגישות) או כשאין מספיק שלבים.
@@ -547,9 +560,27 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       ? steps.map((s, i) => [s, i])
       : [[steps[current] || { objects: [], arrows: [] }, current]]
 
-  return (
-    <div className="field-group">
-      {!readOnly && <span className="field-label">{L('לוח טקטיקה (לא חובה)', 'Tactics board (optional)')}</span>}
+  const body = (
+    <div className={full ? 'field-group tb-fullscreen' : 'field-group'}>
+      {!readOnly && !full && (
+        <span className="field-label tb-label">
+          {L('לוח טקטיקה', 'Tactics board')}
+          <button type="button" className="tb-expand" onClick={() => setFull(true)}>
+            <Maximize2 size={14} /> {L('מסך מלא', 'Full screen')}
+          </button>
+        </span>
+      )}
+      {full && (
+        <div className="tb-fs-head">
+          <strong>{L('לוח טקטיקה', 'Tactics board')}</strong>
+          <span className="muted small">
+            {L(`שלב ${current + 1} מתוך ${steps.length}`, `Step ${current + 1} of ${steps.length}`)}
+          </span>
+          <button type="button" className="tb-fs-close" onClick={() => setFull(false)} aria-label={L('סגור', 'Close')}>
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       {/* סרגל כלים צף — קבוצות: מגרש | תצוגה | כלי ציור */}
       <div className="tb-toolbar" role="toolbar" aria-label={L('כלי לוח הטקטיקה', 'Tactics board tools')}>
@@ -709,4 +740,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       )}
     </div>
   )
+
+  // במצב מסך מלא הלוח עובר ל-portal מעל האפליקציה — הטופס נשאר שלם מאחור
+  return full ? createPortal(<div className="tb-fs-scrim">{body}</div>, document.body) : body
 }
