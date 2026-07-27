@@ -16836,3 +16836,26 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
   .skel-media { grid-template-columns: 1fr 1fr; gap: 10px; }
   .skel-row, .skel-post { padding: 11px 13px; }
 }
+
+/* ============================================================
+   כותרת מסך קומפקטית במובייל (27.7.2026)
+   נמדד חי ב-384px במסך "הקבוצות שלי": התוכן התחיל ב-553px מתוך
+   820 — 67% מהמסך היה chrome לפני שהמאמן ראה שחקן אחד.
+   הפירוק: ציטוט 60 + page-header 184 + בורר קבוצה 40 + טאבים 102.
+   ה-page-header הוא האשם הגדול: תג + כותרת + פסקת הסבר שהמאמן
+   קורא פעם אחת ואז היא רק גוזלת מקום בכל כניסה.
+   הטאבים (102px = שתי שורות × 44) לא נגעו בכוונה — 44px הוא
+   מינימום יעד המגע, וכיווץ שלהם היה פוגע בנגישות.
+   חל על שמונה מסכים שחולקים את התבנית.
+   ============================================================ */
+@media (max-width: 700px) {
+  .page-header { padding: 13px 16px; }
+  /* פסקת ההסבר יורדת במובייל — היא אונבורדינג, לא תוכן */
+  .page-header .page-desc { display: none; }
+  .page-header .welcome-badge { margin-bottom: 4px; font-size: 11.5px; padding: 3px 10px; }
+  .page-header h1 { font-size: 22px; line-height: 1.15; }
+  .page-header h2 { font-size: 20px; line-height: 1.15; }
+  /* הציטוט מתכווץ לשורה אחת צמודה */
+  .quote-strip { padding: 5px 12px; }
+  .quote-strip-author { display: none; }
+}
