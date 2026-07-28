@@ -16933,3 +16933,57 @@ html.a11y-motion .bn-item.active .bn-ic { transform: none; }
 .tb-fullscreen .court { max-width: min(760px, 100%); }
 .tb-fullscreen .court--full { max-width: min(1100px, 100%); }
 .tb-fullscreen .board-block { display: flex; flex-direction: column; align-items: center; }
+
+/* ================================================================= */
+/* ===== 28.7.2026 — שלב א': איחוד שכבת הכניסה (CSS בלבד) ========= */
+/* ================================================================= */
+/* הבעיה: בכל החלפת טאב רצו שלוש אנימציות כניסה זו על גבי זו —
+   1. .main-inner        → view-enter  (380ms, opacity + translateY 10px)   [שורה 6224]
+   2. .main-inner > *    → fade-rise   (320ms, opacity + translateY 8px)    [שורה 2753]
+   3. .home-card ואחרים  → card-enter  (380ms + delay עד 190ms)             [שורה 6239]
+   התוצאה: המסך זז, מה שבתוכו זז שוב, והכרטיסים שבתוכו זזים בפעם השלישית —
+   ~570ms של תנועה מורכבת בכל ניווט, מעל התקרה של DESIGN.md §3 (כניסה ≤380ms).
+   הפתרון (היררכיית תנועה): דבר אחד זז. המכולה רק מתעמעמת, הכרטיסים עולים. */
+
+/* 1. המסך: fade בלבד, בלי תזוזה — 220ms. גובר על view-enter (כלל מאוחר יותר) */
+@keyframes view-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.main-inner {
+  animation: view-fade var(--dur-base) var(--ease-out) both;
+}
+
+/* 2. השכבה האמצעית מבוטלת — היא הכפילה את תנועת המכולה בלי להוסיף מידע.
+   (ב-.main-inner יש בפועל שני ילדים בלבד — QuoteStrip והמסך — אז זה לא היה stagger) */
+.main-inner > * {
+  animation: none;
+}
+
+/* 3. הכרטיסים נשארים הרוקדים היחידים. הזזת ה-delay-ים כך שיתחילו
+   אחרי שה-fade של המסך הסתיים (220ms) במקום להתנגש איתו. */
+.land-feature:nth-child(1), .home-card:nth-child(1), .drill-card:nth-child(1), .coach-card:nth-child(1) { animation-delay: 200ms; }
+.land-feature:nth-child(2), .home-card:nth-child(2), .drill-card:nth-child(2), .coach-card:nth-child(2) { animation-delay: 250ms; }
+.land-feature:nth-child(3), .home-card:nth-child(3), .drill-card:nth-child(3), .coach-card:nth-child(3) { animation-delay: 300ms; }
+.land-feature:nth-child(4), .home-card:nth-child(4), .drill-card:nth-child(4), .coach-card:nth-child(4) { animation-delay: 350ms; }
+
+/* חוזה הנגישות של DESIGN.md §3 — כיבוי כפול, מפורש (לא להישען על כלל ה-* הגלובלי) */
+@media (prefers-reduced-motion: reduce) {
+  .main-inner,
+  .main-inner > * {
+    animation: none;
+  }
+  .land-feature, .home-card, .drill-card, .coach-card {
+    animation: none;
+    animation-delay: 0s;
+  }
+}
+html.a11y-motion .main-inner,
+html.a11y-motion .main-inner > *,
+html.a11y-motion .land-feature,
+html.a11y-motion .home-card,
+html.a11y-motion .drill-card,
+html.a11y-motion .coach-card {
+  animation: none !important;
+  animation-delay: 0s !important;
+}

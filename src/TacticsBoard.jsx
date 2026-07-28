@@ -90,21 +90,61 @@ const arcPath = (x1, y1, x2, y2) => {
   return `M${x1},${y1} Q${mx},${my - arcLift(x1, y1, x2, y2)} ${x2},${y2}`
 }
 
+// לחיצה ארוכה למחיקה (מפרט המסמך). דאבל-קליק פשוט לא קיים במגע —
+// עד היום אי אפשר היה למחוק אובייקט או חץ מהטלפון בכלל.
+// מחזיר handlers שמתאימים גם לעכבר וגם למגע; תזוזה מבטלת (זו גרירה).
+const LONG_PRESS_MS = 550
+function useLongPress(onLongPress, enabled) {
+  const timer = useRef(null)
+  const start = useRef({ x: 0, y: 0 })
+  const fired = useRef(false)
+
+  const clear = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+  }
+  if (!enabled) return {}
+
+  // מוחזרים handlers בלבד — כדי שאפשר יהיה לפרוס אותם ישירות על אלמנט DOM
+  return {
+    onPointerDown: (e) => {
+      fired.current = false
+      start.current = { x: e.clientX, y: e.clientY }
+      clear()
+      timer.current = setTimeout(() => {
+        fired.current = true
+        // רטט קצר במכשירים שתומכים — משוב שהמחיקה קרתה
+        if (navigator.vibrate) navigator.vibrate(18)
+        onLongPress()
+      }, LONG_PRESS_MS)
+    },
+    onPointerMove: (e) => {
+      if (!timer.current) return
+      const dx = Math.abs(e.clientX - start.current.x)
+      const dy = Math.abs(e.clientY - start.current.y)
+      if (dx > 8 || dy > 8) clear() // זו גרירה, לא לחיצה ארוכה
+    },
+    onPointerUp: clear,
+    onPointerCancel: clear,
+    onPointerLeave: clear,
+  }
+}
+
 // חץ בודד (תנועה = קו מלא, מסירה = מקווקו, זריקה לסל = קשת כתומה)
 function Arrow({ a, readOnly, onRemove }) {
   const cursor = { cursor: readOnly ? 'default' : 'pointer' }
+  const lp = useLongPress(() => onRemove(a.id), !readOnly)
   if (a.kind === 'shot') {
     const d = arcPath(a.x1, a.y1, a.x2, a.y2)
     return (
-      <g style={cursor} onDoubleClick={() => !readOnly && onRemove(a.id)}>
+      <g style={cursor} {...lp} onDoubleClick={() => !readOnly && onRemove(a.id)}>
         <path d={d} fill="none" stroke="transparent" strokeWidth="16" />
-        <path d={d} fill="none" stroke="#E8763A" strokeWidth="3" markerEnd="url(#tb-arrowhead-shot)" />
+        <path d={d} fill="none" stroke="var(--brand)" strokeWidth="3" markerEnd="url(#tb-arrowhead-shot)" />
       </g>
     )
   }
   const dash = a.kind === 'pass' ? '8,7' : undefined
   return (
-    <g style={cursor} onDoubleClick={() => !readOnly && onRemove(a.id)}>
+    <g style={cursor} {...lp} onDoubleClick={() => !readOnly && onRemove(a.id)}>
       <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth="16" />
       <line
         x1={a.x1}
@@ -116,6 +156,27 @@ function Arrow({ a, readOnly, onRemove }) {
         strokeDasharray={dash}
         markerEnd="url(#tb-arrowhead)"
       />
+    </g>
+  )
+}
+
+// אובייקט בודד על המגרש. רכיב נפרד כי הוא צריך hook של לחיצה ארוכה,
+// ואי אפשר לקרוא hook בתוך map. משלב גרירה + מחיקה בלחיצה ארוכה:
+// אותו onPointerDown מתניע את שניהם, ותזוזה מבטלת את הטיימר.
+function ObjNode({ o, readOnly, tool, onStartDrag, onRemove }) {
+  const active = !readOnly && tool === 'select'
+  const lp = useLongPress(onRemove, active)
+  return (
+    <g
+      style={{ cursor: active ? 'grab' : 'default' }}
+      {...lp}
+      onPointerDown={(e) => {
+        lp.onPointerDown?.(e)
+        if (active) onStartDrag(e)
+      }}
+      onDoubleClick={() => active && onRemove()}
+    >
+      <ObjectShape o={o} />
     </g>
   )
 }
@@ -297,20 +358,14 @@ function Board({
             />
           ))}
         {step.objects.map((o) => (
-          <g
+          <ObjNode
             key={o.id}
-            style={{ cursor: readOnly || tool !== 'select' ? 'default' : 'grab' }}
-            onPointerDown={(e) => {
-              if (!readOnly && tool === 'select') {
-                e.stopPropagation()
-                dragId.current = o.id
-                capture(e)
-              }
-            }}
-            onDoubleClick={() => !readOnly && tool === 'select' && onRemoveObj(stepIndex, o.id)}
-          >
-            <ObjectShape o={o} />
-          </g>
+            o={o}
+            readOnly={readOnly}
+            tool={tool}
+            onStartDrag={(e) => { e.stopPropagation(); dragId.current = o.id; capture(e) }}
+            onRemove={() => onRemoveObj(stepIndex, o.id)}
+          />
         ))}
       </svg>
     </div>
@@ -733,8 +788,8 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       {!readOnly && (
         <p className="muted small">
           {L(
-            'בחר חצי מגרש או מגרש שלם, הוסף וגרור אובייקטים (לחיצה כפולה מוחקת). למצב חצים בחר "חץ תנועה" או "חץ מסירה" וגרור על המגרש (לחיצה כפולה על חץ מוחקת). בנה כמה שלבים בתצוגת "שלב בודד" או "כל השלבים".',
-            'Choose half court or full court, then add and drag objects (double-click to delete). For arrows, pick "Movement arrow" or "Pass arrow" and drag on the court (double-click an arrow to delete). Build multiple steps in "Single step" or "All steps" view.'
+            'בחר חצי מגרש או מגרש שלם, הוסף וגרור אובייקטים. למחיקה — לחיצה ארוכה על האובייקט או על החץ (גם בטלפון). למצב חצים בחר "חץ תנועה", "חץ מסירה" או "זריקה לסל" וגרור על המגרש. בנה כמה שלבים בתצוגת "שלב בודד" או "כל השלבים".',
+            'Choose half court or full court, then add and drag objects. To delete, long-press the object or the arrow (works on phones too). For arrows, pick "Movement arrow", "Pass arrow" or "Shot" and drag on the court. Build multiple steps in "Single step" or "All steps" view.'
           )}
         </p>
       )}
