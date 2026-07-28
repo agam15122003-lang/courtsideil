@@ -18,10 +18,11 @@ import {
   NEWS_COUNT,
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
-  CONTENT_LINKS, safeUrl } from './constants'
+  CONTENT_LINKS, COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import { ChevronFwd } from './DirIcon'
+import SmartImage, { SmartImageRotator, ImageCredit } from './SmartImage'
 import CoachOfWeek from './CoachOfWeek'
 import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
@@ -263,6 +264,14 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const stats = useHomeStats(profile?.id)
   const communityPosts = useCommunityTeaser()
 
+  // פעימה משותפת בהירו: המחליף מודיע על כל החלפת תמונה, והציטוט מתחלף איתה.
+  // נקודת ההתחלה אקראית כדי שלא יתקבל אותו ציטוט בכל טעינה.
+  // הערה: תחת prefers-reduced-motion המחליף לא מתקתק בכלל, ולכן גם הציטוט
+  // נשאר קבוע — וזה הנכון: תוכן שמתחלף מעצמו הוא בדיוק מה שהמשתמש ביקש לעצור.
+  const [quoteStart] = useState(() => Math.floor(Math.random() * COACHING_QUOTES.length))
+  const [beat, setBeat] = useState(0)
+  const quote = COACHING_QUOTES[(quoteStart + beat) % COACHING_QUOTES.length]
+
   const today = new Date()
   const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
   const hour = today.getHours()
@@ -307,15 +316,17 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
   return (
     <div className="home">
-      {/* הירו נייבי — ברכה + האימון הבא בכרטיס זכוכית (handoff) */}
+      {/* הירו נייבי — ברכה + האימון הבא בכרטיס זכוכית (handoff).
+          סימן-המים של המגרש היה SVG; הוחלף בצילום מגרש אמיתי מהמאגר,
+          מתחת ל-scrim הנייבי כדי שהטקסט הלבן ישמור על ניגודיות. */}
       <header className="home-hero">
-        <svg className="home-hero-court" viewBox="0 0 400 300" aria-hidden="true">
-          <circle cx="60" cy="150" r="90" fill="none" stroke="#fff" strokeWidth="2" />
-          <circle cx="60" cy="150" r="30" fill="none" stroke="#fff" strokeWidth="2" />
-          <line x1="200" y1="0" x2="200" y2="300" stroke="#fff" strokeWidth="2" />
-          <circle cx="200" cy="150" r="45" fill="none" stroke="#fff" strokeWidth="2" />
-          <rect x="310" y="90" width="90" height="120" fill="none" stroke="#fff" strokeWidth="2" />
-        </svg>
+        <SmartImageRotator
+          category="hero"
+          count={3}
+          className="home-hero-bg"
+          sizes="100vw"
+          onTick={setBeat}
+        />
         <span className="home-hero-glow" aria-hidden="true" />
         <div className="home-hero-text">
           <span className="home-greet-date">{dateLabel}</span>
@@ -341,6 +352,13 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         <div className="home-hero-card">
           <NextPractice session={session} onNavigate={onNavigate} />
         </div>
+        {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מסונכרן לתמונה.
+            key={beat} — מרנדר מחדש כדי שאנימציית ההחלפה תתנגן. */}
+        <p className="home-hero-quote" key={beat}>
+          <span className="hhq-mark" aria-hidden="true">"</span>
+          <span className="hhq-text">{L(quote.text, quote.text_en)}</span>
+          <span className="hhq-author">— {L(quote.author, quote.author_en)}</span>
+        </p>
       </header>
 
       {/* פס סטטיסטיקות — כרטיס אחד מחולק לארבעה */}
@@ -468,7 +486,10 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
                 className="news-thumb"
                 style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}
               >
-                {!a.image && <Newspaper size={22} />}
+                {/* אין תמונה בפיד ה-RSS → צילום מהמאגר במקום אייקון עיתון בודד */}
+                {!a.image && (
+                  <SmartImage category="articles" fill sizes="(max-width: 900px) 100vw, 320px" />
+                )}
                 {a.source && <span className="news-source">{a.source}</span>}
               </div>
               <div className="news-body">
@@ -503,6 +524,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           </a>
         ))}
       </div>
+
+      <ImageCredit />
     </div>
   )
 }

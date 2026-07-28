@@ -17128,3 +17128,146 @@ html.a11y-motion .stat-card {
 }
 html.a11y-motion .si-img,
 html.a11y-motion .si-credit { transition: none !important; }
+
+/* ================================================================= */
+/* ===== 28.7.2026 — שלב ד3: שילוב התמונות בדפים =================== */
+/* ================================================================= */
+
+/* ---- הירו של דף הבית ---- */
+/* הגרדיאנט הנייבי של .home-hero נשאר כרקע-בסיס (וגם כרשת בטחון אם המאגר
+   ריק). הצילום נכנס מעליו, וה-scrim מחזיר את הנייבי — כך הטקסט הלבן שומר
+   על ניגודיות AA גם על תמונה בהירה. */
+.home-hero-bg {
+  z-index: 0;
+  border-radius: inherit;
+}
+.home-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--hero-navy) 90%, transparent) 0%,
+    color-mix(in srgb, var(--hero-navy-2) 84%, transparent) 58%,
+    color-mix(in srgb, var(--navy-700) 88%, transparent) 100%
+  );
+  pointer-events: none;
+}
+/* התוכן מעל התמונה. .home-hero-bg מוחרג כי הוא הרקע עצמו. */
+.home-hero > *:not(.home-hero-bg) {
+  position: relative;
+  z-index: 1;
+}
+/* הזוהר הכתום מתחת לתוכן אבל מעל התמונה — נשאר מבטא, לא מסך */
+.home-hero > .home-hero-glow { z-index: 0; }
+
+/* ---- הציטוט בתוך ההירו ---- */
+.home-hero-quote {
+  grid-column: 1 / -1;
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  animation: quote-swap 400ms var(--ease-out);
+}
+@keyframes quote-swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.hhq-mark {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 0.6;
+  color: var(--accent-strong);
+}
+.hhq-text { flex: 1 1 240px; }
+.hhq-author {
+  /* 0.72 ולא 0.6: נמדד מול תמונה לבנה לגמרי מתחת ל-scrim (המקרה הגרוע) —
+     0.6 נתן 4.16:1 בקצה --navy-700 של הגרדיאנט, מתחת ל-AA. 0.72 → 5.21:1. */
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* ---- הירו של הקהילה ---- */
+.cm-page > .cm-hero { position: relative; }
+.cm-hero-bg { z-index: 0; }
+.cm-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--hero-navy) 90%, transparent) 0%,
+    color-mix(in srgb, var(--hero-navy-2) 84%, transparent) 58%,
+    color-mix(in srgb, var(--navy-700) 88%, transparent) 100%
+  );
+  pointer-events: none;
+}
+.cm-hero > *:not(.cm-hero-bg) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- כרטיס הפוסטר בספריית התרגילים ---- */
+.drill-poster {
+  position: relative;
+  margin: 4px 0 18px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* יחס נמוך ורחב — פוסטר, לא באנר שגונב חצי מסך */
+  aspect-ratio: 5 / 1;
+  min-height: 132px;
+  box-shadow: var(--shadow-sm);
+}
+.drill-poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--hero-navy-2) 90%, transparent) 0%,
+    color-mix(in srgb, var(--hero-navy) 40%, transparent) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.drill-poster-line {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: clamp(16px, 3vw, 28px);
+  inset-block-end: clamp(14px, 2.4vw, 22px);
+  inset-inline-end: clamp(16px, 3vw, 28px);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(15px, 2.2vw, 21px);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+@media (max-width: 700px) {
+  .drill-poster { aspect-ratio: 3 / 1; }
+}
+
+/* ---- תמונת גיבוי לכרטיס כתבה בלי תמונה ---- */
+/* .news-thumb::after כבר מספק שכבת כהות; כאן רק מוודאים מיקום ורדיוס */
+.news-thumb { position: relative; }
+.news-thumb > .si { border-radius: inherit; }
+
+/* ---- כיבוי כפול ---- */
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-quote { animation: none; }
+}
+html.a11y-motion .home-hero-quote { animation: none !important; }
+
+/* תג הקרדיט בפוסטר מתנגש עם שורת הטקסט (שניהם בפינה התחתונה-מתחילה
+   בפוסטר של 132px) — בפוסטר בלבד הוא עובר לצד המסתיים. */
+.drill-poster .si-credit {
+  inset-inline-start: auto;
+  inset-inline-end: 8px;
+}

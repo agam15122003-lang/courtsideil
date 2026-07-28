@@ -317,8 +317,10 @@ export default function Dashboard({ session }) {
       <main className="main-content" id="main">
         {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
         <div className="main-inner" key={showForm ? 'profile-form' : view}>
-          {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2) */}
-          {!loading && !showForm && <QuoteStrip />}
+          {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2).
+              חוץ מדף הבית: שם הציטוט יושב בתוך ההירו ומסונכרן להחלפת התמונה,
+              והצגתו פעמיים באותו מסך נראית כמו תקלה. */}
+          {!loading && !showForm && view !== 'home' && <QuoteStrip />}
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
               ה-key על .main-inner גורם ל-boundary להתאפס בכל מעבר מסך. */}
           <ErrorBoundary screen={showForm ? 'coach:profile-form' : `coach:${view}`}>
