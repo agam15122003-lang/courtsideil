@@ -16987,3 +16987,30 @@ html.a11y-motion .coach-card {
   animation: none !important;
   animation-delay: 0s !important;
 }
+
+/* ================================================================= */
+/* ===== 28.7.2026 — שלב ב': סגירת פער ה-stagger ================== */
+/* ================================================================= */
+/* .news-card ו-.stat-card נכללו ברשימת card-enter (שורות 6237-6238)
+   אבל מעולם לא קיבלו animation-delay — לא בגרסה הישנה ולא בתיקון של שלב א'.
+   התוצאה: הם נכנסו ב-delay 0, כלומר בדיוק בתוך ה-fade של .main-inner —
+   בדיוק ההתנגשות ששלב א' בא לפרק.
+   סולם עדין ותחום: מתחיל ב-210ms (מיד אחרי ה-fade של 220ms) בצעדי 30ms,
+   ונעצר ב-300ms. צפוף יותר מסולם הכרטיסים הראשי (50ms) כי אלה פריטי משנה. */
+.news-card:nth-child(1), .stat-card:nth-child(1) { animation-delay: 210ms; }
+.news-card:nth-child(2), .stat-card:nth-child(2) { animation-delay: 240ms; }
+.news-card:nth-child(3), .stat-card:nth-child(3) { animation-delay: 270ms; }
+.news-card:nth-child(n + 4), .stat-card:nth-child(n + 4) { animation-delay: 300ms; }
+
+/* כיבוי כפול — שני הסלקטורים האלה נשמטו מרשימת ההשבתה של שלב א' */
+@media (prefers-reduced-motion: reduce) {
+  .news-card, .stat-card {
+    animation: none;
+    animation-delay: 0s;
+  }
+}
+html.a11y-motion .news-card,
+html.a11y-motion .stat-card {
+  animation: none !important;
+  animation-delay: 0s !important;
+}

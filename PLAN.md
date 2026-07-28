@@ -64,14 +64,77 @@
 3. הכרטיסים נשארים הרוקדים היחידים; ה-delay-ים הוזזו ל-200/250/300/350ms כדי שיתחילו **אחרי** שה-fade הסתיים במקום להתנגש בו.
 4. כיבוי כפול מפורש — `@media (prefers-reduced-motion: reduce)` **וגם** `html.a11y-motion`, בלי להישען על כלל ה-`*` הגלובלי.
 
-**סטטוס: `npm run verify` טרם רץ — הופסק על ידי המשתמש.** התיקון לא מאומת.
+**סטטוס: אומת.** `npm run verify` רץ ועבר (28.7.2026).
+
+### אימות שהכללים באמת מוחלים (ולא רק נכתבו)
+
+| כלל | סלקטור | נמצא ב-JSX |
+|---|---|---|
+| `view-fade` | `.main-inner` | `Dashboard.jsx:319`, `PlayerDashboard.jsx:1799` — **עם `key={view}`**, כלומר הרכיב מתמאונט מחדש בכל טאב והאנימציה באמת רצה |
+| `animation: none` | `.main-inner > *` | מנטרל את `fade-rise` על שני הילדים בפועל |
+| `card-enter` + delays | `.home-card` `.drill-card` `.coach-card` `.land-feature` | Home, DrillCard/GamesBoard/TrainingPlans/CoachProfile, CoachFinder, Landing |
+
+`fade-rise` לא התייתם — עדיין משמש `.drawer-overlay`, dropdown ועוד 2 מקומות.
+
+**פער שנמצא ותוקן:** `.news-card` ו-`.stat-card` נכללו ברשימת `card-enter` (שורות 6237-6238) אבל **מעולם לא קיבלו `animation-delay`** — לא בגרסה הישנה ולא בשלב א'. הם נכנסו ב-delay 0, כלומר בדיוק בתוך ה-fade של `.main-inner` — ההתנגשות ששלב א' בא לפרק. תוקן בסולם עדין ותחום: **210 / 240 / 270 / 300ms** (מתחיל מיד אחרי ה-fade של 220ms, צעדי 30ms, נעצר ב-300). הם גם נשמטו מרשימת ההשבתה — נוספו לשני הכיבויים.
+
+---
+
+## שלב ב' — GSAP (בוצע 28.7.2026)
+
+### התשתית: `src/anim.js`
+
+מודול חדש שמרכז את חוזה התנועה ב-JS:
+
+- `motionOff()` — `prefers-reduced-motion` **או** `html.a11y-motion`. הקוראים לא מאתחלים timeline בכלל כשזה true (כלל ה-`*` הגלובלי עם `transition-duration: 0.001ms` לא עוצר GSAP).
+- `dur('--dur-slow')` — קורא את טוקני המשך מ-`index.css` וממיר לשניות. אין ms קשיח בקוד.
+- `EASE_OUT = 'power4.out'` — המקבילה בזמן ריצה ל-`--ease-out` (`cubic-bezier(.22,1,.36,1)`).
+- `loadGsap()` — `import()` דינמי ממוזער ל-promise יחיד, כולל `DrawSVGPlugin` (חינמי מ-GSAP 3.13). **gsap לא נכנס ל-bundle הראשי** ולא נטען בכלל למי שביקש פחות תנועה.
+- `resetArrowDraw` / `clearArrowDraw` / `buildArrowDraw` — מנוע ציור החצים המשותף לשני המסכים.
+
+**שני מנגנוני ציור, לפי גיאומטריה ולא לפי סגנון:**
+- **חץ ישר** (תנועה + מסירה) — הארכת `x2/y2`. לא DrawSVG: חץ מסירה הוא `strokeDasharray`, ו-DrawSVG דורס בדיוק את התכונה הזו — התוצאה הייתה החלקת מקפים במקום קו נמתח. בונוס: ראש החץ נגרר עם הקצה בחינם.
+- **חץ קשת** (זריקה לסל) — DrawSVGPlugin, וראש החץ מוסתר עד 90% מהציור כדי שלא ירחף על קו חלקי.
+- `opacity: 0` עד שמגיע התור של החץ — בלי זה קו באורך אפס עדיין צייר את ראש החץ שלו, וראש חץ בודד ריחף על המגרש לאורך ההשהיה.
+
+### ב1 — TacticsBoard: קווי תנועה שמציירים את עצמם
+
+**ממצא:** שורה 610 עשתה `arrows: []` — במצב "נגן אנימציה" לא היו חצים **בכלל**. זו תוספת, לא החלפה.
+
+**שילוב ולא דריסה:** לולאת ה-`requestAnimationFrame` (531-555) נשארה **השעון היחיד**. GSAP מקבל timeline `paused: true` שנגרר ידנית ב-`tl.progress(frame.p / 0.85)` מתוך `useArrowDraw`. אין שתי לולאות שנגררות זו מזו, ו"השהה"/"התחל מהתחלה" הקיימים עובדים בלי שורת קוד נוספת כי הם משנים את `frame`.
+
+- `DRAW_LEAD = 0.85` — החצים מסיימים להצטייר ב-85% מהמעבר: הקו מוביל, השחקן עוקב.
+- `resetArrowDraw` מוחל ב-`useLayoutEffect` (סינכרוני) כדי שלא יהיה הבזק של חצים מלאים בזמן שה-`import()` בדרך.
+- תלויות ה-effect הן חתימת ה-id-ים ולא מערך החצים — אחרת ה-timeline היה נבנה מחדש 60 פעם בשנייה.
+- `clearArrowDraw` עובר על `geom` ולא על ה-DOM: בהחלפת שלב React כבר החליף את החצים לפני שה-cleanup של השלב הקודם רץ, ומעבר על ה-DOM היה מנקה את מצב הפתיחה של השלב **החדש**.
+
+### ב2 — CourtDiagram: ציור הדרגתי (אפשרות ב')
+
+`useNotebookDraw` — במאונט: קווי המגרש נמתחים (DrawSVG, stagger) → החצים מציירים את עצמם → האובייקטים נכנסים ב-fade+scale. כניסה מדורגת בין תרשימים סמוכים, חסומה ב-3 כדי שלא יהיה זנב אינסופי בתוכנית ארוכה. מאזין `beforeprint` קופץ ל-`progress(1)` כדי שהדפסה באמצע האנימציה תיתן דף שלם.
+
+**הרכיב הופעל בפועל** (זו הייתה אפשרות ב' — שינוי מוצר, לא רק אנימציה): `noCourt` הוסר מ-`DrillCard.jsx` ומ-`PublicDrill.jsx`. הנימוק מעבר לאסתטיקה: כלל ה-`@media print` מסתיר הכול חוץ מ-`.notebook`, ו-`TacticsBoard` יושב **מחוץ** לה — כלומר עד היום **הדפסת תרגיל איבדה את המגרש לגמרי**. עמודת ה-150px היא storyboard מודפס לצד הנגן האינטראקטיבי.
+
+לא הופעל ב: `DrillForm` (תצוגה מקדימה חיה תוך כדי עריכה על הלוח), ובשלושת מסכי התוכנית (`plan.board` לא קיים ב-`planToNotebook` — היה מתקבל מגרש ריק חסר ערך; לכל פריט כבר יש `TacticsBoard` משלו).
+
+**`DrillSketch.jsx` — דולג.** 0 ייבואים בכל הריפו. קוד מת.
+
+### אימות (28.7.2026)
+
+`npm run verify` עבר. בנוסף — בדיקה חיה בדפדפן על עמוד probe זמני עם נתוני בדיקה (נמחק אחרי):
+
+- **CourtDiagram**: שלושת התרשימים מציירים את עצמם ומסיימים נכון — `strokeDashoffset: 0`, חצים ב-`x2` היעד (250 / 380 / 150), ראש החץ הכתום מוחזר, אובייקטים ב-opacity 1.
+- **TacticsBoard**: נתפס באמצע גרירה — חץ התנועה ב-`x2=231.06, y2=226.22` (בין המוצא 120,380 ליעד 250,200), חץ המסירה שתורו טרם הגיע ב-`opacity: 0` וקצה מקופל. כלומר השרשרת `frame.p → drawScrub → tl.progress → DOM` עובדת.
+- **חוזה הנגישות**: תחת `html.a11y-motion` — `performance.getEntriesByType('resource')` מחזיר **אפס בקשות ל-gsap**. לא רק שה-timeline לא רץ; הספרייה לא הגיעה לדפדפן. כל התרשימים והחצים מוצגים שלמים וסטטיים, בלי opacity או dasharray אינליין.
+- הערה: הכרטיסייה הייתה מוסתרת ולכן `requestAnimationFrame` היה חנוק לחלוטין (0 פריימים/שנייה). האנימציות "נתקעו" — זה חניקת דפדפן, לא באג. האימות בוצע בגרירה ידנית של `globalTimeline.time()`.
+
+**גדלים:** ה-bundle הראשי גדל ב-3.9KB בלבד (315.1 → 319.0KB). gsap יושב ב-chunk עצל נפרד של 70.8KB + 4KB ל-DrawSVGPlugin, שנטענים רק כשבאמת מנפישים.
 
 ---
 
 ## הבא בתור (לא אושר עדיין)
 
-- **שלב ב' — motion**: `LazyMotion` + `motionOff()`; bottom-sheets (`FeedbackSheet`, `SendToPlayers`, `SmartBuilder`); מגירת מובייל בכיוון RTL לוגי; `layout` על `MultiSelect` / `TeamAssignments` / `PlanRunner`.
-- **שלב ג' — פוליש**: פסי התקדמות `width` → `scaleX` (כ-20 מופעים ב-`index.css` מפרים את DESIGN.md §3: "אין אנימציה של width/height בלייאאוט"); Lenis בדפים הציבוריים.
+- **שלב ג' — motion**: `LazyMotion` + `motionOff()` (כבר קיים ב-`anim.js`); bottom-sheets (`FeedbackSheet`, `SendToPlayers`, `SmartBuilder`); מגירת מובייל בכיוון RTL לוגי; `layout` על `MultiSelect` / `TeamAssignments` / `PlanRunner`.
+- **שלב ד' — פוליש**: פסי התקדמות `width` → `scaleX` (כ-20 מופעים ב-`index.css` מפרים את DESIGN.md §3: "אין אנימציה של width/height בלייאאוט"); Lenis בדפים הציבוריים.
 - ~~ספירת מספרים~~ — נדחה סופית (החלטה 3).
 
 ## חוזה קבוע לכל שלב
@@ -83,4 +146,6 @@
 
 ## חוב שנצפה אגב הדרך (לא טופל)
 - `Schedule.jsx:341` מייבא `ArrowRight` ישירות — DESIGN.md §4 מחייב `src/DirIcon.jsx`.
-- `CourtDiagram.jsx` מכיל hex גולמי (`#1b2a4a`, `#E8763A`, `#D64545`) — DESIGN.md §1.
+- `CourtDiagram.jsx` מכיל hex גולמי (`#1b2a4a`, `#E8763A`, `#D64545`) — DESIGN.md §1. גם `TacticsBoard.jsx` (`#1B2A4A`, `#E3B877`).
+- `DrillSketch.jsx` — קוד מת, 0 ייבואים. מועמד למחיקה.
+- כל `CourtDiagram` מגדיר מחדש `<marker id="nb-arrow">` — id כפול ב-DOM כשיש כמה תרשימים בעמוד. ויזואלית לא מורגש (המרקרים זהים), אבל לא תקין. קדם-קיים.

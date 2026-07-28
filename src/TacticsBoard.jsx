@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X } from 'lucide-react'
 import { L } from './i18n'
+import { motionOff, dur, loadGsap, resetArrowDraw, clearArrowDraw, buildArrowDraw } from './anim'
 
 const HALF = { w: 500, h: 470 }
 const FULL = { w: 940, h: 500 }
+
+// שיעור מהמעבר בין שלבים שבו ציור החצים כבר הסתיים (0.85 = 85% מהדרך)
+const DRAW_LEAD = 0.85
 
 // תוויות מוערכות בזמן רינדור (תלויות שפה)
 const palette = () => [
@@ -138,7 +142,15 @@ function Arrow({ a, readOnly, onRemove }) {
     return (
       <g style={cursor} {...lp} onDoubleClick={() => !readOnly && onRemove(a.id)}>
         <path d={d} fill="none" stroke="transparent" strokeWidth="16" />
-        <path d={d} fill="none" stroke="var(--brand)" strokeWidth="3" markerEnd="url(#tb-arrowhead-shot)" />
+        <path
+          d={d}
+          fill="none"
+          stroke="var(--brand)"
+          strokeWidth="3"
+          markerEnd="url(#tb-arrowhead-shot)"
+          data-draw="arc"
+          data-arrow-id={a.id}
+        />
       </g>
     )
   }
@@ -155,6 +167,8 @@ function Arrow({ a, readOnly, onRemove }) {
         strokeWidth="3"
         strokeDasharray={dash}
         markerEnd="url(#tb-arrowhead)"
+        data-draw="line"
+        data-arrow-id={a.id}
       />
     </g>
   )
@@ -181,6 +195,67 @@ function ObjNode({ o, readOnly, tool, onStartDrag, onRemove }) {
   )
 }
 
+// ציור עצמי של חצי התנועה במצב "נגן אנימציה".
+//
+// שילוב ולא דריסה: לולאת ה-requestAnimationFrame שלמטה (מנוע התנועה של
+// האובייקטים) נשארת השעון **היחיד**. GSAP לא מקבל שעון משלו — הוא מקבל
+// timeline מושהה שנגרר ידנית (`progress()`) לפי אותו `frame.p`. לכן אין שתי
+// לולאות שנגררות זו מזו, ו"השהה"/"התחל מהתחלה" הקיימים עובדים בלי שינוי.
+//
+// drawScrub: null = לא במצב נגינה (החצים סטטיים כרגיל). מספר 0..1 = התקדמות.
+function useArrowDraw(arrows, stepIndex, drawScrub) {
+  const hostRef = useRef(null)
+  const tlRef = useRef(null)
+  const playing = drawScrub != null
+  // חתימה יציבה: משתנה רק כשקבוצת החצים באמת התחלפה, לא בכל פריים
+  const sig = playing ? arrows.map((a) => a.id).join('|') : ''
+
+  // מצב הפתיחה מוחל סינכרונית — אחרת החצים היו נראים מלאים לפריים־שניים
+  // עד ש-import('gsap') חוזר, ואז קופצים לאפס.
+  useLayoutEffect(() => {
+    if (!playing || motionOff()) return
+    resetArrowDraw(hostRef.current)
+  }, [playing, sig, stepIndex])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!playing || !host || arrows.length === 0) return
+    const geom = new Map(arrows.map((a) => [String(a.id), a]))
+    // נגישות (DESIGN.md §3): לא מאתחלים timeline בכלל — החצים פשוט מצוירים
+    if (motionOff()) {
+      clearArrowDraw(host, geom)
+      return
+    }
+    let dead = false
+    loadGsap().then((gsap) => {
+      if (dead || !gsap || hostRef.current !== host) return
+      tlRef.current = buildArrowDraw(gsap, host, geom, {
+        // החץ נמתח מהר יותר מהמעבר בין השלבים — הקו מוביל, השחקן עוקב
+        each: dur('--dur-slow', 0.38),
+        stagger: dur('--dur-fast', 0.14),
+        shotMarker: 'tb-arrowhead-shot',
+      })
+    })
+    return () => {
+      dead = true
+      tlRef.current?.kill()
+      tlRef.current = null
+      clearArrowDraw(host, geom)
+    }
+    // arrows נגזר מ-sig; לא מכניסים אותו לתלויות כדי לא לבנות מחדש בכל פריים
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, sig, stepIndex])
+
+  // הגרירה עצמה — הפריים היחיד שרץ 60 פעם בשנייה. DRAW_LEAD < 1 כדי
+  // שהחצים יסיימו להצטייר לפני שהאובייקטים מגיעים ליעד.
+  useEffect(() => {
+    const tl = tlRef.current
+    if (tl && drawScrub != null) tl.progress(Math.min(1, drawScrub / DRAW_LEAD))
+  }, [drawScrub])
+
+  return hostRef
+}
+
 // לוח בודד לשלב אחד (מגרש + אובייקטים נגררים + חצים)
 function Board({
   step,
@@ -196,12 +271,14 @@ function Board({
   onAddArrow,
   onRemoveArrow,
   headerLabel,
+  drawScrub = null,
 }) {
   const svgRef = useRef(null)
   const dragId = useRef(null)
   const [draft, setDraft] = useState(null)
   const dim = full ? FULL : HALF
   const arrows = step.arrows || []
+  const arrowsRef = useArrowDraw(arrows, stepIndex, drawScrub)
 
   const toSvg = (e) => {
     const r = svgRef.current.getBoundingClientRect()
@@ -326,14 +403,16 @@ function Board({
         </defs>
         <rect x="0" y="0" width={dim.w} height={dim.h} fill="#E3B877" />
         <CourtLines full={full} />
-        {arrows.map((a) => (
-          <Arrow
-            key={a.id}
-            a={a}
-            readOnly={readOnly}
-            onRemove={(id) => onRemoveArrow(stepIndex, id)}
-          />
-        ))}
+        <g ref={arrowsRef}>
+          {arrows.map((a) => (
+            <Arrow
+              key={a.id}
+              a={a}
+              readOnly={readOnly}
+              onRemove={(id) => onRemoveArrow(stepIndex, id)}
+            />
+          ))}
+        </g>
         {draft &&
           (tool === 'arrow-shot' ? (
             <path
@@ -607,7 +686,9 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       if (shot) y -= Math.sin(Math.PI * e) * arcLift(o.x, o.y, target.x, target.y)
       return { ...o, x, y }
     }),
-    arrows: [],
+    // עד היום מצב הנגינה הסתיר את החצים לגמרי. עכשיו הם מוצגים ומציירים את
+    // עצמם תוך כדי המעבר (useArrowDraw) — הקו מסביר לאן השחקן הולך.
+    arrows: srcArrows,
   }
 
   const shown =
@@ -720,6 +801,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
               full={fullCourt}
               readOnly
               tool="select"
+              drawScrub={frame.p}
               headerLabel={L(
                 `מנגן · מעבר משלב ${frame.idx + 1} לשלב ${frame.idx + 2}`,
                 `Playing · step ${frame.idx + 1} → ${frame.idx + 2}`

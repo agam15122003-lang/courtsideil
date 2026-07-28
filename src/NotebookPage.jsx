@@ -19,7 +19,7 @@ function CourtColumn({ board }) {
   return (
     <div className="nb-courts">
       {list.map((step, i) => (
-        <CourtDiagram key={i} full={full} step={step} />
+        <CourtDiagram key={i} full={full} step={step} index={i} />
       ))}
     </div>
   )

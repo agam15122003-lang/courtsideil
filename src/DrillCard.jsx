@@ -236,7 +236,6 @@ export default function DrillCard({
               drill={drill}
               club={drill.author?.club}
               coachName={authorName}
-              noCourt
             />
             {hasBoard && (
               <div className="dnv-court">

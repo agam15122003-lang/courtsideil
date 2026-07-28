@@ -64,7 +64,7 @@ export default function PublicDrill({ drillId, onJoin }) {
             <p className="pd-eyebrow">
               {L('תרגיל מתוך ספריית הקהילה של CourtSide', "A drill from CourtSide's community library")}
             </p>
-            <NotebookPage kind="drill" drill={drill} club="CourtSide" noCourt />
+            <NotebookPage kind="drill" drill={drill} club="CourtSide" />
             {hasBoard && (
               <div className="pd-court">
                 <span className="detail-label">{L('על המגרש (נגן אנימציה)', 'On court (play animation)')}</span>
