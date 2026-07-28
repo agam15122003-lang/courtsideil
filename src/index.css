@@ -17014,3 +17014,117 @@ html.a11y-motion .stat-card {
   animation: none !important;
   animation-delay: 0s !important;
 }
+
+/* ================================================================= */
+/* ===== 28.7.2026 — שלב ד2: SmartImage ============================ */
+/* ================================================================= */
+/* מעטפת תמונה מהמאגר של scripts/fetch-images.mjs.
+   שלושה עקרונות:
+   1. המקום נשמר מראש (aspect-ratio מהמידות האמיתיות של הקובץ) — אפס CLS.
+   2. ה-LQIP הוא background-image של data-URI על המעטפת, כלומר הוא על המסך
+      בפריים הראשון. ה-<img> מתעמעם מעליו כשהוא נטען.
+   3. הקרדיט מופיע בריחוף/פוקוס בלבד — נוכח, אבל לא מרעיש. */
+
+.si {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* רשת בטחון: אם ה-LQIP חסר, ריבוע ניטרלי ולא לבן בוהק */
+  background-color: var(--sf2);
+}
+
+/* למי שממלא הורה ממוקם (רקע הירו) — בלי aspect-ratio, גובה מההורה */
+.si-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.si-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+/* התמונה נחשפת רק כשהיא באמת נטענה — עד אז רואים את ה-LQIP */
+.si > .si-img[data-loaded='true'] { opacity: 1; }
+
+/* --- מחליף התמונות (הירו) --- */
+/* כל השכבות ב-DOM מההתחלה כדי שההחלפה לא תמתין לרשת; רק ה-opacity זז. */
+.si-rotator .si-img {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  /* 400ms — התקרה שנקבעה לאפקטים; ארוך מ---dur-slow בכוונה כי crossfade
+     של תמונת רקע גדולה צריך להיות רך יותר ממעבר UI. */
+  transition: opacity 400ms var(--ease-out);
+}
+.si-rotator .si-img[data-active='true'][data-loaded='true'] { opacity: 1; }
+
+/* --- scrim --- */
+/* שכבת נייבי מעל התמונה כדי שטקסט לבן יעמוד בניגודיות AA.
+   color-mix ולא hex גולמי — DESIGN.md §1 מחייב טוקנים. */
+.si-scrim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--hero-navy-2) 92%, transparent) 0%,
+    color-mix(in srgb, var(--hero-navy) 62%, transparent) 46%,
+    color-mix(in srgb, var(--hero-navy) 22%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+/* --- קרדיט לצלם --- */
+.si-credit {
+  position: absolute;
+  inset-block-end: 6px;
+  inset-inline-start: 8px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--hero-navy-2) 78%, transparent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+.si:hover .si-credit,
+.si:focus-within .si-credit { opacity: 1; }
+/* במגע אין ריחוף — הקרדיט פשוט מוצג, עמום, ולא נעלם */
+@media (pointer: coarse) {
+  .si-credit { opacity: 0.7; }
+}
+
+/* --- שורת המקור --- */
+.si-source {
+  margin: 28px 0 0;
+  color: var(--mut);
+  font-size: 12px;
+  text-align: center;
+}
+.si-source a { color: var(--brand-text); }
+
+/* --- כיבוי כפול (DESIGN.md §3) --- */
+/* אין תנועה, אבל התמונה עדיין חייבת להיחשף — לכן duration 0 ולא display:none */
+@media (prefers-reduced-motion: reduce) {
+  .si-img,
+  .si-credit { transition: none; }
+}
+html.a11y-motion .si-img,
+html.a11y-motion .si-credit { transition: none !important; }
