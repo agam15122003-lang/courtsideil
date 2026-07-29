@@ -8,8 +8,8 @@ import { ErrorState } from './states'
 import useFocusTrap from './useFocusTrap'
 import { confirmDialog } from './confirm'
 import DrillForm from './DrillForm'
-import { sendNotification } from './notify'
 import DrillCard from './DrillCard'
+import SendToPlayers from './SendToPlayers.jsx'
 import MultiSelect from './MultiSelect'
 import { SkeletonCards } from './Skeleton'
 import CourtArt from './CourtArt'
@@ -43,40 +43,10 @@ export default function DrillLibrary({ session, profile }) {
 
   // בורר "שליחה לשחקנים" — קבוצות + שחקנים מחוברים
   const [sendPicker, setSendPicker] = useState(null) // התרגיל שנבחר לשליחה
-  const [sendTargets, setSendTargets] = useState({ teams: [], players: [] })
-  const [sending, setSending] = useState(false)
   const isCoach = (profile?.role || 'coach') !== 'player'
 
   // מלכודת פוקוס לבוררי "הוספה לתוכנית" / "שליחה לשחקנים" (רק אחד פתוח בכל רגע)
-  const dlgRef = useFocusTrap(!!(planPicker || sendPicker), () => { setPlanPicker(null); setSendPicker(null) })
-
-  const openSendPicker = async (drill) => {
-    setSendPicker(drill)
-    const { data } = await supabase
-      .from('team_players')
-      .select('id, name, team, player_id')
-      .eq('coach_id', session.user.id)
-    const rows = data || []
-    const teams = [...new Set(rows.map((r) => r.team))]
-    const players = rows.filter((r) => r.player_id)
-    setSendTargets({ teams, players })
-  }
-
-  const sendTo = async ({ team, player }) => {
-    if (!sendPicker || sending) return
-    setSending(true)
-    const row = { coach_id: session.user.id, drill_id: sendPicker.id }
-    if (team) row.team = team
-    if (player) { row.player_id = player.player_id }
-    const { error } = await supabase.from('player_assignments').insert(row)
-    setSending(false)
-    if (error) { toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message); return }
-    if (player?.player_id) {
-      sendNotification({ to: player.player_id, actor: session.user.id, type: 'message', content: 'המאמן שלח לך תרגיל חדש', nav: 'drills' })
-    }
-    toast.success(team ? L('נשלח לכל הקבוצה', 'Sent to the whole team') : L('נשלח לשחקן', 'Sent to the player'))
-    setSendPicker(null)
-  }
+  const dlgRef = useFocusTrap(!!planPicker, () => setPlanPicker(null))
 
   const openPlanPicker = async (drill) => {
     setPlanPicker(drill)
@@ -455,7 +425,7 @@ export default function DrillLibrary({ session, profile }) {
                 onDelete={() => handleDelete(drill.id)}
                 onTagClick={setTagFilter}
                 onAddToPlan={openPlanPicker}
-                onSend={isCoach ? openSendPicker : undefined}
+                onSend={isCoach ? setSendPicker : undefined}
                 onEdit={setEditingDrill}
               />
             ))}
@@ -502,50 +472,16 @@ export default function DrillLibrary({ session, profile }) {
         </div>
       )}
 
-      {/* בורר שליחה לשחקנים — קבוצה שלמה או שחקן מחובר */}
+      {/* שליחה לשחקנים — אותו מסך אחד של פריט 4 במסמך, עם התרגיל נעול
+          מראש. עד היום נפתח כאן בורר-בזק ששלח מיד בלחיצה: בלי תאריך
+          יעד, בלי לבקש משהו בחזרה ובלי אישור. */}
       {sendPicker && (
-        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setSendPicker(null)}>
-          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
-            <div className="tm-head">
-              <h3>{L('שליחת התרגיל לשחקנים', 'Send drill to players')}</h3>
-              <button className="tm-close" onClick={() => setSendPicker(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
-            </div>
-            <p className="muted small" style={{ margin: '0 0 12px' }}>{sendPicker.title}</p>
-
-            {sendTargets.teams.length === 0 && sendTargets.players.length === 0 ? (
-              <p className="muted small">{L('אין עדיין קבוצות/שחקנים. הוסיפו שחקנים בטאב "הקבוצות שלי".', 'No teams/players yet. Add players in "My Teams".')}</p>
-            ) : (
-              <>
-                {sendTargets.teams.length > 0 && (
-                  <>
-                    <span className="field-label">{L('לכל הקבוצה', 'Whole team')}</span>
-                    <div className="chips" style={{ marginBottom: 12 }}>
-                      {sendTargets.teams.map((tm) => (
-                        <button key={tm} type="button" className="chip" disabled={sending} onClick={() => sendTo({ team: tm })}>
-                          {trTeam(tm)}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {sendTargets.players.length > 0 && (
-                  <>
-                    <span className="field-label">{L('לשחקן מסוים', 'A specific player')}</span>
-                    <ul className="plan-pick-list">
-                      {sendTargets.players.map((p) => (
-                        <li key={p.id}>
-                          <button className="plan-pick-item" disabled={sending} onClick={() => sendTo({ player: p })}>
-                            <span>{p.name} · {trTeam(p.team)}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+        <SendToPlayers
+          session={session}
+          variant="sheet"
+          preset={{ kind: 'drill', id: sendPicker.id, title: sendPicker.title, sub: sendPicker.category }}
+          onClose={() => setSendPicker(null)}
+        />
       )}
     </div>
   )
