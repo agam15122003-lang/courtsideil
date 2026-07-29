@@ -25,4 +25,12 @@ begin
   end if;
 end $$;
 
-select public.mark_migration('supabase_game_scores.sql');
+-- רישום ביומן המיגרציות (אם הוא כבר קיים). עטוף כדי שלא יפיל את הקובץ
+-- כולו אצל מי שטרם הריץ את supabase_migrations_ledger.sql.
+do $mig$ begin
+  perform public.mark_migration('supabase_game_scores.sql');
+exception when undefined_function then null; end $mig$;
+
+-- רענון מטמון הסכימה של PostgREST — בלעדיו העמודות החדשות עדיין לא
+-- מוכרות ל-API, והאפליקציה תמשיך לומר «צריך להריץ את הקובץ» אחרי שהורץ.
+notify pgrst, 'reload schema';
