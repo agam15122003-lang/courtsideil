@@ -521,7 +521,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
           ) : (
             <div className="pr-card team-side-league">
               <h3 className="pr-card-title"><Trophy size={15} /> {L('טבלת הליגה', 'League table')}</h3>
-              <p className="muted small" style={{ margin: 0 }}>{L('חבר את הקבוצה לליגת האיגוד בלשונית "טבלה" — והטבלה תופיע כאן.', 'Connect the team to its league in the "Table" tab — and the standings will show here.')}</p>
+              <p className="muted small" style={{ margin: 0 }}>{L('חבר את הקבוצה לליגת האיגוד במסך «משחקים וטבלה» — והטבלה תופיע כאן.', 'Connect the team to its league in «Games & table» — and the standings will show here.')}</p>
             </div>
           )}
         </aside>
@@ -678,7 +678,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 <span className="tm-connect-hint-ic"><Target size={16} /></span>
                 <div>
                   <strong>{L('מטרות ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
-                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (מופיע בראש טאב "סגל"). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player. Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
+                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בתחתית טאב «סגל»). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player (bottom of the roster tab). Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
                 </div>
               </div>
             )}

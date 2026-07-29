@@ -488,19 +488,18 @@ export default function Dashboard({ session }) {
               <Messages session={session} profile={profile} onNavigate={navigate} />
             </Page>
           ) : (
+            /* הפרופיל היה המסך היחיד בלי באנר ובלי H1 — PAGE_META.profile
+               היה מוגדר ולא בשימוש. עכשיו הוא באותה מעטפת כמו כל השאר,
+               ו«עריכת פרטים» יושב בתוך הבאנר. */
+            <Page
+              {...PAGE_META.profile()}
+              actions={(
+                <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => setEditing(true)}>
+                  <Pencil size={15} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
+                </button>
+              )}
+            >
             <div className="profile-page">
-              <header className="page-header">
-                <div className="page-header-text">
-                  <div className="welcome-badge">{L('החשבון שלי', 'My account')}</div>
-                  <h2>{L('הפרופיל שלי', 'My profile')}</h2>
-                </div>
-                <div className="page-header-actions">
-                  <button className="btn-soft" onClick={() => setEditing(true)}>
-                    <Pencil size={15} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
-                  </button>
-                </div>
-              </header>
-
               <div className="profile-grid">
                 {/* עמודה ראשית — כרטיס פרטי המאמן */}
                 <section className="pr-card pr-main">
@@ -570,6 +569,7 @@ export default function Dashboard({ session }) {
               {/* [15] התרגילים שיצרתי — במרוכז, לפי ה-handoff */}
               <MyDrills session={session} onNavigate={navigate} />
             </div>
+            </Page>
           )}
           </Suspense>
           </ErrorBoundary>

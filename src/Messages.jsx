@@ -222,7 +222,8 @@ export default function Messages({ session, profile, onNavigate }) {
     }))
     return (
       <div className="msg-split">
-        <h1 className="sr-only">{L('שיחות פרטיות', 'Private chats')}</h1>
+        {/* h2 ולא h1: הבאנר («השיחות שלי») הוא הכותרת הראשית של המסך */}
+        <h2 className="sr-only">{L('שיחה פרטית', 'Private chat')}</h2>
         <div className="msg-split-chat">
           <ChatWindow
             key={activeCoachId}

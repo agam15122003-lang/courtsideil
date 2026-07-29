@@ -8,6 +8,7 @@ import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
 import { loadRoster, sendAssignments, loadSentFeed } from './sendToPlayersApi'
 import Avatar from './Avatar'
+import useFocusTrap from './useFocusTrap'
 
 // «שלח לשחקנים» — פריט 4 במסמך המסירה.
 //
@@ -38,6 +39,8 @@ const SOURCES = [
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return ymd(d) }
+// תאריך בתצוגה ישראלית — הפיד מתחת מציג 5.8, והאישור הציג 2026-08-05
+const ilDate = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) }
 const endOfWeek = () => { const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); return ymd(d) }
 
 export default function SendToPlayers({ session, embedded, initialTeam, variant, preset, onClose }) {
@@ -144,6 +147,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   }
 
   const noConnected = roster.players.length === 0
+  // גיליון = דיאלוג: פוקוס נכנס פנימה, Tab לא בורח לרשת התרגילים מאחור,
+  // ו-Escape סוגר. בלי זה aria-modal הוא הצהרה לא נכונה.
+  const sheetRef = useFocusTrap(variant === 'sheet', onClose)
 
   // ---------- «מה מבקשים בחזרה» ----------
   // פונקציות שמחזירות JSX ולא רכיבים פנימיים: רכיב שנוצר מחדש בכל רינדור
@@ -194,7 +200,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     <div className="sp-sent-ok" role="status">
       <span className="sp-sent-ic"><CheckCheck size={34} /></span>
       <h2 className="sp-sent-title">{L(`נשלח ל${sent.label}`, `Sent to ${sent.label}`)}</h2>
-      <p className="muted">{sent.title}{sent.due ? L(` · עד ${sent.due}`, ` · by ${sent.due}`) : ''}</p>
+      <p className="muted">{sent.title}{sent.due ? L(` · עד ${ilDate(sent.due)}`, ` · by ${ilDate(sent.due)}`) : ''}</p>
       <p className="sp-sent-next muted small">
         {L('השחקנים קיבלו התראה, וזה מופיע אצלם ב«המשימות שלי». ההתקדמות תופיע לך במעקב.',
            'Your players got a notification, and it now shows under “My tasks”. Their progress appears in your tracking.')}
@@ -410,8 +416,11 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
   if (isSheet) {
     return (
-      <div className="sp-sheet-wrap" role="dialog" aria-modal="true" aria-label={L('שליחה לשחקנים', 'Send to players')}>
-        <div className="sp-sheet">
+      /* לחיצה על הרקע הכהה סוגרת, בדיוק כמו במודאל שהוחלף כאן.
+         Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap על הגיליון עצמו. */
+      <div className="sp-sheet-wrap" onClick={onClose}>
+        <div className="sp-sheet" ref={sheetRef} role="dialog" aria-modal="true"
+          aria-label={L('שליחה לשחקנים', 'Send to players')} onClick={(e) => e.stopPropagation()}>
           <header className="sp-sheet-head">
             <button type="button" className="icon-btn" onClick={onClose} aria-label={L('סגירה', 'Close')}><X size={19} /></button>
             <h2>{L('שליחה לשחקנים', 'Send to players')}</h2>

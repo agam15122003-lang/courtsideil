@@ -89,17 +89,14 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   useEffect(() => { load() }, [load])
   useEffect(() => () => { loadTokenRef.current++ }, [])
 
-  // Escape סוגר את המודאל הפתוח, ומלכודת פוקוס לשניהם
-  useEffect(() => {
-    if (!gEdit && !imp) return
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      if (gEdit) setGEdit(null); else setImp(null)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [gEdit, imp])
-  const dlgRef = useFocusTrap(!!(gEdit || imp), () => { if (gEdit) setGEdit(null); else setImp(null) })
+  // Escape ומלכודת פוקוס — לשלושת המודאלים, כולל «תוצאה וסיכום»
+  const closeDialog = () => {
+    if (gEdit) setGEdit(null)
+    else if (scoreEdit) setScoreEdit(null)
+    else setImp(null)
+  }
+  const anyDialog = !!(gEdit || imp || scoreEdit)
+  const dlgRef = useFocusTrap(anyDialog, closeDialog)
 
   // ---------- משחקים ----------
   const addGame = async () => {
@@ -120,9 +117,14 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
     if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
     toast.success(L('המשחק עודכן', 'Game updated')); setGEdit(null); load()
   }
+  // מחזיר true רק אם המשחק באמת נמחק — מודאל העריכה נסגר על סמך זה,
+  // ולא מיד עם הלחיצה (ביטול בדיאלוג האישור היה מוחק את מה שהוקלד).
   const delGame = async (id) => {
-    if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return
-    await supabase.from('team_games').delete().eq('id', id); load()
+    if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return false
+    const { error } = await supabase.from('team_games').delete().eq('id', id)
+    if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return false }
+    load()
+    return true
   }
 
   // ---------- תוצאה וסיכום ----------
@@ -281,6 +283,8 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
                 <div className="gm-main">
                   <strong>{gm.opponent || L('יריבה', 'Opponent')}</strong>
                   {gm.location && <span className="gm-loc"><MapPin size={12} /> {gm.location}</span>}
+                  {/* הסיכום נשמר במסד אבל לא הוצג בשום מקום — כאן הוא חוזר */}
+                  {gm.summary && <span className="gm-summary">{gm.summary}</span>}
                 </div>
                 {o ? (
                   <button type="button" className={`gm-score o-${o}`} onClick={() => setScoreEdit({ game: gm, our: String(gm.our_score), their: String(gm.their_score), summary: gm.summary || '' })}
@@ -289,8 +293,10 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
                     <span>{o === 'w' ? L('ניצחון', 'Win') : o === 'l' ? L('הפסד', 'Loss') : L('תיקו', 'Draw')}</span>
                   </button>
                 ) : gm.game_date < today ? (
-                  <button type="button" className="gm-add-score" onClick={() => setScoreEdit({ game: gm, our: '', their: '', summary: '' })}>
-                    {L('הוספת תוצאה', 'Add score')}
+                  /* הסיכום נטען גם כשאין תוצאה — אחרת פתיחה חוזרת הייתה
+                     מוחקת סיכום שנכתב בלי ציונים. */
+                  <button type="button" className="gm-add-score" onClick={() => setScoreEdit({ game: gm, our: '', their: '', summary: gm.summary || '' })}>
+                    {gm.summary ? L('תוצאה וסיכום', 'Score & summary') : L('הוספת תוצאה', 'Add score')}
                   </button>
                 ) : null}
                 <div className="gm-acts">
@@ -365,8 +371,9 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
 
       {/* ===================== מודאל: ייבוא מהאיגוד ===================== */}
       {imp && (
-        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setImp(null)}>
-          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
+        <div className="tm-overlay" onClick={() => setImp(null)}>
+          <div className="tm-modal" ref={dlgRef} role="dialog" aria-modal="true"
+            aria-label={L('קישור לאיגוד הכדורסל', 'Link to the association')} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('קישור לאיגוד הכדורסל', 'Link to the association')}</strong>
               <button className="icon-btn" onClick={() => setImp(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -427,8 +434,9 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
 
       {/* ===================== מודאל: עריכת משחק ===================== */}
       {gEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true">
-          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
+        <div className="tm-overlay" onClick={() => setGEdit(null)}>
+          <div className="tm-modal" ref={dlgRef} role="dialog" aria-modal="true"
+            aria-label={L('עריכת משחק', 'Edit game')} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('עריכת משחק', 'Edit game')}</strong>
               <button className="icon-btn" onClick={() => setGEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
@@ -446,7 +454,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
             <input className="finder-input" value={gEdit.location || ''} onChange={(e) => setGEdit((g) => ({ ...g, location: e.target.value }))} placeholder={L('מיקום', 'Location')} style={{ marginTop: 10 }} />
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={saveGame}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              <button className="btn-ghost danger" onClick={() => { delGame(gEdit.id); setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
+              <button className="btn-ghost danger" onClick={async () => { const id = gEdit.id; if (await delGame(id)) setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
             </div>
           </div>
         </div>
@@ -454,8 +462,9 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
 
       {/* ===================== מודאל: תוצאה וסיכום ===================== */}
       {scoreEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setScoreEdit(null)}>
-          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="tm-overlay" onClick={() => setScoreEdit(null)}>
+          <div className="tm-modal" ref={dlgRef} role="dialog" aria-modal="true"
+            aria-label={L('תוצאה וסיכום למשחק', 'Game score and summary')} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('תוצאה וסיכום', 'Score & summary')}</strong>
               <button className="icon-btn" onClick={() => setScoreEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>

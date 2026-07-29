@@ -20520,3 +20520,29 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   font-weight: 900;
   letter-spacing: -0.02em;
 }
+
+/* ---- סקירה יריבה 29.7: יעדי מגע ותצוגת סיכום משחק ---- */
+/* שלושה פקדים חדשים נפלו מתחת ל-44px במגע. הבלוק הגלובלי של
+   @media (pointer: coarse) לא כיסה אותם כי הם נולדו אחריו. */
+@media (pointer: coarse) {
+  .gm-add-score { min-height: 44px; }
+  .runner-detail-btn { min-height: 44px; }
+  /* הסגמנטים דקים בכוונה — אבל שטח המגע חייב להיות אצבע, לא פס */
+  .runner-fs .runner-step::after { inset: -18px -3px; }
+}
+/* עשרה תרגילים ב-390px = סגמנט של 32px. מינימום רוחב + גלילה
+   אופקית עדינה עדיפים על קפיצה לתרגיל הלא נכון באמצע אימון. */
+.runner-fs .runner-steps { overflow-x: auto; scrollbar-width: none; }
+.runner-fs .runner-steps::-webkit-scrollbar { display: none; }
+.runner-fs .runner-step { min-width: 44px; }
+
+/* סיכום המשחק — נשמר במסד ולא הוצג עד עכשיו */
+.gm-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}

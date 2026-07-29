@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Play, Pause, RotateCcw, Volume2, VolumeX, ChevronsUpDown } from 'lucide-react'
-import { L, tr } from './i18n'
+import { L, tr, getDir } from './i18n'
 import { ChevronBack, ChevronFwd } from './DirIcon'
+import useFocusTrap from './useFocusTrap'
 
 // מצב הרצת אימון — «על הפרקט».
 //
@@ -32,6 +33,9 @@ export default function PlanRunner({ items, planName, onExit }) {
   const [paused, setPaused] = useState(false)
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === '1')
   const [showDetail, setShowDetail] = useState(false)
+  // כל איפוס מקדם את המונה הזה. בלעדיו אפקט הטיימר לא מורץ מחדש
+  // (התלויות שלו לא משתנות), ה-deadline הישן שורד וה-tick דורס את האיפוס.
+  const [resetKey, setResetKey] = useState(0)
 
   const current = items[index]
   const d = current?.drill || {}
@@ -89,7 +93,7 @@ export default function PlanRunner({ items, planName, onExit }) {
     document.addEventListener('visibilitychange', onVis)
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, index, hasDur])
+  }, [paused, index, hasDur, resetKey])
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
   const ss = String(secondsLeft % 60).padStart(2, '0')
@@ -123,17 +127,28 @@ export default function PlanRunner({ items, planName, onExit }) {
 
   const next = () => setIndex((i) => Math.min(i + 1, items.length - 1))
   const prev = () => setIndex((i) => Math.max(i - 1, 0))
-  const resetTimer = () => { setSecondsLeft(totalSeconds); setPaused(false); beepedRef.current = false }
+  const resetTimer = () => {
+    setSecondsLeft(totalSeconds)
+    setPaused(false)
+    beepedRef.current = false
+    setResetKey((k) => k + 1)
+  }
   const toggleMute = () => setMuted((m) => { localStorage.setItem(MUTE_KEY, m ? '0' : '1'); return !m })
 
   // ---- מקלדת: רווח = השהיה, חצים = מעבר, Escape = יציאה ----
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { onExit(); return }
-      if (e.target?.closest?.('input, textarea')) return
-      if (e.code === 'Space') { e.preventDefault(); setPaused((p) => !p) }
-      if (e.key === 'ArrowLeft') next()
-      if (e.key === 'ArrowRight') prev()
+      // Escape מטופל במלכודת הפוקוס (useFocusTrap) — לא כאן, כדי לא לסגור פעמיים
+      if (e.target?.closest?.('input, textarea, select')) return
+      // רווח על כפתור ממוקד הוא ההפעלה שלו; preventDefault כאן היה גונב אותה
+      if (e.code === 'Space' && !e.target?.closest?.('button, a[href]')) {
+        e.preventDefault(); setPaused((p) => !p)
+      }
+      // «קדימה» תלוי בכיוון הכתיבה: בעברית חץ שמאלה, באנגלית ימינה
+      const fwd = getDir() === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
+      const back = getDir() === 'rtl' ? 'ArrowRight' : 'ArrowLeft'
+      if (e.key === fwd) next()
+      if (e.key === back) prev()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -145,9 +160,12 @@ export default function PlanRunner({ items, planName, onExit }) {
   const nextDur = nextItem ? Number(nextItem.duration_minutes) || 0 : 0
   const detail = current?.note || d.description || current?.description
   const isLast = index === items.length - 1
+  // aria-modal="true" בלי מלכודת פוקוס הוא הצהרה לא נכונה: הסיידבר
+  // והתפריט התחתון נשארים בסדר ה-Tab מתחת לשכבה האטומה.
+  const fsRef = useFocusTrap(true, onExit)
 
   return (
-    <div className={timeUp ? 'runner-fs time-up' : 'runner-fs'} role="dialog" aria-modal="true"
+    <div ref={fsRef} className={timeUp ? 'runner-fs time-up' : 'runner-fs'} role="dialog" aria-modal="true"
       aria-label={L('הרצת אימון', 'Practice runner')}>
       <span className="runner-fs-art" aria-hidden="true" />
 
@@ -166,14 +184,14 @@ export default function PlanRunner({ items, planName, onExit }) {
         </button>
       </header>
 
-      {/* סגמנט לכל תרגיל — לחיצה קופצת ישירות לתרגיל, «מעבר בלי לחפש» */}
+      {/* סגמנט לכל תרגיל — לחיצה קופצת ישירות לתרגיל, «מעבר בלי לחפש».
+          לא role="progressbar": ילדיו של progressbar הם presentational לפי ARIA,
+          וכל כפתורי הקפיצה היו נמחקים מעץ הנגישות — בדיוק היכולת שבשבילה נבנה
+          המסך. ההתקדמות עצמה מוכרזת בשורת «תרגיל N מתוך M» שמתחת. */}
       <div
         className="runner-steps"
-        role="progressbar"
-        aria-valuemin={1}
-        aria-valuemax={items.length}
-        aria-valuenow={index + 1}
-        aria-label={L(`תרגיל ${index + 1} מתוך ${items.length}`, `Drill ${index + 1} of ${items.length}`)}
+        role="group"
+        aria-label={L('מעבר מהיר בין תרגילי האימון', 'Jump between the practice drills')}
       >
         {items.map((it, i) => (
           <button
@@ -182,6 +200,7 @@ export default function PlanRunner({ items, planName, onExit }) {
             className={i < index ? 'runner-step done' : i === index ? 'runner-step current' : 'runner-step'}
             onClick={() => setIndex(i)}
             aria-label={L(`מעבר לתרגיל ${i + 1}`, `Go to drill ${i + 1}`)}
+            aria-current={i === index ? 'step' : undefined}
           />
         ))}
       </div>
@@ -226,7 +245,7 @@ export default function PlanRunner({ items, planName, onExit }) {
         <div className="runner-controls">
           <button type="button" className="runner-ctl" onClick={prev} disabled={index === 0}
             aria-label={L('התרגיל הקודם', 'Previous drill')}>
-            <ChevronFwd size={22} />
+            <ChevronBack size={22} />
           </button>
 
           {hasDur ? (
@@ -247,7 +266,7 @@ export default function PlanRunner({ items, planName, onExit }) {
 
           <button type="button" className="runner-ctl" onClick={next} disabled={isLast}
             aria-label={L('התרגיל הבא', 'Next drill')}>
-            <ChevronBack size={22} />
+            <ChevronFwd size={22} />
           </button>
         </div>
 
@@ -256,13 +275,13 @@ export default function PlanRunner({ items, planName, onExit }) {
             <span className="runner-next-label">{L('הבא בתור', 'Up next')}</span>
             <span className="runner-next-name">{nextTitle}</span>
             {nextDur > 0 && <span className="runner-next-dur" dir="ltr">{nextDur}′</span>}
-            <ChevronBack size={18} aria-hidden="true" />
+            <ChevronFwd size={18} aria-hidden="true" />
           </button>
         ) : (
           <button type="button" className="runner-next-card done" onClick={onExit}>
             <span className="runner-next-label">{L('זה התרגיל האחרון', 'Last drill')}</span>
             <span className="runner-next-name">{L('סיום האימון', 'Finish the practice')}</span>
-            <ChevronBack size={18} aria-hidden="true" />
+            <ChevronFwd size={18} aria-hidden="true" />
           </button>
         )}
       </footer>
