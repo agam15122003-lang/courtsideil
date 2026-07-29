@@ -20639,3 +20639,39 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   letter-spacing: 0.16em;
   color: var(--brand-text);
 }
+
+/* ================================================================= */
+/* בית המאמן במובייל — הבאנר תפס חצי מסך לפני שהתחיל התוכן            */
+/* (הבעלים, 29.7: «נפתח עם חצי מסך רק עם התמונה הכחולה»).             */
+/* מה ירד: ריפוד, גודל הכותרת, הטיימר, והציטוט — שחוזר לפס העליון.    */
+/* ================================================================= */
+@media (max-width: 640px) {
+  .home-hero {
+    padding: 16px 16px 18px;
+    gap: 14px;
+    animation: none; /* ההירו הוא הדבר הראשון שנראה — בלי כניסה שמעכבת */
+  }
+  .home-hero .home-greet-title { font-size: clamp(23px, 7.2vw, 29px); }
+  .home-hero .home-greet-date { font-size: 12px; }
+  .home-hero-sub { font-size: 13.5px; line-height: 1.5; }
+  .home-hero .home-greet-actions { gap: 8px; }
+  .home-hero .home-greet-actions .btn-primary,
+  .home-hero .home-greet-actions .btn-soft { min-height: 44px; padding-inline: 14px; font-size: 14px; }
+  /* הציטוט עולה לפס העליון של המסך (Dashboard מרנדר אותו במובייל) */
+  .home-hero-quote { display: none; }
+  .home-hero-court { width: 240px; top: -14px; inset-inline-end: -30px; }
+  /* כרטיס «האימון הקרוב» — הטיימר היה 40px ועוד 24px ריפוד מסביב */
+  .home-hero-card .np-card { padding: 12px 14px; }
+  .home-hero-card .np-timer { font-size: 30px; }
+  .home-hero-card .np-actions { gap: 8px; }
+}
+
+/* הזוהר הכתום הוא קישוט, אבל הכלל `.home-hero > *:not(.home-hero-bg)`
+   (index.css:17157) דרס לו את position: absolute ל-relative — ולכן הוא
+   תפס שורת גריד שלמה של 340px בראש ההירו, לפני שהתחיל התוכן. זה מה
+   שנראה כמו «חצי מסך של תמונה כחולה» במובייל. */
+.home-hero > .home-hero-glow { position: absolute; }
+
+/* כרטיס «האימון הקרוב» כשהוא יורד מהבאנר במובייל — אותו מרווח כמו
+   שאר הסקשנים, בלי הרקע הנייבי שהיה לו בתוך הבאנר. */
+.home-next-mobile { margin-top: 14px; }

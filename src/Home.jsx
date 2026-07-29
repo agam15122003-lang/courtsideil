@@ -161,6 +161,19 @@ function parseDate(d) {
 // הקוד נשאר במקומו — החזרה היא שינוי הערך הזה ל-true.
 const SHOW_NEWS = false
 
+// במובייל כרטיס «האימון הקרוב» יורד מתוך הבאנר הנייבי אל הגלולה הלבנה:
+// בתוך הבאנר הוא הוסיף 415px של נייבי לפני שהתחיל תוכן כלשהו.
+function useNarrow(query = '(max-width: 640px)') {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = (e) => setNarrow(e.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return narrow
+}
+
 function useNews() {
   const [state, setState] = useState({ items: [], loading: true, error: false })
 
@@ -287,6 +300,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
+  const narrow = useNarrow()
   const stats = useHomeStats(profile?.id)
   const communityPosts = useCommunityTeaser()
 
@@ -382,9 +396,11 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             </button>
           </div>
         </div>
-        <div className="home-hero-card">
-          <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
-        </div>
+        {!narrow && (
+          <div className="home-hero-card">
+            <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
+          </div>
+        )}
         {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
             או אם אין אימון קרוב עם קבוצה. */}
         {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
@@ -410,6 +426,14 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           </div>
         ))}
       </div>
+
+      {/* סדר המוקאפ (עמוד 3): באנר → אישורי הגעה → ארבעת המספרים →
+          האימון הקרוב. בדסקטופ הכרטיס יושב בתוך הבאנר, לצד הברכה. */}
+      {narrow && (
+        <div className="home-next-mobile">
+          <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
+        </div>
+      )}
 
       {showOnboarding && (
         <div className="onboard-card">

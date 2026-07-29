@@ -148,6 +148,15 @@ export default function Dashboard({ session }) {
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
+  // מובייל: ההירו של הבית מקוצר והציטוט יורד ממנו — ולכן פס הציטוט העליון
+  // חוזר גם בבית. מאזין ל-matchMedia ולא ל-resize (אפס עבודה בין מעברים).
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const onChange = (e) => setIsNarrow(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
 
   const [loadError, setLoadError] = useState(false)
@@ -390,7 +399,9 @@ export default function Dashboard({ session }) {
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2).
               חוץ מדף הבית: שם הציטוט יושב בתוך ההירו ומסונכרן להחלפת התמונה,
               והצגתו פעמיים באותו מסך נראית כמו תקלה. */}
-          {!loading && !showForm && view !== 'home' && <QuoteStrip />}
+          {/* בבית הציטוט יושב בתוך ההירו — חוץ ממובייל, שם ההירו מקוצר
+              והציטוט חוזר לפס העליון (index.css: .home-hero-quote מוסתר). */}
+          {!loading && !showForm && (view !== 'home' || isNarrow) && <QuoteStrip />}
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
               ה-key על .main-inner גורם ל-boundary להתאפס בכל מעבר מסך. */}
           <ErrorBoundary screen={showForm ? 'coach:profile-form' : `coach:${view}`}>
