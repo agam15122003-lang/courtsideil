@@ -19786,6 +19786,9 @@ html.a11y-motion .nav-marker { transition: none; }
 [data-theme='dark'] .chip.selected {
   background: var(--surface);
   color: var(--text);
+  /* הכלל הישן (index.css:12880) מוסיף טבעת כתומה בסלקטור שווה-משקל
+     לזה — בלי האיפוס כאן היא נשארת מסביב לטאב הפעיל במצב כהה. */
+  border: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 /* מונה על טאב (למשל 3 שיחות שלא נקראו במסך 7a) */
@@ -19827,3 +19830,61 @@ html.a11y-motion .nav-marker { transition: none; }
 }
 .msg-team { display: flex; flex-direction: column; gap: 12px; }
 .msg-team-chips { margin: 0; }
+
+/* ---- מסך 4a: «הקבוצה שלי» — באנר זהות + שלושה טאבים ---- */
+/* צ׳יפ מספרים על הבאנר הנייבי («16 שחקנים» · «נוכחות 87%») */
+.cs-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--on-dark);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cs-hero-pill b { font-weight: 800; }
+.team-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.team-switch { margin: 0 0 12px; }
+
+/* שורת מעבר למסך אחר (משחקים וטבלה) — כרטיס, לא כפתור בתוך טקסט */
+.team-link-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 17px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.team-link-row:hover {
+  border-color: color-mix(in srgb, var(--accent-strong) 45%, transparent);
+  box-shadow: 0 1px 2px rgba(14, 27, 46, 0.05);
+}
+.tlr-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--brand-text);
+}
+.tlr-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tlr-text strong { font-family: var(--font-display); font-weight: 800; font-size: 15.5px; }
+
+/* מסך המשחקים והטבלה (יוצא מהקבוצה, פריט 6 יעצב אותו) */
+.tg-screen-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.tg-table-block { margin-top: 22px; }

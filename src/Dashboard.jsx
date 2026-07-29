@@ -145,6 +145,7 @@ export default function Dashboard({ session }) {
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
+  const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
 
   const [loadError, setLoadError] = useState(false)
@@ -154,6 +155,8 @@ export default function Dashboard({ session }) {
   const navigate = (id) => {
     if (id === 'community-chats') { setCommunityTab('chats'); setView('community'); return }
     if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
+    // מהלו"ז אל ימי האימון הקבועים — עד היום זו הייתה הוראה בטקסט בלי קישור
+    if (id === 'teams-practices') { setTeamsTab('practices'); setView('teams'); return }
     setView(id)
   }
 
@@ -468,16 +471,14 @@ export default function Dashboard({ session }) {
             </Page>
           ) : view === 'schedule' ? (
             <Page {...PAGE_META.schedule()}>
-              <Schedule session={session} />
+              <Schedule session={session} onNavigate={navigate} />
             </Page>
           ) : view === 'teams' ? (
-            <Page {...PAGE_META.teams()}>
-              <Teams session={session} profile={profile} onNavigate={navigate} />
-            </Page>
+            /* לקבוצה יש באנר משלה — שם הקבוצה, המועדון ומספרי הסגל (מסך 4a),
+               ולכן אין עטיפת Page כאן: שני hero על אותו מסך זה h1 כפול. */
+            <Teams session={session} profile={profile} onNavigate={navigate} initialTab={teamsTab} onConsumeInitialTab={() => setTeamsTab(null)} />
           ) : view === 'send' ? (
-            <Page {...PAGE_META.teams()}>
-              <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
-            </Page>
+            <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
           ) : view === 'admin' && profile?.is_admin ? (
             <Page {...PAGE_META.admin()}>
               <Admin session={session} profile={profile} />

@@ -46,7 +46,7 @@ const ilDate = (str) => {
 
 // לו"ז שבועי בסגנון Outlook — ימים בעמודות, שעות בשורות, אימונים כבלוקים.
 // props: session
-export default function Schedule({ session }) {
+export default function Schedule({ session, onNavigate }) {
   const me = session.user.id
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()))
   const [entries, setEntries] = useState([])
@@ -623,8 +623,14 @@ export default function Schedule({ session }) {
             {selected.end_time ? '–' + selected.end_time : ''}
           </div>
           {selected._recurring && (
+            /* היה טקסט שמפנה ל«הקבוצות שלי ← ימי אימון» בלי דרך להגיע לשם */
             <p className="muted small cal-recurring-note" style={{ marginTop: 8 }}>
-              <RotateCw size={13} /> {L('אימון קבוע — לניהול הימים והשעות: "הקבוצות שלי" ← ימי אימון', 'Fixed practice — manage days & times in "My teams" → Practices')}
+              <RotateCw size={13} /> {L('אימון קבוע. ', 'Fixed practice. ')}
+              {onNavigate && (
+                <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
+                  {L('לניהול הימים והשעות', 'Manage days & times')}
+                </button>
+              )}
             </p>
           )}
           {selected.plan && (
@@ -761,7 +767,12 @@ export default function Schedule({ session }) {
                 />
               )}
               <p className="muted small cal-recurring-tip" style={{ marginTop: 10 }}>
-                <RotateCw size={13} /> {L('לאימון קבוע כל שבוע — הגדר "ימי אימון" ב"הקבוצות שלי", וזה יופיע כאן ואצל השחקנים אוטומטית.', 'For a weekly fixed practice — set "Practices" in "My teams"; it appears here and for players automatically.')}
+                <RotateCw size={13} /> {L('אימון שחוזר כל שבוע מוגדר פעם אחת ומופיע כאן ואצל השחקנים אוטומטית. ', 'A weekly fixed practice is set once, and appears here and for your players automatically. ')}
+                {onNavigate && (
+                  <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
+                    {L('להגדרת ימי אימון', 'Set practice days')}
+                  </button>
+                )}
               </p>
             </>
           )}

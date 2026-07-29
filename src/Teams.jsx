@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
+  Plus, Trash2, Users2, Target, CalendarClock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck, MessageSquareHeart, Star, ClipboardCheck, Send as SendIcon,
+  UserCheck, MessageSquareHeart, Star, Send as SendIcon,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -20,9 +20,11 @@ import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
 import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
-import { allLeagues, leaguesForAge, regionOf, teamsInLeague, leagueGames, clubCore } from './iba'
 import LeagueTable from './LeagueTable'
+import TeamGames from './TeamGames'
 import TeamConnect from './TeamConnect'
+import Page from './Page'
+import { ChevronFwd } from './DirIcon'
 import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
 
@@ -68,11 +70,13 @@ const weekLabel = (sun) => { const sat = addDays(sun, 6); return `${sun.getDate(
 const monthLabel = (d) => d.toLocaleDateString(L('he-IL', 'en-US'), { month: 'long', year: 'numeric' })
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 
-export default function Teams({ session, profile, onNavigate, initialTab }) {
+export default function Teams({ session, profile, onNavigate, initialTab, onConsumeInitialTab }) {
   const me = session.user.id
   const teams = profile?.age_groups || []
   const [team, setTeam] = useState(teams[0] || '')
-  const [tab, setTab] = useState(initialTab || 'roster')
+  // הטאב «שיגורים» התמזג לתוך «מטרות ומשימות», ולכן יעד ישן מנותב אליו
+  const [tab, setTab] = useState(initialTab === 'tasks' ? 'goals' : (initialTab || 'roster'))
+  const [sub, setSub] = useState(null) // null | 'games' — מסך המשחקים והטבלה
   const [players, setPlayers] = useState([])
   const [attByPlayer, setAttByPlayer] = useState({})
   const [staff, setStaff] = useState([])
@@ -82,19 +86,15 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false) // טעינה שנכשלה != סגל ריק
 
-  // הוספת שחקן / משחק / צוות
+  // הוספת שחקן / צוות
   const [pName, setPName] = useState('')
   const [pNum, setPNum] = useState('')
-  const [gForm, setGForm] = useState({ date: '', time: '', opponent: '', location: '' })
-  const [reviewGame, setReviewGame] = useState(null)
   const [reviewPractice, setReviewPractice] = useState(null)
   const [gpEdit, setGpEdit] = useState(null) // עריכת מטרות מהירה לשחקן {player_id, name, team}
-  const [manualOpen, setManualOpen] = useState(false)
   const [sForm, setSForm] = useState({ name: '', role: 'assistant', phone: '' })
 
   // עריכה (מודאלים)
   const [pEdit, setPEdit] = useState(null)
-  const [gEdit, setGEdit] = useState(null)
   const [sEdit, setSEdit] = useState(null)
 
 
@@ -132,31 +132,29 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
   const [mText, setMText] = useState('')
   const [sText, setSText] = useState('')
 
-  // ייבוא מהאיגוד
-  const [imp, setImp] = useState(null) // null=סגור, אחרת אובייקט-מצב
   // [7] Escape סוגר את המודאל הפתוח (בלי לשמור — כמו לחיצה על X)
   useEffect(() => {
-    const anyOpen = pEdit || gEdit || sEdit || imp
+    const anyOpen = pEdit || sEdit
     if (!anyOpen) return
     const onKey = (e) => {
       if (e.key !== 'Escape') return
       if (pEdit) setPEdit(null)
-      else if (gEdit) setGEdit(null)
       else if (sEdit) setSEdit(null)
-      else if (imp) setImp(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pEdit, gEdit, sEdit, imp])
+  }, [pEdit, sEdit])
 
   // מלכודת פוקוס לכל המודאלים (רק אחד פתוח בכל רגע)
-  const anyDialog = pEdit || gEdit || sEdit || imp || gpEdit
+  const anyDialog = pEdit || sEdit || gpEdit
   const dlgRef = useFocusTrap(!!anyDialog, () => {
-    if (pEdit) setPEdit(null); else if (gEdit) setGEdit(null); else if (sEdit) setSEdit(null)
-    else if (imp) setImp(null); else if (gpEdit) setGpEdit(null)
+    if (pEdit) setPEdit(null); else if (sEdit) setSEdit(null); else if (gpEdit) setGpEdit(null)
   })
 
-  const [leaguesAll, setLeaguesAll] = useState([])
+  // יעד-עומק נצרך פעם אחת: כניסה מאוחרת יותר ל«הקבוצה שלי» תיפתח על הסגל,
+  // ולא תיזכר לנצח בטאב שהגיע מהלו"ז.
+  useEffect(() => { if (initialTab) onConsumeInitialTab?.() /* eslint-disable-next-line */ }, [])
+
   const loadTokenRef = useRef(0) // הגנה מפני מרוץ טעינות בהחלפת קבוצה מהירה
 
   async function load() {
@@ -292,99 +290,9 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
     toast.success(L('המטרות נשמרו', 'Goals saved'))
   }
 
-  // ---------- משחקים ----------
-  const addGame = async () => {
-    if (!gForm.date) { toast.error(L('בחר תאריך למשחק', 'Choose a game date')); return }
-    const { error } = await supabase.from('team_games').insert({
-      coach_id: me, team, game_date: gForm.date, game_time: gForm.time || null,
-      opponent: gForm.opponent.trim() || null, location: gForm.location.trim() || null,
-    })
-    if (error) { toast.error(L('ההוספה נכשלה: ', 'Add failed: ') + error.message); return }
-    setGForm({ date: '', time: '', opponent: '', location: '' }); load()
-  }
-  const saveGame = async () => {
-    const g = gEdit
-    const { error } = await supabase.from('team_games').update({
-      game_date: g.game_date, game_time: g.game_time || null,
-      opponent: (g.opponent || '').trim() || null, location: (g.location || '').trim() || null,
-    }).eq('id', g.id)
-    if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
-    toast.success(L('המשחק עודכן', 'Game updated')); setGEdit(null); load()
-  }
-  const delGame = async (id) => {
-    if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return
-    await supabase.from('team_games').delete().eq('id', id); load()
-  }
-
-  // ---------- ייבוא מהאיגוד (קטגוריה → אזור/ליגה → קבוצה → משחקים) ----------
-  const openImport = async () => {
-    setImp({ age: team, showAll: false, leagueId: '', leagueName: '', teams: [], teamId: '', teamName: '', games: null, busy: true, step: 'league' })
-    try {
-      const ls = leaguesAll.length ? leaguesAll : await allLeagues()
-      setLeaguesAll(ls)
-      setImp((s) => ({ ...s, busy: false }))
-    } catch {
-      toast.error(L('שגיאה בחיבור לאיגוד הכדורסל', 'Could not connect to the association'))
-      setImp((s) => s && { ...s, busy: false })
-    }
-  }
-  const pickLeague = async (leagueId) => {
-    const lg = leaguesAll.find((l) => String(l.id) === String(leagueId))
-    setImp((s) => s && ({ ...s, leagueId, leagueName: lg?.name || '', busy: true, teams: [], teamId: '', games: null, step: 'team' }))
-    try {
-      const ts = await teamsInLeague(leagueId)
-      const core = clubCore(profile?.club)
-      ts.sort((a, b) => (b.title.includes(core) ? 1 : 0) - (a.title.includes(core) ? 1 : 0))
-      setImp((s) => s && ({ ...s, teams: ts, busy: false }))
-    } catch {
-      toast.error(L('שגיאה בטעינת הקבוצות מהאיגוד', 'Error loading teams')); setImp((s) => s && ({ ...s, busy: false }))
-    }
-  }
-  const pickTeam = async (teamId) => {
-    const tName = imp.teams.find((t) => String(t.id) === String(teamId))?.title || ''
-    setImp((s) => s && ({ ...s, teamId, teamName: tName, busy: true, games: null, step: 'games' }))
-    try {
-      const gs = await leagueGames(imp.leagueId, teamId)
-      setImp((s) => s && ({ ...s, games: gs, busy: false }))
-    } catch {
-      toast.error(L('שגיאה בטעינת המשחקים', 'Error loading games')); setImp((s) => s && ({ ...s, games: [], busy: false }))
-    }
-  }
-  const saveIbaLink = async (extra = {}) => {
-    const row = { coach_id: me, team, league_id: String(imp.leagueId), league_name: imp.leagueName, iba_team_id: imp.teamId ? String(imp.teamId) : null, iba_team_name: imp.teamName || null, ...extra }
-    const { error } = await supabase.from('team_iba').upsert(row, { onConflict: 'coach_id,team' })
-    if (error) { toast.error(L('שמירת הליגה נכשלה: ', 'Saving the league failed: ') + error.message); return false }
-    setIba(row)
-    return true
-  }
-  const importGames = async () => {
-    if (!imp.games?.length) {
-      if (await saveIbaLink()) { toast.success(L('הליגה נשמרה לטבלה', 'League saved for the table')); setImp(null) }
-      return
-    }
-    // מוחקים משחקים שיובאו קודם לאותה קבוצה, כדי לא לשכפל בייבוא חוזר
-    await supabase.from('team_games').delete().eq('coach_id', me).eq('team', team).eq('source', 'iba')
-    const rows = imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null, source: 'iba' }))
-    const { error } = await supabase.from('team_games').insert(rows)
-    if (error) {
-      // אם עמודת source לא קיימת במסד — נופלים חזרה לייבוא רגיל בלי דדופ
-      const { error: e2 } = await supabase.from('team_games').insert(imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null })))
-      if (e2) { console.error('games import:', e2.message); toast.error(L('הייבוא נכשל — נסו שוב בעוד רגע.', 'Import failed — try again in a moment.')); return }
-    }
-    await saveIbaLink()
-    toast.success(L(`${rows.length} משחקים יובאו + הליגה נשמרה`, `${rows.length} games imported + league saved`))
-    setImp(null); load()
-  }
-
   if (teams.length === 0) {
     return (
-      <div className="welcome-card">
-        <header className="page-header">
-          <div className="page-header-text">
-            <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-            <h1>{L('ניהול קבוצה', 'Team Management')}</h1>
-          </div>
-        </header>
+      <Page eyebrow={L('הקבוצות שלי', 'My teams')} title={L('ניהול קבוצה', 'Team management')} size="sm">
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={26} /></span>
           <div className="empty-title">{L('עדיין לא הגדרת קבוצות', 'No teams yet')}</div>
@@ -395,39 +303,49 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
             </button>
           )}
         </div>
-      </div>
+      </Page>
     )
   }
 
   const injured = players.filter((p) => p.status !== 'active').length
-  const impLeagues = imp ? (imp.showAll ? leaguesAll : (leaguesForAge(leaguesAll, imp.age).length ? leaguesForAge(leaguesAll, imp.age) : leaguesAll)) : []
+  // נוכחות עונתית ממוצעת של הקבוצה — הצ׳יפ השני בבאנר של מסך 4a
+  const attPcts = players.map((p) => attByPlayer[p.id]).filter((a) => a && a.total).map((a) => a.present / a.total)
+  const teamAtt = attPcts.length ? Math.round((attPcts.reduce((s, x) => s + x, 0) / attPcts.length) * 100) : null
+
+  // משחקים וטבלה — מסך משלהם, נפתח מכאן וחוזר לכאן
+  if (sub === 'games') {
+    return <TeamGames session={session} profile={profile} team={team} teams={teams} onBack={() => { setSub(null); load() }} />
+  }
 
   return (
-    <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('הקבוצות שלי', 'My Teams')}</div>
-          <h1>{L('ניהול קבוצה', 'Team Management')}</h1>
-          <p className="page-desc">{L('סגל, מטרות, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, goals, games and league table — for every team you coach.')}</p>
+    <Page
+      eyebrow={profile?.club || L('הקבוצה שלי', 'My team')}
+      title={trTeam(team)}
+      size="sm"
+      actions={(
+        <div className="team-hero-stats">
+          <span className="cs-hero-pill">{L(`${players.length} שחקנים`, `${players.length} players`)}</span>
+          {teamAtt != null && <span className="cs-hero-pill">{L('נוכחות ', 'Attendance ')}<b dir="ltr">{teamAtt}%</b></span>}
+          {injured > 0 && <span className="cs-hero-pill">{L(`${injured} לא זמינים`, `${injured} unavailable`)}</span>}
         </div>
-      </header>
+      )}
+    >
+      {teams.length > 1 && (
+        <div className="chips team-switch">
+          {teams.map((tm) => (
+            <button key={tm} className={team === tm ? 'chip selected' : 'chip'} onClick={() => setTeam(tm)}>{trTeam(tm)}</button>
+          ))}
+        </div>
+      )}
 
-      <div className="chips" style={{ marginTop: 12 }}>
-        {teams.map((tm) => (
-          <button key={tm} className={team === tm ? 'chip selected' : 'chip'} onClick={() => setTeam(tm)}>{trTeam(tm)}</button>
-        ))}
-      </div>
-
-      {/* team-tabs: שורת הטאבים של המסך הזה בלבד. ב-384px שבעה טאבים ברוחב 574px
-          נחתכו בתוך מכל של 350px (overflow-x: visible, flex-wrap: nowrap) —
-          "שיגורים", "צ׳אט" ו"טבלה" היו בלתי נגישים לחלוטין בטלפון. */}
+      {/* שלושה טאבים, בדיוק כמו במסך 4a במסמך המסירה: סגל · לו״ז ונוכחות ·
+          מטרות ומשימות. עד היום היו כאן שבעה — ב-384px הם נחתכו בתוך מכל
+          של 350px ו"שיגורים", "צ׳אט" ו"טבלה" היו בלתי נגישים בטלפון.
+          הצ׳אט עבר למסך ההודעות (מסך 7a), והמשחקים והטבלה למסך משלהם. */}
       <div className="tabs team-tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
-        <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('ימי אימון', 'Practices')}</button>
-        <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
-        <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><Trophy size={15} /> {L('משחקים', 'Games')}</button>
-        <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><SendIcon size={15} /> {L('שיגורים', 'Sends')}</button>
-        <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
+        <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('לו״ז ונוכחות', 'Schedule')}</button>
+        <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות ומשימות', 'Goals & tasks')}</button>
       </div>
 
       {loading ? (
@@ -520,6 +438,17 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
               תפס את כל החלק העליון של המסך בכל כניסה. */}
           <TeamConnect coachId={me} team={team} onApproved={load} />
 
+          {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת
+              היחידה אליהם, והיא חייבת להיות בזרימה הראשית. */}
+          <button type="button" className="team-link-row" onClick={() => setSub('games')}>
+            <span className="tlr-ic"><Trophy size={17} /></span>
+            <span className="tlr-text">
+              <strong>{L('משחקים וטבלה', 'Games & table')}</strong>
+              <span className="muted small">{L('לוח המשחקים, ייבוא מהאיגוד וטבלת הליגה', 'Fixtures, association import and the league table')}</span>
+            </span>
+            <ChevronFwd size={17} aria-hidden="true" />
+          </button>
+
           {/* ---- צוות מקצועי — מקופל: רוב מאמני הנוער לא מנהלים צוות ---- */}
           <details className="tg-collapse staff-block">
             <summary><Briefcase size={15} /> {L('צוות מקצועי', 'Professional staff')}</summary>
@@ -568,14 +497,14 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
                       <span><CalendarClock size={13} /> {ilFull(next.game_date)}{next.game_time ? ` · ${String(next.game_time).slice(0, 5)}` : ''}</span>
                       {next.location && <span>{next.location}</span>}
                     </div>
-                    <button className="btn-primary ng-cta" onClick={() => setTab('games')}>
+                    <button className="btn-primary ng-cta" onClick={() => setSub('games')}>
                       {L('לפרטי המשחק', 'Game details')}
                     </button>
                   </>
                 ) : (
                   <>
                     <p className="muted small" style={{ margin: '6px 0 10px' }}>{L('אין משחק קרוב ביומן.', 'No upcoming game.')}</p>
-                    <button className="btn-soft ng-cta" onClick={() => setTab('games')}>
+                    <button className="btn-soft ng-cta" onClick={() => setSub('games')}>
                       {L('הוספת משחק', 'Add a game')}
                     </button>
                   </>
@@ -652,158 +581,18 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           </div>
 
           <TeamGoalsBoard coachId={me} team={team} />
-        </div>
-      ) : tab === 'games' ? (
-        /* ===================== משחקים ===================== */
-        <div className="team-section">
-          <div className="games-cta">
-            <button className="btn-primary games-import-btn" style={{ marginTop: 0 }} onClick={openImport}>
-              <Download size={16} /> {L('ייבוא משחקים + טבלה מהאיגוד', 'Import games + table from the association')}
-            </button>
-            {/* [26] גשר ללוח משחקי האימון בין מאמנים */}
-            {onNavigate && (
-              <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => onNavigate('finder-games')}>
-                {L('מחפשים משחק אימון? ללוח המשחקים', 'Looking for a scrimmage? Games board')}
-              </button>
-            )}
-            <button className="manual-toggle" onClick={() => setManualOpen((v) => !v)}>
-              <Plus size={14} /> {L('הוספה ידנית', 'Add manually')}
-            </button>
-          </div>
-          <p className="muted small games-hint">{L('מומלץ לייבא מהאיגוד. לא הסתדר? אפשר להוסיף משחק ידנית.', 'Import from the association is best. Didn’t work? Add a game manually.')}</p>
 
-          {manualOpen && (
-            <div className="game-add">
-              <div className="form-grid-2">
-                <label className="pf-label">{L('תאריך', 'Date')}
-                  <input className="finder-input" type="date" dir="ltr" value={gForm.date} onChange={(e) => setGForm((f) => ({ ...f, date: e.target.value }))} />
-                  {gForm.date && <span className="muted small date-preview">{ilFull(gForm.date)}</span>}
-                </label>
-                <label className="pf-label">{L('שעה', 'Time')}
-                  <input className="finder-input" type="time" dir="ltr" value={gForm.time} onChange={(e) => setGForm((f) => ({ ...f, time: e.target.value }))} />
-                </label>
-              </div>
-              <input className="finder-input" type="text" value={gForm.opponent} onChange={(e) => setGForm((f) => ({ ...f, opponent: e.target.value }))} placeholder={L('יריבה', 'Opponent')} style={{ marginTop: 10 }} />
-              <input className="finder-input" type="text" value={gForm.location} onChange={(e) => setGForm((f) => ({ ...f, location: e.target.value }))} placeholder={L('מיקום (אולם/כתובת)', 'Location (gym/address)')} style={{ marginTop: 10 }} />
-              <button className="btn-primary" onClick={addGame}><Plus size={16} /> {L('הוספת משחק', 'Add game')}</button>
-            </div>
-          )}
-
-          {games.length === 0 ? (
-            <p className="muted small" style={{ marginTop: 12 }}>{L('עדיין אין משחקים. הוסף ידנית או ייבא מהאיגוד.', 'No games yet. Add manually or import.')}</p>
-          ) : (
-            <ul className="game-list">
-              {games.map((gm) => (
-                <li key={gm.id} className="game-row">
-                  <div className="game-date">
-                    <span className="game-d" dir="ltr">{ilFull(gm.game_date)}</span>
-                    {gm.game_time && <span className="game-t"><Clock size={12} /> {gm.game_time}</span>}
-                  </div>
-                  <div className="game-body">
-                    <strong>{gm.opponent || L('יריבה', 'Opponent')}</strong>
-                    {gm.location && <span className="game-loc"><MapPin size={12} /> {gm.location}</span>}
-                  </div>
-                  <button className="icon-btn" onClick={() => setReviewGame(gm)} aria-label={L('נוכחות ומשוב', 'Attendance & review')} title={L('נוכחות ומשוב למשחק', 'Game attendance & review')}><ClipboardCheck size={15} /></button>
-                  <button className="icon-btn" onClick={() => setGEdit({ ...gm })} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
-                  <button className="icon-btn" onClick={() => delGame(gm.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : tab === 'practices' ? (
-        /* ===================== ימי אימון קבועים + סיכום אימונים ===================== */
-        <TeamSlots coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
-      ) : tab === 'tasks' ? (
-        /* ===================== שיגורים: שליחה + מעקב ביצוע ===================== */
-        <div className="team-section">
+          {/* «שיגורים» היה טאב נפרד — אבל שליחת משימה היא הדרך שבה מטרה
+              הופכת לעבודה, ולכן היא יושבת כאן, מתחת למטרות. */}
+          <h3 className="tg-section-title"><SendIcon size={17} /> {L('משימות לשחקנים', 'Player tasks')}</h3>
           <SendToPlayers session={session} embedded initialTeam={team} key={team} />
           <TeamAssignments coachId={me} team={team} />
         </div>
       ) : (
-        /* ===================== טבלת ליגה ===================== */
-        <div className="team-section">
-          {iba?.league_id ? (
-            <>
-              <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || profile?.club} />
-              <button className="link-button" style={{ marginTop: 12 }} onClick={openImport}>{L('שינוי הליגה המקושרת', 'Change linked league')}</button>
-            </>
-          ) : (
-            <div className="empty-state">
-              <span className="empty-ic"><Trophy size={26} /></span>
-              <div className="empty-title">{L('עדיין לא קושרה ליגה', 'No league linked yet')}</div>
-              <p className="muted small">{L('קשר את הקבוצה שלך לליגה באיגוד כדי לראות כאן טבלה חיה שמתעדכנת אוטומטית.', 'Link your team to an association league to see a live, auto-updating table here.')}</p>
-              <button className="btn-primary" onClick={openImport}><Download size={16} /> {L('קישור לליגה באיגוד', 'Link an association league')}</button>
-            </div>
-          )}
-        </div>
+        /* ===================== לו״ז ונוכחות ===================== */
+        <TeamSlots coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
       )}
 
-      {/* ===================== מודאל: ייבוא מהאיגוד ===================== */}
-      {imp && (
-        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setImp(null)}>
-          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
-            <div className="tm-modal-head">
-              <strong>{L('קישור לאיגוד הכדורסל', 'Link to the association')}</strong>
-              <button className="icon-btn" onClick={() => setImp(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
-            </div>
-
-            {/* שלב 1 — קטגוריית גיל */}
-            <label className="pf-label">{L('שכבת גיל', 'Age category')}
-              <select className="finder-input" value={imp.age} onChange={(e) => setImp((s) => ({ ...s, age: e.target.value }))}>
-                {teams.map((tm) => <option key={tm} value={tm}>{trTeam(tm)}</option>)}
-              </select>
-            </label>
-
-            {/* שלב 2 — אזור/ליגה */}
-            <label className="pf-label" style={{ marginTop: 10 }}>{L('אזור / ליגה ספציפית', 'Region / specific league')}
-              <select className="finder-input" value={imp.leagueId} onChange={(e) => pickLeague(e.target.value)} disabled={imp.busy && !leaguesAll.length}>
-                <option value="">{imp.busy && !leaguesAll.length ? L('טוען ליגות...', 'Loading leagues...') : L('— בחר ליגה —', '— Choose a league —')}</option>
-                {impLeagues.map((l) => <option key={l.id} value={l.id}>{l.name}{regionOf(l.name) ? '' : ''}</option>)}
-              </select>
-            </label>
-            <label className="switch-row" style={{ marginTop: 6 }}>
-              <span className="switch"><input type="checkbox" checked={imp.showAll} onChange={(e) => setImp((s) => ({ ...s, showAll: e.target.checked }))} /><span className="switch-track" /></span>
-              <span className="switch-text">{L('הצג את כל הליגות (לא רק לפי הגיל)', 'Show all leagues (not only by age)')}</span>
-            </label>
-
-            {/* שלב 3 — קבוצה */}
-            {imp.leagueId && (
-              <label className="pf-label" style={{ marginTop: 10 }}>{L('הקבוצה שלך בליגה', 'Your team in the league')}
-                <select className="finder-input" value={imp.teamId} onChange={(e) => pickTeam(e.target.value)} disabled={imp.busy}>
-                  <option value="">{imp.busy ? L('טוען קבוצות...', 'Loading teams...') : L('— בחר את הקבוצה שלך —', '— Choose your team —')}</option>
-                  {imp.teams.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-                </select>
-              </label>
-            )}
-
-            {/* שלב 4 — משחקים */}
-            {imp.busy && imp.step === 'games' && <p className="muted small" style={{ marginTop: 10 }}>{L('טוען משחקים מהאיגוד...', 'Loading games...')}</p>}
-            {imp.games && imp.games.length > 0 && (
-              <div className="tm-games">
-                <p className="muted small">{L(`נמצאו ${imp.games.length} משחקים`, `${imp.games.length} games found`)}</p>
-                <ul className="game-list">
-                  {imp.games.map((g, i) => (
-                    <li key={i} className="game-row">
-                      <div className="game-date"><span className="game-d" dir="ltr">{ilFull(g.date)}</span>{g.time && <span className="game-t">{g.time}</span>}</div>
-                      <div className="game-body"><strong>{g.opponent}</strong>{g.location && <span className="game-loc">{g.location}</span>}</div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {imp.games && imp.games.length === 0 && (
-              <p className="muted small" style={{ marginTop: 10 }}>{L('אין משחקים זמינים ב-API כרגע — אפשר עדיין לשמור את הליגה לטבלה.', 'No games available in the API — you can still save the league for the table.')}</p>
-            )}
-
-            {imp.leagueId && imp.teamId && (
-              <button className="btn-primary" style={{ marginTop: 12 }} onClick={importGames}>
-                <Save size={15} /> {imp.games?.length ? L(`ייבא ${imp.games.length} משחקים ושמור ליגה`, `Import ${imp.games.length} games & save league`) : L('שמור ליגה לטבלה', 'Save league for table')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ===================== מודאל: פרטי שחקן ===================== */}
       {pEdit && (
@@ -897,33 +686,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         </div>
       )}
 
-      {/* ===================== מודאל: עריכת משחק ===================== */}
-      {gEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true">
-          <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
-            <div className="tm-modal-head">
-              <strong>{L('עריכת משחק', 'Edit game')}</strong>
-              <button className="icon-btn" onClick={() => setGEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
-            </div>
-            <div className="form-grid-2">
-              <label className="pf-label">{L('תאריך', 'Date')}
-                <input className="finder-input" type="date" dir="ltr" value={gEdit.game_date || ''} onChange={(e) => setGEdit((g) => ({ ...g, game_date: e.target.value }))} />
-                {gEdit.game_date && <span className="muted small date-preview">{ilFull(gEdit.game_date)}</span>}
-              </label>
-              <label className="pf-label">{L('שעה', 'Time')}
-                <input className="finder-input" type="time" dir="ltr" value={gEdit.game_time || ''} onChange={(e) => setGEdit((g) => ({ ...g, game_time: e.target.value }))} />
-              </label>
-            </div>
-            <input className="finder-input" value={gEdit.opponent || ''} onChange={(e) => setGEdit((g) => ({ ...g, opponent: e.target.value }))} placeholder={L('יריבה', 'Opponent')} style={{ marginTop: 10 }} />
-            <input className="finder-input" value={gEdit.location || ''} onChange={(e) => setGEdit((g) => ({ ...g, location: e.target.value }))} placeholder={L('מיקום', 'Location')} style={{ marginTop: 10 }} />
-            <div className="tm-modal-actions">
-              <button className="btn-primary" onClick={saveGame}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              <button className="btn-ghost danger" onClick={() => { delGame(gEdit.id); setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ===================== מודאל: איש צוות ===================== */}
       {sEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true">
@@ -954,14 +716,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         </div>
       )}
 
-      {reviewGame && (
-        <SessionDetail
-          session={session}
-          entry={{ id: reviewGame.id, team, date: reviewGame.game_date, start_time: reviewGame.game_time, session_type: 'game', opponent: reviewGame.opponent }}
-          onClose={() => setReviewGame(null)}
-        />
-      )}
-
       {reviewPractice && (
         <SessionDetail
           session={session}
@@ -984,6 +738,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
           </div>
         </div>
       )}
-    </div>
+    </Page>
   )
 }
