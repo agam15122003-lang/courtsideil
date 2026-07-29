@@ -14,3 +14,7 @@ dist-ssr
 *.log
 .vscode/*
 !.vscode/extensions.json
+
+# עמוד עזר זמני לבדיקות מקומיות — מכיל טוקן, לעולם לא בגיט
+public/__devlogin.html
+public/__devlogout.html
