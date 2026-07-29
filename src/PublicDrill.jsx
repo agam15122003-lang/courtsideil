@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Dumbbell, ArrowLeft } from 'lucide-react'
+import { Dumbbell } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import NotebookPage from './NotebookPage'
 import TacticsBoard from './TacticsBoard'
 import { L } from './i18n'
+import Logo from './Logo'
+import { ArrowFwd } from './DirIcon'
 
 // דף תרגיל ציבורי — נפתח מקישור משותף (וואטסאפ וכו') גם בלי חשבון.
 // props: drillId, onJoin() — מעבר להרשמה/כניסה
@@ -31,17 +33,9 @@ export default function PublicDrill({ drillId, onJoin }) {
   return (
     <div className="pd-page" dir="rtl">
       <header className="pd-top">
-        <div className="land-brand">
-          <svg viewBox="0 0 100 100" width="28" height="28" aria-hidden="true">
-            <circle cx="42" cy="55" r="22" fill="#E8763A" />
-            <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-            <circle cx="78" cy="30" r="6" fill="#E8763A" />
-          </svg>
-          <span>CourtSide</span>
-        </div>
+        <Logo size={28} withWordmark />
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={onJoin}>
-          {L('הצטרפות חינם', 'Join free')} <ArrowLeft size={16} />
+          {L('הצטרפות חינם', 'Join free')} <ArrowFwd size={16} />
         </button>
       </header>
 
@@ -61,6 +55,7 @@ export default function PublicDrill({ drillId, onJoin }) {
           </div>
         ) : (
           <>
+            <h1 className="sr-only">{drill.title}</h1>
             <p className="pd-eyebrow">
               {L('תרגיל מתוך ספריית הקהילה של CourtSide', "A drill from CourtSide's community library")}
             </p>
@@ -77,7 +72,7 @@ export default function PublicDrill({ drillId, onJoin }) {
                 {L('מאות תרגילים, בונה תוכניות אימון, לוח טקטיקה וקהילת מאמנים — חינם.', 'Hundreds of drills, a practice-plan builder, a tactics board and a coaching community — free.')}
               </p>
               <button type="button" className="btn-primary btn-lg" onClick={onJoin}>
-                {L('הצטרפות חינם ל-CourtSide', 'Join CourtSide free')} <ArrowLeft size={17} />
+                {L('הצטרפות חינם ל-CourtSide', 'Join CourtSide free')} <ArrowFwd size={17} />
               </button>
             </div>
           </>

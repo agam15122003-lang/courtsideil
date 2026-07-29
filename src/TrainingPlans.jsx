@@ -283,14 +283,8 @@ export default function TrainingPlans({ session }) {
 
   return (
     <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('תוכניות אימון', 'Training Plans')}</div>
-          <h1>{L('התוכניות שלי', 'My Plans')}</h1>
-          <p className="page-desc">{L('בנו תוכניות אימון מהתרגילים בספרייה, שתפו עם הקהילה וצרפו ללו"ז.', 'Build practice plans from library drills, share with the community and attach to your schedule.')}</p>
-        </div>
-      </header>
-
+      {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
+          eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       {/* יצירת תוכנית חדשה — שלוש דרכים */}
       <div className="pn-create">
         <button className="pn-create-main" onClick={() => setNotebookNew(true)}>
@@ -756,7 +750,8 @@ function PlanBuilder({ planId, plan, onBack }) {
       <header className="pb-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('בונה האימונים · טיוטה נשמרת אוטומטית', 'Practice builder · draft saved automatically')}</div>
-          <h1>{plan?.name || L('תוכנית', 'Plan')}</h1>
+          {/* h2 ולא h1: הבאנר של המסך (Page) הוא הכותרת הראשית, וזו כותרת המשנה של הבונה */}
+          <h2 className="pb-title">{plan?.name || L('תוכנית', 'Plan')}</h2>
         </div>
         <div className="pb-header-actions">
           {items.length > 0 && (

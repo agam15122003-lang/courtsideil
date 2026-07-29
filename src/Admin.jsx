@@ -92,14 +92,8 @@ export default function Admin({ session, profile }) {
 
   return (
     <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('ניהול מערכת', 'Administration')}</div>
-          <h1 className="h2-icon"><ShieldCheck size={22} aria-hidden="true" /> {L('לוח ניהול', 'Admin panel')}</h1>
-          <p className="page-desc">{L('מאמנים, אימות (אנטי-התחזות) ודיווחים.', 'Coaches, verification (anti-impersonation), and reports.')}</p>
-        </div>
-      </header>
-
+      {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
+          eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       <div className="tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'overview' ? 'tab active' : 'tab'} onClick={() => setTab('overview')}><BarChart3 size={15} /> {L('סקירה', 'Overview')}</button>
         <button className={tab === 'coaches' ? 'tab active' : 'tab'} onClick={() => setTab('coaches')}><Users size={15} /> {L('מאמנים', 'Coaches')}</button>

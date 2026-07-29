@@ -20512,3 +20512,11 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .gm-score-inputs .pf-label { flex: 1; }
 .gm-score-inputs input { text-align: center; font-size: 22px; font-weight: 800; }
 .gm-score-dash { padding-bottom: 12px; font-size: 20px; color: var(--text-muted); }
+/* כותרת בונה התוכנית — h2 בגודל של הכותרת שהייתה, כדי שלא ירד משקל ויזואלי */
+.pb-header .pb-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}

@@ -119,15 +119,8 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
 
   return (
     <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          {/* [12] שם ייחודי — "קהילת המאמנים" שמור לעמוד הקהילה */}
-          <div className="welcome-badge">{L('מאמנים', 'Coaches')}</div>
-          <h1>{L('חיפוש מאמנים', 'Find coaches')}</h1>
-          <p className="page-desc">{L('חפשו מאמנים לפי שם, מועדון או שכבת גיל, צפו בתרגילים שלהם וצרו קשר.', 'Search coaches by name, club or age group, view their drills, and get in touch.')}</p>
-        </div>
-      </header>
-
+      {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
+          eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       {/* לוח משחקי האימון דורש רשת של מאמנים — מוסתר כשהרשת קטנה (רעש) */}
       {netSmall === false && (
         <div className="tabs">

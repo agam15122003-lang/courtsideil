@@ -100,7 +100,7 @@ const PAGE_META = {
   }),
   schedule: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
-    title: L('לוח הזמנים', 'Schedule'),
+    title: L('הלו״ז שלי', 'My schedule'),
     subtitle: L('כל האימונים, המשחקים והפגישות שלך בשבוע אחד.', 'Every practice, game and meeting of yours in one week.'),
   }),
   teams: () => ({

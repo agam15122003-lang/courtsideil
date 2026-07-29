@@ -351,14 +351,8 @@ export default function Schedule({ session, onNavigate }) {
 
   return (
     <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('לו"ז', 'Schedule')}</div>
-          <h1>{L('הלו"ז השבועי', 'Weekly schedule')}</h1>
-          <p className="page-desc">{L('כל האימונים והפגישות שלך בתצוגה שבועית אחת.', 'All your practices and meetings in one weekly view.')}</p>
-        </div>
-      </header>
-
+      {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
+          eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       <div className="cal-toolbar">
         <div className="cal-nav">
           <button
