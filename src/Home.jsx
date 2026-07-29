@@ -156,6 +156,11 @@ function parseDate(d) {
   return isNaN(x) ? 0 : x.getTime()
 }
 
+// עמוד 22 במסמך המסירה מבקש להסתיר את הכתבות מדף הבית של המאמן: הן
+// לא עבודה, והן דוחפות את «השבוע» ו«דורש תשומת לב» מתחת לקו הקיפול.
+// הקוד נשאר במקומו — החזרה היא שינוי הערך הזה ל-true.
+const SHOW_NEWS = false
+
 function useNews() {
   const [state, setState] = useState({ items: [], loading: true, error: false })
 
@@ -479,6 +484,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
       )}
 
+      {SHOW_NEWS && <>
       <span className="sec-kicker">{L('השראה', 'Inspiration')}</span>
       <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
@@ -537,6 +543,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           {L('לא הצלחנו לטעון כתבות כרגע. בינתיים — מקורות התוכן שלמטה.', "We couldn't load articles right now. In the meantime — the content sources below.")}
         </p>
       )}
+      </>}
 
       <h2 className="section-title" style={{ marginTop: 32 }}>
         {L('תוכן והשראה', 'Content & inspiration')}

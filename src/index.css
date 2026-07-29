@@ -20592,3 +20592,50 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   font-size: 17px;
 }
 .pn-door-body span { font-size: 12.5px; line-height: 1.45; color: var(--text-muted); }
+
+/* ================================================================= */
+/* עמוד 22, שורת «יום עבודה»: eyebrow אחיד וכתום נגיש במילויים        */
+/* ================================================================= */
+/* 1. כתום נגיש: לבן על --brand (#E8763A) = 2.96:1 ונכשל AA. כל מילוי
+      שיש עליו טקסט לבן עובר ל---brand-strong (#B34E1C) = 5.22:1. */
+.np-when-tag { background: var(--brand-strong); }
+
+/* 2. --accent-strong מוגדר כטקסט על רקע *בהיר*; על הנייבי של ההירו
+      הוא 2.57:1. אותו תיקון שכבר נעשה ל-.cow-cta. */
+.hhq-mark { color: var(--orange-300); }
+
+/* 3. WCAG 1.4.11: לכפתור הראשי אין גבול, ו---brand-strong מול הנייבי
+      של ההירו הוא 2.85:1 — הצורה עצמה כמעט נעלמת. hairline פותר. */
+.home-hero .btn-primary { border: 1px solid rgba(255, 255, 255, 0.22); }
+
+/* 4. eyebrow אחיד: ארבעה סגנונות מתחרים היו על אותו מסך. אלה מיישרים
+      את שניים מהם ל-.cs-hero-eyebrow הקנוני — גודל, משקל, מרווח אותיות
+      וגופן זהים; רק הצבע משתנה לפי הרקע (זהב על נייבי, כתום על בהיר). */
+.sec-kicker,
+.hp-eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--brand-text);
+}
+.hp-eyebrow { text-transform: none; }
+
+/* 5. התג הירוק: הכלל המקורי (index.css:413) עוד נותן pill ירוק, ובמצב
+      כהה חוזר pill בלי padding — קופסה עם מסגרת ובלי אוויר. כאן הוא
+      הופך ל-eyebrow אחד, בשני המצבים. */
+.welcome-badge,
+[data-theme='dark'] .welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--brand-text);
+}

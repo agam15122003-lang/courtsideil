@@ -7,6 +7,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import Avatar from './Avatar'
 import { L, trTeam } from './i18n'
+import { SkeletonStats, SkeletonRoster } from './Skeleton'
 
 const REASON_HE = {
   impersonation: 'התחזות', inappropriate: 'תוכן לא הולם', spam: 'ספאם', other: 'אחר',
