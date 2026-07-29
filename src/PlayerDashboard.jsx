@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L, trTeam } from './i18n'
+import { L, trTeam, cnt } from './i18n'
 import useNavMarker from './useNavMarker'
 import { ArrowFwd } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
@@ -1156,57 +1156,56 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
         <path d="M80 4 A96 96 0 0 1 80 196" />
         <path d="M320 4 A96 96 0 0 0 320 196" />
       </svg>
+      {/* סדר מסך 3b: פס «האימון הבא» → «ערב טוב, אגם» → שורת מצב אחת →
+          אישור הגעה. הכותרת של האימון והתאריך נכנסים לפס עצמו, ולא
+          לשלוש שורות נפרדות עם קוביות ספירה מתחתן. */}
+      {next && (
+        <div className={started ? 'plh-next live' : 'plh-next'}>
+          <span className="plh-next-tag">
+            <i className={started ? 'plh-dot live' : 'plh-dot'} />
+            {started
+              ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
+              : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
+          </span>
+          <span className="plh-next-when">{whenStr}</span>
+        </div>
+      )}
+
       <div className="plh-hero-head">
-        <span className="plh-hero-greet">{greet},</span>
-        <span className="plh-hero-name">{profile.first_name}</span>
-        <span className="plh-hero-team">{membership ? `${trTeam(membership.team)} · ${coachName(membership.coach)}` : L('ברוך הבא לקורטסייד', 'Welcome to CourtSide')}</span>
+        <h1 className="plh-hero-title-big">
+          <span className="plh-hero-greet">{greet},</span>{' '}
+          <span className="plh-hero-name">{profile.first_name}</span>
+        </h1>
+        {/* שורה אחת שאומרת מה מחכה לך — במקום שם הקבוצה והמאמן, שכבר
+            מופיעים בפס למעלה ובסרגל הניווט. */}
+        <p className="plh-hero-sub">
+          {!membership
+            ? L('מצטרפים לקבוצה עם קוד מהמאמן ומתחילים', 'Join your team with a code from your coach')
+            : [
+                stats?.open > 0 ? L(cnt(stats.open, 'משימה פתוחה אחת', 'משימות פתוחות'), stats.open + ' open tasks') : null,
+                summary?.state === 'ask' ? L('נשאר לסכם את האימון של היום', "today's practice still needs a summary") : null,
+                next ? (isGame ? L('ומשחק בדרך', 'and a game coming up') : null) : L('אין אימון קרוב בלו״ז', 'no upcoming practice'),
+              ].filter(Boolean).join(' · ') || L('הכול מסודר — נתראה באימון', "You're all set — see you at practice")}
+        </p>
       </div>
+
       <div className="plh-hero-foot">
-        {summary?.state === 'ask' ? (
+        {summary?.state === 'ask' && (
           /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
           <div className="plh-ask">
             <strong className="plh-ask-title">{summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}</strong>
-            <span className="plh-hero-meta">{L('דקה אחת — והמאמן יודע איפה אתה עומד', 'One minute — and your coach knows where you stand')}</span>
             <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback}>
               <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
             </button>
           </div>
-        ) : next ? (
-          <>
-            <span className="plh-hero-live"><i className={started ? 'plh-dot live' : 'plh-dot'} />
-              {started
-                ? (isGame ? L('המשחק עכשיו!', 'Game time!') : L('האימון עכשיו', 'Practice now'))
-                : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
-            </span>
-            <strong className="plh-hero-title">{titleStr}</strong>
-            <span className="plh-hero-meta">{whenStr}</span>
-            {!started ? (
-              <div className="plh-cd">
-                <span className="plh-cd-cell"><b>{dd}</b><i>{L('ימים', 'days')}</i></span>
-                <span className="plh-cd-cell"><b>{hh}</b><i>{L('שעות', 'hrs')}</i></span>
-                <span className="plh-cd-cell hot"><b>{mm}</b><i>{L('דקות', 'min')}</i></span>
-              </div>
-            ) : <div className="plh-cd-live">{isGame ? L('בהצלחה במשחק!', 'Good luck!') : L('בהצלחה באימון!', 'Have a great practice!')}</div>}
-          </>
-        ) : membership ? (
-          <>
-            <span className="plh-hero-live"><i className="plh-dot off" />{L('האימון הבא', 'Next practice')}</span>
-            <strong className="plh-hero-title">{L('אין אימון קרוב בלו״ז', 'No upcoming practice')}</strong>
-            <span className="plh-hero-meta">{L('המאמן יוסיף אימונים ללו״ז', 'Your coach will add practices')}</span>
-          </>
-        ) : (
-          <>
-            <strong className="plh-hero-title">{L('הצטרפו לקבוצה', 'Join a team')}</strong>
-            <span className="plh-hero-meta">{L('כדי לראות את האימון הבא ולמלא סיכומים', 'to see your next practice and log summaries')}</span>
-          </>
         )}
         {summary?.state === 'done' && (
           <span className="plh-done"><Check size={14} /> {L('הסיכום של היום אצל המאמן', "Today's summary is with your coach")}</span>
         )}
-        {membership && summary?.state !== 'ask' && (
-          <button className="plh-hero-cta" onClick={onFeedback}><Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}</button>
+        {!membership && (
+          <strong className="plh-hero-title">{L('הצטרפו לקבוצה', 'Join a team')}</strong>
         )}
-        {/* אישור הגעה — «מגיע?» ישר בבאנר, לפי מסך 3b */}
+        {/* אישור הגעה — הפעולה היחידה בבאנר, לפי מסך 3b */}
         {next && session && <HomeRsvp session={session} membership={membership} next={next} />}
       </div>
       {/* ארבעת המספרים חיים בתוך הבאנר (מסך 3b), ולא כשלישייה צבעונית בהמשך */}
@@ -1276,8 +1275,17 @@ function HomeGoalCard({ g, logs, tone }) {
 }
 
 // ---------- בית: המטרות שלי בגדול — מטרות לאימון + מטרות כלליות לשיפור ----------
+// טאבי התקופה של «המשימות שלי» (מוקאפ 3b)
+const PERIOD_TABS = [
+  { id: 'session', he: 'לאימון', en: 'Practice' },
+  { id: 'week', he: 'השבוע', en: 'Week' },
+  { id: 'month', he: 'החודש', en: 'Month' },
+  { id: 'season', he: 'העונה', en: 'Season' },
+]
+
 function HomeGoals({ session, membership, setView }) {
   const [goals, setGoals] = useState(null)
+  const [period, setPeriod] = useState('week')
   const [logsBy, setLogsBy] = useState({})
   useEffect(() => {
     if (!membership) return
@@ -1298,17 +1306,14 @@ function HomeGoals({ session, membership, setView }) {
   }, [membership, session.user.id])
 
   if (!membership || goals === null) return null
-  const goalFrac = (g) => g.target_value ? Math.min(1, (g.progress_value || 0) / g.target_value) : (g.status === 'done' ? 1 : 0)
-  const overall = goals.length ? Math.round((goals.reduce((s, g) => s + goalFrac(g), 0) / goals.length) * 100) : 0
   const activeFirst = (list) => [...list].sort((a, b) => (a.status === 'done') - (b.status === 'done'))
-  const sessionGoals = activeFirst(goals.filter((g) => g.period === 'session'))
-  const improveGoals = activeFirst(goals.filter((g) => g.period !== 'session'))
+  const shown = activeFirst(goals.filter((g) => (period === 'session' ? g.period === 'session' : g.period === period)))
 
   return (
     <section className="pl-block plhg">
       <div className="plhg-head">
-        <p className="pl-section-label"><Target size={15} /> {L('המטרות שלי', 'My goals')}</p>
-        <button className="plhg-all" onClick={() => setView('goals')}>{L('לכל המטרות', 'All goals')} <ArrowFwd size={14} /></button>
+        <p className="pl-section-label"><Target size={15} /> {L('המשימות שלי', 'My tasks')}</p>
+        <button className="plhg-all" onClick={() => setView('goals')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
       </div>
 
       {goals.length === 0 ? (
@@ -1320,25 +1325,21 @@ function HomeGoals({ session, membership, setView }) {
         </div>
       ) : (
         <>
-          <div className="plhg-overall">
-            <div className="plhg-overall-top"><span>{L('ההתקדמות הכוללת שלך', 'Your overall progress')}</span><b>{overall}%</b></div>
-            <div className="plhg-overall-bar"><span style={{ width: `${overall}%` }} /></div>
+          {/* טאבים לפי תקופה, כמו במוקאפ 3b — במקום שתי כותרות קטגוריה
+              ופס «ההתקדמות הכוללת» שלא מופיע שם. */}
+          <div className="tabs plhg-tabs">
+            {PERIOD_TABS.map((t) => (
+              <button key={t.id} className={period === t.id ? 'tab active' : 'tab'} onClick={() => setPeriod(t.id)}>
+                {L(t.he, t.en)}
+              </button>
+            ))}
           </div>
-          {sessionGoals.length > 0 && (
-            <>
-              <p className="plhg-cat orange"><Zap size={14} /> {L('מטרות לאימון', 'Practice goals')}</p>
-              <div className="plhg-cards">
-                {sessionGoals.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone="orange" />)}
-              </div>
-            </>
-          )}
-          {improveGoals.length > 0 && (
-            <>
-              <p className="plhg-cat purple"><Sparkles size={14} /> {L('מטרות כלליות לשיפור', 'Improvement goals')}</p>
-              <div className="plhg-cards">
-                {improveGoals.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone="purple" />)}
-              </div>
-            </>
+          {shown.length === 0 ? (
+            <p className="muted small plhg-none">{L('אין משימות בתקופה הזו.', 'No tasks for this period.')}</p>
+          ) : (
+            <div className="plhg-cards">
+              {shown.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone={g.period === 'session' ? 'orange' : 'purple'} />)}
+            </div>
           )}
         </>
       )}
@@ -1786,7 +1787,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
           {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}
-          {!editing && !['teamchat', 'coach', 'community'].includes(view) && <PlayerQuote />}
+          {/* הציטוט אינו במוקאפ של הבית (3b) — הוא נשאר בשאר המסכים */}
+          {!editing && !['home', 'teamchat', 'coach', 'community'].includes(view) && <PlayerQuote />}
         </div>
       </main>
 

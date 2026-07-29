@@ -20800,3 +20800,25 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .work-tabs { max-width: 420px; margin-bottom: 14px; }
 /* במצב מוטמע לספרייה אין כותרת משלה — רק פעולת ההוספה */
 .dl-embed-acts { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+
+/* ---- בית השחקן, סבב 2: הבאנר לפי המוקאפ ---- */
+/* הכותרת: «ערב טוב,» בלבן והשם בכתום, שורה אחת גדולה */
+.plh-hero-title-big {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(26px, 8vw, 35px);
+  font-weight: 900;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--on-dark);
+}
+.plh-hero-title-big .plh-hero-name { color: var(--orange-300); }
+/* ספירה מקוצרת — רק כשהאימון היום */
+.plh-cd.small { gap: 8px; }
+.plh-cd.small .plh-cd-cell { min-width: 66px; padding: 8px 10px; }
+.plh-cd.small .plh-cd-cell b { font-size: 24px; }
+/* טאבי «המשימות שלי» */
+.plhg-tabs { max-width: 100%; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+.plhg-tabs::-webkit-scrollbar { display: none; }
+.plhg-tabs .tab { white-space: nowrap; padding-inline: 14px; }
+.plhg-none { margin: 6px 2px 0; }
