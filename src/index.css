@@ -19888,3 +19888,5 @@ html.a11y-motion .nav-marker { transition: none; }
 /* מסך המשחקים והטבלה (יוצא מהקבוצה, פריט 6 יעצב אותו) */
 .tg-screen-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .tg-table-block { margin-top: 22px; }
+/* H1 של מסך המשחקים — באותו גודל של כותרת סקשן, לא כותרת ענק */
+.tg-screen-title { margin: 0; font-size: 18px; }

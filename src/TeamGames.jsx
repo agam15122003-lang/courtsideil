@@ -170,9 +170,10 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
         <button type="button" className="icon-btn" onClick={onBack} aria-label={L('חזרה לקבוצה', 'Back to the team')}>
           <ChevronBack size={20} />
         </button>
-        <h2 className="ta-title" style={{ margin: 0 }}>
+        {/* H1 אחד לכל מסך — זה מסך, לא סקשן בתוך הקבוצה */}
+        <h1 className="ta-title tg-screen-title">
           <Trophy size={17} /> {L('משחקים וטבלה', 'Games & table')} · {trTeam(team)}
-        </h2>
+        </h1>
       </div>
 
       <div className="games-cta">
