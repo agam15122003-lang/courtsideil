@@ -20312,3 +20312,67 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 }
 .sp-sent-next { max-width: 380px; }
 .sp-sent-acts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+
+/* ---- פריט 5: עריכת פרופיל · התראות ---- */
+/* «מה מאמנים אחרים רואים» — סיכום הפרטיות במילים, לא רק מתגים */
+.pf-public-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pf-public-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.pf-public-list li svg { flex: none; color: var(--ok); }
+.pf-public-list li.off { color: var(--text-muted); }
+.pf-public-list li.off svg { color: var(--text-muted); }
+/* שורת הפעולות נשארת בהישג יד בטופס ארוך — ומעל התפריט התחתון,
+   לא מתחתיו (--bn-h הוא גובה הסרגל, index.css:19062) */
+.pf-actions { position: sticky; bottom: 0; z-index: 2; padding-block: 12px; background: var(--surface); }
+@media (max-width: 768px) {
+  .pf-actions { bottom: calc(var(--bn-h) + env(safe-area-inset-bottom)); }
+}
+
+/* מרכז ההתראות — מקובץ לפי יום, עם הסבר מה מגיע לכאן */
+.ntf-group + .ntf-group { border-top: 1px solid var(--border); }
+.ntf-group-lbl {
+  display: block;
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.ntf-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 18px;
+  text-align: center;
+}
+.ntf-empty-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+.ntf-about {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.ntf-about summary { cursor: pointer; font-weight: 600; color: var(--brand-text); }
+.ntf-about p { margin: 8px 0 0; line-height: 1.55; }

@@ -11,6 +11,27 @@ const TYPE_ICON = {
   poll: BarChart3,
 }
 
+// קיבוץ לפי יום — «היום» / «אתמול» / התאריך עצמו
+function groupByDay(rows) {
+  const dayKey = (ts) => new Date(ts).toDateString()
+  const today = new Date().toDateString()
+  const yest = new Date(Date.now() - 86400000).toDateString()
+  const out = []
+  for (const r of rows) {
+    const key = dayKey(r.created_at)
+    let g = out.find((x) => x.key === key)
+    if (!g) {
+      const label = key === today ? L('היום', 'Today')
+        : key === yest ? L('אתמול', 'Yesterday')
+        : new Date(r.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })
+      g = { key, label, rows: [] }
+      out.push(g)
+    }
+    g.rows.push(r)
+  }
+  return out
+}
+
 function timeAgo(ts) {
   const min = Math.round((Date.now() - new Date(ts).getTime()) / 60000)
   if (min < 1) return L('עכשיו', 'now')
@@ -129,31 +150,51 @@ export default function Notifications({ session, onNavigate }) {
           <div className="ntf-head">
             <span>{L('התראות', 'Notifications')}</span>
             {items.length > 0 && (
-              <span className="ntf-head-hint"><Check size={13} /> {L('סומן כנקרא', 'Marked read')}</span>
+              <span className="ntf-head-hint"><Check size={13} /> {L('הכול סומן כנקרא', 'All marked as read')}</span>
             )}
           </div>
           {items.length === 0 ? (
-            <p className="ntf-empty">{L('אין התראות עדיין — כשמאמן יגיב או יעשה לייק, זה יופיע כאן.', 'No notifications yet — likes and comments will show up here.')}</p>
+            <div className="ntf-empty-state">
+              <span className="ntf-empty-ic"><Bell size={22} /></span>
+              <strong>{L('שקט לגמרי', 'All quiet')}</strong>
+              <p className="ntf-empty">{L('כשמישהו יגיב, יסמן לייק או ישלח לך הודעה — זה יופיע כאן.', 'When someone replies, likes or messages you — it lands here.')}</p>
+            </div>
           ) : (
-            <ul className="ntf-list">
-              {items.map((n) => {
-                const Icon = TYPE_ICON[n.type] || Bell
-                return (
-                  <li key={n.id}>
-                    <button type="button" className={n.read_at ? 'ntf-item' : 'ntf-item is-new'} onClick={() => go(n)}>
-                      <span className={`ntf-ic t-${n.type}`}><Icon size={15} /></span>
-                      <span className="ntf-body">
-                        <span className="ntf-text">
-                          <strong>{actorName(n)}</strong> {n.content}
-                        </span>
-                        <span className="ntf-time">{timeAgo(n.created_at)}</span>
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+            /* מקובץ לפי יום: 30 שורות רצופות בלי חלוקה הן קיר, לא רשימה */
+            groupByDay(items).map((group) => (
+              <div key={group.key} className="ntf-group">
+                <span className="ntf-group-lbl">{group.label}</span>
+                <ul className="ntf-list">
+                  {group.rows.map((n) => {
+                    const Icon = TYPE_ICON[n.type] || Bell
+                    return (
+                      <li key={n.id}>
+                        <button type="button" className={n.read_at ? 'ntf-item' : 'ntf-item is-new'} onClick={() => go(n)}>
+                          <span className={`ntf-ic t-${n.type}`}><Icon size={15} /></span>
+                          <span className="ntf-body">
+                            <span className="ntf-text">
+                              <strong>{actorName(n)}</strong> {n.content}
+                            </span>
+                            <span className="ntf-time">{timeAgo(n.created_at)}</span>
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))
           )}
+
+          {/* «מה נשאר בפנים» — האפליקציה לא שולחת התראות דחיפה, וכדאי
+              שזה ייאמר במפורש במקום שהמשתמש יחכה להן. */}
+          <details className="ntf-about">
+            <summary>{L('מה מגיע לכאן?', 'What shows up here?')}</summary>
+            <p>
+              {L('הודעות ממאמנים ומשחקנים, תגובות ולייקים בקהילה, אירועים שנפתחו, ומשימות שנשלחו אליך. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
+                 'Messages from coaches and players, community comments and likes, new events, and tasks sent to you. Everything stays inside the app — there are no phone push notifications, and none of this is emailed.')}
+            </p>
+          </details>
         </div>
       )}
     </div>

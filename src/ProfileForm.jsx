@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell } from 'lucide-react'
+import { User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell, Eye, EyeOff, Check } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
@@ -376,7 +376,29 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
           </section>
         )}
 
-        <div className="form-actions">
+        {/* מה מוצג למאמנים אחרים — הפרטיות היא החלטה, ולכן היא מסוכמת
+            כאן במילים ולא נשארת מפוזרת בין מתגים. */}
+        {!isPlayer && (
+          <section className="form-section pf-public">
+            <h3 className="form-section-title">
+              <Eye size={16} /> {L('מה מאמנים אחרים רואים', 'What other coaches see')}
+            </h3>
+            <ul className="pf-public-list">
+              <li><Check size={14} /> {L('השם, המועדון והקבוצות שאתה מאמן', 'Your name, club and the teams you coach')}</li>
+              <li><Check size={14} /> {L('התרגילים והתוכניות ששיתפת לקהילה', 'The drills and plans you shared with the community')}</li>
+              <li className={phonePublic ? '' : 'off'}>
+                {phonePublic ? <Check size={14} /> : <EyeOff size={14} />}
+                {phonePublic ? L('מספר הטלפון שלך', 'Your phone number') : L('הטלפון שלך מוסתר', 'Your phone stays hidden')}
+              </li>
+              <li className="off"><EyeOff size={14} /> {L('כתובת המייל — לעולם לא מוצגת', 'Your email — never shown')}</li>
+            </ul>
+          </section>
+        )}
+
+        {/* השגיאה ישבה עד היום מתחת לכפתור, מחוץ למסך בטופס ארוך */}
+        {error && <div className="alert alert-error" role="alert">{error}</div>}
+
+        <div className="form-actions pf-actions">
           <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
             {saving && <span className="btn-spinner" aria-hidden="true" />}
             {saving ? L('שומר...', 'Saving...') : L('שמירת הפרופיל', 'Save profile')}
@@ -393,8 +415,6 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
           )}
         </div>
       </form>
-
-      {error && <div className="alert alert-error">{error}</div>}
     </div>
   )
 }
