@@ -1,25 +1,30 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Dumbbell, Star, Clock, Globe2, Lock, ChevronLeft } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, tr } from './i18n'
+import { SkeletonCards } from './Skeleton'
+import { ErrorState } from './states'
 
 // "התרגילים שלי" — כל התרגילים שהמאמן יצר, במרוכז (עמוד הפרופיל, לפי ה-handoff).
 // props: session, onNavigate(viewId)
 export default function MyDrills({ session, onNavigate }) {
   const [drills, setDrills] = useState(null) // null = בטעינה
+  // עד היום שגיאה הומרה כאן לרשימה ריקה, כך שכשל רשת הציג «עוד לא יצרת
+  // תרגילים» למאמן שיש לו תרגילים. מצב שגיאה נפרד, עם דרך התאוששות.
+  const [failed, setFailed] = useState(false)
 
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data, error } = await supabase
-        .from('drills')
-        .select('id, title, category, duration_minutes, is_public, drill_ratings(rating)')
-        .eq('created_by', session.user.id)
-        .order('created_at', { ascending: false })
-      if (alive) setDrills(error ? [] : data || [])
-    })()
-    return () => { alive = false }
+  const load = useCallback(async () => {
+    setFailed(false)
+    const { data, error } = await supabase
+      .from('drills')
+      .select('id, title, category, duration_minutes, is_public, drill_ratings(rating)')
+      .eq('created_by', session.user.id)
+      .order('created_at', { ascending: false })
+    if (error) { setFailed(true); setDrills([]); return }
+    setDrills(data || [])
   }, [session.user.id])
+
+  useEffect(() => { load() }, [load])
 
   const avgOf = (d) => {
     const r = d.drill_ratings || []
@@ -38,7 +43,9 @@ export default function MyDrills({ session, onNavigate }) {
       </div>
 
       {drills === null ? (
-        <p className="muted small">{L('טוען...', 'Loading...')}</p>
+        <SkeletonCards count={3} lines={1} />
+      ) : failed ? (
+        <ErrorState compact message={L('לא הצלחנו לטעון את התרגילים שלך.', "We couldn't load your drills.")} onRetry={load} />
       ) : drills.length === 0 ? (
         <div className="md-empty">
           <p className="muted small" style={{ margin: 0 }}>

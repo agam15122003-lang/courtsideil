@@ -23,6 +23,7 @@ import { ChevronBack } from './DirIcon'
 import SessionDetail from './SessionDetail'
 import LeagueTable from './LeagueTable'
 import { allLeagues, leaguesForAge, teamsInLeague, leagueGames, clubCore } from './iba'
+import { SkeletonCards } from './Skeleton'
 
 const ilFull = (str) => {
   if (!str) return ''
@@ -250,7 +251,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
       )}
 
       {loading ? (
-        <div className="app-loading" style={{ padding: 30 }}><div className="loader" /></div>
+        <SkeletonCards count={3} lines={1} />
       ) : loadFailed ? (
         <p className="alert alert-error" style={{ marginTop: 12 }}>
           {L('לא הצלחנו לטעון את המשחקים. זו תקלת טעינה — שום משחק לא נמחק. ', 'We could not load the games. This is a loading error — nothing was deleted. ')}

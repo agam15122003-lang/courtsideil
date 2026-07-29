@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, ClipboardCheck, NotebookPen, UserCheck } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { SkeletonCards, SkeletonRoster } from './Skeleton'
 import { expandSlotsRange } from './sessionId'
 import { ChevronFwd } from './DirIcon'
 import { L, trTeam } from './i18n'
@@ -237,7 +238,17 @@ export function WeekSchedule({ session, onNavigate }) {
     return () => { alive = false }
   }, [me])
 
-  if (!rows || !rows.length) return null
+  // rows === null זה «עוד טוען», ולא «אין אימונים השבוע» — עד היום שניהם
+  // נראו זהה, והסקשן פשוט קפץ פנימה כשהנתונים הגיעו.
+  if (rows === null) {
+    return (
+      <>
+        <SecHead eyebrow={L('לו״ז', 'Schedule')} title={L('השבוע', 'This week')} />
+        <SkeletonCards count={3} lines={1} />
+      </>
+    )
+  }
+  if (!rows.length) return null
 
   return (
     <>
@@ -325,7 +336,15 @@ export function NeedsAttention({ session, onNavigate }) {
     return () => { alive = false }
   }, [me])
 
-  if (!players || !players.length) return null
+  if (players === null) {
+    return (
+      <>
+        <SecHead eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
+        <SkeletonRoster count={3} />
+      </>
+    )
+  }
+  if (!players.length) return null
 
   return (
     <>

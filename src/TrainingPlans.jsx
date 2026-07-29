@@ -922,7 +922,7 @@ function PlanBuilder({ planId, plan, onBack }) {
       {/* רצף התרגילים בתוכנית */}
       <div className="finder-results">
         {loading ? (
-          <p className="muted">{L('טוען...', 'Loading...')}</p>
+          <SkeletonCards count={4} lines={2} />
         ) : error ? (
           <ErrorState message={error} onRetry={loadItems} />
         ) : items.length === 0 ? (

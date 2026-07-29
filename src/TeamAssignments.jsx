@@ -3,11 +3,14 @@ import { Dumbbell, ChevronDown, Check, Clock, Inbox } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L, trTeam } from './i18n'
 import Avatar from './Avatar'
+import { SkeletonCards } from './Skeleton'
+import { ErrorState } from './states'
 
 // סקירת מטלות/שיגורים לקבוצה — מה נשלח ומי ביצע. (מאמן, בטאב "מטלות")
 export default function TeamAssignments({ coachId, team }) {
   const [roster, setRoster] = useState([])
   const [items, setItems] = useState(null)
+  const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState(null)
 
   const load = useCallback(async () => {
@@ -19,12 +22,16 @@ export default function TeamAssignments({ coachId, team }) {
     setRoster(players)
     const authIds = new Set(players.map((p) => p.player_id))
 
-    const { data: asg } = await supabase
+    const { data: asg, error: asgErr } = await supabase
       .from('player_assignments')
       .select('*, drill:drills(title), plan:training_plans(name)')
       .eq('coach_id', coachId)
       .order('created_at', { ascending: false })
       .limit(80)
+    // כשל שליפה אינו «אין מטלות»: בלי ההפרדה הזו תקלת רשת הציגה בדיוק
+    // את מצב הריק «עדיין לא שלחת מטלות לקבוצה הזו».
+    if (asgErr) { setFailed(true); setItems([]); return }
+    setFailed(false)
     const mine = (asg || []).filter((a) => a.team === team || authIds.has(a.player_id))
     if (mine.length === 0) { setItems([]); return }
 
@@ -55,7 +62,8 @@ export default function TeamAssignments({ coachId, team }) {
 
   useEffect(() => { load() }, [load])
 
-  if (items === null) return <div className="app-loading" style={{ padding: 30 }}><div className="loader" /></div>
+  if (items === null) return <SkeletonCards count={3} lines={2} />
+  if (failed) return <ErrorState compact message={L('לא הצלחנו לטעון את המטלות של הקבוצה.', "We couldn't load this team's tasks.")} onRetry={load} />
 
   return (
     <div className="team-section">

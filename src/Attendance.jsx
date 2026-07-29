@@ -6,6 +6,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L , cnt } from './i18n'
+import { SkeletonRoster } from './Skeleton'
 
 // ---- עזרי תאריך (תצוגה ישראלית) ----
 const pad = (n) => String(n).padStart(2, '0')
@@ -125,7 +126,7 @@ export default function Attendance({ session, team, players }) {
   }
 
   if (loading) {
-    return <p className="muted" style={{ marginTop: 16 }}>{L('טוען...', 'Loading...')}</p>
+    return <div className="team-section"><SkeletonRoster count={6} /></div>
   }
 
   if (sqlMissing) {

@@ -6,6 +6,8 @@ import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
 import { WEEKDAYS, expandSlots } from './sessionId'
 import ScheduleGrid from './ScheduleGrid'
+import { SkeletonRoster } from './Skeleton'
+import { ErrorState } from './states'
 
 // לו"ז קבוע לקבוצה (מאמן) — ימי אימון + שעות. מופיע אוטומטית לשחקנים.
 // כשאימון עבר, כאן נפתחת ה"סקירה" (רשימת שחקנים: עומס, הערת שחקן, הערת מאמן, מטרות).
@@ -17,13 +19,16 @@ export default function TeamSlots({ coachId, team, onReview }) {
   const [end, setEnd] = useState('19:30')
   const [loc, setLoc] = useState('')
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false) // כשל טעינה ≠ «אין ימי אימון»
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('team_practice_slots')
       .select('*')
       .eq('coach_id', coachId).eq('team', team)
       .order('weekday').order('start_time')
+    if (error) { setFailed(true); setSlots([]); return }
+    setFailed(false)
     setSlots(data || [])
   }, [coachId, team])
   useEffect(() => { load() }, [load])
@@ -51,7 +56,8 @@ export default function TeamSlots({ coachId, team, onReview }) {
     load()
   }
 
-  if (slots === null) return <div className="app-loading" style={{ padding: 30 }}><div className="loader" /></div>
+  if (slots === null) return <div className="team-section"><SkeletonRoster count={3} /></div>
+  if (failed) return <div className="team-section"><ErrorState message={L('לא הצלחנו לטעון את ימי האימון.', "We couldn't load the practice days.")} onRetry={load} /></div>
 
   const recent = expandSlots(slots, -21, -1).reverse().slice(0, 8) // אימונים אחרונים (הכי חדש קודם)
   const upcoming = expandSlots(slots, 0, 20).slice(0, 6)

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+import { SkeletonConvos } from './Skeleton'
 
 const TYPE_ICON = {
   like: Heart,
@@ -49,6 +50,8 @@ export default function Notifications({ session, onNavigate }) {
   const [items, setItems] = useState([])
   const [open, setOpen] = useState(false)
   const [available, setAvailable] = useState(true) // false = הטבלה עוד לא נוצרה
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false) // תקלת רשת — להבדיל מטבלה חסרה
   const panelRef = useRef(null)
   const btnRef = useRef(null)
 
@@ -60,12 +63,18 @@ export default function Notifications({ session, onNavigate }) {
       .order('created_at', { ascending: false })
       .limit(30)
     if (error) {
-      // טבלה חסרה — מציגים פעמון שקט בלי לשגות
-      setAvailable(false)
+      // טבלה חסרה (42P01 / PGRST205) — פעמון שקט, כי הפיצ'ר לא קיים.
+      // כל שגיאה אחרת היא תקלת רשת: הפעמון נשאר, עם דרך לנסות שוב.
+      const missingTable = error.code === '42P01' || error.code === 'PGRST205' || /does not exist/i.test(error.message || '')
+      if (missingTable) setAvailable(false)
+      else setFailed(true)
+      setLoading(false)
       return
     }
     setAvailable(true)
+    setFailed(false)
     setItems(data || [])
+    setLoading(false)
   }, [myId])
 
   // טעינה ראשונית + זמן-אמת (עם גיבוי polling כל דקה)
@@ -153,7 +162,15 @@ export default function Notifications({ session, onNavigate }) {
               <span className="ntf-head-hint"><Check size={13} /> {L('הכול סומן כנקרא', 'All marked as read')}</span>
             )}
           </div>
-          {items.length === 0 ? (
+          {loading ? (
+            <SkeletonConvos count={4} />
+          ) : failed ? (
+            <div className="ntf-empty-state">
+              <span className="ntf-empty-ic"><Bell size={22} /></span>
+              <strong>{L('לא הצלחנו לטעון התראות', "Couldn't load notifications")}</strong>
+              <button type="button" className="btn-soft" onClick={() => { setLoading(true); load() }}>{L('נסה שוב', 'Try again')}</button>
+            </div>
+          ) : items.length === 0 ? (
             <div className="ntf-empty-state">
               <span className="ntf-empty-ic"><Bell size={22} /></span>
               <strong>{L('שקט לגמרי', 'All quiet')}</strong>

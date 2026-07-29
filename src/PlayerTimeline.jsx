@@ -11,6 +11,7 @@ import Avatar from './Avatar'
 import { expandSlots } from './sessionId'
 import { waShare } from './share'
 import FeedbackSheet from './FeedbackSheet'
+import { SkeletonCards } from './Skeleton'
 
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
@@ -158,7 +159,7 @@ export default function PlayerTimeline({ session, membership }) {
   useEffect(() => { load() }, [load])
 
   if (!membership) return null
-  if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  if (items === null) return <SkeletonCards count={4} lines={2} />
 
   return (
     <div className="pl-screen pl-narrow">

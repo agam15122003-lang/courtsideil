@@ -104,7 +104,7 @@ export default function Admin({ session, profile }) {
       </div>
 
       {loading ? (
-        <p className="muted" style={{ marginTop: 16 }}>{L('טוען...', 'Loading...')}</p>
+        tab === 'overview' ? <SkeletonStats count={6} /> : <SkeletonRoster count={6} />
       ) : tab === 'overview' ? (
         <div className="team-section">
           <div className="admin-stats">

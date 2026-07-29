@@ -33,6 +33,7 @@ import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
+import { SkeletonCards, SkeletonMedia } from './Skeleton'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
@@ -519,7 +520,8 @@ function MyAssignments({ session }) {
     else toast.success(L(`נרשם! ${next}/${a.target_value}`, `Logged! ${next}/${a.target_value}`))
   }
 
-  if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  // שלד תואם-צורה במקום ספינר — הרשימה לא קופצת מריק למלא
+  if (items === null) return <SkeletonCards count={3} lines={2} />
   const openCount = items.filter((a) => !isDone(a)).length
   const doneCount = items.length - openCount
   // האחוז מחשיב גם התקדמות חלקית — 100 מתוך 200 שווה חצי תרגיל
@@ -731,7 +733,7 @@ function PlayerSchedule({ session, membership }) {
 
   useEffect(() => { load() }, [load])
 
-  if (items === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  if (items === null) return <SkeletonCards count={3} lines={1} />
 
   const next = items[0] || null
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -887,7 +889,7 @@ function PlayerVideos() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  if (videos === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  if (videos === null) return <SkeletonMedia count={6} />
 
   // מדף "המאמן ממליץ": אם יש סרטונים מסומנים בכוכב, ברירת המחדל היא המדף
   // הקטן — לא קיר של 106 סרטונים. "כל הסרטונים" פותח את הספרייה המלאה.
@@ -1658,16 +1660,19 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 // עלה לניווט, והקהילה (0 פוסטים) ירדה — המסך נשאר בקוד וניתן להחזרה.
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
-  { id: 'drills', label: ['התרגילים שלי', 'My drills'], Icon: Dumbbell },
+  { id: 'drills', label: ['המשימות שלי', 'My tasks'], Icon: Dumbbell },
   { id: 'goals', label: ['המטרות שלי', 'My goals'], Icon: Target, team: true },
-  { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], Icon: CalendarDays, team: true },
+  { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
   { id: 'teamchat', label: ['צ׳אט הקבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
-const PLAYER_BOTTOM = ['home', 'drills', 'coach', 'teamchat', 'profile']
+// חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·
+// האימונים שלי · הקבוצה · פרופיל. עד היום ישבו כאן שני יעדי צ׳אט
+// (coach + teamchat) שתפסו 40% מהסרגל, בעוד המטרות והלו״ז היו במגירה בלבד.
+const PLAYER_BOTTOM = ['home', 'drills', 'feedback', 'schedule', 'profile']
 
 export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const [view, setView] = useState('home')
@@ -1693,6 +1698,14 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
   if (memberships === null) {
     return <div className="center-screen"><div className="app-loading"><div className="loader" /></div></div>
   }
+
+  // יעד ההתראה נגזר במקום אחד — עד היום הפעמון בטופבר ובמגירה שלחו
+  // לשני מקומות שונים לאותה התראה עצמה.
+  const navFromNotification = (v) => setView(
+    ['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat', 'schedule'].includes(v)
+      ? v
+      : v === 'messages' ? 'coach' : 'drills'
+  )
 
   const nav = PLAYER_NAV
   const label = (item) => L(item.label[0], item.label[1])
@@ -1764,7 +1777,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
-          <Notifications session={session} onNavigate={(v) => setView(['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat'].includes(v) ? v : v === 'messages' ? 'coach' : 'drills')} />
+          <Notifications session={session} onNavigate={navFromNotification} />
           <LanguageToggle /><ThemeToggle />
         </div>
       </header>
@@ -1774,7 +1787,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         <div className="sidebar-brand">
           <Logo size={30} />
           <span>CourtSide</span>
-          <span className="sidebar-bell"><Notifications session={session} onNavigate={() => setView('coach')} /></span>
+          <span className="sidebar-bell"><Notifications session={session} onNavigate={navFromNotification} /></span>
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>
@@ -1827,7 +1840,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               onClick={() => { setEditing(false); setView(id) }}
             >
               <span className="bn-ic"><item.Icon size={20} /></span>
-              <span className="bn-lbl">{label(item)}</span>
+              <span className="bn-lbl">{item.short ? L(item.short[0], item.short[1]) : label(item)}</span>
             </button>
           )
         })}

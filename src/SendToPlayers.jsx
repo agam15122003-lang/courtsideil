@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { SkeletonCards } from './Skeleton'
 import {
   Send, Users, User, Dumbbell, ClipboardList, MonitorPlay, PencilLine,
   Search, Check, CalendarDays, Inbox, X, CheckCheck, Hash, Repeat2,
@@ -441,7 +442,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
       <section className="sp-card sp-feed">
         <h3 className="sp-h3"><Inbox size={16} /> {L('מה שלחתי לאחרונה', 'Recently sent')}</h3>
         {feed === null ? (
-          <div className="app-loading" style={{ padding: 20 }}><div className="loader" /></div>
+          <SkeletonCards count={2} lines={1} />
         ) : feed.length === 0 ? (
           <p className="muted small">{L('עוד לא שלחת תרגולים.', 'You haven’t sent any training yet.')}</p>
         ) : (

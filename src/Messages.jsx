@@ -1,5 +1,5 @@
 import { toast } from './toast'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronRight, MessageSquare, Search, Users2, RotateCw } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
@@ -148,9 +148,13 @@ export default function Messages({ session, profile, onNavigate }) {
   // במסך רחב הפריסה היא צ׳אט + רשימה זה לצד זה, אבל היא נראתה רק אחרי בחירת
   // שיחה — עד אז 60% מהמסך היו ריקים. בדסקטופ נפתחת השיחה העדכנית מעצמה.
   // לא מסמנים "נקרא" אוטומטית: הסימון נשאר לפעולה מכוונת של המשתמש.
+  const autoOpenedRef = useRef(false)
   useEffect(() => {
-    if (activeCoachId || conversations.length === 0) return
+    // פעם אחת בלבד: בלי השמירה הזו «חזרה לכל ההודעות» בדסקטופ פתח מיד
+    // מחדש את השיחה האחרונה, ורשימת השיחות לא הייתה נגישה שם בכלל.
+    if (autoOpenedRef.current || activeCoachId || conversations.length === 0) return
     if (!window.matchMedia('(min-width: 1024px)').matches) return
+    autoOpenedRef.current = true
     setActiveCoachId(conversations[0].coachId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCoachId, conversations.length])

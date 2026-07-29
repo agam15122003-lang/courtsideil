@@ -63,18 +63,19 @@ const NAV = [
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
 
-// התפריט התחתון במובייל — שבעת היעדים שבמוקאפ של מסמך המסירה (עמודים 3–4),
-// בסדר שלו: בית · קהילה · תוכניות · הקבוצה · הודעות · מדיה · פרופיל.
-// «תרגילים» יורד מהסרגל ונשאר במגירה ובניווט ההתראות.
-// הרוחב מונע ע"י --bn-count על .layout — סרגל השחקן נשאר על 5.
+// התפריט התחתון במובייל — **חמישה יעדים**, לפי מסקנת הביקורת בעמוד 22
+// במסמך המסירה («תפריט תחתון של 5 בשני העולמות במקום 11 יעדים»).
+// חמשת אלה הם הלולאה היומית של המאמן, לפי מספר הקישורים הנכנסים אליהם
+// מהמסכים עצמם: הקבוצה (7 קישורים) · תוכניות (5) · קהילה (3) · בית · הודעות
+// (היחיד עם badge חי). מדיה, תרגילים, לו״ז, מאתר המאמנים והפרופיל נשארים
+// במגירה — ולפרופיל יש גם כרטיס משתמש בתחתית המגירה.
+// הרוחב מונע ע"י --bn-count על .layout.
 const BOTTOM_NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
   { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teamsShort', Icon: Shield },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
-  { id: 'media', key: 'nav.media', Icon: MonitorPlay },
-  { id: 'profile', key: 'nav.profile', Icon: User },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
 

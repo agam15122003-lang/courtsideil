@@ -7,6 +7,7 @@ import { L, trTeam } from './i18n'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
 import { MOOD_BY_KEY } from './FeedbackSheet'
+import { SkeletonRoster } from './Skeleton'
 
 const ATT = [
   { id: 'present', label: ['נוכח', 'Present'], tone: 'green' },
@@ -211,7 +212,7 @@ export default function SessionDetail({ session, entry, onClose }) {
           <p className="sd-hint">{L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}</p>
 
           {roster === null ? (
-            <div className="app-loading" style={{ padding: 30 }}><div className="loader" /></div>
+            <SkeletonRoster count={6} />
           ) : roster.length === 0 ? (
             <p className="muted small">{L('אין שחקנים בסגל של הקבוצה הזו עדיין.', 'No players in this team roster yet.')}</p>
           ) : (

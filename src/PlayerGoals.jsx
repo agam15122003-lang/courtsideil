@@ -6,6 +6,7 @@ import { toast } from './toast'
 import { sendNotification } from './notify'
 import { L } from './i18n'
 import { burstConfetti } from './confetti'
+import { SkeletonCards } from './Skeleton'
 
 export const PERIODS = [
   { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון', 'Session'] },
@@ -289,7 +290,7 @@ export function MyGoals({ session, membership }) {
     return true
   }
 
-  if (goals === null) return <div className="app-loading" style={{ padding: 40 }}><div className="loader" /></div>
+  if (goals === null) return <SkeletonCards count={3} lines={2} />
 
   const total = goals.length
   const inProg = goals.filter((g) => goalFrac(g) < 1).length

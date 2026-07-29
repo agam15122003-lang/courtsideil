@@ -103,6 +103,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const [fbRating, setFbRating] = useState(0)
   const [fbHistory, setFbHistory] = useState([]) // 5 המשובים האחרונים לשחקן הפתוח
   useEffect(() => {
+    // טיוטה של שחקן אחד לא נשארת בתיבה של השחקן הבא
+    setFbText(''); setFbRating(0)
     if (!pEdit?.player_id) { setFbHistory([]); return }
     ;(async () => {
       const { data } = await supabase.from('player_feedback')
