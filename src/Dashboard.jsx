@@ -56,8 +56,9 @@ const NAV = [
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
   { id: 'finder', key: 'nav.finder', Icon: Users },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
-  { id: 'drills', key: 'nav.drills', Icon: Dumbbell },
-  { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
+  // «תרגילים» ו«תוכניות» היו שני יעדים לאותה עבודה. מסך 13a במסמך מראה
+  // אותם כמסך אחד עם שני טאבים: «בניית תוכנית» / «בניית תרגיל».
+  { id: 'work', key: 'nav.work', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teams', Icon: Shield },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
@@ -73,7 +74,7 @@ const NAV = [
 const BOTTOM_NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
-  { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
+  { id: 'work', key: 'nav.workShort', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teamsShort', Icon: Shield },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
@@ -94,10 +95,13 @@ const PAGE_META = {
     title: L('מדיה', 'Media'),
     subtitle: L('סרטוני אימון ופודקאסטים שהקהילה דירגה.', 'Training videos and podcasts, ranked by the community.'),
   }),
-  plans: () => ({
+  // מסך 13a — «בניית אימון»: תוכניות ותרגילים תחת באנר אחד
+  work: (tab) => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: ClipboardList,
-    title: L('תוכניות אימון', 'Training plans'),
-    subtitle: L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
+    title: L('בניית אימון', 'Build a practice'),
+    subtitle: tab === 'drills'
+      ? L('מאגר התרגילים של הקהילה — חיפוש, דירוג ושליחה לשחקנים.', "The community's drill collection — search, rate and send to players.")
+      : L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
   }),
   schedule: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
@@ -148,6 +152,7 @@ export default function Dashboard({ session }) {
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
+  const [workTab, setWorkTab] = useState('plans') // 'plans' | 'drills' במסך «אימונים ותרגילים»
   // מובייל: ההירו של הבית מקוצר והציטוט יורד ממנו — ולכן פס הציטוט העליון
   // חוזר גם בבית. מאזין ל-matchMedia ולא ל-resize (אפס עבודה בין מעברים).
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
@@ -169,7 +174,10 @@ export default function Dashboard({ session }) {
     // מהלו"ז אל ימי האימון הקבועים — עד היום זו הייתה הוראה בטקסט בלי קישור
     if (id === 'teams-practices') { setTeamsTab('practices'); setView('teams'); return }
     // «למחברת המלאה» / «תוכנית האימון» הבטיחו תוכנית מסוימת ונחתו על הרשימה
-    if (typeof id === 'string' && id.startsWith('plans:')) { setPlanToOpen(id.slice(6)); setView('plans'); return }
+    if (typeof id === 'string' && id.startsWith('plans:')) { setPlanToOpen(id.slice(6)); setWorkTab('plans'); setView('work'); return }
+    // «תרגילים» ו«תוכניות» הם עכשיו שני טאבים במסך אחד — הקישורים הישנים נשמרים
+    if (id === 'drills') { setWorkTab('drills'); setView('work'); return }
+    if (id === 'plans') { setWorkTab('plans'); setView('work'); return }
     setView(id)
   }
 
@@ -470,19 +478,25 @@ export default function Dashboard({ session }) {
                 onConsumeInitialTab={() => setFinderTab(null)}
               />
             </Page>
-          ) : view === 'drills' ? (
-            /* המדיה חזרה למסך נפרד — החלטת הבעלים 25.7: סרטונים ופודקאסטים הם
-               תוכן צפייה, לא חלק מספריית התרגילים.
-               ל-DrillLibrary יש כבר באנר נייבי משלה — לא עוטפים ב-Page כדי
-               לא לקבל שני hero על אותו מסך. */
-            <DrillLibrary session={session} profile={profile} />
+          ) : view === 'work' ? (
+            /* מסך אחד לשתי העבודות (מסך 13a): באנר אחד, שני טאבים.
+               המדיה נשארת מסך נפרד — החלטת הבעלים 25.7 ו-29.7. */
+            <Page {...PAGE_META.work(workTab)}>
+              <div className="tabs work-tabs">
+                <button className={workTab === 'plans' ? 'tab active' : 'tab'} onClick={() => setWorkTab('plans')}>
+                  <ClipboardList size={15} aria-hidden="true" /> {L('בניית תוכנית', 'Build a plan')}
+                </button>
+                <button className={workTab === 'drills' ? 'tab active' : 'tab'} onClick={() => setWorkTab('drills')}>
+                  <Dumbbell size={15} aria-hidden="true" /> {L('בניית תרגיל', 'Build a drill')}
+                </button>
+              </div>
+              {workTab === 'drills'
+                ? <DrillLibrary session={session} profile={profile} embedded />
+                : <TrainingPlans session={session} initialPlanId={planToOpen} onConsumeInitialPlan={() => setPlanToOpen(null)} />}
+            </Page>
           ) : view === 'media' ? (
             <Page {...PAGE_META.media()}>
               <Media session={session} profile={profile} />
-            </Page>
-          ) : view === 'plans' ? (
-            <Page {...PAGE_META.plans()}>
-              <TrainingPlans session={session} initialPlanId={planToOpen} onConsumeInitialPlan={() => setPlanToOpen(null)} />
             </Page>
           ) : view === 'schedule' ? (
             <Page {...PAGE_META.schedule()}>

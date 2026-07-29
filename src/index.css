@@ -20795,3 +20795,8 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   cursor: pointer;
   box-shadow: 0 10px 20px -10px rgba(179, 78, 28, 0.6);
 }
+
+/* ---- מסך 13a: «בניית אימון» — תוכניות ותרגילים תחת באנר אחד ---- */
+.work-tabs { max-width: 420px; margin-bottom: 14px; }
+/* במצב מוטמע לספרייה אין כותרת משלה — רק פעולת ההוספה */
+.dl-embed-acts { display: flex; justify-content: flex-end; margin-bottom: 10px; }

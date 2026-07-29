@@ -26,6 +26,9 @@ export const DICT = {
     'nav.finder': 'חיפוש מאמנים',
     'nav.drills': 'תרגילים',
     'nav.plans': 'תוכניות',
+    // יעד אחד לתוכניות ולתרגילים (מסך 13a: «בניית תוכנית» / «בניית תרגיל»)
+    'nav.work': 'אימונים ותרגילים',
+    'nav.workShort': 'אימונים',
     'nav.schedule': 'לו"ז',
     'nav.media': 'מדיה',
     'nav.video': 'עריכת וידאו',
@@ -92,6 +95,8 @@ export const DICT = {
     'nav.finder': 'Find Coaches',
     'nav.drills': 'Drills',
     'nav.plans': 'Plans',
+    'nav.work': 'Practices & drills',
+    'nav.workShort': 'Practices',
     'nav.schedule': 'Schedule',
     'nav.media': 'Media',
     'nav.video': 'Video editor',

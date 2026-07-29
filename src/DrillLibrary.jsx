@@ -18,7 +18,7 @@ import CourtArt from './CourtArt'
 // הוספה, דירוג בכוכבים, שמירה למועדפים, ומחיקת תרגיל שלי.
 // props:
 //   session - המשתמש המחובר
-export default function DrillLibrary({ session, profile }) {
+export default function DrillLibrary({ session, profile, embedded }) {
   // מלכודת פוקוס לבוררי "הוסף לתוכנית" / "שלח לשחקנים"
   const [drills, setDrills] = useState([])
   const [loading, setLoading] = useState(true)
@@ -256,6 +256,15 @@ export default function DrillLibrary({ session, profile }) {
 
   return (
     <div className="welcome-card">
+      {/* embedded = בתוך מסך «אימונים ותרגילים»: הכותרת מגיעה מהבאנר של
+          המסך המשותף, וכאן נשארת רק הפעולה. */}
+      {embedded ? (
+        <div className="dl-embed-acts">
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setAdding(true)}>
+            <Plus size={18} aria-hidden="true" /> {L('הוספת תרגיל', 'Add drill')}
+          </button>
+        </div>
+      ) : (
       <header className="page-header">
         <div className="page-header-text">
           <div className="welcome-badge">{L('ספריית תרגילים', 'Drill library')}</div>
@@ -268,6 +277,7 @@ export default function DrillLibrary({ session, profile }) {
           </button>
         </div>
       </header>
+      )}
 
       {/* כרטיס פוסטר — איור המגרש על גרדיאנט נייבי (DESIGN.md §2ב, דפוס 1),
           במקום צילום הסטוק שהיה כאן. הגובה, הרדיוס והצעיף לא השתנו.
