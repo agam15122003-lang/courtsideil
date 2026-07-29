@@ -79,30 +79,90 @@ export const DRILL_CATEGORIES = [
 // רמות קושי לתרגיל (לשימוש בספריית התרגילים).
 export const DIFFICULTY_LEVELS = ['קל', 'בינוני', 'מתקדם']
 
-// ציטוטים מעוררי השראה למאמנים (מתחלפים בדף הכניסה ובבית).
+// ציטוטים למאמנים — מתחלפים בדף הכניסה, בפס העליון ובבית.
+//
+// **רק ציטוטים שאדם אמיתי באמת אמר** (הנחיית הבעלים, 29.7.2026). הרשימה
+// הקודמת נבדקה ציטוט-ציטוט מול מקורות, ו-13 מתוך 22 נפסלו: חלקם היו
+// פתגמים בלי דובר («הגנה מנצחת אליפויות»), חלקם יוחסו לאדם הלא נכון
+// («אל תספור את הימים» הוא של המאמן קלייד סמית מ-1950, לא של מוחמד עלי;
+// «תרגול נכון הופך מושלם» מיוחס בדרך כלל ללומברדי ואף לו רק דרך אתרי
+// אוסף), והשאר לא נמצאו בשום מקור ראשוני — רק ב-BrainyQuote ודומיו.
+//
+// **הכלל להוספה:** לכל ציטוט חייב להיות `source` — ספר, ראיון, תמליל
+// נאום, אתר רשמי או עיתונות. אתר אוסף-ציטוטים לבדו אינו מקור.
+// ציטוטים שנאמרו במקור בעברית שמורים בעברית, וה-text_en הוא תרגום.
 export const COACHING_QUOTES = [
-  { text: 'תרגול לא הופך מושלם — תרגול נכון הופך מושלם.', author: 'ג׳ון ווּדן', text_en: "Practice doesn't make perfect. Perfect practice makes perfect.", author_en: 'John Wooden' },
-  { text: 'הצלחה היא שקט נפשי שמגיע מהידיעה שעשית כמיטב יכולתך.', author: 'ג׳ון ווּדן', text_en: 'Success is peace of mind that comes from knowing you did your best.', author_en: 'John Wooden' },
-  { text: 'אל תיתן למה שאתה לא יכול לעשות להפריע למה שאתה כן יכול.', author: 'ג׳ון ווּדן', text_en: "Don't let what you cannot do interfere with what you can do.", author_en: 'John Wooden' },
-  { text: 'דברים קטנים יוצרים דברים גדולים.', author: 'ג׳ון ווּדן', text_en: 'Little things make big things happen.', author_en: 'John Wooden' },
-  { text: 'פספסתי יותר מ-9,000 זריקות בקריירה. בגלל זה אני מצליח.', author: 'מייקל ג׳ורדן', text_en: "I've missed more than 9,000 shots in my career. That is why I succeed.", author_en: 'Michael Jordan' },
-  { text: 'אני יכול לקבל כישלון — אבל אני לא יכול לקבל לא לנסות.', author: 'מייקל ג׳ורדן', text_en: "I can accept failure, but I can't accept not trying.", author_en: 'Michael Jordan' },
-  { text: 'הכישרון מנצח משחקים, אבל עבודת צוות ושכל מנצחים אליפויות.', author: 'מייקל ג׳ורדן', text_en: 'Talent wins games, but teamwork and intelligence win championships.', author_en: 'Michael Jordan' },
-  { text: 'מנטליות המאמבה היא לנסות להיות הגרסה הטובה ביותר של עצמך — כל יום.', author: 'קובי בראיינט', text_en: 'The Mamba Mentality is trying to be the best version of yourself — every day.', author_en: 'Kobe Bryant' },
-  { text: 'הכישרון לבדו לא מספיק. צריך לעבוד קשה יותר מכולם.', author: 'קובי בראיינט', text_en: 'Talent alone is not enough. You have to work harder than everyone.', author_en: 'Kobe Bryant' },
-  { text: 'החוזק של הקבוצה הוא כל שחקן. החוזק של כל שחקן הוא הקבוצה.', author: 'פיל ג׳קסון', text_en: 'The strength of the team is each member. The strength of each member is the team.', author_en: 'Phil Jackson' },
-  { text: 'מצוינות היא התוצאה של שאיפה תמידית להשתפר, שוב ושוב.', author: 'פט ריילי', text_en: 'Excellence is the result of constantly striving to improve, again and again.', author_en: 'Pat Riley' },
-  { text: 'כדורסל הוא משחק של טעויות — מי שמתאושש מהר יותר, מנצח.', author: 'גרג פופוביץ׳', text_en: 'Basketball is a game of mistakes — whoever recovers faster, wins.', author_en: 'Gregg Popovich' },
-  { text: 'המאמן הטוב גורם לשחקניו לראות מה הם יכולים להיות, לא רק מה שהם.', author: 'ארה פרסיאן', text_en: 'A good coach makes his players see what they can become, not just what they are.', author_en: 'Ara Parseghian' },
-  { text: 'אלופים מתאמנים גם כשאף אחד לא מסתכל.', author: 'לארי בירד', text_en: 'Champions practice even when no one is watching.', author_en: 'Larry Bird' },
-  { text: 'לא משחקים נגד יריב — משחקים נגד המשחק עצמו.', author: 'באבי נייט', text_en: "You don't play against opponents — you play against the game itself.", author_en: 'Bobby Knight' },
-  { text: 'עבודה קשה מנצחת כישרון, כשהכישרון לא עובד קשה.', author: 'פתגם כדורסל', text_en: "Hard work beats talent when talent doesn't work hard.", author_en: 'Basketball proverb' },
-  { text: 'הגנה מנצחת אליפויות.', author: 'פתגם כדורסל', text_en: 'Defense wins championships.', author_en: 'Basketball proverb' },
-  { text: 'תהליך לפני תוצאה — שפר אחוז אחד בכל יום.', author: 'פתגם אימון', text_en: 'Process over outcome — improve one percent every day.', author_en: 'Coaching proverb' },
-  { text: 'אל תספור את הימים — תגרום לימים לספור.', author: 'מוחמד עלי', text_en: "Don't count the days — make the days count.", author_en: 'Muhammad Ali' },
-  { text: 'הקושי שאתה חווה היום מפתח את הכוח שתצטרך מחר.', author: 'פתגם ספורט', text_en: "The struggle you face today develops the strength you'll need tomorrow.", author_en: 'Sports proverb' },
-  { text: 'המשמעת היא הגשר בין מטרות להישגים.', author: 'ג׳ים רוהן', text_en: 'Discipline is the bridge between goals and accomplishment.', author_en: 'Jim Rohn' },
-  { text: 'נצח את הגרסה שלך מאתמול.', author: 'פתגם אימון', text_en: "Beat yesterday's version of yourself.", author_en: 'Coaching proverb' },
+  // ---- מאמנים ----
+  { text: 'הצלחה היא שלוות נפש שבאה מהידיעה שעשית כל מאמץ להיות הטוב שאתה מסוגל להיות.', author: 'ג׳ון ווּדן',
+    text_en: 'Success is peace of mind which is a direct result of self-satisfaction in knowing you made the effort to become the best you are capable of becoming.', author_en: 'John Wooden',
+    source: 'https://coachwooden.com/pyramid-of-success' },
+  { text: 'הפרטים הקטנים הם שקובעים. דברים קטנים יוצרים דברים גדולים.', author: 'ג׳ון ווּדן',
+    text_en: "It's the little details that are vital. Little things make big things happen.", author_en: 'John Wooden',
+    source: 'https://newsroom.ucla.edu/magazine/john-wooden-tie-shoes-teaching-basketball' },
+  { text: 'צעירים צריכים דוגמה אישית, לא ביקורת.', author: 'ג׳ון ווּדן',
+    text_en: 'Young people need models, not critics.', author_en: 'John Wooden',
+    source: 'https://en.wikiquote.org/wiki/John_Wooden' },
+  { text: 'מאמן טוב גורם לשחקנים לראות מה הם יכולים להיות, ולא רק מה שהם.', author: 'ארה פרסיאן',
+    text_en: 'A good coach will make players see what they can be rather than what they are.', author_en: 'Ara Parseghian',
+    source: 'https://www.nd.edu/stories/ara-parseghian' },
+  { text: 'שניים טובים מאחד — אם השניים פועלים כאחד.', author: 'מייק שישפסקי',
+    text_en: 'Two are better than one if two act as one.', author_en: 'Mike Krzyzewski',
+    source: 'https://coachk.com/quotes/' },
+  { text: 'עבודת צוות אמיתית מתחילה ונגמרת בתקשורת.', author: 'מייק שישפסקי',
+    text_en: 'Effective teamwork begins and ends with communication.', author_en: 'Mike Krzyzewski',
+    source: 'https://coachk.com/quotes/' },
+  { text: 'כולם רוצים לחיות בפסגת ההר — אבל כל האושר והצמיחה קורים בזמן הטיפוס.', author: 'פט סאמיט',
+    text_en: "Everyone wants to live on top of the mountain, but all the happiness and growth occurs while you're climbing it.", author_en: 'Pat Summitt',
+    source: 'https://www.espn.com/espnw/culture/story/_/id/26172217/book-excerpt-quotes-summitt-pat-summitt' },
+  { text: 'תתרגל לעשות את זה נכון — עד שזה הופך לטבע שני.', author: 'פט סאמיט',
+    text_en: "You have to discipline yourself to do something the right way until it's second nature.", author_en: 'Pat Summitt',
+    source: 'https://www.espn.com/espnw/culture/story/_/id/26172217/book-excerpt-quotes-summitt-pat-summitt' },
+  { text: 'תראה איך הם מתאמנים ואיך הם מתייחסים לחברים לקבוצה — זה אומר לך מי הם.', author: 'גרג פופוביץ׳',
+    text_en: 'Watch how they practice. Watch how they react to their teammates. That tells you who they are.', author_en: 'Gregg Popovich',
+    source: 'https://www.cbssports.com/nba/news/hall-of-fame-inductee-gregg-popovich-longest-tenured-active-coach-in-american-pro-sports-shares-his-wisdom/' },
+  { text: 'המשמעת היא הגשר בין מטרות להישגים.', author: 'ג׳ים רוהן',
+    text_en: 'Discipline is the bridge between goals and accomplishment.', author_en: 'Jim Rohn',
+    source: 'https://en.wikiquote.org/wiki/Jim_Rohn' },
+
+  // ---- שחקנים ----
+  { text: 'פספסתי יותר מ-9,000 זריקות. הפסדתי כמעט 300 משחקים. נכשלתי שוב ושוב — ובגלל זה אני מצליח.', author: 'מייקל ג׳ורדן',
+    text_en: "I've missed more than 9,000 shots in my career. I've lost almost 300 games. I've failed over and over and over again in my life. And that is why I succeed.", author_en: 'Michael Jordan',
+    source: 'https://www.encyclopedia.com/books/politics-and-business-magazines/nike-inc' },
+  { text: 'אני יכול לקבל כישלון — אבל אני לא יכול לקבל לא לנסות.', author: 'מייקל ג׳ורדן',
+    text_en: "I can accept failure, but I can't accept not trying.", author_en: 'Michael Jordan',
+    source: 'https://www.nba.com/news/michael-jordan-quotes' },
+  { text: 'הכישרון מנצח משחקים, אבל עבודת צוות ושכל מנצחים אליפויות.', author: 'מייקל ג׳ורדן',
+    text_en: 'Talent wins games, but teamwork and intelligence win championships.', author_en: 'Michael Jordan',
+    source: 'https://www.nba.com/news/michael-jordan-quotes' },
+  { text: 'מנטליות המאמבה היא חיפוש מתמיד להיות היום טוב יותר משהיית אתמול.', author: 'קובי בראיינט',
+    text_en: "The Mamba Mentality is a constant quest to be better today than you were yesterday.", author_en: 'Kobe Bryant',
+    source: 'https://www.si.com/nba/2017/12/19/kobe-bryant-los-angeles-lakers-jersey-retirement-staples-center' },
+  { text: 'לא הגענו לכאן בזכות כישרון — הגענו לכאן בזכות ארבע לפנות בוקר.', author: 'קובי בראיינט',
+    text_en: "We're not on this stage just because of talent. We're up here because of 4 a.m.", author_en: 'Kobe Bryant',
+    source: 'https://speakola.com/sports/kobe-bryant-hall-of-fame-2021' },
+  { text: 'כל אחד ואחד היה חשוב בדרך הזאת.', author: 'סטיבן קרי',
+    text_en: 'Everybody mattered in that process.', author_en: 'Stephen Curry',
+    source: 'https://asaptext.com/orgs/nbafinals/browse_file.php?browse_file_name=transcripts/121800.html' },
+  { text: 'אם אתם רוצים להיות אלופים — זה לא אמור להיות קל.', author: 'דיאנה טאורסי',
+    text_en: "If you want to be champions, it's not supposed to be easy.", author_en: 'Diana Taurasi',
+    source: 'http://www.asapsports.com/show_interview.php?id=45483' },
+
+  // ---- ישראל ----
+  { text: 'אנחנו על המפה — ואנחנו נשארים על המפה. לא רק בספורט, בכל דבר.', author: 'טל ברודי',
+    text_en: 'We are on the map, and we are going to stay on the map — not just in sports, but in everything.', author_en: 'Tal Brody',
+    source: 'https://www.timesofisrael.com/film-on-israeli-basketballs-miracle-on-hardwood-set-to-screen-in-the-us/' },
+  { text: 'אנחנו מאמנים את הילדים לנצח, במקום להשקיע באיך להפוך אותם לשחקנים טובים יותר.', author: 'עודד קטש',
+    text_en: "We coach kids to win, instead of investing in how to make them better players.", author_en: 'Oded Katash',
+    source: 'https://www.calcalist.co.il/conferences/article/bjqt8beq2' },
+  { text: 'אצלנו אף אחד לא צריך לשכנע לשחק חזק — את זה אי אפשר ללמד.', author: 'דני אבדיה',
+    text_en: "We don't need to convince guys to play hard. That's something you can't teach.", author_en: 'Deni Avdija',
+    source: 'https://sports.yahoo.com/articles/deni-avdija-explains-mindset-behind-205900083.html' },
+  { text: 'זו לא חובה — זו זכות.', author: 'עמרי כספי',
+    text_en: "It's not a duty, it's a privilege.", author_en: 'Omri Casspi',
+    source: 'https://www.timesofisrael.com/as-only-israeli-in-nba-omri-casspi-tries-to-be-best-ambassador-he-can/' },
+  { text: 'המשכתי להוריד את הראש ולהתאמן — והכול היה בשביל הרגע הזה.', author: 'תום רעובני',
+    text_en: "I put my head down and kept training — and it's all for this moment.", author_en: 'Tom Reuveny',
+    source: 'https://www.timesofisrael.com/liveblog_entry/noting-gaza-war-israels-tom-reuveny-says-winning-gold-medal-much-bigger-than-me/' },
 ]
 
 // ===== פודקסטים של כדורסל (קישור ישיר ל-show בספוטיפיי) =====
