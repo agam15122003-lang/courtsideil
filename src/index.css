@@ -20376,3 +20376,139 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 }
 .ntf-about summary { cursor: pointer; font-weight: 600; color: var(--brand-text); }
 .ntf-about p { margin: 8px 0 0; line-height: 1.55; }
+
+/* ================================================================= */
+/* פריט 6: משחקים · ליגה · טבלה — «החוויה הכי ויזואלית במוצר»        */
+/* לוח תוצאות ומספרים גדולים, ולא עוד רשימה של שורות.                */
+/* ================================================================= */
+.gm-next {
+  position: relative;
+  overflow: hidden;
+  margin: 14px 0 12px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--navy-1), var(--navy-2));
+  color: var(--on-dark);
+}
+.gm-next-eyebrow {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+}
+.gm-next-until {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--orange-300);
+}
+.gm-next-opp {
+  margin: 2px 0 6px;
+  font-family: var(--font-display);
+  font-size: clamp(26px, 7vw, 38px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--on-dark);
+}
+.gm-next-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+}
+.gm-next-acts { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* מאזן העונה — מספר אחד גדול, לא טבלה */
+.gm-record {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.gm-record-num {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.gm-record-lbl { font-size: 12.5px; color: var(--text-muted); }
+
+.gm-sec {
+  margin: 16px 0 8px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+}
+.gm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gm-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.gm-when { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-muted); }
+.gm-date { font-weight: 700; color: var(--text); }
+.gm-time { display: inline-flex; align-items: center; gap: 4px; }
+.gm-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gm-main strong { font-size: 15px; font-weight: 700; }
+.gm-loc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.gm-acts { display: flex; gap: 2px; grid-column: 1 / -1; justify-content: flex-end; }
+@media (min-width: 560px) {
+  .gm-row { grid-template-columns: auto 1fr auto auto; }
+  .gm-acts { grid-column: auto; }
+}
+
+/* התוצאה — המספר הוא הכותרת של השורה */
+.gm-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 74px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  cursor: pointer;
+}
+.gm-score b {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.gm-score span { font-size: 11px; font-weight: 700; }
+.gm-score.o-w { background: var(--ok-soft); border-color: transparent; color: var(--ok-ink); }
+.gm-score.o-l { background: var(--danger-soft); border-color: transparent; color: var(--danger-ink); }
+.gm-add-score {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--brand-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gm-score-inputs { display: flex; align-items: flex-end; gap: 10px; }
+.gm-score-inputs .pf-label { flex: 1; }
+.gm-score-inputs input { text-align: center; font-size: 22px; font-weight: 800; }
+.gm-score-dash { padding-bottom: 12px; font-size: 20px; color: var(--text-muted); }

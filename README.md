@@ -59,6 +59,8 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 18 | `supabase_privacy4.sql` | **חובה** — סגירת PII, הסכמת הורה, אישור סרטונים, לוג שגיאות |
 | 19 | `supabase_engagement2.sql` | "המאמן ממליץ", "ראיתי" על סיכום, תגובת אמוג'י למשוב |
 | 20 | `supabase_assignments_progress.sql` | התקדמות חלקית בתרגילים (יעד כמותי + דיווח הדרגתי) |
+| 21 | `supabase_practice_rsvp.sql` | אישורי הגעה לאימון הקרוב |
+| 22 | `supabase_game_scores.sql` | תוצאת משחק וסיכום (our_score / their_score / summary) |
 
 > **סביבת ייצור קיימת?** שלבים 1–15 כבר רצים אצלך (ודא ש-`supabase_goal_logs.sql` מ-15 אכן רץ); **16–20 חדשים מ-24–25.7.2026 וחייבים לרוץ** —
 > בלי 18 כל משתמש מחובר יכול לקרוא טלפון ומייל של כל שחקן. אחרי ההרצה:

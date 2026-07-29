@@ -57,6 +57,10 @@ PRs שמוזגו: #70 (בית+feedback), #71 (trainings+chart), #72 (goals self-
 
 7. `supabase_engagement2.sql` — עמודת `featured` + `set_video_featured()` למדף "המאמן ממליץ". **(להריץ!)**
 
+8. `supabase_practice_rsvp.sql` — אישורי הגעה לאימון הקרוב (רצועת «14 מתוך 16 אישרו»). **(להריץ!)**
+
+9. `supabase_game_scores.sql` — `our_score`/`their_score`/`summary` על `team_games`, למסך המשחקים והתוצאות. **(להריץ!)**
+
 > **אזהרה שנלמדה בדם:** אחרי `supabase_privacy4.sql` כל `select('*')` על `profiles` נכשל
 > ב-`permission denied`. הקוד חייב לרוץ דרך `my_profile()` / `coach_directory` / `admin_profiles()`.
 > ה-SQL הורץ לפני שהקוד נפרס, והאתר החי החזיר "לא הצלחנו לטעון את הפרופיל" — **תמיד לפרוס את הקוד

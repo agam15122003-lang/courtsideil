@@ -29,6 +29,28 @@ const ilFull = (str) => {
   const d = new Date(str + 'T00:00')
   return isNaN(d) ? str : d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' })
 }
+const pad2 = (n) => String(n).padStart(2, '0')
+const ymdOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+// «בעוד כמה ימים המשחק» — הדבר הראשון שמאמן רוצה לדעת כשהוא נכנס לכאן
+function untilLabel(dateStr) {
+  if (!dateStr) return ''
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr + 'T00:00')
+  const days = Math.round((d - today) / 86400000)
+  if (days === 0) return L('היום', 'Today')
+  if (days === 1) return L('מחר', 'Tomorrow')
+  if (days < 0) return L(`לפני ${-days} ימים`, `${-days} days ago`)
+  if (days <= 7) return L(`בעוד ${days} ימים`, `In ${days} days`)
+  return ilFull(dateStr)
+}
+// תוצאה → ניצחון / הפסד / תיקו
+const outcomeOf = (g) => {
+  if (g.our_score == null || g.their_score == null) return null
+  if (g.our_score > g.their_score) return 'w'
+  if (g.our_score < g.their_score) return 'l'
+  return 'd'
+}
 
 // props: session · profile · team (השכבה הנוכחית) · teams (כל השכבות, לבורר הייבוא)
 //        onBack — חזרה למסך הקבוצה
@@ -43,6 +65,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   const [gForm, setGForm] = useState({ date: '', time: '', opponent: '', location: '' })
   const [gEdit, setGEdit] = useState(null)
   const [reviewGame, setReviewGame] = useState(null)
+  const [scoreEdit, setScoreEdit] = useState(null) // {game, our, their, summary}
 
   const [imp, setImp] = useState(null) // null=סגור, אחרת אובייקט-מצב הייבוא
   const [leaguesAll, setLeaguesAll] = useState([])
@@ -100,6 +123,27 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   const delGame = async (id) => {
     if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return
     await supabase.from('team_games').delete().eq('id', id); load()
+  }
+
+  // ---------- תוצאה וסיכום ----------
+  const saveScore = async () => {
+    const s = scoreEdit
+    const our = s.our === '' ? null : Number(s.our)
+    const their = s.their === '' ? null : Number(s.their)
+    const { error } = await supabase.from('team_games')
+      .update({ our_score: our, their_score: their, summary: s.summary?.trim() || null })
+      .eq('id', s.game.id)
+    if (error) {
+      // העמודות נוספות ב-supabase_game_scores.sql — אם הוא טרם הורץ,
+      // אומרים את זה במפורש במקום «שמירה נכשלה» סתמי.
+      const missing = error.code === 'PGRST204' || /our_score|their_score|summary/i.test(error.message || '')
+      toast.error(missing
+        ? L('צריך להריץ את supabase_game_scores.sql כדי לשמור תוצאות', 'Run supabase_game_scores.sql to store scores')
+        : L('שמירה נכשלה: ', 'Save failed: ') + error.message)
+      return
+    }
+    toast.success(L('התוצאה נשמרה', 'Score saved'))
+    setScoreEdit(null); load()
   }
 
   // ---------- ייבוא מהאיגוד (קטגוריה → אזור/ליגה → קבוצה → משחקים) ----------
@@ -217,23 +261,89 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
           <p className="muted small">{L('ייבא את לוח המשחקים מהאיגוד — או הוסף משחק ידנית.', 'Import the fixture list from the association — or add a game manually.')}</p>
         </div>
       ) : (
-        <ul className="game-list">
-          {games.map((gm) => (
-            <li key={gm.id} className="game-row">
-              <div className="game-date">
-                <span className="game-d" dir="ltr">{ilFull(gm.game_date)}</span>
-                {gm.game_time && <span className="game-t"><Clock size={12} /> {gm.game_time}</span>}
-              </div>
-              <div className="game-body">
-                <strong>{gm.opponent || L('יריבה', 'Opponent')}</strong>
-                {gm.location && <span className="game-loc"><MapPin size={12} /> {gm.location}</span>}
-              </div>
-              <button className="icon-btn" onClick={() => setReviewGame(gm)} aria-label={L('נוכחות ומשוב', 'Attendance & review')} title={L('נוכחות ומשוב למשחק', 'Game attendance & review')}><ClipboardCheck size={15} /></button>
-              <button className="icon-btn" onClick={() => setGEdit({ ...gm })} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
-              <button className="icon-btn" onClick={() => delGame(gm.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
-            </li>
-          ))}
-        </ul>
+        (() => {
+          const today = ymdOf(new Date())
+          const upcoming = games.filter((g) => g.game_date >= today)
+          const past = games.filter((g) => g.game_date < today).reverse()
+          const next = upcoming[0]
+          const played = past.filter((g) => outcomeOf(g))
+          const wins = played.filter((g) => outcomeOf(g) === 'w').length
+          const losses = played.filter((g) => outcomeOf(g) === 'l').length
+
+          const gameRow = (gm) => {
+            const o = outcomeOf(gm)
+            return (
+              <li key={gm.id} className="gm-row">
+                <div className="gm-when">
+                  <span className="gm-date" dir="ltr">{ilFull(gm.game_date)}</span>
+                  {gm.game_time && <span className="gm-time"><Clock size={12} /> {String(gm.game_time).slice(0, 5)}</span>}
+                </div>
+                <div className="gm-main">
+                  <strong>{gm.opponent || L('יריבה', 'Opponent')}</strong>
+                  {gm.location && <span className="gm-loc"><MapPin size={12} /> {gm.location}</span>}
+                </div>
+                {o ? (
+                  <button type="button" className={`gm-score o-${o}`} onClick={() => setScoreEdit({ game: gm, our: String(gm.our_score), their: String(gm.their_score), summary: gm.summary || '' })}
+                    title={L('עריכת התוצאה', 'Edit score')}>
+                    <b dir="ltr">{gm.our_score}–{gm.their_score}</b>
+                    <span>{o === 'w' ? L('ניצחון', 'Win') : o === 'l' ? L('הפסד', 'Loss') : L('תיקו', 'Draw')}</span>
+                  </button>
+                ) : gm.game_date < today ? (
+                  <button type="button" className="gm-add-score" onClick={() => setScoreEdit({ game: gm, our: '', their: '', summary: '' })}>
+                    {L('הוספת תוצאה', 'Add score')}
+                  </button>
+                ) : null}
+                <div className="gm-acts">
+                  <button className="icon-btn" onClick={() => setReviewGame(gm)} aria-label={L('נוכחות ומשוב', 'Attendance & review')} title={L('נוכחות ומשוב למשחק', 'Game attendance & review')}><ClipboardCheck size={15} /></button>
+                  <button className="icon-btn" onClick={() => setGEdit({ ...gm })} aria-label={L('עריכה', 'Edit')}><Pencil size={15} /></button>
+                  <button className="icon-btn" onClick={() => delGame(gm.id)} aria-label={L('מחק', 'Delete')}><Trash2 size={15} /></button>
+                </div>
+              </li>
+            )
+          }
+
+          return (
+            <>
+              {/* לוח התוצאות של המשחק הבא — המספרים הגדולים של המסך */}
+              {next && (
+                <div className="gm-next">
+                  <span className="gm-next-eyebrow">{L('המשחק הבא', 'Next game')}</span>
+                  <span className="gm-next-until">{untilLabel(next.game_date)}</span>
+                  <h2 className="gm-next-opp">{next.opponent || L('יריבה', 'Opponent')}</h2>
+                  <p className="gm-next-meta">
+                    <span dir="ltr">{ilFull(next.game_date)}{next.game_time ? ` · ${String(next.game_time).slice(0, 5)}` : ''}</span>
+                    {next.location && <span>{next.location}</span>}
+                  </p>
+                  <div className="gm-next-acts">
+                    <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => setReviewGame(next)}>
+                      <ClipboardCheck size={16} /> {L('נוכחות ומשוב', 'Attendance & review')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {played.length > 0 && (
+                <div className="gm-record">
+                  <span className="gm-record-num" dir="ltr">{wins}–{losses}</span>
+                  <span className="gm-record-lbl">{L(`מאזן העונה · ${played.length} משחקים`, `Season record · ${played.length} games`)}</span>
+                </div>
+              )}
+
+              {upcoming.length > 0 && (
+                <>
+                  <h3 className="gm-sec">{L('קרובים', 'Upcoming')}</h3>
+                  <ul className="gm-list">{upcoming.map(gameRow)}</ul>
+                </>
+              )}
+              {past.length > 0 && (
+                <>
+                  <h3 className="gm-sec">{L('תוצאות', 'Results')}</h3>
+                  <ul className="gm-list">{past.map(gameRow)}</ul>
+                </>
+              )}
+            </>
+          )
+        })()
       )}
 
       {/* ---- טבלת הליגה ---- */}
@@ -337,6 +447,40 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={saveGame}><Save size={15} /> {L('שמירה', 'Save')}</button>
               <button className="btn-ghost danger" onClick={() => { delGame(gEdit.id); setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== מודאל: תוצאה וסיכום ===================== */}
+      {scoreEdit && (
+        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setScoreEdit(null)}>
+          <div className="tm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="tm-modal-head">
+              <strong>{L('תוצאה וסיכום', 'Score & summary')}</strong>
+              <button className="icon-btn" onClick={() => setScoreEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+            </div>
+            <p className="muted small" style={{ margin: '0 0 10px' }}>
+              {scoreEdit.game.opponent || L('יריבה', 'Opponent')} · {ilFull(scoreEdit.game.game_date)}
+            </p>
+            <div className="gm-score-inputs">
+              <label className="pf-label">{L('אנחנו', 'Us')}
+                <input className="finder-input" type="number" dir="ltr" min="0" inputMode="numeric"
+                  value={scoreEdit.our} onChange={(e) => setScoreEdit((s) => ({ ...s, our: e.target.value }))} />
+              </label>
+              <span className="gm-score-dash" aria-hidden="true">–</span>
+              <label className="pf-label">{L('היריבה', 'Them')}
+                <input className="finder-input" type="number" dir="ltr" min="0" inputMode="numeric"
+                  value={scoreEdit.their} onChange={(e) => setScoreEdit((s) => ({ ...s, their: e.target.value }))} />
+              </label>
+            </div>
+            <label className="pf-label" style={{ marginTop: 10 }}>{L('סיכום קצר (לא חובה)', 'Short summary (optional)')}
+              <textarea className="finder-input" rows={3} maxLength={2000} value={scoreEdit.summary}
+                onChange={(e) => setScoreEdit((s) => ({ ...s, summary: e.target.value }))}
+                placeholder={L('מה עבד, מה לא, ומה לוקחים לאימון הבא...', 'What worked, what didn’t, what to take to the next practice...')} />
+            </label>
+            <div className="tm-modal-actions">
+              <button className="btn-primary" onClick={saveScore}><Save size={15} /> {L('שמירה', 'Save')}</button>
             </div>
           </div>
         </div>
