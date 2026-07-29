@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, supabaseConfigured } from './supabaseClient'
 import Auth from './Auth'
+import RolePicker from './RolePicker'
+import JoinWithCode from './JoinWithCode'
 import Dashboard from './Dashboard'
 import ResetPassword from './ResetPassword'
 import Landing from './Landing'
@@ -24,17 +26,73 @@ function captureJoinCode() {
   return true
 }
 
+// תפקיד ההרשמה (מסך בחירת התפקיד) — שני תפקידים בלבד, "הורה" הוסר מהמסך.
+// נשמר ב-localStorage כדי שרענון באמצע ההרשמה לא יאבד את הבחירה.
+const ROLES = ['coach', 'player']
+function readRole() {
+  try {
+    const saved = localStorage.getItem('signup_role')
+    return ROLES.includes(saved) ? saved : 'coach'
+  } catch {
+    return 'coach'
+  }
+}
+function saveRole(id) {
+  try { localStorage.setItem('signup_role', id) } catch { /* ignore */ }
+}
+
 export default function App() {
   useLang() // מנוי לשפה — החלפת שפה מרעננת את כל עץ הרכיבים
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isRecoveryMode, setRecoveryMode] = useState(false)
-  const [showAuth, setShowAuth] = useState(false)
   const [sharedDrill, setSharedDrill] = useState(publicDrillId)
 
-  // הגעה מלינק הצטרפות: שומרים את הקוד ופותחים ישר את מסך ההרשמה
+  // מסכי הדלת (לפני session): null = דף נחיתה · 'role' = בחירת תפקיד ·
+  // 'join' = קוד קבוצה לשחקן · 'auth' = הרשמה/כניסה
+  const [authStep, setAuthStep] = useState(null)
+  // המסכים שעברנו בדרך — כך "חזרה" עובדת מכל שלב ובסוף תמיד נוחתים בדף הנחיתה
+  const [authTrail, setAuthTrail] = useState([])
+  const [role, setRole] = useState(readRole)
+  // באיזה מצב ייפתח Auth: מי שבחר תפקיד או הזין קוד קבוצה מצהיר שהוא נרשם,
+  // ולכן נוחת על ההרשמה. רק "כבר יש לך חשבון?" מוביל ל-signin.
+  const [authMode, setAuthMode] = useState('signin')
+
+  const goAuth = (next, mode) => {
+    if (mode) setAuthMode(mode)
+    setAuthTrail((trail) => [...trail, authStep])
+    setAuthStep(next)
+  }
+  const backAuth = () => {
+    setAuthStep(authTrail.length ? authTrail[authTrail.length - 1] : null)
+    setAuthTrail((trail) => trail.slice(0, -1))
+  }
+
+  // תאימות לשער התרגיל הציבורי, שנשאר כפי שהיה: "פתיחת הדלת" = מסך בחירת התפקיד
+  const setShowAuth = (open) => {
+    if (open) goAuth('role')
+    else {
+      setAuthStep(null)
+      setAuthTrail([])
+    }
+  }
+
+  // בחירת תפקיד: מאמן ממשיך ישר להרשמה, שחקן עובר קודם דרך קוד הקבוצה.
+  // RolePicker כבר כתב ל-localStorage — כאן רק מסנכרנים את ה-state.
+  const pickRole = (id) => {
+    setRole(id)
+    goAuth(id === 'player' ? 'join' : 'auth', 'signup')
+  }
+
+  // הגעה מלינק הצטרפות: הקוד כבר נשמר, והמשתמש כבר הוכיח לאיזה צינור הוא שייך —
+  // מדלגים על בחירת התפקיד ועל מסך הקוד ונכנסים ישר להרשמה כשחקן
   useEffect(() => {
-    if (captureJoinCode() && !session) setShowAuth(true)
+    if (captureJoinCode() && !session) {
+      saveRole('player')
+      setRole('player')
+      setAuthMode('signup')
+      setAuthStep('auth')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -156,14 +214,32 @@ export default function App() {
     )
   }
 
-  // לא מחובר: דף נחיתה ציבורי → לחיצה על "התחברות" פותחת את מסך ה-Auth
+  // לא מחובר: דף נחיתה ציבורי → בחירת תפקיד → (שחקן) קוד קבוצה → הרשמה/כניסה.
+  // כל מסך מקבל "חזרה" משלו, והשרשרת נגמרת תמיד בדף הנחיתה.
   return (
     <div className="app">
-      {showAuth ? (
-        <Auth onBack={() => setShowAuth(false)} />
-      ) : (
-        <Landing onEnter={() => setShowAuth(true)} />
+      {authStep === null && <Landing onEnter={() => goAuth('role')} />}
+
+      {authStep === 'role' && (
+        <RolePicker onPick={pickRole} onBack={backAuth} onSignIn={() => goAuth('auth', 'signin')} />
       )}
+
+      {authStep === 'join' && (
+        <JoinWithCode
+          onJoin={() => goAuth('auth', 'signup')}
+          onBack={backAuth}
+          onSkip={() => {
+            // "אין לי קוד" — נרשם כמשתמש מלא בלי קבוצה. מנקים קוד ישן שנשאר
+            // מסשן קודם, כדי שלא יצרף אותו לקבוצה שלא ביקש.
+            try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
+            goAuth('auth', 'signup')
+          }}
+        />
+      )}
+
+      {authStep === 'auth' && <Auth role={role} initialMode={authMode} onBack={backAuth} />}
+
+      {/* דיאלוג אישור מעוצב — מרונדר פעם אחת בענף הזה, כמו קודם */}
       <ConfirmHost />
     </div>
   )

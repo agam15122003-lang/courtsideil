@@ -20,6 +20,8 @@ export const DICT = {
     'nav.community': 'קהילה',
     'nav.profile': 'פרופיל',
     'nav.teams': 'הקבוצות שלי',
+    // גרסה קצרה לסרגל התחתון — «הקבוצות שלי» לא נכנס בתא של 1/7 מהמסך
+    'nav.teamsShort': 'הקבוצה',
     'nav.send': 'שליחה לשחקנים',
     'nav.finder': 'חיפוש מאמנים',
     'nav.drills': 'תרגילים',
@@ -85,6 +87,7 @@ export const DICT = {
     'nav.community': 'Community',
     'nav.profile': 'Profile',
     'nav.teams': 'My Teams',
+    'nav.teamsShort': 'Team',
     'nav.send': 'Send to players',
     'nav.finder': 'Find Coaches',
     'nav.drills': 'Drills',

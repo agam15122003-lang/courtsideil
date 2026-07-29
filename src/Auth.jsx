@@ -1,22 +1,78 @@
-import { useState, useEffect } from 'react'
-import { KeyRound, Check, ArrowRight } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Mail, Lock, Eye, EyeOff, KeyRound, Check, Clock, ChevronDown, MailCheck, AlertTriangle } from 'lucide-react'
+import { ChevronBack } from './DirIcon'
+import CourtArt from './CourtArt'
+import Logo from './Logo'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { COACHING_QUOTES } from './constants'
+import { COACHING_QUOTES, ISRAELI_CLUBS } from './constants'
+import { passwordStrength } from './ResetPassword'
 import { L } from './i18n'
 
-export default function Auth({ onBack }) {
+// מייל בלי סיום דומיין — הודעת שדה ליד הקלט, לא באנר בתחתית המסך
+const emailLooksWhole = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
+
+// אורך הקוד החד-פעמי (1g) — שישה תאים נפרדים
+const CODE_LEN = 6
+
+// «פתיחת תיבת המייל» (1f): הספקים הנפוצים נפתחים ישירות בתיבה הנכונה.
+// לדומיין שאינו מוכר נופלים ל-mailto: — פותח את אפליקציית המייל של המכשיר.
+const MAILBOX_BY_DOMAIN = {
+  'gmail.com': 'https://mail.google.com/mail/u/0/#inbox',
+  'googlemail.com': 'https://mail.google.com/mail/u/0/#inbox',
+  'outlook.com': 'https://outlook.live.com/mail/0/inbox',
+  'hotmail.com': 'https://outlook.live.com/mail/0/inbox',
+  'hotmail.co.il': 'https://outlook.live.com/mail/0/inbox',
+  'live.com': 'https://outlook.live.com/mail/0/inbox',
+  'msn.com': 'https://outlook.live.com/mail/0/inbox',
+  'yahoo.com': 'https://mail.yahoo.com',
+  'icloud.com': 'https://www.icloud.com/mail',
+  'me.com': 'https://www.icloud.com/mail',
+  'walla.com': 'https://mail.walla.co.il',
+  'walla.co.il': 'https://mail.walla.co.il',
+  'proton.me': 'https://mail.proton.me',
+  'protonmail.com': 'https://mail.proton.me',
+}
+function openMailbox(address) {
+  const domain = String(address || '').split('@')[1]
+  const url = MAILBOX_BY_DOMAIN[(domain || '').trim().toLowerCase()]
+  if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  else window.location.href = 'mailto:'
+}
+
+export default function Auth({ onBack, role = 'coach', initialMode = 'signin' }) {
   // 'signin' = התחברות בסיסמה, 'signup' = הרשמה, 'forgot' = איפוס, 'otp' = קוד חד-פעמי
-  const [mode, setMode] = useState('signin')
+  // מי שהגיע דרך בחירת תפקיד או קוד קבוצה נוחת ישר על ההרשמה (App.jsx קובע)
+  const [mode, setMode] = useState(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [emailTouched, setEmailTouched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
 
+  // שדות ההרשמה (1c) — שם ומועדון נשמרים ב-user_metadata, בלי שינוי סכימה
+  const [fullName, setFullName] = useState('')
+  const [club, setClub] = useState('')
+  const [consent, setConsent] = useState(false)
+
+  // 1f — «הקישור נשלח» הוא מסך מלא, לא באנר הצלחה
+  const [sentStep, setSentStep] = useState(false)
+
   // מצב OTP (מייל בלבד)
   const [otpStep, setOtpStep] = useState('request') // 'request' | 'verify'
-  const [code, setCode] = useState('')
+  // התאים נשמרים כמערך באורך קבוע ולא כמחרוזת דחוסה: ב-join('') תא ריק
+  // באמצע מתקפל וכל הספרות שאחריו זזות אחורה — הקוד משתנה בשקט.
+  const [codeCells, setCodeCells] = useState(() => Array(CODE_LEN).fill(''))
+  const code = codeCells.join('')
+  // מונע אימות אוטומטי כפול על אותו קוד. מתאפס יחד עם התאים — אחרת קוד
+  // שנדחה, נמחק והוקלד שוב זהה לא היה נשלח שנית.
+  const autoSent = useRef('')
+  const clearCode = () => {
+    setCodeCells(Array(CODE_LEN).fill(''))
+    autoSent.current = ''
+  }
   const [sentTo, setSentTo] = useState('')
   const [cooldown, setCooldown] = useState(0) // השהיה (שניות) לפני שליחה חוזרת
 
@@ -27,7 +83,7 @@ export default function Auth({ onBack }) {
     return () => clearTimeout(t)
   }, [cooldown])
 
-  // ציטוט מתחלף בפאנל המותג — כל דקה (זמן מספיק לקרוא)
+  // ציטוט מתחלף בפאנל המותג — כל 8 שניות
   const [qi, setQi] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setQi((i) => (i + 1) % COACHING_QUOTES.length), 8000)
@@ -44,8 +100,14 @@ export default function Auth({ onBack }) {
     setMode(m)
     clearAlerts()
     setOtpStep('request')
-    setCode('')
+    clearCode()
+    setSentStep(false)
   }
+
+  const emailBad = emailTouched && email.trim() !== '' && !emailLooksWhole(email)
+  const isSignup = mode === 'signup'
+  // מד החוזק הוא משוב בלבד — כלל הוואלידציה נשאר 8 תווים
+  const strength = passwordStrength(password)
 
   // ---------- סיסמה / איפוס ----------
   const handleSubmit = async (e) => {
@@ -59,7 +121,12 @@ export default function Auth({ onBack }) {
         setLoading(false)
         return
       }
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // שם מלא ומועדון נכנסים ל-user_metadata — אין טבלה חדשה ואין שינוי סכימה
+        options: { data: { full_name: fullName.trim(), club: club.trim() || null } },
+      })
       if (error) {
         setError(translateError(error.message))
       } else if (data.user && (data.user.identities || []).length === 0) {
@@ -77,10 +144,31 @@ export default function Auth({ onBack }) {
         redirectTo: window.location.origin + '?reset=true',
       })
       if (error) setError(translateError(error.message))
-      else setMessage(L('אם המייל קיים במערכת, נשלח אליו קישור לאיפוס. בדוק גם בספאם.', "If the email exists in our system, a reset link has been sent. Check your spam folder too."))
+      else {
+        // הצלחה = מסך מלא (1f). הודעת ההגנה מפני enumeration עוברת לתחתית המסך.
+        setSentTo(email)
+        setSentStep(true)
+        setCooldown(60)
+      }
     }
 
     setLoading(false)
+  }
+
+  // ---------- 1f: שליחה חוזרת של קישור האיפוס (אותה קריאה, אחרי שההשהיה נגמרה) ----------
+  const resendReset = async () => {
+    clearAlerts()
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(sentTo, {
+      redirectTo: window.location.origin + '?reset=true',
+    })
+    setLoading(false)
+    if (error) {
+      setError(translateError(error.message))
+      return
+    }
+    setCooldown(60)
+    toast.success(L('שלחנו קישור נוסף', 'Another link is on its way'))
   }
 
   // ---------- OTP: שליחת קוד למייל ----------
@@ -125,239 +213,581 @@ export default function Auth({ onBack }) {
     // הצלחה → App.jsx יזהה את ה-session אוטומטית
   }
 
+  // ---------- 1g: שישה תאי קוד ----------
+  const codeRefs = useRef([])
+  const focusCell = (i) => codeRefs.current[i]?.focus()
+  const writeCode = (cells) => setCodeCells(cells.slice(0, CODE_LEN))
+
+  // הקלדה בתא: ספרה מקדמת לתא הבא; כמה ספרות (הדבקה/מילוי אוטומטי) מתפזרות קדימה
+  const onCodeInput = (i, raw) => {
+    const digits = String(raw).replace(/\D/g, '')
+    const cells = codeCells.slice()
+    if (!digits) {
+      cells[i] = ''
+      writeCode(cells)
+      return
+    }
+    for (let k = 0; k < digits.length && i + k < CODE_LEN; k++) cells[i + k] = digits[k]
+    writeCode(cells)
+    focusCell(Math.min(i + digits.length, CODE_LEN - 1))
+  }
+
+  // Backspace בתא ריק — מוחק את התא הקודם וחוזר אליו
+  const onCodeKey = (i, e) => {
+    if (e.key !== 'Backspace' || codeCells[i] || i === 0) return
+    e.preventDefault()
+    const cells = codeCells.slice()
+    cells[i - 1] = ''
+    writeCode(cells)
+    focusCell(i - 1)
+  }
+
+  const onCodePaste = (i, e) => {
+    const digits = ((e.clipboardData && e.clipboardData.getData('text')) || '').replace(/\D/g, '')
+    if (!digits) return
+    e.preventDefault()
+    onCodeInput(i, digits)
+  }
+
+  // קוד מלא → אימות אוטומטי, פעם אחת לכל קוד (לא לולאה אחרי שגיאה)
+  useEffect(() => {
+    if (mode !== 'otp' || otpStep !== 'verify') return
+    if (loading || code.length !== CODE_LEN || autoSent.current === code) return
+    autoSent.current = code
+    verifyCode()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, mode, otpStep, loading])
+
+  // ---------- חלקים משותפים ----------
+  // טעינה: הכפתור נשאר במקום, מתכהה, ומקבל ספינר — בלי קפיצת לייאאוט
+  const busyLabel = (label) =>
+    loading ? (
+      <>
+        <span className="csa-spin" aria-hidden="true" />
+        {L('רגע...', 'One moment...')}
+      </>
+    ) : (
+      label
+    )
+
+  const emailField = (
+    <label className="csa-lbl">
+      <span className="csa-lbl-t">{L('כתובת מייל', 'Email address')}</span>
+      <span className={emailBad ? 'csa-field is-bad' : 'csa-field'}>
+        <Mail size={18} aria-hidden="true" />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => setEmailTouched(true)}
+          placeholder="coach@example.com"
+          required
+          autoComplete="email"
+          dir="ltr"
+        />
+      </span>
+      {emailBad && (
+        <span className="csa-err">
+          {L('כתובת המייל לא נראית שלמה — חסר סיום דומיין.', 'That email looks incomplete — the domain ending is missing.')}
+        </span>
+      )}
+    </label>
+  )
+
+  // שם מלא (1c) — בלי אייקון, כמו בעיצוב
+  const nameField = (
+    <label className="csa-lbl">
+      <span className="csa-lbl-t">{L('שם מלא', 'Full name')}</span>
+      <span className="csa-field">
+        <input
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder={L('יוסי לוי', 'Alex Cohen')}
+          required
+          autoComplete="name"
+        />
+      </span>
+    </label>
+  )
+
+  // מועדון (1c) — אופציונלי, מתוך רשימת המועדונים בישראל
+  const clubField = (
+    <label className="csa-lbl">
+      <span className="csa-lbl-t">
+        {L('מועדון', 'Club')} <span className="csa-opt">· {L('אופציונלי', 'optional')}</span>
+      </span>
+      <span className="csa-field">
+        <select value={club} onChange={(e) => setClub(e.target.value)}>
+          <option value="">{L('בחירת מועדון', 'Choose a club')}</option>
+          {ISRAELI_CLUBS.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={17} aria-hidden="true" />
+      </span>
+    </label>
+  )
+
+  // הסכמה מפורשת (1c) — חוסמת את הכפתור הראשי עד לסימון
+  const consentBox = (
+    <label className="csa-consent">
+      <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+      <span className="csa-consent-box" aria-hidden="true">
+        <Check size={14} strokeWidth={3} />
+      </span>
+      <span className="csa-consent-tx">
+        {L('קראתי ואני מאשר את ', 'I have read and accept the ')}
+        {/* stopPropagation — לחיצה על הקישור לא אמורה לסמן את הצ׳קבוקס */}
+        <a href="/terms.html" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          {L('תנאי השימוש', 'Terms of Use')}
+        </a>
+        {L(' ו', ' and ')}
+        <a href="/privacy.html" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          {L('מדיניות הפרטיות', 'Privacy Policy')}
+        </a>
+        {L(', כולל שמירת פרטי שחקנים בקבוצות שלי.', ', including storing my players’ details in my teams.')}
+      </span>
+    </label>
+  )
+
+  const passwordField = (
+    <label className={isSignup ? 'csa-lbl csa-lbl--meter' : 'csa-lbl'}>
+      {isSignup ? (
+        <span className="csa-lbl-row">
+          <span className="csa-lbl-t">{L('סיסמה', 'Password')}</span>
+          <span className="csa-meter-t" data-lvl={strength.level}>
+            {L('חוזק: ', 'Strength: ')}
+            {strength.label}
+          </span>
+        </span>
+      ) : (
+        <span className="csa-lbl-t">{L('סיסמה', 'Password')}</span>
+      )}
+      <span className="csa-field">
+        <Lock size={18} aria-hidden="true" />
+        <input
+          type={showPw ? 'text' : 'password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={mode === 'signup' ? L('לפחות 8 תווים', 'At least 8 characters') : L('הסיסמה שלך', 'Your password')}
+          required
+          minLength={mode === 'signup' ? 8 : 6}
+          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          /* dir רק כשיש תוכן — placeholder עברי ב-dir="ltr" הוא באג מתועד (DESIGN.md §4) */
+          dir={password ? 'ltr' : undefined}
+        />
+        <button
+          type="button"
+          className={showPw ? 'csa-eye is-on' : 'csa-eye'}
+          onClick={() => setShowPw((s) => !s)}
+          aria-label={showPw ? L('הסתרת הסיסמה', 'Hide password') : L('הצגת הסיסמה', 'Show password')}
+          aria-pressed={showPw}
+        >
+          {showPw ? <EyeOff size={19} /> : <Eye size={19} />}
+        </button>
+      </span>
+      {isSignup && (
+        <>
+          <span className="csa-meter" data-lvl={strength.level} aria-hidden="true">
+            <i style={{ width: strength.pct + '%' }} />
+          </span>
+          <span className="csa-hint">
+            {L('לפחות 8 תווים. אות גדולה או מספר עושים את ההבדל.', 'At least 8 characters. A capital letter or a number makes the difference.')}
+          </span>
+        </>
+      )}
+    </label>
+  )
+
+  const alerts = (
+    <>
+      {error && <div className="csa-note csa-note--danger" role="alert">{error}</div>}
+      {message && <div className="csa-note csa-note--ok" role="status">{message}</div>}
+    </>
+  )
+
+  const otpButton = (
+    <button type="button" className="btn-soft auth-otp-btn" onClick={() => goMode('otp')}>
+      <KeyRound size={18} /> {L('כניסה עם קוד למייל', 'Sign in with an email code')}
+    </button>
+  )
+
+  // ---------- הבאנר (= הפאנל הקולנועי) ----------
+  const flatBanner = mode === 'forgot' || mode === 'otp'
+  const sentScreen = mode === 'forgot' && sentStep
+  const bannerClass =
+    'auth-hero-panel csa-banner' +
+    (mode === 'signup' ? ' csa-banner--signup' : flatBanner ? ' csa-banner--flat' : '')
+
   return (
-    <div className="auth-page auth-split">
-      {/* פאנל קולנועי — תמונת מגרש אמיתית + שכבת כהות, באדג', ציטוט וקפסולות */}
-      <aside className="auth-hero-panel" aria-hidden="true">
-        <img className="auth-hero-court" src="/auth-court.jpg" alt="" loading="eager" />
-        <div className="auth-hero-overlay" />
-        <div className="auth-hero-content">
-          <span className="auth-hero-badge"><span className="np-dot" /> {L('קהילת המאמנים של ישראל', "Israel's coaching community")}</span>
-          <blockquote className="auth-hero-quote" key={qi}>“{L(quote.text, quote.text_en)}”</blockquote>
-          <span className="auth-hero-cite">— {L(quote.author, quote.author_en)}</span>
-          <ul className="auth-hero-caps">
-            <li>{L('הבית של המאמנים', 'The coaches’ home')}</li>
-            <li>{L('ידע שמאמנים משתפים', 'Knowledge coaches share')}</li>
-            <li>{L('קהילה שגדלה יחד', 'A community growing together')}</li>
-          </ul>
-        </div>
-      </aside>
-
-      <div className="auth-form-panel">
-        <div className="auth-card">
-          {onBack && (
-            <button type="button" className="link-button auth-back" onClick={onBack}>
-              <ArrowRight size={15} className="back-ic" /> {L('חזרה לדף הבית', 'Back to home')}
-            </button>
-          )}
-          <div className="brand">
-          <div className="brand-mark">
-            <svg viewBox="0 0 100 100" width="44" height="44">
-              <circle cx="42" cy="55" r="22" fill="#E8763A" />
-              <circle cx="42" cy="55" r="9" fill="#fff" />
-              <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-              <circle cx="78" cy="30" r="6" fill="#E8763A" />
-            </svg>
-          </div>
-          <h1>CourtSide</h1>
-          <p className="tagline auth-welcome">{L('ברוך שובך למגרש — התחבר כדי להמשיך מאיפה שעצרת.', 'Welcome back to the court — log in to pick up where you left off.')}</p>
-        </div>
-
-        {(mode === 'signin' || mode === 'signup') && (
-          <div className="tabs">
-            <button
-              className={mode === 'signin' ? 'tab active' : 'tab'}
-              onClick={() => goMode('signin')}
-            >
-              {L('התחברות', 'Log In')}
-            </button>
-            <button
-              className={mode === 'signup' ? 'tab active' : 'tab'}
-              onClick={() => goMode('signup')}
-            >
-              {L('הרשמה', 'Sign Up')}
-            </button>
-          </div>
-        )}
-
-        {mode === 'forgot' && (
-          <div className="forgot-header">
-            <h2>{L('איפוס סיסמה', 'Reset Password')}</h2>
-            <p className="muted small">{L('הזן את המייל שלך ונשלח אליך קישור ליצירת סיסמה חדשה.', "Enter your email and we'll send you a link to create a new password.")}</p>
-          </div>
-        )}
-
-        {mode === 'otp' && (
-          <div className="forgot-header">
-            <h2>{L('כניסה עם קוד חד-פעמי', 'Sign in with a one-time code')}</h2>
-            <p className="muted small">
-              {L('נשלח אליך קוד אימות למייל. מתאים גם להרשמה וגם להתחברות — בלי סיסמה.', "We'll email you a verification code. Works for both signing up and logging in — no password needed.")}
-            </p>
-          </div>
-        )}
-
-        {/* ===== טופס סיסמה / איפוס ===== */}
-        {mode !== 'otp' && (
-          <form onSubmit={handleSubmit} className="auth-form">
-            <label>
-              {L('כתובת מייל', 'Email address')}
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="coach@example.com"
-                required
-                autoComplete="email"
-                dir="ltr"
-              />
-            </label>
-
-            {mode !== 'forgot' && (
-              <label>
-                {L('סיסמה', 'Password')}
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'signup' ? L('לפחות 8 תווים', 'At least 8 characters') : L('הסיסמה שלך', 'Your password')}
-                  required
-                  minLength={mode === 'signup' ? 8 : 6}
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  dir="ltr"
-                />
-              </label>
-            )}
-
-            {mode === 'signin' && (
-              <button type="button" className="link-button" onClick={() => goMode('forgot')}>
-                {L('שכחת סיסמה?', 'Forgot password?')}
-              </button>
-            )}
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading
-                ? L('רגע...', 'One moment...')
-                : mode === 'signup'
-                  ? L('יצירת חשבון', 'Create account')
-                  : mode === 'forgot'
-                    ? L('שליחת קישור איפוס', 'Send reset link')
-                    : L('כניסה', 'Log in')}
-            </button>
-
-            {mode === 'signup' && (
-              <p className="auth-consent muted small">
-                {L('בהרשמה אתה מאשר את ', 'By signing up you agree to our ')}
-                <a href="/terms.html" target="_blank" rel="noopener noreferrer">{L('תנאי השימוש', 'Terms')}</a>
-                {L(' ו', ' and ')}
-                <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{L('מדיניות הפרטיות', 'Privacy Policy')}</a>.
-              </p>
-            )}
-          </form>
-        )}
-
-        {/* ===== טופס OTP ===== */}
-        {mode === 'otp' && (
-          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); otpStep === 'request' ? sendCode() : verifyCode() }}>
-            {otpStep === 'request' ? (
-              <>
-                <label>
-                  {L('כתובת מייל', 'Email address')}
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="coach@example.com"
-                    autoComplete="email"
-                    dir="ltr"
-                  />
-                </label>
-
-                <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? L('שולח...', 'Sending...') : L('שליחת קוד למייל', 'Send code to email')}
-                </button>
-              </>
-            ) : (
-              <>
-                <label>
-                  {L('קוד האימות מהמייל', 'Verification code from email')}
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder={L('הזן את הקוד', 'Enter the code')}
-                    autoComplete="one-time-code"
-                    dir="ltr"
-                    className="otp-code"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={loading || code.length < 4}
-                >
-                  {loading ? L('מאמת...', 'Verifying...') : L('אימות וכניסה', 'Verify & log in')}
-                </button>
-                <div className="otp-foot">
-                  <button
-                    type="button"
-                    className="link-button"
-                    disabled={cooldown > 0 || loading}
-                    onClick={sendCode}
-                  >
-                    {cooldown > 0 ? L(`שליחה מחדש (${cooldown})`, `Resend (${cooldown})`) : L('שליחת קוד מחדש', 'Resend code')}
-                  </button>
-                  <button
-                    type="button"
-                    className="link-button"
-                    onClick={() => {
-                      setOtpStep('request')
-                      setCode('')
-                      clearAlerts()
-                    }}
-                  >
-                    {L('שינוי כתובת מייל', 'Change email address')}
-                  </button>
-                </div>
-              </>
-            )}
-          </form>
-        )}
-
-        {/* ===== מעבר בין שיטות ===== */}
-        {(mode === 'signin' || mode === 'signup') && (
+    <div className="auth-page auth-split csa">
+      {/* פאנל קולנועי — תמונת מגרש + גרדיאנט + ציטוט מתחלף.
+          במובייל הוא הבאנר העליון; מעל 861px הוא פאנל צד, כמו קודם. */}
+      <aside className={bannerClass}>
+        {!flatBanner && (
           <>
-            <div className="auth-divider">
-              <span>{L('או', 'or')}</span>
-            </div>
-            <button type="button" className="btn-soft auth-otp-btn" onClick={() => goMode('otp')}>
-              <KeyRound size={16} /> {L('כניסה עם קוד למייל', 'Sign in with an email code')}
-            </button>
+            <span className="auth-hero-court csa-banner-art" aria-hidden="true">
+              <CourtArt variant={mode} />
+            </span>
+            <div className="auth-hero-overlay csa-veil" aria-hidden="true" />
           </>
         )}
 
-        {(mode === 'forgot' || mode === 'otp') && (
-          <button type="button" className="link-button center" onClick={() => goMode('signin')}>
-            <ArrowRight size={15} className="back-ic" /> {L('חזרה להתחברות', 'Back to log in')}
-          </button>
-        )}
+        <div className="auth-hero-content csa-banner-body">
+          {mode === 'signin' && onBack && (
+            <button type="button" className="csa-back" onClick={onBack}>
+              <ChevronBack size={17} /> {L('חזרה לדף הבית', 'Back to home')}
+            </button>
+          )}
 
-        {error && <div className="alert alert-error" role="alert">{error}</div>}
-        {message && <div className="alert alert-success" role="status">{message}</div>}
+          {mode === 'signin' && (
+            <>
+              <div className="csa-brand" style={{ marginTop: 6 }}>
+                <Logo size={30} />
+                <span>CourtSide</span>
+              </div>
+              <h1 className="csa-title csa-title--push">{L('ברוך שובך למגרש', 'Welcome back to the court')}</h1>
+              <p className="csa-quote" key={qi}>
+                ״{L(quote.text, quote.text_en)}״ <cite>— {L(quote.author, quote.author_en)}</cite>
+              </p>
+              <ul className="auth-hero-caps">
+                <li>{L('הבית של המאמנים', 'The coaches’ home')}</li>
+                <li>{L('ידע שמאמנים משתפים', 'Knowledge coaches share')}</li>
+                <li>{L('קהילה שגדלה יחד', 'A community growing together')}</li>
+              </ul>
+            </>
+          )}
 
-          <ul className="auth-trust-inline">
-            <li>
-              <Check size={15} /> {L('חינם להתחלה', 'Free to start')}
-            </li>
-            <li>
-              <Check size={15} /> {L('קהילת מאמנים', 'Coaching community')}
-            </li>
-            <li>
-              <Check size={15} /> {L('מאובטח ופרטי', 'Secure & private')}
-            </li>
-          </ul>
+          {mode === 'signup' && (
+            <>
+              <button type="button" className="csa-back csa-back--push" onClick={() => goMode('signin')}>
+                <ChevronBack size={17} /> {L('חזרה להתחברות', 'Back to log in')}
+              </button>
+              <h1 className="csa-title">
+                {role === 'player'
+                  ? L('מצטרפים לקבוצה', 'Joining the team')
+                  : L('פותחים חדר מאמנים', 'Opening a coaches’ room')}
+              </h1>
+            </>
+          )}
+
+          {flatBanner && (
+            <button type="button" className="csa-back csa-back--push" onClick={() => goMode('signin')}>
+              <ChevronBack size={17} /> {L('חזרה להתחברות', 'Back to log in')}
+            </button>
+          )}
         </div>
+      </aside>
 
+      <div
+        className={
+          'auth-form-panel csa-sheet' +
+          (flatBanner ? ' csa-sheet--flat csa-sheet--wide' : '') +
+          (sentScreen ? ' csa-sheet--center' : '')
+        }
+      >
+        <div className="auth-card csa-sheet-in">
+          {/* ===== 1f · הקישור נשלח — מסך מלא במקום באנר הצלחה ===== */}
+          {sentScreen && (
+            <>
+              <span className="csa-hero-ic" aria-hidden="true">
+                <MailCheck size={34} />
+              </span>
+              <h1>{L('הקישור בדרך אליך', 'The link is on its way')}</h1>
+              <p>
+                {L('שלחנו קישור לאיפוס סיסמה ל-', 'We sent a password reset link to ')}
+                <bdi dir="ltr">{sentTo}</bdi>
+                {L(
+                  '. פותחים את המייל, לוחצים על הכפתור, וממשיכים לבחירת סיסמה חדשה.',
+                  '. Open the email, tap the button, and continue to choosing a new password.',
+                )}
+              </p>
+
+              <button type="button" className="btn-primary" onClick={() => openMailbox(sentTo)}>
+                {L('פתיחת תיבת המייל', 'Open your mailbox')}
+              </button>
+
+              {error && (
+                <div className="csa-note csa-note--danger" role="alert">
+                  <AlertTriangle size={18} aria-hidden="true" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="csa-card">
+                <b>{L('לא הגיע?', 'Didn’t arrive?')}</b>
+                <span className="csa-bullet">{L('בודקים בספאם ובקידומי מכירות.', 'Check the spam and promotions folders.')}</span>
+                <span className="csa-bullet">{L('מוודאים שהמייל נכון — אפשר לשנות אותו כאן.', 'Make sure the address is right — you can change it here.')}</span>
+                <div className="csa-card-acts">
+                  <button type="button" disabled={cooldown > 0 || loading} onClick={resendReset}>
+                    {cooldown > 0 ? (
+                      <>
+                        {L('שליחה מחדש', 'Resend')} (<bdi dir="ltr">{cooldown}</bdi>)
+                      </>
+                    ) : (
+                      L('שליחה מחדש', 'Resend')
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSentStep(false)
+                      clearAlerts()
+                    }}
+                  >
+                    {L('שינוי המייל', 'Change email')}
+                  </button>
+                </div>
+              </div>
+
+              <p className="csa-fine">
+                {L(
+                  'מסיבות אבטחה אנחנו לא מגלים אם המייל קיים במערכת. אם אין חשבון — לא יישלח כלום.',
+                  'For security reasons we don’t reveal whether the address exists in our system. If there is no account, nothing is sent.',
+                )}
+              </p>
+            </>
+          )}
+
+          {!sentScreen && (mode === 'signin' || mode === 'signup') && (
+            <div className="tabs">
+              <button
+                type="button"
+                className={mode === 'signin' ? 'tab active' : 'tab'}
+                onClick={() => goMode('signin')}
+              >
+                {L('התחברות', 'Log In')}
+              </button>
+              <button
+                type="button"
+                className={mode === 'signup' ? 'tab active' : 'tab'}
+                onClick={() => goMode('signup')}
+              >
+                {L('הרשמה', 'Sign Up')}
+              </button>
+            </div>
+          )}
+
+          {mode === 'forgot' && !sentScreen && (
+            <div className="csa-head">
+              <h1>{L('שכחת סיסמה? קורה.', 'Forgot your password? It happens.')}</h1>
+              <p>{L('מקלידים את המייל שנרשמת איתו ונשלח קישור ליצירת סיסמה חדשה.', "Enter the email you signed up with and we'll send a link to create a new password.")}</p>
+            </div>
+          )}
+
+          {mode === 'otp' && (
+            <div className="csa-head">
+              {otpStep === 'verify' ? (
+                /* 1g — שורת «שלחנו שש ספרות ל-...» יושבת מתחת לתאים, לא כאן */
+                <h1>{L('הקוד מהמייל', 'The code from your email')}</h1>
+              ) : (
+                <>
+                  <h1>{L('כניסה עם קוד למייל', 'Sign in with an email code')}</h1>
+                  <p>{L('נשלח אליך קוד אימות למייל. מתאים גם להרשמה וגם להתחברות — בלי סיסמה.', "We'll email you a verification code. Works for both signing up and logging in — no password needed.")}</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ===== טופס סיסמה / איפוס ===== */}
+          {mode !== 'otp' && !sentScreen && (
+            <form onSubmit={handleSubmit} className="csa-form">
+              {isSignup && nameField}
+              {emailField}
+              {mode !== 'forgot' && passwordField}
+              {isSignup && clubField}
+
+              {mode === 'signin' && (
+                <button type="button" className="link-button csa-forgot" onClick={() => goMode('forgot')}>
+                  {L('שכחת סיסמה?', 'Forgot password?')}
+                </button>
+              )}
+
+              {mode === 'forgot' && (
+                <div className="csa-note csa-note--brand">
+                  <Clock size={18} aria-hidden="true" />
+                  <span>{L('הקישור תקף לשעה אחת ולשימוש חד-פעמי. אם הוא פג — פשוט מבקשים חדש.', 'The link is valid for one hour and for a single use. If it expires, just ask for a new one.')}</span>
+                </div>
+              )}
+
+              {isSignup && consentBox}
+
+              <button
+                type="submit"
+                className={loading ? 'btn-primary is-busy' : 'btn-primary'}
+                disabled={loading || (isSignup && !consent)}
+              >
+                {busyLabel(
+                  mode === 'signup'
+                    ? L('יצירת חשבון', 'Create account')
+                    : mode === 'forgot'
+                      ? L('שליחת קישור איפוס', 'Send reset link')
+                      : L('כניסה', 'Log in'),
+                )}
+              </button>
+
+              {mode === 'forgot' && (
+                <div className="csa-swap">
+                  {L('נזכרת בסיסמה?', 'Remembered it?')}
+                  <button type="button" className="link-button" onClick={() => goMode('signin')}>
+                    {L('לכניסה', 'Log in')}
+                  </button>
+                </div>
+              )}
+
+              {alerts}
+
+              {mode === 'signin' && (
+                <>
+                  <div className="auth-divider"><span>{L('או', 'or')}</span></div>
+                  {otpButton}
+                </>
+              )}
+
+              {isSignup && (
+                <div className="csa-swap csa-swap--push">
+                  {L('כבר רשום?', 'Already registered?')}
+                  <button type="button" className="link-button" onClick={() => goMode('signin')}>
+                    {L('לכניסה', 'Log in')}
+                  </button>
+                </div>
+              )}
+
+              {mode === 'signin' && (
+                <ul className="auth-trust-inline">
+                  <li><Check size={14} aria-hidden="true" /> {L('חינם להתחלה', 'Free to start')}</li>
+                  <li><Check size={14} aria-hidden="true" /> {L('קהילת מאמנים', 'Coaching community')}</li>
+                  <li><Check size={14} aria-hidden="true" /> {L('מאובטח ופרטי', 'Secure & private')}</li>
+                </ul>
+              )}
+
+              {mode === 'forgot' && (
+                <div className="csa-card csa-card--push">
+                  <b>{L('נכנסת פעם עם קוד למייל?', 'Ever signed in with an email code?')}</b>
+                  <p>{L('אם לא הגדרת סיסמה בכלל, אין מה לאפס — נכנסים עם קוד חד-פעמי.', "If you never set a password there's nothing to reset — sign in with a one-time code.")}</p>
+                  <button type="button" className="link-button" onClick={() => goMode('otp')}>
+                    {L('כניסה עם קוד למייל', 'Sign in with an email code')}
+                  </button>
+                </div>
+              )}
+            </form>
+          )}
+
+          {/* ===== טופס OTP ===== */}
+          {mode === 'otp' && (
+            <form
+              className="csa-form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (otpStep === 'request') sendCode()
+                else verifyCode()
+              }}
+            >
+              {otpStep === 'request' ? (
+                <>
+                  {emailField}
+                  <button
+                    type="submit"
+                    className={loading ? 'btn-primary is-busy' : 'btn-primary'}
+                    disabled={loading}
+                  >
+                    {busyLabel(L('שליחת קוד למייל', 'Send code to email'))}
+                  </button>
+                  {alerts}
+                </>
+              ) : (
+                <>
+                  <div
+                    className="csa-code"
+                    dir="ltr"
+                    role="group"
+                    aria-label={L('קוד בן שש ספרות', 'Six-digit code')}
+                  >
+                    {codeCells.map((ch, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => {
+                          codeRefs.current[i] = el
+                        }}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={CODE_LEN}
+                        value={ch}
+                        /* placeholder ריק-לעין — מפעיל את הגבול המקווקו של תא ריק */
+                        placeholder=" "
+                        aria-label={L(`ספרה ${i + 1}`, `Digit ${i + 1}`)}
+                        onChange={(e) => onCodeInput(i, e.target.value)}
+                        onKeyDown={(e) => onCodeKey(i, e)}
+                        onPaste={(e) => onCodePaste(i, e)}
+                        onFocus={(e) => e.target.select()}
+                        autoFocus={i === 0}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="csa-code-hint">
+                    {L('שלחנו שש ספרות ל-', 'We sent six digits to ')}
+                    <bdi dir="ltr">{sentTo}</bdi>{' '}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => {
+                        setOtpStep('request')
+                        clearCode()
+                        clearAlerts()
+                      }}
+                    >
+                      {L('שינוי כתובת', 'Change address')}
+                    </button>
+                  </p>
+
+                  {error && (
+                    <div className="csa-note csa-note--danger" role="alert">
+                      <AlertTriangle size={18} aria-hidden="true" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className={loading ? 'btn-primary is-busy' : 'btn-primary'}
+                    disabled={loading || code.length < 4}
+                  >
+                    {busyLabel(L('אימות וכניסה', 'Verify & log in'))}
+                  </button>
+
+                  <div className="csa-row-split">
+                    <button
+                      type="button"
+                      className="link-button"
+                      disabled={cooldown > 0 || loading}
+                      onClick={sendCode}
+                    >
+                      {cooldown > 0 ? (
+                        <>
+                          {L('שליחה מחדש', 'Resend')} (<bdi dir="ltr">{cooldown}</bdi>)
+                        </>
+                      ) : (
+                        L('שליחת קוד מחדש', 'Resend code')
+                      )}
+                    </button>
+                    <button type="button" className="link-button" onClick={() => goMode('signin')}>
+                      {L('כניסה עם סיסמה', 'Sign in with a password')}
+                    </button>
+                  </div>
+                  <div className="csa-card csa-card--push">
+                    <b>{L('גם הקישור במייל עובד', 'The link in the email works too')}</b>
+                    <p>{L('אם פתחת את המייל בטלפון — לחיצה על קישור הכניסה מדלגת על הקלדת הקוד לגמרי.', 'If you opened the email on your phone, tapping the sign-in link skips typing the code entirely.')}</p>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
+        </div>
       </div>
     </div>
   )

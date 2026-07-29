@@ -17271,3 +17271,2480 @@ html.a11y-motion .home-hero-quote { animation: none !important; }
   inset-inline-start: auto;
   inset-inline-end: 8px;
 }
+
+/* ================================================================= */
+/* ===== 29.7.2026 — הדלת של המוצר: מסכי כניסה/הרשמה/איפוס ======== */
+/* מקור: design_handoff_auth (10 מסכים, 390×844, מובייל-first).      */
+/* הכול תחוּם ב-.csa — שום מסך אחר באפליקציה לא מושפע.              */
+/* הפאנל הקולנועי (.auth-hero-panel) נשמר: במובייל הוא הבאנר העליון, */
+/* מעל 861px הוא חוזר להיות פאנל צד עם אותו ציטוט מתחלף.            */
+/* ================================================================= */
+
+/* --- טוקנים שהמפרט דורש ולא היו קיימים (README §טוקנים ומיפוי צבע) --- */
+:root {
+  --gold: #E3B877;      /* eyebrow וחצים — מופיע רק על נייבי */
+  /* לבן על משטח כהה או על הכתום המלא. לא --white הקיים: הוא כינוי ל---surface
+     ולכן מתהפך במצב כהה, בעוד שהבאנר הנייבי והכפתור הראשי נשארים כהים בשני המצבים. */
+  --on-dark: #FFFFFF;
+  --tx-2: #41536E;      /* גוף טקסט ותוויות שדה (לא --tx) */
+  --tx-dim: #8494A8;    /* אייקוני שדה ופקדים כבויים */
+  /* הגוון הכהה של כל משפחה — טקסט בתוך באנר רך */
+  --brand-ink: #7A3512;
+  --ok-ink: #14562F;
+  --danger-ink: #7E251D;
+  --warn-ink: #6E3C00;
+  --info-ink: #16407F;
+}
+[data-theme='dark'] {
+  --tx-2: #9AA6BB;
+  --tx-dim: #7C8AA3;
+  --brand-ink: #F0A878;
+  --ok-ink: #4CC38A;
+  --danger-ink: #F08A7E;
+  --warn-ink: #F5B04D;
+  --info-ink: #8AB4F8;
+}
+
+/* ===== שלד המסך — מובייל-first ===== */
+.csa.auth-page,
+.csa {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+  background: var(--bg);
+}
+
+/* --- הבאנר (= הפאנל הקולנועי במובייל) --- */
+.csa .csa-banner {
+  position: relative;
+  flex: none;
+  display: block;
+  height: 280px;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  background: var(--navy-2);
+}
+.csa .csa-banner--signup { height: 206px; }
+.csa .csa-banner--flat {
+  height: 150px;
+  background: linear-gradient(160deg, var(--navy-1), var(--navy-2));
+}
+.csa .csa-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 52% 38%;
+  animation: none;
+}
+.csa .csa-banner--role .csa-banner-img { object-position: 52% 42%; }
+.csa .csa-banner--signup .csa-banner-img { object-position: 52% 30%; }
+[data-theme='dark'] .csa .csa-banner-img { opacity: 0.5; }
+.csa .csa-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(23, 38, 74, 0.6), rgba(10, 20, 40, 0.92) 62%, var(--navy-2));
+}
+.csa .csa-banner--role .csa-veil {
+  background: linear-gradient(180deg, rgba(23, 38, 74, 0.58), rgba(10, 20, 40, 0.9) 60%, var(--navy-2));
+}
+.csa .csa-banner--signup .csa-veil {
+  background: linear-gradient(180deg, rgba(23, 38, 74, 0.66), rgba(10, 20, 40, 0.94) 62%, var(--navy-2));
+}
+[data-theme='dark'] .csa .csa-veil {
+  background: linear-gradient(180deg, rgba(30, 42, 71, 0.72), rgba(15, 20, 30, 0.94) 62%, var(--bg));
+}
+.csa .csa-banner-body {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  height: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  padding: max(18px, env(safe-area-inset-top)) 24px 54px;
+  color: var(--on-dark);
+}
+.csa .csa-banner--signup .csa-banner-body,
+.csa .csa-banner--flat .csa-banner-body { padding-bottom: 24px; }
+
+/* קפסולות הפאנל הישן — דסקטופ בלבד */
+.csa .auth-hero-caps { display: none; }
+
+/* לוגו ושם המותג בתוך הבאנר */
+.csa-brand { display: flex; align-items: center; gap: 9px; }
+.csa-brand span {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  color: var(--on-dark);
+}
+
+/* eyebrow זהוב — רק על נייבי */
+.csa-eyebrow {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--gold);
+}
+.csa-eyebrow--ink { color: var(--brand-text); letter-spacing: 0.14em; }
+
+/* כותרת הבאנר */
+.csa .csa-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 29px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--on-dark);
+  text-wrap: pretty;
+  animation: none;
+}
+.csa .csa-title--push { margin-block-start: auto; }
+.csa .csa-banner--role .csa-title { font-size: 35px; line-height: 1.06; margin-top: 9px; }
+.csa .csa-banner--signup .csa-title { font-size: 28px; margin-top: 10px; }
+.csa .csa-sub {
+  margin: 11px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.74);
+  text-wrap: pretty;
+}
+
+/* ציטוט מתחלף */
+.csa .csa-quote {
+  margin: 12px 0 0;
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 13.5px;
+  line-height: 1.55;
+  letter-spacing: normal;
+  color: rgba(255, 255, 255, 0.78);
+  text-wrap: pretty;
+  animation: csa-fade var(--dur-slow) var(--ease-out);
+}
+.csa .csa-quote cite { font-style: normal; font-weight: 600; color: var(--gold); }
+@keyframes csa-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* קישור "חזרה" על הבאנר */
+.csa .csa-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+}
+.csa .csa-back svg { color: var(--gold); flex: none; }
+.csa .csa-back--push { margin-block-start: auto; }
+@media (pointer: coarse) { .csa .csa-back { min-height: 44px; } }
+
+/* --- הגלולה הלבנה --- */
+.csa .csa-sheet {
+  position: relative;
+  z-index: 1;
+  order: 0;
+  flex: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* מנטרל את align-items:center של .auth-form-panel — אחרת הילדים
+     מתכווצים לרוחב התוכן במקום להימתח לרוחב הגלולה */
+  align-items: stretch;
+  justify-content: flex-start;
+  margin-top: -26px;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-radius: 28px 28px 0 0;
+  overflow: visible;
+}
+.csa .csa-sheet--flat { margin-top: 0; border-radius: 0; padding-top: 24px; }
+.csa .csa-sheet-in {
+  width: auto;
+  max-width: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.csa .csa-sheet--tight .csa-sheet-in { gap: 13px; }
+.csa .csa-sheet--wide .csa-sheet-in { gap: 16px; }
+/* טופס פנימי — ממשיך את אותה עמודה בלי מיכל נוסף */
+.csa .csa-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
+/* כותרת בתוך הגלולה (1e/1g/1h) */
+.csa .csa-head { display: flex; flex-direction: column; gap: 9px; }
+.csa .csa-head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 27px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--tx);
+}
+.csa .csa-head p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--tx-2);
+  text-wrap: pretty;
+}
+
+/* ===== טאבים ===== */
+.csa .tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0;
+  background: var(--sf2);
+  border: 0;
+  border-radius: var(--radius-full);
+  box-shadow: none;
+}
+.csa .tab {
+  flex: 1;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--tx-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.csa .tab::after,
+.csa .tab::before { display: none; }
+.csa .tab.active { background: var(--navy-1); color: var(--on-dark); font-weight: 800; }
+[data-theme='dark'] .csa .tab.active {
+  background: var(--sf);
+  color: var(--tx);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== שדות ===== */
+.csa .csa-lbl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  font-size: inherit;
+  font-weight: 400;
+  color: inherit;
+}
+.csa .csa-lbl--meter { gap: 7px; }
+.csa .csa-lbl-t { font-family: var(--font); font-weight: 600; font-size: 12.5px; color: var(--tx-2); }
+.csa .csa-lbl-t .csa-opt { font-weight: 400; color: var(--mut); }
+.csa .csa-lbl-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.csa .csa-field {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--sf);
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.csa .csa-field > svg { flex: none; color: var(--tx-dim); }
+.csa .csa-field input,
+.csa .csa-field select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  box-shadow: none;
+  font-family: var(--font);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--tx);
+  text-align: start;
+}
+.csa .csa-field select { cursor: pointer; appearance: none; }
+.csa .csa-field input::placeholder { color: var(--tx-dim); opacity: 1; }
+.csa .csa-field:focus-within {
+  border-color: var(--navy-1);
+  box-shadow: 0 0 0 3px rgba(23, 38, 74, 0.1);
+}
+[data-theme='dark'] .csa .csa-field:focus-within {
+  border-color: var(--brand-text);
+  box-shadow: 0 0 0 3px rgba(240, 168, 120, 0.16);
+}
+.csa .csa-field input[type='password'] { font-size: 17px; letter-spacing: 0.22em; }
+.csa .csa-field input[type='password']::placeholder { font-size: 15px; letter-spacing: normal; }
+.csa .csa-field.is-bad { border-color: var(--danger); }
+.csa .csa-field.is-bad > svg { color: var(--danger); }
+.csa .csa-field.is-ok { border-color: color-mix(in oklab, var(--ok) 45%, var(--sf)); }
+.csa .csa-field-ok { flex: none; color: var(--ok); }
+.csa .csa-err { font-weight: 500; font-size: 12px; color: var(--danger); }
+.csa .csa-eye {
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  flex: none;
+  margin-inline-end: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--tx-2);
+  cursor: pointer;
+}
+.csa .csa-eye.is-on { color: var(--brand-text); }
+@media (pointer: coarse) {
+  .csa .csa-eye { width: 44px; height: 44px; min-height: 44px; margin-inline-end: -10px; }
+}
+
+/* --- מד חוזק סיסמה --- */
+.csa .csa-meter {
+  display: block;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--sf2);
+  overflow: hidden;
+}
+.csa .csa-meter i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--brand-strong), var(--brand));
+  transition: width 600ms var(--ease-out);
+}
+.csa .csa-meter[data-lvl='weak'] i { background: var(--danger); }
+.csa .csa-meter-t { font-family: var(--font); font-weight: 600; font-size: 11.5px; }
+.csa .csa-meter-t[data-lvl='weak'] { color: var(--danger); }
+.csa .csa-meter-t[data-lvl='fair'] { color: var(--warn); }
+.csa .csa-meter-t[data-lvl='good'],
+.csa .csa-meter-t[data-lvl='strong'] { color: var(--ok); }
+.csa .csa-hint { font-size: 11.5px; line-height: 1.5; color: var(--mut); }
+html.a11y-motion .csa .csa-meter i { transition: none; }
+html.a11y-motion .csa .csa-quote { animation: none; }
+
+/* ===== כפתורים ===== */
+.csa .btn-primary {
+  width: 100%;
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: normal;
+  box-shadow: 0 10px 20px -10px rgba(179, 78, 28, 0.6);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.csa .btn-primary::after,
+.csa .btn-primary::before { display: none; }
+.csa .btn-primary:hover:not(:disabled),
+.csa .btn-primary:active:not(:disabled) {
+  background: color-mix(in oklab, var(--brand-strong) 85%, black);
+  transform: none;
+}
+.csa .btn-primary:disabled {
+  background: var(--sf2);
+  color: var(--tx-dim);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+/* טעינה: הכפתור נשאר במקום ומתכהה — בלי קפיצת לייאאוט */
+.csa .btn-primary.is-busy:disabled {
+  background: color-mix(in oklab, var(--brand-strong) 85%, black);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: progress;
+}
+.csa-spin {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  border-radius: var(--radius-full);
+  border: 2.4px solid rgba(255, 255, 255, 0.35);
+  border-top-color: var(--on-dark);
+  animation: csa-spin 0.8s linear infinite;
+}
+@keyframes csa-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .csa-spin { animation-duration: 2.4s; } }
+
+.csa .btn-soft {
+  width: 100%;
+  height: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-md);
+  background: var(--sf);
+  color: var(--navy-1);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+[data-theme='dark'] .csa .btn-soft { color: var(--tx); }
+.csa .btn-soft svg { flex: none; }
+
+/* ===== מפריד "או" ===== */
+.csa .auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-align: center;
+}
+.csa .auth-divider::before,
+.csa .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  margin: 0;
+  background: var(--ln);
+}
+.csa .auth-divider span {
+  padding: 0;
+  background: none;
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--mut);
+}
+
+/* ===== קישורי טקסט ===== */
+.csa .link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--brand-text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.csa .link-button:disabled { color: var(--tx-dim); cursor: not-allowed; }
+.csa .csa-forgot { align-self: flex-start; margin-top: -4px; }
+.csa .csa-swap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--mut);
+}
+.csa .csa-swap .link-button { font-weight: 700; }
+.csa .csa-row-split { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.csa .csa-row-split .link-button { font-weight: 700; }
+
+/* ===== שורת האמון ===== */
+.csa .auth-trust-inline {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+}
+.csa .auth-trust-inline li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 11.5px;
+  color: var(--mut);
+}
+.csa .auth-trust-inline svg { color: var(--ok); flex: none; }
+
+/* ===== באנרי סטטוס — רקע רך + אייקון צבעוני, בלי גבול-צד ===== */
+.csa .csa-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.csa .csa-note > svg { flex: none; margin-top: 1px; }
+.csa .csa-note--brand { background: var(--brand-soft); color: var(--brand-ink); }
+.csa .csa-note--brand > svg { color: var(--brand-text); }
+.csa .csa-note--ok { background: var(--ok-soft); color: var(--ok-ink); }
+.csa .csa-note--ok > svg { color: var(--ok); }
+.csa .csa-note--danger { background: var(--danger-soft); color: var(--danger-ink); }
+.csa .csa-note--danger > svg { color: var(--danger); }
+.csa .csa-note--warn { background: var(--warn-soft); color: var(--warn-ink); }
+.csa .csa-note--warn > svg { color: var(--warn); }
+.csa .csa-note--info { background: var(--info-soft); color: var(--info-ink); }
+.csa .csa-note--info > svg { color: var(--info); }
+.csa .csa-note a { color: inherit; font-weight: 600; }
+.csa .csa-note-col { display: flex; flex-direction: column; gap: 10px; }
+.csa .csa-note-act {
+  height: 42px;
+  min-height: 42px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: var(--sf);
+  color: inherit;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+/* ===== כרטיס תחתון ===== */
+.csa .csa-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+.csa .csa-card--push { margin-top: auto; }
+.csa .csa-card b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--tx);
+}
+.csa .csa-card p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--mut); }
+.csa .csa-card .link-button { align-self: flex-start; font-weight: 700; }
+.csa .csa-bullet {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--mut);
+}
+.csa .csa-bullet::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--brand-strong);
+  transform: translateY(-2px);
+}
+.csa .csa-card-acts { display: flex; gap: 10px; margin-top: 4px; }
+.csa .csa-card-acts > button {
+  flex: 1;
+  height: 44px;
+  min-height: 44px;
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-md);
+  background: var(--sf);
+  color: var(--navy-1);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+[data-theme='dark'] .csa .csa-card-acts > button { color: var(--tx); }
+.csa .csa-card-acts > button:disabled {
+  background: var(--sf2);
+  border-color: transparent;
+  color: var(--tx-dim);
+  cursor: not-allowed;
+}
+
+/* ===== תאי קוד חד-פעמי ===== */
+.csa .csa-code { display: flex; gap: 9px; justify-content: center; }
+.csa .csa-code input {
+  width: 50px;
+  height: 62px;
+  padding: 0;
+  text-align: center;
+  background: var(--sf);
+  border: 1.5px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 26px;
+  color: var(--tx);
+  caret-color: var(--brand-strong);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.csa .csa-code input:placeholder-shown { border-style: dashed; }
+.csa .csa-code input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 3px rgba(179, 78, 28, 0.14);
+}
+.csa .csa-code-hint { margin: 0; text-align: center; font-size: 11.5px; color: var(--mut); }
+
+/* ===== כרטיסי בחירת תפקיד (1a) ===== */
+.csa .csa-roles { display: flex; flex-direction: column; gap: 11px; }
+.csa .csa-role {
+  display: grid;
+  grid-template-columns: 46px 1fr 16px;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 15px;
+  text-align: start;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.csa .csa-role-ic {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.csa .csa-role-tx { display: flex; flex-direction: column; gap: 3px; }
+.csa .csa-role-tx b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+}
+.csa .csa-role-tx span { font-size: 12.5px; line-height: 1.45; color: var(--mut); }
+.csa .csa-role-tag {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+  font-size: 11px;
+}
+.csa .csa-role > svg:last-child { color: var(--mut); }
+.csa .csa-role.is-on {
+  border: 1.5px solid var(--brand-strong);
+  box-shadow: 0 6px 18px -10px rgba(179, 78, 28, 0.35);
+}
+.csa .csa-role.is-on .csa-role-ic { background: var(--brand-strong); color: var(--on-dark); }
+.csa .csa-role.is-on > svg:last-child { color: var(--brand-strong); }
+
+/* ===== צ׳קבוקס הסכמה ===== */
+.csa .csa-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 14px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.csa .csa-consent input { position: absolute; width: 0; height: 0; opacity: 0; }
+.csa .csa-consent-box {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border-hover);
+  border-radius: 7px;
+  background: var(--sf);
+  color: transparent;
+}
+.csa .csa-consent input:checked + .csa-consent-box {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
+  color: var(--on-dark);
+}
+.csa .csa-consent input:focus-visible + .csa-consent-box {
+  box-shadow: 0 0 0 3px rgba(179, 78, 28, 0.2);
+}
+.csa .csa-consent-tx { font-size: 12px; line-height: 1.55; color: var(--tx-2); }
+
+/* ===== מסך הצלחה ממורכז (1f) ===== */
+.csa .csa-sheet--center .csa-sheet-in {
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding-top: 14px;
+}
+.csa .csa-sheet--center .csa-sheet-in > .btn-primary,
+.csa .csa-sheet--center .csa-sheet-in > .csa-card { align-self: stretch; text-align: start; }
+.csa .csa-hero-ic {
+  width: 74px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.csa .csa-sheet--center h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--tx);
+}
+.csa .csa-sheet--center p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--tx-2); text-wrap: pretty; }
+.csa .csa-sheet--center p bdi { font-weight: 600; color: var(--tx); }
+.csa .csa-fine { margin: auto 0 0; font-size: 11.5px; line-height: 1.6; color: var(--tx-2); }
+
+/* ===== מסך כהה מלא (1d — הצטרפות עם קוד) ===== */
+.csa--dark { background: var(--navy-2); }
+.csa--dark .csa-banner-img { opacity: 0.16; }
+.csa--dark .csa-sheet { margin-top: 0; border-radius: 0; background: none; color: var(--on-dark); }
+
+/* ===== טאבלט (481–860px) — עדיין עמודה אחת, אבל לא נמתחת ===== */
+@media (min-width: 481px) and (max-width: 860px) {
+  .csa .csa-sheet-in,
+  .csa .csa-banner-body > * { max-width: 420px; margin-inline: auto; }
+  .csa .csa-banner-body { align-items: stretch; }
+  .csa .csa-back { align-self: center; width: 100%; max-width: 420px; }
+}
+
+/* ===== דסקטופ — הפאנל הקולנועי חוזר לצד ===== */
+@media (min-width: 861px) {
+  .csa.auth-page,
+  .csa { flex-direction: row; }
+  .csa .csa-banner,
+  .csa .csa-banner--signup,
+  .csa .csa-banner--flat {
+    flex: 1 1 52%;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .csa .csa-banner--flat { background: linear-gradient(160deg, var(--navy-1), var(--navy-2)); }
+  .csa .csa-banner-body { padding: 48px 56px 64px; justify-content: flex-end; }
+  .csa .csa-banner-img { animation: kenburns 22s ease-in-out infinite alternate; }
+  .csa .csa-title,
+  .csa .csa-banner--signup .csa-title,
+  .csa .csa-banner--role .csa-title { font-size: 40px; }
+  .csa .csa-quote { font-size: 15px; }
+  .csa .auth-hero-caps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 24px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .csa .auth-hero-caps li {
+    padding: 9px 15px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--on-dark);
+  }
+  .csa .csa-sheet,
+  .csa .csa-sheet--flat {
+    order: -1;
+    flex: 1 1 48%;
+    margin-top: 0;
+    padding: 48px;
+    border-radius: 0;
+    justify-content: center;
+    overflow-y: auto;
+  }
+  .csa .csa-sheet-in {
+    flex: none;
+    width: 100%;
+    max-width: 420px;
+    margin-inline: auto;
+  }
+  .csa .csa-form { flex: none; }
+  .csa .auth-trust-inline,
+  .csa .csa-card--push,
+  .csa .csa-fine { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .csa .csa-banner-img { animation: none; }
+}
+html.a11y-motion .csa .csa-banner-img { animation: none; }
+
+/* ================================================================= */
+/* ===== 29.7.2026 — סימן-מים של מגרש במקום צילום (החלטת הבעלים) === */
+/* מסכי הכניסה חוזרים לאיור ה-SVG שהיה לפני commit 38f67bc.          */
+/* צילומי סטוק לא נכנסים לאף מסך חדש (DESIGN.md §2ב, דפוס 1).        */
+/* ================================================================= */
+
+.csa .csa-banner-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  animation: none;           /* מנטרל את kenburns של .auth-hero-court */
+}
+.csa .csa-banner-art .court-art,
+.court-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* הצעיף עכשיו רק מבטיח ניגודיות לטקסט — האיור מתחתיו כבר נייבי,
+   ולכן החלק העליון נשאר פתוח במקום להיחסם. */
+.csa .csa-veil,
+.csa .csa-banner--role .csa-veil,
+.csa .csa-banner--signup .csa-veil {
+  background: linear-gradient(180deg, rgba(10, 20, 40, 0) 18%, rgba(10, 20, 40, 0.72) 62%, var(--navy-2));
+}
+[data-theme='dark'] .csa .csa-veil {
+  background: linear-gradient(180deg, rgba(15, 20, 30, 0) 18%, rgba(15, 20, 30, 0.78) 62%, var(--bg));
+}
+
+/* באנר שטוח (1e–1h) — גרדיאנט נקי בלי איור, כמו במפרט */
+
+@media (min-width: 861px) {
+  /* ken-burns היה תלוי-צילום; על איור וקטורי אין לו מה לעשות */
+  .csa .csa-banner-art { animation: none; }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — השפה החדשה: מסכי כניסה 1a-1h + hero פנימי + הסרת צילומים ===== */
+/* כל בלוק נכתב בנפרד ואוחד כאן. הכל מתוחם למחלקה שלו. */
+/* ================================================================= */
+
+/* ---------- page-shell.css ---------- */
+/* ===== Page — באנר נייבי + גלולה, הדפוס האחיד לכל מסך פנימי ===== */
+/* מקביל ל-.csa של מסכי הכניסה, אבל חי בתוך מעטפת ה-Dashboard.       */
+
+.cs-logo { display: inline-flex; align-items: center; gap: 9px; }
+.cs-logo-word {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  color: currentColor;
+}
+
+/* הבאנר בולע את ה-padding של .main-content כדי להגיע לקצוות */
+.cs-page {
+  margin-block-start: calc(var(--space-8) * -1);
+  margin-inline: calc(var(--space-6) * -1);
+}
+
+.cs-hero {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  background: var(--navy-2);
+}
+.cs-hero--sm { height: 120px; }
+.cs-hero--lg { height: 206px; }
+.cs-hero-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.cs-hero-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 20, 40, 0) 20%, rgba(10, 20, 40, 0.66) 64%, var(--navy-2));
+}
+[data-theme='dark'] .cs-hero-veil {
+  background: linear-gradient(180deg, rgba(15, 20, 30, 0) 20%, rgba(15, 20, 30, 0.72) 64%, var(--bg));
+}
+.cs-hero-body {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 18px 20px 40px;
+  color: var(--on-dark);
+}
+.cs-hero-eyebrow {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--gold);
+}
+.cs-hero-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 27px;
+  line-height: 1.14;
+  letter-spacing: -0.03em;
+  color: var(--on-dark);
+  text-wrap: pretty;
+}
+.cs-hero-sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.74);
+  text-wrap: pretty;
+}
+
+/* נקודת מדידה לרצועה — לא תופסת מקום */
+.cs-hero-sentinel { display: block; height: 0; }
+
+/* הרצועה הקומפקטית שנדבקת אחרי שהבאנר נגלל.
+   אין אנימציית height (DESIGN.md §3) — רק opacity + transform. */
+.cs-hero-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  margin-bottom: -56px;      /* לא דוחף את התוכן — מרחף מעליו */
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--navy-2) 92%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--on-dark);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.cs-hero-bar[data-show='true'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.cs-hero-bar b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.cs-hero-bar[data-still='true'] { transition: none; }
+html.a11y-motion .cs-hero-bar { transition: none; }
+@media (prefers-reduced-motion: reduce) { .cs-hero-bar { transition: none; } }
+
+/* הגלולה */
+.cs-sheet {
+  position: relative;
+  z-index: 1;
+  margin-top: -26px;
+  padding: 20px;
+  background: var(--bg);
+  border-radius: 28px 28px 0 0;
+  min-height: 40vh;
+}
+.cs-sheet-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.cs-sheet-in { display: block; }
+
+@media (max-width: 768px) {
+  .cs-page {
+    margin-block-start: calc(var(--space-5) * -1);
+    margin-inline: calc(var(--space-4) * -1);
+  }
+  /* מתחת ל-.mobile-topbar הדביק */
+  .cs-hero-bar { top: var(--cs-topbar-h, 44px); }
+}
+
+/* ---------- rolepicker.css ---------- */
+/* ================================================================= */
+/* ===== 1a · בחירת תפקיד (src/RolePicker.jsx) ==================== */
+/* הכול תחוּם ב-.csa-rp — המחלקות המשותפות (.csa-banner, .csa-role,  */
+/* .csa-sheet) נשארות כמו שהן, וכאן רק ההפרשים של המסך הזה.          */
+/* ================================================================= */
+
+/* --- הבאנר: 404px במפרט, לעומת 280px של 1b. רק מתחת ל-breakpoint;  */
+/*     מעל 861px הבאנר חוזר להיות פאנל צד בגובה מלא (הבלוק הקיים).   */
+@media (max-width: 860px) {
+  .csa.csa-rp .csa-banner--role { height: 404px; }
+  .csa-rp .csa-sheet { padding-top: 22px; }
+}
+
+/* הלוגו כאן 34px (ולא 30px) — ושם המותג גדל איתו */
+.csa-rp .csa-brand span { font-size: 21px; }
+
+/* ה-eyebrow הזהוב נדחף לתחתית הבאנר; הכותרת ותת-הכותרת נצמדות אליו */
+.csa-rp .csa-banner-body .csa-eyebrow { margin-block-start: auto; }
+
+/* מרווח הגלולה במפרט הוא 11px (כרטיסי התפקיד נושמים באותו קצב) */
+.csa-rp .csa-sheet-in { gap: 11px; }
+
+/* כרטיס התפקיד הוא <button> — בלי הצהרת גופן הוא יורש את ברירת המחדל
+   של הדפדפן ולא את Rubik */
+.csa-rp .csa-role {
+  font-family: var(--font);
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+@media (hover: hover) {
+  .csa-rp .csa-role:not(.is-on):hover {
+    border-color: var(--brand);
+    box-shadow: var(--shadow-md);
+  }
+}
+.csa-rp .csa-role:active { transform: translateY(1px); }
+
+/* .csa-role-tx span גובר בספציפיות על .csa-role-tag ומשטח את התג
+   ל-12.5px/‎--mut; כאן מחזירים לו את הערכים של המפרט */
+.csa-rp .csa-role-tx .csa-role-tag {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--brand-text);
+}
+
+/* יעדי מגע — הכרטיס ממילא ~76px, הקישורים בתחתית צריכים דחיפה */
+@media (pointer: coarse) {
+  .csa-rp .csa-role { min-height: 76px; }
+  .csa-rp .csa-rp-foot .link-button { min-height: 44px; }
+}
+
+/* תחתית הגלולה — נצמדת לתחתית, כניסה + שורת תנאים ממורכזת */
+.csa-rp .csa-rp-foot {
+  margin-block-start: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.csa-rp .csa-rp-foot .csa-fine {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* חוזה הנגישות — כיבוי כפול (DESIGN.md §3) */
+@media (prefers-reduced-motion: reduce) {
+  .csa-rp .csa-role { transition: none; }
+  .csa-rp .csa-role:active { transform: none; }
+}
+html.a11y-motion .csa-rp .csa-role { transition: none; }
+html.a11y-motion .csa-rp .csa-role:active { transform: none; }
+
+/* ---------- joinwithcode.css ---------- */
+/* ===================================================================== */
+/* 1d · JoinWithCode — הצטרפות לקבוצה עם קוד מהמאמן, מסך כהה מלא.        */
+/* הכול תחת .cjc (עוטף ייעודי) כדי שהמסך הכהה לא ידלוף ל-1b/1c/1e-1h,   */
+/* שחולקים את אותן מחלקות .csa על רקע בהיר.                              */
+/* ===================================================================== */
+
+.cjc.csa {
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- סימן-המים: איור המגרש מתחת לכל התוכן, ב-opacity נמוך --- */
+.cjc .cjc-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.cjc .cjc-art .court-art {
+  width: 100%;
+  height: 100%;
+}
+/* צעיף שמבטיח ניגודיות לטקסט הלבן מעל האיור */
+.cjc .cjc-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--navy-2) 86%, transparent),
+    var(--navy-2) 58%
+  );
+}
+
+/* --- אין כאן גלולה לבנה: התוכן יושב ישירות על הרקע הכהה --- */
+.cjc .csa-sheet {
+  z-index: 1;
+  padding: max(18px, env(safe-area-inset-top)) 24px calc(26px + env(safe-area-inset-bottom));
+}
+
+/* --- כותרות --- */
+.cjc .cjc-head {
+  display: flex;
+  flex-direction: column;
+  margin-block-start: 22px;
+}
+.cjc .csa-title {
+  margin-block-start: 10px;
+  font-size: 33px;
+  line-height: 1.08;
+}
+.cjc .csa-sub {
+  margin-block-start: 12px;
+}
+
+/* --- תאי הקוד על רקע כהה --- */
+.cjc .cjc-code-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-block-start: 12px;
+}
+.cjc .csa-code input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.98);
+  caret-color: var(--brand);
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+/* ריק — גבול מקווקו */
+.cjc .csa-code input:placeholder-shown {
+  background: rgba(255, 255, 255, 0.04);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+/* פעיל — tint כתום + גבול כתום. הקרסור הנייטיב מהבהב בעצמו,
+   ולכן אין כאן אנימציה משלנו שצריך לכבות. */
+.cjc .csa-code input:focus,
+.cjc .csa-code input:focus:placeholder-shown {
+  outline: none;
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  border-style: solid;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.cjc .csa-code input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.cjc .csa-code input:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.cjc .csa-code-hint {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* --- כפתור ראשי (אחד למסך) --- */
+.cjc .btn-primary:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.52);
+  box-shadow: none;
+}
+
+/* --- מפריד וקישור "אין לי קוד" --- */
+.cjc .auth-divider::before,
+.cjc .auth-divider::after {
+  background: rgba(255, 255, 255, 0.14);
+}
+.cjc .auth-divider span {
+  color: rgba(255, 255, 255, 0.6);
+}
+.cjc .cjc-skip {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  /* --brand-text הבהיר של המצב הכהה, נגזר מהטוקן במקום hex */
+  color: color-mix(in srgb, var(--brand) 68%, white);
+}
+@media (pointer: coarse) {
+  .cjc .cjc-skip {
+    min-height: 44px;
+  }
+}
+
+/* --- באנר שגיאה על רקע כהה (המשפחה הרכה בהירה מדי כאן) --- */
+.cjc .csa-note--danger {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  color: rgba(255, 255, 255, 0.94);
+}
+.cjc .cjc-note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.cjc .cjc-note-row > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.cjc .csa-note--danger .cjc-note-row > svg {
+  color: color-mix(in srgb, var(--danger) 40%, white);
+}
+.cjc .csa-note-act {
+  align-self: flex-start;
+  padding-inline: 14px;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.42);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+/* כפתור ההתאוששות מוגדר גלובלית ל-42px — מתחת ל-44 של יעד מגע */
+@media (pointer: coarse) {
+  .cjc .csa-note-act {
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+/* --- באנר גיל 16 בתחתית --- */
+.cjc .cjc-note {
+  margin-block-start: auto;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.cjc .cjc-note > svg {
+  color: var(--gold);
+}
+
+/* --- דסקטופ: אין פאנל צד למסך הזה, רק עמודה ממורכזת --- */
+@media (min-width: 861px) {
+  .cjc.csa {
+    flex-direction: column;
+  }
+  .cjc .csa-sheet {
+    order: 0;
+    flex: 1;
+    padding: 40px 24px calc(32px + env(safe-area-inset-bottom));
+    border-radius: 0;
+  }
+  .cjc .csa-sheet-in {
+    max-width: 460px;
+    margin-inline: auto;
+  }
+  .cjc .csa-form {
+    flex: 1;
+  }
+  .cjc .csa-title {
+    font-size: 38px;
+  }
+}
+
+/* --- חוזה הנגישות: כיבוי מעברים בשני המתגים --- */
+@media (prefers-reduced-motion: reduce) {
+  .cjc .csa-code input,
+  .cjc .btn-primary {
+    transition: none;
+  }
+}
+html.a11y-motion .cjc .csa-code input,
+html.a11y-motion .cjc .btn-primary {
+  transition: none;
+}
+
+/* ---------- resetpassword.css ---------- */
+/* ================================================================= */
+/* ===== 1h · סיסמה חדשה — src/ResetPassword.jsx =================== */
+/* כל מה שאין לו מחלקה קיימת תחת .csa. הכול מקונן תחת .rp (המחלקה    */
+/* על שורש המסך) כדי שלא ידלוף לשום מסך אחר.                          */
+/* ================================================================= */
+
+/* לוגו המותג נדחף לתחתית הבאנר השטוח (150px) */
+.rp .rp-brand-push { margin-block-start: auto; }
+
+/* שורת «הסיסמאות תואמות» מתחת לשדה האישור — Rubik 600 12px בירוק */
+.rp .rp-match {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ok);
+}
+.rp .rp-match svg { flex: none; }
+
+/* הצ׳ק הירוק בקצה שדה האישור עטוף ב-span: הכלל הקיים
+   `.csa .csa-field > svg` (ספציפיות גבוהה יותר) היה צובע אותו ב---tx-dim */
+.rp .csa-field-ok { display: flex; align-items: center; }
+
+/* «אחרי העדכון נכניס אותך לאפליקציה אוטומטית» */
+.rp .rp-auto {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--mut);
+}
+
+/* באנר האזהרה על קישור פג — נצמד לתחתית המסך במובייל */
+.rp .rp-push { margin-top: auto; }
+.rp .csa-note-col { flex: 1; min-width: 0; }
+
+/* אייקון-הירו של מסך «הקישור פג» — משפחת האזהרה במקום ההצלחה */
+.rp .rp-hero-ic--warn { background: var(--warn-soft); color: var(--warn); }
+
+/* יעד מגע: .csa-note-act הוא 42px בעיצוב — במגע עולה ל-44px (DESIGN.md §7) */
+@media (pointer: coarse) {
+  .rp .csa-note-act { height: 44px; min-height: 44px; }
+}
+
+/* בדסקטופ הבאנר חוזר להיות פאנל צד ואין «תחתית מסך» לדחוף אליה */
+@media (min-width: 861px) {
+  .rp .rp-push { margin-top: 8px; }
+}
+
+/* חוזה הנגישות — מילוי מד החוזק מכובה בשני המתגים (DESIGN.md §3) */
+@media (prefers-reduced-motion: reduce) {
+  .rp .csa-meter i { transition: none; }
+}
+html.a11y-motion .rp .csa-meter i { transition: none; }
+
+/* ---------- auth-extra.css ---------- */
+/* ================================================================= */
+/* Auth.jsx — תוספות למסכי 1c (הרשמה), 1f (הקישור נשלח), 1g (קוד).    */
+/* הכול תחת .csa בלבד — לא דורס ולא דולף למסכים אחרים.                */
+/* ================================================================= */
+
+/* 1c — «כבר רשום? לכניסה» נצמד לתחתית הגלולה, כמו בעיצוב */
+.csa .csa-swap--push { margin-block-start: auto; }
+
+/* 1c — קישורי התנאים בתוך צ׳קבוקס ההסכמה */
+.csa .csa-consent-tx a {
+  color: var(--brand-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.csa .csa-consent-tx a:hover { text-decoration: underline; }
+
+/* 1f — באנר שגיאה במסך הממורכז נמתח לרוחב, אבל הטקסט שלו מיושר לתחילת השורה */
+.csa .csa-sheet--center .csa-sheet-in > .csa-note {
+  align-self: stretch;
+  text-align: start;
+}
+
+/* 1g — «שינוי כתובת» יושב בתוך שורת המשנה שמתחת לתאים */
+.csa .csa-code-hint .link-button {
+  vertical-align: baseline;
+  font-size: inherit;
+  font-weight: 700;
+}
+
+/* 1g — מסכים צרים מ-390px: התאים מתכווצים במקום לגלוש מהגלולה */
+@media (max-width: 380px) {
+  .csa .csa-code { gap: 7px; }
+  .csa .csa-code input { width: 44px; height: 56px; font-size: 23px; }
+}
+
+/* ---------- photos-home.css ---------- */
+/* ============================================================
+   Home — הסרת צילומי הסטוק (הבעלים פסל אותם)
+   1. ההירו: CourtArt מתחת לצעיף הנייבי במקום מחליף התמונות.
+   2. כתבה בלי תמונה: אריח placeholder בטוקנים + אייקון lucide.
+   כל הסלקטורים תחת .home-art-hero / .home — לא דולף למסך אחר.
+   ============================================================ */
+
+/* --- 1. שכבת הרקע של ההירו --- */
+/* מחליפה בדיוק את .si.si-fill שהיה כאן: ממלאת את .home-hero (שכבר
+   position: relative), נחתכת לפי הרדיוס שלו ונשארת מתחת לתוכן.
+   המחלקה .home-hero-bg נשמרת על האלמנט כדי שהחריגה הקיימת
+   `.home-hero > *:not(.home-hero-bg)` תמשיך לעבוד — הגובה, הרדיוס
+   וסדר-השכבות של ההירו לא זזו. */
+.home-art-hero .home-hero-bg.home-art-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.home-art-hero .home-hero-bg.home-art-fill .court-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* הצעיף הקיים (.home-hero-bg::after) כויל לצילום — 84%–90% נייבי, שהיה
+   מוחק איור וקטורי לגמרי. מתחתיו עכשיו איור שהוא ממילא נייבי, ולכן
+   האטימות יורדת כדי שקווי המגרש ייראו. הכיוון (140deg) והמיקום נשארים.
+   ניגודיות במקרה הגרוע — טקסט מעל הכדור הכתום, הנקודה הבהירה היחידה
+   באיור: לבן מלא ≈9.9:1, טקסט המשנה ב-78% לבן ≈7:1, שורת המצטט
+   ב-72% לבן ≈6:1. שלושתם מעל AA. */
+.home-art-hero .home-hero-bg.home-art-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--navy-1) 72%, transparent) 0%,
+    color-mix(in srgb, var(--navy-2) 66%, transparent) 58%,
+    color-mix(in srgb, var(--navy-1) 70%, transparent) 100%
+  );
+}
+
+/* --- 2. אריח placeholder לכתבה בלי תמונה --- */
+/* הרקע הנייבי והמרכוז כבר מגיעים מ-.news-thumb / .news-thumb:not([style])
+   הקיימים, והגובה (140px) לא משתנה — לכן אין reflow. כאן רק העיגול
+   הכתום סביב האייקון. z-index: 1 כמו ב-.news-source, כדי לשבת מעל
+   ה-scrim של .news-thumb::after. */
+.home .news-thumb .home-news-ph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 34%, transparent);
+  color: var(--brand);
+}
+
+/* ---------- photos-community.css ---------- */
+/* ============================================================
+   Community — הירו בלי צילום סטוק: CourtArt מתחת לצעיף הנייבי
+   כל הסלקטורים תחת .cm-art-hero (מחלקה שנוספה ל-<header> ב-Community.jsx)
+   כדי שהבלוק לא ידלוף לשום מסך אחר.
+   ============================================================ */
+
+/* השכבה שמחליפה את .si.si-fill — בדיוק אותן מידות: ממלאת את ההורה הממוקם
+   (.cm-page > .cm-hero כבר position: relative), נחתכת לפי הרדיוס שלו,
+   ונשארת מתחת לתוכן. הגובה והרדיוס של ההירו לא זזו. */
+.cm-art-hero .cm-art-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.cm-art-hero .cm-art-fill .court-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* הצעיף הקיים (.cm-hero-bg::after) כויל לצילום. מתחתיו עכשיו איור שהוא
+   ממילא נייבי — אותו לקח שתועד ב-.csa-veil במסך הכניסה — ולכן האטימות
+   יורדת כדי שקווי המגרש ייראו. הצעיף עצמו, הכיוון (140deg) והמיקום נשארים.
+   ניגודיות במקרה הגרוע (לבן מעל הכדור הכתום, הנקודה הבהירה היחידה באיור)
+   ≈9:1, ולטקסט המשני ב-75% לבן ≈5.8:1 — שניהם מעל AA. */
+.cm-art-hero .cm-hero-bg::after {
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--navy-1) 72%, transparent) 0%,
+    color-mix(in srgb, var(--navy-2) 66%, transparent) 58%,
+    color-mix(in srgb, var(--navy-1) 70%, transparent) 100%
+  );
+}
+
+/* ---------- photos-drilllibrary.css ---------- */
+/* ================================================================= */
+/* ===== 29.7.2026 — ספריית תרגילים: איור מגרש במקום צילום סטוק ==== */
+/* הבעלים פסל צילומי סטוק. הפוסטר של DrillLibrary עבר מ-<SmartImage>  */
+/* ל-<CourtArt /> — סימן-המים של המגרש (DESIGN.md §2ב, דפוס 1).      */
+/* זו החלפה בלבד: הגובה (aspect-ratio / min-height), הרדיוס, הצל     */
+/* והצעיף (.drill-poster::after) נשארים כפי שהם ולא מוגדרים כאן מחדש. */
+/* הכול תחוּם ב-.drill-poster — לא דולף לשום מסך אחר.                */
+/* ================================================================= */
+
+/* עטיפת האיור — ממלאת את הפוסטר ויושבת מתחת לצעיף ולשורת הטקסט
+   (ל-.drill-poster-line יש z-index: 1, ו-::after נצבע אחרי הילד הזה). */
+.drill-poster .drill-poster-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ה-SVG עצמו ממלא את העטיפה. הכלל הגלובלי ל-.court-art כבר עושה זאת;
+   חוזרים עליו בתחום המקומי כדי שהפוסטר לא יהיה תלוי בסדר הבלוקים. */
+.drill-poster .drill-poster-art .court-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ניגודיות: מתחת לשורת הטקסט הצעיף הקיים יושב על ~70%–90% אטימות מעל
+   נייבי — לבן על ~‎--navy-1/‎--navy-2 ≈ 15:1, הרבה מעל AA. אין צורך
+   בהכהיה נוספת, ולכן ::after לא נגוע. */
+
+/* ================================================================= */
+/* ===== 29.7.2026 — הניווט בשפה החדשה (סיידבר, טופבר, תחתון) ===== */
+/* ================================================================= */
+
+/* --- הפס המחליק ---
+   useNavMarker.js נוסף עם הספאן והמדידה, אבל ל-.nav-marker מעולם לא נכתב
+   CSS — הוא רונדר כספאן ריק בלי מידות, כלומר הפיצ'ר היה מת. כאן הוא מקבל
+   את הצורה של ה-::before הישן (3px, 60% גובה, כתום) רק כאלמנט אחד שמחליק. */
+.sidebar-nav { position: relative; }
+.nav-marker {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  width: 3px;
+  height: calc(var(--nm-h, 40px) * 0.6);
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  /* מזיז רק transform — הגובה קבוע, אין אנימציית לייאאוט (DESIGN.md §3) */
+  transform: translateY(calc(var(--nm-y, 0px) + var(--nm-h, 40px) * 0.2));
+  transition: transform var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+[data-theme='dark'] .nav-marker { box-shadow: 0 0 12px rgba(232, 118, 58, 0.55); }
+@media (prefers-reduced-motion: reduce) { .nav-marker { transition: none; } }
+html.a11y-motion .nav-marker { transition: none; }
+
+/* שני סימונים על אותו פריט = כפילות. הישן יורד. */
+.nav-item.active::before,
+.sidebar .nav-item.active::before { display: none; }
+
+/* --- פריט ניווט --- */
+.sidebar .nav-item {
+  min-height: 44px;
+  padding: 10px 13px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tx-2);
+}
+.sidebar .nav-item:hover:not(.active) { background: var(--sf2); color: var(--tx); }
+.sidebar .nav-item.active {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 800;
+}
+.sidebar .nav-item svg { opacity: 1; flex: none; }
+
+/* --- תג ההודעות: --accent על לבן הוא 2.9:1 (נכשל AA). --brand-strong = 5.8:1 --- */
+.nav-badge,
+.bn-badge { background: var(--brand-strong); }
+
+/* --- כרטיס המשתמש בתחתית הסיידבר --- */
+.sidebar-user {
+  gap: 11px;
+  padding: 11px;
+  margin-top: auto;
+  border: 1px solid var(--ln);
+  border-top: 1px solid var(--ln);
+  border-radius: var(--radius-md);
+  background: var(--sf);
+}
+.sidebar-user:hover { background: var(--sf2); }
+.sidebar-user-info strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--tx);
+}
+.sidebar-user-info > span { font-size: 12px; color: var(--mut); }
+
+/* --- מותג --- */
+.sidebar-brand { font-family: var(--font-display); font-weight: 900; letter-spacing: -0.02em; }
+
+/* --- ניווט תחתון במובייל --- */
+@media (max-width: 768px) {
+  .bn-item {
+    min-height: 56px;
+    color: var(--tx-2);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .bn-item.active { color: var(--brand-text); font-weight: 700; }
+  .bn-ic { position: relative; display: inline-flex; }
+  .bottom-nav { border-top: 1px solid var(--ln); background: var(--sf); }
+
+  /* טופבר — אותו זכוכית, טיפוגרפיה של השפה החדשה */
+  .mobile-topbar { border-bottom: 1px solid var(--ln); }
+  .mobile-topbar .sidebar-brand { font-size: 17px; }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — Page: השלמות לשפת חבילת ה-Auth =============== */
+/* eyebrow עם אייקון, שורת פעולות בבאנר, וכרטיס שיושב על התפר.      */
+/* ================================================================= */
+
+.cs-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+.cs-hero-eyebrow svg { flex: none; }
+
+/* שורת הפעולות בתוך הבאנר — כפתור ראשי אחד, השאר שקופים */
+.cs-hero-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.cs-hero-acts .btn-primary {
+  width: auto;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 20px -10px rgba(179, 78, 28, 0.6);
+  cursor: pointer;
+}
+/* משני על נייבי — זכוכית, לא לבן מלא */
+.cs-hero-acts .btn-soft {
+  width: auto;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+.cs-hero-acts .btn-soft:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* כרטיס שיושב על התפר בין הבאנר לגלולה */
+.cs-overlap {
+  position: relative;
+  z-index: 2;
+  margin: -30px 20px 0;
+}
+.cs-sheet--overlapped { padding-top: 16px; }
+
+/* הבאנר גדל כשיש בו שורת פעולות */
+.cs-hero--lg .cs-hero-body { padding-bottom: 46px; }
+
+@media (max-width: 768px) {
+  .cs-overlap { margin-inline: 16px; }
+  .cs-hero-acts .btn-primary,
+  .cs-hero-acts .btn-soft { flex: 1 1 auto; }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — סרגל תחתון מונע-ספירה (מסמך המסירה, עמ' 3–4) == */
+/* המאמן עלה ל-7 טאבים. סרגל השחקן נשאר 5, ולכן הרשת נגזרת מ---bn-count */
+/* שכל מעטפת מגדירה בעצמה — ולא ממספר קשיח כמו repeat(5,1fr) הקודם.  */
+/* ================================================================= */
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    grid-template-columns: repeat(var(--bn-count, 5), 1fr);
+  }
+
+  /* התא צר יותר עכשיו — התווית לא יוצאת ממנו ולא נשברת לשתי שורות */
+  .bn-item {
+    min-width: 0;
+    padding-inline: 1px;
+  }
+  .bn-lbl {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+
+  /* התג ישב על האייקון ולא יגלוש לשכן: 1/7 מ-320px הוא 45.7px בלבד */
+  .bn-ic { overflow: visible; }
+  .bn-badge { inset-inline-end: -7px; }
+
+  /* מתחת ל-380px שבעה טאבים יורדים מתחת לרצפת המגע של 44px אם נשמרת
+     תווית. במקרה הזה התווית יורדת ו-aria-label נושא את השם הנגיש. */
+  @media (max-width: 380px) {
+    .layout:not(.pl-layout) .bn-lbl { display: none; }
+    .layout:not(.pl-layout) .bn-item {
+      justify-content: center;
+      gap: 0;
+      min-height: 52px;
+    }
+  }
+}
+
+/* --- גובה הסרגל כמשתנה יחיד ---
+   ‎76px/70px היו כתובים קשיח בארבעה מקומות שאינם נגזרים מהסרגל בפועל.
+   כאן הם נגזרים ממנו, כך ששינוי גובה עתידי לא ישאיר תוכן מתחתיו. */
+:root { --bn-h: 56px; }
+@media (max-width: 768px) {
+  .main-content { padding-bottom: calc(var(--bn-h) + 20px + env(safe-area-inset-bottom)) !important; }
+  .a11y-fab { bottom: calc(var(--bn-h) + 14px + env(safe-area-inset-bottom)); }
+  .toaster { inset-block-end: calc(var(--bn-h) + 14px + env(safe-area-inset-bottom)); }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — סרגל תחתון: סף התוויות לפי רוחב הסרגל ======== */
+/* ווידג'ט הנגישות מגדיל דרך `zoom` על #root (עד 140%), ו-zoom לא     */
+/* משנה את רוחב ה-media query — ולכן סף מבוסס-viewport פספס את המקרה  */
+/* של 430px+140% (התא ירד ל-43.9px והתווית נשארה). container query    */
+/* מודד את הסרגל עצמו, אחרי הזום, ולכן תופס את שני המקרים.            */
+/* ================================================================= */
+
+@media (max-width: 768px) {
+  .bottom-nav { container-type: inline-size; }
+
+  /* מתחת ל-380px רוחב-סרגל אפקטיבי, שבעה תאים כבר לא נושאים תווית
+     קריאה. היא יורדת, ו-aria-label על הכפתור נושא את השם הנגיש. */
+  @container (max-width: 379.98px) {
+    .layout:not(.pl-layout) .bn-lbl { display: none; }
+    .layout:not(.pl-layout) .bn-item {
+      justify-content: center;
+      gap: 0;
+      min-height: 52px;
+    }
+  }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — רצועת אישורי הגעה (מסך 3a, תחתית ה-hero) ===== */
+/* רקע כהה יותר מה-hero, כמו במוקאפ — לא כרטיס נפרד.                */
+/* ================================================================= */
+
+.cs-rsvp {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(10, 20, 40, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--on-dark);
+}
+.cs-rsvp-ic {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--gold);
+}
+.cs-rsvp-tx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cs-rsvp-tx b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--on-dark);
+}
+.cs-rsvp-tx > span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+.cs-rsvp-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.cs-rsvp-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.cs-rsvp-btn:disabled { opacity: 0.6; cursor: progress; }
+@media (pointer: coarse) { .cs-rsvp-btn { min-height: 44px; } }
+
+@media (max-width: 420px) {
+  .cs-rsvp { flex-wrap: wrap; }
+  .cs-rsvp-btn { width: 100%; justify-content: center; }
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — אריחי המספרים בבית המאמן (מסך 3a) ============ */
+/* ארבעת המספרים: 87% נוכחות · 3 אימונים · 11 תוכניות · 24 שמורים.  */
+/* ================================================================= */
+
+.stat-tile-num {
+  font-variant-numeric: tabular-nums;
+}
+/* הסימן % קטן יותר מהמספר וצמוד אליו, כמו במוקאפ */
+.stat-tile-pct {
+  font-size: 0.55em;
+  font-weight: 800;
+  margin-inline-start: 1px;
+  vertical-align: baseline;
+}
+
+/* ================================================================= */
+/* ===== 29.7.2026 — סקשני בית המאמן (מסך 3a במסמך המסירה) ======== */
+/* באנר אימון פתוח · תוכנית היום כמחברת · השבוע · דורש תשומת לב.    */
+/* ================================================================= */
+
+/* --- כותרת סקשן: eyebrow כתום + כותרת + קישור בקצה --- */
+.hp-sechead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 26px 0 10px;
+}
+.hp-eyebrow {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--brand-text);
+}
+.hp-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--tx);
+}
+.hp-sechead .hp-seclink {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+/* --- כפתורים משותפים לסקשנים --- */
+.hp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-full);
+  background: var(--sf);
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.hp-btn:hover { background: var(--sf2); }
+.hp-btn--accent { border-color: var(--brand-strong); color: var(--brand-text); }
+.hp-btn--navy { background: var(--navy-1); border-color: var(--navy-1); color: var(--on-dark); }
+.hp-btn--navy:hover { background: var(--navy-2); }
+.hp-btn--sm { min-height: 36px; padding: 0 11px; font-size: 12.5px; }
+@media (pointer: coarse) { .hp-btn, .hp-btn--sm { min-height: 44px; } }
+
+/* --- 1. באנר «האימון עוד פתוח» --- */
+.hp-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+.hp-alert-ic {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.hp-alert-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hp-alert-tx b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14.5px;
+  color: var(--tx);
+}
+.hp-alert-tx > span { font-size: 12.5px; line-height: 1.5; color: var(--mut); }
+.hp-alert-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 480px) {
+  .hp-alert { flex-wrap: wrap; }
+  .hp-alert-acts { width: 100%; }
+  .hp-alert-acts .hp-btn { flex: 1; }
+}
+
+/* --- 2. כרטיס תוכנית היום, בשפת המחברת ---
+   לא NotebookPage עצמה (היא מסך מלא עם חוזה הדפסה) — זהו תקציר
+   שנושא את אותה חתימה ויזואלית ומקשר אליה. */
+.hp-nb {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--ln);
+  background: var(--sf);
+  box-shadow: var(--shadow-sm);
+}
+.hp-nb-head {
+  position: relative;
+  padding: 14px 16px 14px 16px;
+  /* מקום לחירור הכריכה בקצה המוביל */
+  padding-inline-start: 30px;
+  background: linear-gradient(150deg, var(--navy-1), var(--navy-2));
+  color: var(--on-dark);
+}
+/* חירור הכריכה — נקודות לאורך הקצה, כמו במחברת האמיתית */
+.hp-nb::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 16px;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.34) 2.4px, transparent 2.6px);
+  background-size: 16px 22px;
+  background-repeat: repeat-y;
+  z-index: 1;
+  pointer-events: none;
+}
+.hp-nb-club {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--gold);
+}
+.hp-nb-date {
+  float: inline-end;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+.hp-nb-title {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--on-dark);
+}
+.hp-nb-pill {
+  display: inline-block;
+  margin-top: 9px;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
+  background: var(--on-dark);
+  color: var(--navy-1);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+}
+.hp-nb-body { padding: 14px 16px; padding-inline-start: 30px; }
+.hp-nb-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--ln);
+  font-size: 12.5px;
+  color: var(--mut);
+}
+.hp-nb-total span { flex: none; font-weight: 600; }
+.hp-nb-total b {
+  margin-inline-start: auto;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--tx);
+  font-variant-numeric: tabular-nums;
+}
+.hp-nb-rows { list-style: none; margin: 0; padding: 0; }
+.hp-nb-rows li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--ln);
+}
+.hp-nb-rows li:last-child { border-bottom: 0; padding-bottom: 2px; }
+.hp-nb-n {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--navy-1);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12.5px;
+}
+.hp-nb-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tx);
+}
+.hp-nb-min {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12.5px;
+  color: var(--mut);
+  font-variant-numeric: tabular-nums;
+}
+.hp-nb-acts { display: flex; gap: 10px; margin-top: 12px; }
+.hp-nb-acts .hp-btn { flex: 1; }
+
+/* --- 3. «השבוע · לו״ז» --- */
+.hp-week {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  background: var(--sf);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.hp-week-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--ln);
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+.hp-week-row:last-child { border-bottom: 0; }
+.hp-week-row.is-next { background: var(--sf2); }
+.hp-week-day {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 30px;
+}
+.hp-week-day b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--mut);
+}
+.hp-week-day > span {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 18px;
+  color: var(--tx);
+  font-variant-numeric: tabular-nums;
+}
+.hp-week-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hp-week-tx b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--tx);
+}
+.hp-week-tx > span { font-size: 12px; color: var(--mut); }
+.hp-week-tx > span.is-warn { color: var(--warn); font-weight: 600; }
+.hp-week-time {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 4. «דורש תשומת לב · הסגל» --- */
+.hp-att {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  background: var(--sf);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.hp-att-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ln);
+}
+.hp-att-row:last-child { border-bottom: 0; }
+.hp-att-av {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--navy-1);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+}
+.hp-att-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hp-att-tx b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--tx);
+}
+.hp-att-tx > span { font-size: 12px; font-weight: 600; }
+.hp-att-tx > span.is-warn { color: var(--warn); }
+.hp-att-tx > span.is-bad { color: var(--danger); }
+
+/* ================================================================= */
+/* ===== 29.7.2026 — מדיה: סרטונים ופודקאסטים (מסך 14a/14b) ======= */
+/* הכל תחוּם ב-.md-screen — מסך המדיה בלבד. הכרטיס הראשון גדול      */
+/* (נגן במרכז), השאר שורות קומפקטיות, בדיוק כמו במוקאפ.             */
+/* ================================================================= */
+
+.md-screen { display: block; }
+
+/* --- מסילת הטאבים --- */
+.md-screen .md-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.md-screen .md-tabs .tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-full);
+  background: var(--sf);
+  color: var(--tx-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.md-screen .md-tabs .tab::after,
+.md-screen .md-tabs .tab::before { display: none; }
+.md-screen .md-tabs .tab.active {
+  background: var(--navy-1);
+  border-color: var(--navy-1);
+  color: var(--on-dark);
+  font-weight: 800;
+}
+.md-screen .md-tabs .tab svg { flex: none; }
+
+.md-lede,
+.md-screen .library-header .muted.small {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--mut);
+}
+
+/* --- שורת הפעולות: הוספת סרטון ברוחב מלא, כמו במוקאפ --- */
+.md-screen .library-header { display: block; }
+.md-screen .video-header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.md-screen .video-header-actions > * { width: 100%; }
+.md-screen .sched-add-btn {
+  min-height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  border: 0;
+  box-shadow: 0 10px 20px -10px rgba(179, 78, 28, 0.6);
+}
+.md-screen .yt-import-btn {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+}
+
+/* --- שבבי קטגוריה --- */
+.md-screen .chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.md-screen .chips::-webkit-scrollbar { display: none; }
+.md-screen .chip {
+  flex: none;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-full);
+  background: var(--sf);
+  color: var(--tx-2);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.md-screen .chip.selected {
+  background: var(--navy-1);
+  border-color: var(--navy-1);
+  color: var(--on-dark);
+  font-weight: 700;
+}
+@media (pointer: coarse) { .md-screen .chip { min-height: 44px; } }
+
+/* --- חיפוש --- */
+.md-screen .finder-input[type='search'] {
+  height: 46px;
+  margin-top: 10px;
+  border: 1.5px solid var(--ln);
+  border-radius: var(--radius-md);
+  background: var(--sf);
+  font-size: 14px;
+}
+
+/* --- רשת הסרטונים: עמודה אחת --- */
+.md-screen .video-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.md-screen .video-card {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: stretch;
+  gap: 12px;
+  padding: 10px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.md-screen .video-thumb {
+  position: relative;
+  flex: none;
+  width: 104px;
+  aspect-ratio: 16 / 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--navy-2);
+  overflow: hidden;
+}
+.md-screen .video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.md-screen .video-play {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+}
+.md-screen .video-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.md-screen .video-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14.5px;
+  line-height: 1.3;
+  color: var(--tx);
+}
+.md-screen .cat-badge {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+.md-screen .video-rank-badge {
+  position: absolute;
+  inset-block-end: 5px;
+  inset-inline-end: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: rgba(10, 20, 40, 0.82);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.md-screen .video-rate-meta { font-variant-numeric: tabular-nums; }
+.md-screen .video-pending {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+.md-screen .video-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.md-screen .video-watch {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--ln);
+  background: var(--sf);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+@media (pointer: coarse) { .md-screen .video-watch { min-height: 44px; } }
+.md-screen .video-feature.on { color: var(--brand-text); }
+
+/* --- הכרטיס הראשון: מוגדל, נגן במרכז (המוקאפ) --- */
+.md-screen .video-grid > .video-card:first-child {
+  flex-direction: column;
+  padding: 0;
+}
+.md-screen .video-grid > .video-card:first-child .video-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
+}
+.md-screen .video-grid > .video-card:first-child .video-play {
+  width: 46px;
+  height: 46px;
+}
+.md-screen .video-grid > .video-card:first-child .video-body { padding: 12px 14px 14px; }
+.md-screen .video-grid > .video-card:first-child .video-title { font-size: 16.5px; }
+
+/* --- תיקון: התמונה הממוזערת בשורה הקומפקטית נמתחה לגובה הכרטיס
+   ודרסה את aspect-ratio, כך שסרטון נראה כתמונת פורטרט. --- */
+.md-screen .video-thumb { align-self: flex-start; }
+.md-screen .video-grid > .video-card:first-child .video-thumb { align-self: stretch; }
