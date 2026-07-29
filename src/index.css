@@ -20675,3 +20675,123 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 /* כרטיס «האימון הקרוב» כשהוא יורד מהבאנר במובייל — אותו מרווח כמו
    שאר הסקשנים, בלי הרקע הנייבי שהיה לו בתוך הבאנר. */
 .home-next-mobile { margin-top: 14px; }
+
+/* ================================================================= */
+/* בית השחקן — מסך 3b במסמך המסירה                                   */
+/* אישור הגעה בבאנר · ארבעה מספרים בתוך הבאנר · «השבוע שלי» ·        */
+/* כפתור «שלח הודעה למאמן» בתחתית.                                    */
+/* ================================================================= */
+.plh-rsvp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+.plh-rsvp-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plh-rsvp-tx strong {
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--on-dark);
+}
+.plh-rsvp-tx span { font-size: 12px; color: rgba(255, 255, 255, 0.72); }
+.plh-rsvp-btns { display: flex; gap: 8px; }
+.plh-rsvp-btn {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.plh-rsvp-btn.yes.on { background: var(--brand-strong); border-color: transparent; }
+.plh-rsvp-btn.no.on { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.5); }
+.plh-rsvp-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ארבעת המספרים — רצועה כהה יותר בתחתית הבאנר, כמו במוקאפ */
+.plh-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 14px -16px -16px;
+  padding: 12px 6px;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.plh-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--on-dark);
+  cursor: pointer;
+}
+.plh-stat + .plh-stat { border-inline-start: 1px solid rgba(255, 255, 255, 0.12); }
+.plh-stat b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.plh-stat b.hot { color: var(--orange-300); }
+.plh-stat span { font-size: 11px; color: rgba(255, 255, 255, 0.74); }
+
+/* «השבוע שלי» — שורות עם עמודת תאריך, ומשחק בנייבי מלא */
+.plw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.plw-row {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.plw-date { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.plw-date i { font-style: normal; font-size: 11px; color: var(--text-muted); }
+.plw-date b { font-family: var(--font-display); font-size: 19px; font-weight: 900; }
+.plw-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plw-main strong { font-size: 14.5px; font-weight: 700; }
+.plw-main span { font-size: 12px; color: var(--text-muted); }
+.plw-time {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+.plw-row.game { background: var(--navy-2); border-color: transparent; color: var(--on-dark); }
+.plw-row.game .plw-date i, .plw-row.game .plw-main span { color: rgba(255, 255, 255, 0.72); }
+.plw-row.game .plw-time { color: var(--orange-300); }
+
+/* כפתור הסיום של המסך */
+.plh-msg-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -10px rgba(179, 78, 28, 0.6);
+}

@@ -254,83 +254,6 @@ function AttendanceRing({ pct, size = 62 }) {
   )
 }
 
-function WeeklyMission({ done }) {
-  const pct = Math.min(100, Math.round((done / WEEKLY_TARGET) * 100))
-  const complete = done >= WEEKLY_TARGET
-  return (
-    <section className="pl-block">
-      <div className={complete ? 'pl-mission done' : 'pl-mission'}>
-        <span className="pl-mission-ic"><Target size={22} /></span>
-        <div className="pl-mission-body">
-          <div className="pl-mission-top">
-            <strong>{L('המשימה השבועית', 'Weekly mission')}</strong>
-            <span>{done}/{WEEKLY_TARGET}</span>
-          </div>
-          <div className="pl-mission-bar"><span style={{ width: `${pct}%` }} /></div>
-          <span className="muted small">
-            {complete ? L('כל הכבוד! השלמת את המשימה', 'Awesome! Mission complete')
-                      : L(`בצעו ${WEEKLY_TARGET} תרגילים השבוע — נשארו ${WEEKLY_TARGET - done}`, `Do ${WEEKLY_TARGET} drills this week — ${WEEKLY_TARGET - done} to go`)}
-          </span>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ---------- כתבות כדורסל (קומפקטי) ----------
-function PlayerNews() {
-  const [items, setItems] = useState(null)
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      try {
-        const raw = localStorage.getItem(NEWS_CACHE_KEY)
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed?.items?.length) { if (alive) setItems(parsed.items.slice(0, 4)); return }
-        }
-      } catch { /* ignore */ }
-      try {
-        const out = []
-        for (const src of NEWS_SOURCES.slice(0, 2)) {
-          const res = await fetch(src.api).then((r) => r.json()).catch(() => null)
-          if (res?.status === 'ok' && Array.isArray(res.items)) {
-            res.items.slice(0, 3).forEach((it, i) => {
-              const t = String(it.title || '').split(' - ')
-              out.push({
-                title: t[0], source: t[1] || src.name, link: it.link,
-                // בלי תמונות סטוק (DESIGN.md) — אין תמונה אמיתית? placeholder ממותג ב-CSS
-                image: it.thumbnail || it.enclosure?.link || null,
-              })
-            })
-          }
-          if (out.length >= 4) break
-        }
-        if (alive) setItems(out.slice(0, 4))
-      } catch { if (alive) setItems([]) }
-    })()
-    return () => { alive = false }
-  }, [])
-
-  if (items === null || items.length === 0) return null
-  return (
-    <section className="pl-block">
-      <p className="pl-section-label"><Newspaper size={15} /> {L('כתבות כדורסל', 'Basketball news')}</p>
-      <div className="pl-news">
-        {items.map((n, i) => (
-          <a key={i} className="pl-news-card" href={safeUrl(n.link) || '#'} target="_blank" rel="noopener noreferrer">
-            <span className="pl-news-thumb" style={n.image ? { backgroundImage: `url("${n.image}")` } : undefined} />
-            <span className="pl-news-body">
-              <span className="pl-news-title"><bdi>{n.title}</bdi></span>
-              <span className="pl-news-src">{n.source}</span>
-            </span>
-          </a>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 // ---------- ציטוט מתחלף ----------
 function PlayerQuote() {
   const [i, setI] = useState(() => Math.floor((Date.now() / 60000) % COACHING_QUOTES.length))
@@ -1019,7 +942,141 @@ function PrePracticeGoals({ session, membership }) {
 }
 
 // ---------- בית: כרטיס-הירו עם ספירה לאחור לאימון הבא + CTA לסיכום ----------
-function HomeHero({ profile, membership, onFeedback, refreshKey }) {
+// ---------- בית: אישור הגעה לאימון הבא (מסך 3b) ----------
+// כותב ל-practice_rsvp: היעדר שורה = «טרם ענה», ולכן אין מה ליצור מראש.
+function HomeRsvp({ session, membership, next }) {
+  const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
+  const [busy, setBusy] = useState(false)
+  const sessionId = next?.session_id
+
+  useEffect(() => {
+    if (!sessionId) { setMine(undefined); return }
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase.from('practice_rsvp')
+        .select('response').eq('session_id', sessionId).eq('player_id', session.user.id).maybeSingle()
+      if (!alive) return
+      // הטבלה טרם נוצרה — הבלוק פשוט לא מוצג, כמו שאר הפיצ'רים התלויים ב-SQL
+      if (error) { setMine(undefined); return }
+      setMine(data?.response || null)
+    })()
+    return () => { alive = false }
+  }, [sessionId, session.user.id])
+
+  const answer = async (response) => {
+    if (!sessionId || busy) return
+    setBusy(true)
+    const { error } = await supabase.from('practice_rsvp').upsert({
+      coach_id: membership.coach_id, team: membership.team,
+      session_id: sessionId, session_date: next.date,
+      player_id: session.user.id, response,
+    }, { onConflict: 'session_id,player_id' })
+    setBusy(false)
+    if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
+    setMine(response)
+    toast.success(response === 'yes'
+      ? L('רשמנו שאתה מגיע', "You're marked as coming")
+      : L('רשמנו שלא תגיע', "You're marked as not coming"))
+  }
+
+  if (!membership || !sessionId || mine === undefined) return null
+  const isToday = next.date === new Date().toISOString().slice(0, 10)
+  return (
+    <div className="plh-rsvp">
+      <div className="plh-rsvp-tx">
+        <strong>{isToday ? L('מגיע היום?', 'Coming today?') : L('מגיע לאימון הבא?', 'Coming to the next one?')}</strong>
+        <span>{L('המאמן רואה את התשובה מיד', 'Your coach sees the answer right away')}</span>
+      </div>
+      <div className="plh-rsvp-btns">
+        <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
+          onClick={() => answer('yes')} disabled={busy} aria-pressed={mine === 'yes'}>
+          {L('מגיע', 'Coming')}
+        </button>
+        <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
+          onClick={() => answer('no')} disabled={busy} aria-pressed={mine === 'no'}>
+          {L('לא אוכל', "Can't make it")}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------- בית: ארבעת המספרים בתוך הבאנר (מסך 3b) ----------
+function HeroStats({ stats, setView }) {
+  const tiles = [
+    { k: 'fb', num: stats?.fbCount ?? 0, lbl: L('משובים', 'Feedback'), go: 'feedback' },
+    { k: 'open', num: stats?.open ?? 0, lbl: L('משימות', 'Tasks'), go: 'drills', hot: true },
+    { k: 'load', num: stats?.avgLoad ?? '—', lbl: L('עומס ממוצע', 'Avg load'), go: 'feedback' },
+    { k: 'att', num: stats?.attendancePct != null ? stats.attendancePct + '%' : '—', lbl: L('נוכחות', 'Attendance'), go: 'schedule' },
+  ]
+  return (
+    <div className="plh-stats">
+      {tiles.map((t) => (
+        <button key={t.k} type="button" className="plh-stat" onClick={() => setView(t.go)}>
+          <b className={t.hot ? 'hot' : ''} dir="ltr">{t.num}</b>
+          <span>{t.lbl}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ---------- בית: «השבוע שלי» — שלושת האירועים הבאים (מסך 3b) ----------
+function WeekStrip({ membership, setView }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    if (!membership) { setRows([]); return }
+    let alive = true
+    ;(async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const [ent, slots, games] = await Promise.all([
+        supabase.from('schedule_entries').select('id, date, start_time, location, plan:training_plans(name)')
+          .eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').limit(10),
+        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
+        supabase.from('team_games').select('id, game_date, game_time, opponent, location')
+          .eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(10),
+      ])
+      if (!alive) return
+      const all = [
+        ...(ent.data || []).map((e) => ({ id: e.id, date: e.date, time: e.start_time, kind: 'practice',
+          title: e.plan?.name ? L('אימון · ' + e.plan.name, 'Practice · ' + e.plan.name) : L('אימון', 'Practice'), where: e.location })),
+        ...expandSlots(slots.data || [], 0, 14).map((o) => ({ id: o.session_id, date: o.date, time: o.start_time, kind: 'practice',
+          title: L('אימון · ' + trTeam(membership.team), 'Practice · ' + trTeam(membership.team)), where: o.location })),
+        ...(games.data || []).map((g) => ({ id: g.id, date: g.game_date, time: g.game_time, kind: 'game',
+          title: g.opponent ? L('משחק · מול ' + g.opponent, 'Game · vs ' + g.opponent) : L('משחק', 'Game'), where: g.location })),
+      ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''))).slice(0, 3)
+      setRows(all)
+    })()
+    return () => { alive = false }
+  }, [membership])
+
+  if (!membership || rows === null || !rows.length) return null
+  return (
+    <section className="pl-block">
+      <div className="plhg-head">
+        <p className="pl-section-label"><CalendarDays size={15} /> {L('השבוע שלי', 'My week')}</p>
+        <button className="plhg-all" onClick={() => setView('schedule')}>{L('כל הלו״ז', 'Full schedule')} <ArrowFwd size={14} /></button>
+      </div>
+      <ul className="plw-list">
+        {rows.map((r) => (
+          <li key={r.kind + '-' + r.id} className={r.kind === 'game' ? 'plw-row game' : 'plw-row'}>
+            <span className="plw-date">
+              <i>{new Date(r.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'narrow' })}</i>
+              <b dir="ltr">{String(new Date(r.date + 'T00:00').getDate()).padStart(2, '0')}</b>
+            </span>
+            <span className="plw-main">
+              <strong>{r.title}</strong>
+              {r.where && <span>{r.where}</span>}
+            </span>
+            {r.time && <span className="plw-time" dir="ltr">{String(r.time).slice(0, 5)}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats, setView }) {
   const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
   // 'ask' = היה אימון היום ואין עדיין סיכום → ההירו שואל "איך היה?"
@@ -1043,10 +1100,10 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
         return `${String(Math.min(23, h + 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
       }
       const cands = [
-        ...(data || []).map((e) => ({ kind: 'practice', date: e.date, start_time: e.start_time, end_time: e.end_time, title: e.plan?.name || null, location: e.location })),
-        ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', date: o.date, start_time: o.start_time, end_time: o.end_time, title: null, location: o.location })),
+        ...(data || []).map((e) => ({ kind: 'practice', session_id: e.id, date: e.date, start_time: e.start_time, end_time: e.end_time, title: e.plan?.name || null, location: e.location })),
+        ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', session_id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time, title: null, location: o.location })),
         ...(games || []).map((g) => ({
-          kind: 'game', date: g.game_date, start_time: g.game_time ? String(g.game_time).slice(0, 5) : null,
+          kind: 'game', session_id: g.id, date: g.game_date, start_time: g.game_time ? String(g.game_time).slice(0, 5) : null,
           end_time: gameEnd(g.game_time), location: g.location,
           title: g.opponent ? L(`משחק נגד ${g.opponent}`, `Game vs ${g.opponent}`) : L('משחק', 'Game'),
         })),
@@ -1149,58 +1206,12 @@ function HomeHero({ profile, membership, onFeedback, refreshKey }) {
         {membership && summary?.state !== 'ask' && (
           <button className="plh-hero-cta" onClick={onFeedback}><Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}</button>
         )}
+        {/* אישור הגעה — «מגיע?» ישר בבאנר, לפי מסך 3b */}
+        {next && session && <HomeRsvp session={session} membership={membership} next={next} />}
       </div>
+      {/* ארבעת המספרים חיים בתוך הבאנר (מסך 3b), ולא כשלישייה צבעונית בהמשך */}
+      {membership && <HeroStats stats={stats} setView={setView} />}
     </div>
-  )
-}
-
-// ---------- בית: שלישיית סטטיסטיקה — נוכחות / רצף / עומס ממוצע ----------
-// דפוס 3 במסמך העיצוב — שלושה טיילים בצבע מלא (כתום/ירוק/כחול),
-// אייקון לבן ומספר גדול. הרצף/XP/רמות הוסרו לפי החלטת הבעלים.
-function StatTrio({ openDrills, attendancePct, feedbackCount, setView }) {
-  const tiles = [
-    { k: 'drills', tone: 'orange', Icon: Dumbbell, num: openDrills ?? 0, top: L('תרגילים', 'Drills'), sub: L('לביצוע', 'to do'), go: 'drills' },
-    { k: 'att', tone: 'green', Icon: UserCheck, num: attendancePct != null ? `${attendancePct}%` : '—', top: L('נוכחות', 'Attendance'), sub: L('העונה', 'season'), go: 'schedule' },
-    { k: 'fb', tone: 'blue', Icon: MessageSquareHeart, num: feedbackCount ?? 0, top: L('משובים', 'Feedback'), sub: L('מהמאמן', 'from coach'), go: 'feedback' },
-  ]
-  return (
-    <div className="plh-trio pl-stagger">
-      {tiles.map((t) => (
-        <button key={t.k} className={`plh-tile ${t.tone}`} onClick={() => setView(t.go)}>
-          <t.Icon size={18} aria-hidden="true" />
-          <span className="plh-tile-top">{t.top}</span>
-          <b className="plh-tile-num"><bdi>{t.num}</bdi></b>
-          <span className="plh-tile-sub">{t.sub}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ---------- בית: קיצורי דרך 2×2 ----------
-function Shortcuts({ setView }) {
-  // שורת הסבר לכל קיצור — בלעדיה הכרטיסים היו אייקון ומילה אחת על שטח גדול וריק
-  const items = [
-    ['goals', L('המטרות שלי', 'My goals'), Target, 'brand', L('מה לשפר החודש והשבוע', 'What to improve this week')],
-    ['drills', L('התרגילים שלי', 'My drills'), Dumbbell, 'green', L('מה המאמן שלח לתרגל בבית', 'What your coach sent you')],
-    ['videos', L('סרטונים', 'Videos'), MonitorPlay, 'purple', L('סרטוני תרגול לפי נושא', 'Practice clips by topic')],
-    ['community', L('קהילה', 'Community'), Users2, 'brand', L('מה קורה אצל שחקנים אחרים', 'What other players are up to')],
-  ]
-  return (
-    <>
-      <p className="plh-sc-label pl-stagger">{L('קיצורי דרך', 'Shortcuts')}</p>
-      <div className="plh-shortcuts pl-stagger">
-        {items.map(([id, label, Icon, tone, sub]) => (
-          <button key={id} className="plh-sc" onClick={() => setView(id)}>
-            <span className={`plh-sc-ic ${tone}`}><Icon size={21} /></span>
-            <span className="plh-sc-body">
-              <span className="plh-sc-txt">{label}</span>
-              <span className="plh-sc-sub">{sub}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </>
   )
 }
 
@@ -1415,57 +1426,6 @@ function LastPracticeFeedback({ session, membership, setView }) {
   )
 }
 
-// ---------- בית: הודעות מהמאמן — צ'אט קבוצה + אישי, האחרונות קופצות בבית ----------
-function CoachMessages({ session, membership, setView }) {
-  const [msgs, setMsgs] = useState(null)
-  const me = session.user.id
-  useEffect(() => {
-    if (!membership) return
-    ;(async () => {
-      const [{ data: tm }, { data: dm }] = await Promise.all([
-        supabase.from('team_messages').select('id, content, created_at')
-          .eq('coach_id', membership.coach_id).eq('team', membership.team).eq('user_id', membership.coach_id)
-          .order('created_at', { ascending: false }).limit(5),
-        supabase.from('messages').select('id, content, created_at')
-          .eq('sender_id', membership.coach_id).eq('recipient_id', me)
-          .order('created_at', { ascending: false }).limit(5),
-      ])
-      setMsgs([
-        ...(tm || []).map((m) => ({ ...m, src: 'team' })),
-        ...(dm || []).map((m) => ({ ...m, src: 'dm' })),
-      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 3))
-    })()
-  }, [membership, me])
-
-  if (!membership || msgs === null) return null
-  return (
-    <section className="pl-block plcm">
-      <p className="pl-section-label"><MessagesSquare size={15} /> {L('הודעות מהמאמן', 'From your coach')}</p>
-      <div className="plcm-card">
-        <div className="plcm-head">
-          <Avatar name={coachName(membership.coach)} url={membership.coach?.avatar_url} size={40} />
-          <strong>{coachName(membership.coach)}</strong>
-        </div>
-        {msgs.length === 0 ? (
-          <div className="plcm-bubble empty">{L('עוד אין הודעות מהמאמן — הישאר מחובר', 'No messages yet — stay tuned')}</div>
-        ) : msgs.map((m) => (
-          <div key={`${m.src}-${m.id}`} className="plcm-bubble">
-            <span className="plcm-meta">
-              <i className={m.src === 'team' ? 'plcm-tag team' : 'plcm-tag'}>{m.src === 'team' ? L('קבוצה', 'Team') : L('אישי', 'Personal')}</i>
-              {timeAgo(m.created_at)}
-            </span>
-            <p>{m.content}</p>
-          </div>
-        ))}
-        <div className="plcm-cta">
-          <button className="plcm-btn" onClick={() => setView('coach')}><Send size={15} /> {L('השב למאמן', 'Reply to coach')}</button>
-          <button className="plcm-btn ghost" onClick={() => setView('teamchat')}><MessagesSquare size={15} /> {L('לצ׳אט הקבוצה', 'Team chat')}</button>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
@@ -1509,27 +1469,29 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   // → הודעות מהמאמן → סטטיסטיקות → כתבות. הציטוט מגיע מה-shell לכל המסכים.
   return (
     <div className="pl-screen pl-home-rich">
-      <HomeHero profile={profile} membership={membership} onFeedback={() => setFbOpen(true)} refreshKey={fbRefresh} />
+      <HomeHero profile={profile} membership={membership} session={session} stats={stats} setView={setView}
+        onFeedback={() => setFbOpen(true)} refreshKey={fbRefresh} />
 
       {!membership && (
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
       )}
 
+      {/* סדר מסך 3b: מה המאמן אמר → המשימות שלי → השבוע שלי → מהאימון האחרון.
+          הכתבות, קיצורי הדרך ומשימת השבוע ירדו — הם לא במוקאפ, והם דחפו
+          את המשימות ואת הלו״ז אל מתחת לקו הקיפול. */}
+      {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
+
       {membership && <div className="pl-stagger"><HomeGoals session={session} membership={membership} setView={setView} key={`g${fbRefresh}`} /></div>}
 
-      {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
+      {membership && <div className="pl-stagger"><WeekStrip membership={membership} setView={setView} /></div>}
 
       {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
 
-      {membership && <div className="pl-stagger"><CoachMessages session={session} membership={membership} setView={setView} /></div>}
-
-      {membership && <StatTrio openDrills={stats?.open} attendancePct={stats?.attendancePct} feedbackCount={stats?.fbCount} setView={setView} />}
-
-      {membership && <div className="pl-stagger"><WeeklyMission done={stats?.weekly || 0} /></div>}
-
-      <Shortcuts setView={setView} />
-
-      <PlayerNews />
+      {membership && (
+        <button type="button" className="plh-msg-cta pl-stagger" onClick={() => setView('coach')}>
+          <Send size={18} /> {L('שלח הודעה למאמן', 'Message your coach')}
+        </button>
+      )}
 
       {membership && (
         <FeedbackSheet session={session} membership={membership} open={fbOpen}
