@@ -3,7 +3,7 @@ import {
   Plus, Trash2, Users2, Target, CalendarClock, MapPin, Clock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
-  UserCheck, MessageSquareHeart, Star, ClipboardCheck, MessagesSquare, Send as SendIcon,
+  UserCheck, MessageSquareHeart, Star, ClipboardCheck, Send as SendIcon,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -12,7 +12,6 @@ import SessionDetail from './SessionDetail'
 // סיומת מפורשת: ב-Windows (מערכת קבצים לא רגישה לאות גדולה) Vite היה פותר
 // את './SendToPlayers' לקובץ העזר sendToPlayers.js — ואז הרכיב קרס במסך לבן.
 import SendToPlayers from './SendToPlayers.jsx'
-import TeamChat from './TeamChat'
 import TeamAssignments from './TeamAssignments'
 import TeamSlots from './TeamSlots'
 import TeamGoalsBoard from './TeamGoalsBoard'
@@ -428,7 +427,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות', 'Goals')}</button>
         <button className={tab === 'games' ? 'tab active' : 'tab'} onClick={() => setTab('games')}><Trophy size={15} /> {L('משחקים', 'Games')}</button>
         <button className={tab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setTab('tasks')}><SendIcon size={15} /> {L('שיגורים', 'Sends')}</button>
-        <button className={tab === 'chat' ? 'tab active' : 'tab'} onClick={() => setTab('chat')}><MessagesSquare size={15} /> {L('צ׳אט', 'Chat')}</button>
         <button className={tab === 'table' ? 'tab active' : 'tab'} onClick={() => setTab('table')}><Trophy size={15} /> {L('טבלה', 'Table')}</button>
       </div>
 
@@ -721,11 +719,6 @@ export default function Teams({ session, profile, onNavigate, initialTab }) {
         <div className="team-section">
           <SendToPlayers session={session} embedded initialTeam={team} key={team} />
           <TeamAssignments coachId={me} team={team} />
-        </div>
-      ) : tab === 'chat' ? (
-        /* ===================== צ'אט קבוצה ===================== */
-        <div className="team-section team-chat-wrap">
-          <TeamChat session={session} coachId={me} team={team} isCoach />
         </div>
       ) : (
         /* ===================== טבלת ליגה ===================== */

@@ -19748,3 +19748,82 @@ html.a11y-motion .nav-marker { transition: none; }
    ודרסה את aspect-ratio, כך שסרטון נראה כתמונת פורטרט. --- */
 .md-screen .video-thumb { align-self: flex-start; }
 .md-screen .video-grid > .video-card:first-child .video-thumb { align-self: stretch; }
+
+/* ================================================================= */
+/* עיצוב 29.7.2026 — שפה אחידה לכל המסכים                            */
+/* מקור: «21 מסכים מעוצבים, ומה שנשאר לעשות» (29.7.2026).            */
+/* מסכים 4a · 7a · 11a · 14a מראים את אותה מסילת טאבים: גלולה,       */
+/* טאב פעיל בנייבי מלא וטקסט לבן — ולא הכתום הרך של בלוק «[6]        */
+/* טאבים וצ'יפים» (index.css:12880), שהיה הכלל עד היום.              */
+/* ================================================================= */
+.tabs {
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tab {
+  min-height: 42px;
+  border-radius: var(--radius-full);
+  border: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+.tab.active,
+.chip.selected {
+  background: var(--navy-2);
+  color: var(--on-dark);
+  font-weight: 800;
+  border: 0;
+  box-shadow: none;
+}
+/* מצב כהה: נייבי על רקע כהה נעלם. לפי מסך 1j הטאב הפעיל הוא משטח
+   מורם עם צל, לא מילוי נייבי. */
+[data-theme='dark'] .tab.active,
+[data-theme='dark'] .chip.selected {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+/* מונה על טאב (למשל 3 שיחות שלא נקראו במסך 7a) */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-inline-start: 6px;
+  border-radius: var(--radius-full);
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ---- מסך 7a: הודעות = מסך אחד, שני טאבים ---- */
+.msg-screen { display: flex; flex-direction: column; gap: 14px; }
+.msg-tabs { max-width: 420px; }
+/* שורת החיפוש קיבלה כפתור רענון לצדה. הכלל הקיים
+   (`.msg-search-wrap svg`) מרחיף כל אייקון שבתוכה — כאן מחזירים
+   את האייקון שבתוך הכפתור לזרימה הרגילה. */
+.msg-search-top { gap: 8px; margin-bottom: 0; }
+.msg-search-top .msg-search { flex: 1 1 auto; }
+.msg-search-top .icon-btn { flex: none; }
+.msg-search-top .icon-btn svg {
+  position: static;
+  color: currentColor;
+  pointer-events: auto;
+}
+/* «מאמן, הפועל חולון» — שורת התפקיד שבמוקאפ בין השם לתצוגה המקדימה */
+.msg-conv-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.msg-team { display: flex; flex-direction: column; gap: 12px; }
+.msg-team-chips { margin: 0; }

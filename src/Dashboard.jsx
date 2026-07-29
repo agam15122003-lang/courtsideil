@@ -44,6 +44,7 @@ import {
   Languages,
   LogOut,
   Smartphone,
+  Plus,
 } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
@@ -113,10 +114,16 @@ const PAGE_META = {
     title: L('ניהול', 'Administration'),
     subtitle: L('מאמנים, דיווחים ומצב המערכת.', 'Coaches, reports and system status.'),
   }),
-  messages: () => ({
-    eyebrow: L('קשר', 'Contact'), eyebrowIcon: MessageSquare,
-    title: L('הודעות', 'Messages'),
-    subtitle: L('שיחות אישיות עם מאמנים אחרים.', 'Direct conversations with other coaches.'),
+  // מסך 7a: eyebrow «הודעות», כותרת «השיחות שלי», וכפתור «שיחה חדשה»
+  // בתוך הבאנר עצמו — לא שורת פעולות נפרדת מתחתיו.
+  messages: (nav) => ({
+    eyebrow: L('הודעות', 'Messages'), eyebrowIcon: MessageSquare,
+    title: L('השיחות שלי', 'My chats'),
+    actions: nav && (
+      <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => nav('finder')}>
+        <Plus size={16} aria-hidden="true" /> {L('שיחה חדשה', 'New chat')}
+      </button>
+    ),
   }),
   profile: () => ({
     eyebrow: L('החשבון שלי', 'My account'), eyebrowIcon: User,
@@ -476,8 +483,8 @@ export default function Dashboard({ session }) {
               <Admin session={session} profile={profile} />
             </Page>
           ) : view === 'messages' ? (
-            <Page {...PAGE_META.messages()}>
-              <Messages session={session} onNavigate={navigate} />
+            <Page {...PAGE_META.messages(navigate)}>
+              <Messages session={session} profile={profile} onNavigate={navigate} />
             </Page>
           ) : (
             <div className="profile-page">

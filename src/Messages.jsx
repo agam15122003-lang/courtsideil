@@ -1,12 +1,13 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronRight, MessageSquare, Search, Plus } from 'lucide-react'
+import { ChevronRight, MessageSquare, Search, Users2, RotateCw } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import ChatWindow from './ChatWindow'
 import Avatar from './Avatar'
+import TeamChat from './TeamChat'
 import { SkeletonConvos } from './Skeleton'
-import { L } from './i18n'
+import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
 
 // בונה רשימת שיחות מקובצות לפי המאמן השני בשיחה
@@ -36,12 +37,19 @@ function formatTime(ts) {
   })
 }
 
-// טאב "הודעות" — שיחות פרטיות (1-על-1) בין מאמנים.
-// הצ'אטים הקבוצתיים עברו לעמוד "קהילה" (פיד + ערוצים לפי קטגוריה).
+// מסך ההודעות — מסך אחד עם שני טאבים, לפי מסך 7a במסמך המסירה
+// («מסך אחד עם שני טאבים — אישי והקבוצה — במקום שני יעדים בניווט»):
+//   אישי  — שיחות 1-על-1 עם מאמנים ושחקנים
+//   הקבוצה — צ׳אט הקבוצה, שישב עד היום כטאב שביעי בתוך «הקבוצות שלי»
+// הצ'אטים של הקהילה נשארים בעמוד הקהילה (פיד + ערוצים לפי קטגוריה).
 // props:
 //   session - המשתמש המחובר
-export default function Messages({ session, onNavigate }) {
+//   profile - לשכבות הגיל שהמאמן מאמן (הטאב הקבוצתי)
+export default function Messages({ session, profile, onNavigate }) {
   const myId = session.user.id
+  const myTeams = profile?.age_groups || []
+  const [tab, setTab] = useState('personal') // 'personal' | 'team'
+  const [chatTeam, setChatTeam] = useState(myTeams[0] || '')
   const [messages, setMessages] = useState([])
   const [profilesById, setProfilesById] = useState({})
   const [loading, setLoading] = useState(true)
@@ -130,6 +138,12 @@ export default function Messages({ session, onNavigate }) {
   }
 
   const conversations = buildConversations(messages, myId)
+  // חיפוש חי — אותה רשימה מסוננת משרתת גם את הרשימה הראשית וגם את הפאנל
+  // שליד הצ'אט הפתוח, כדי ששתיהן לא יתפצלו להתנהגויות שונות.
+  const convQuery = convSearch.trim().toLowerCase()
+  const visibleConvs = convQuery
+    ? conversations.filter((c) => nameOf(c.coachId).toLowerCase().includes(convQuery))
+    : conversations
 
   // במסך רחב הפריסה היא צ׳אט + רשימה זה לצד זה, אבל היא נראתה רק אחרי בחירת
   // שיחה — עד אז 60% מהמסך היו ריקים. בדסקטופ נפתחת השיחה העדכנית מעצמה.
@@ -260,9 +274,7 @@ export default function Messages({ session, onNavigate }) {
               aria-label={L('חיפוש שיחה', 'Search conversation')}
             />
           </div>
-          {conversations
-            .filter((c) => !convSearch.trim() || nameOf(c.coachId).toLowerCase().includes(convSearch.trim().toLowerCase()))
-            .map((c) => (
+          {visibleConvs.map((c) => (
             <button
               key={c.coachId}
               className={c.coachId === activeCoachId ? 'msg-conv active' : 'msg-conv'}
@@ -284,34 +296,60 @@ export default function Messages({ session, onNavigate }) {
     )
   }
 
-  // ---------- מסך ראשי: מתג + תוכן ----------
-  return (
-    <div className="welcome-card">
-      <header className="page-header">
-        <div className="page-header-text">
-          <div className="welcome-badge">{L('הודעות', 'Messages')}</div>
-          <h1>{L('שיחות פרטיות', 'Private chats')}</h1>
-          <p className="page-desc">{L('שיחות אישיות עם מאמנים. לצ׳אטים הקבוצתיים — עמוד הקהילה.', 'Personal conversations with coaches. For group chats — see the Community page.')}</p>
-        </div>
-        {onNavigate && (
-          <div className="page-header-actions">
-            {/* [23] נקודת כניסה קבועה לשיחה חדשה */}
-            <button className="btn-primary" style={{ marginTop: 0 }} onClick={() => onNavigate('finder')}>
-              <Plus size={16} aria-hidden="true" /> {L('שיחה חדשה', 'New chat')}
-            </button>
-            {/* [27] נוחת ישירות על טאב הצ'אטים בקהילה */}
-            <button className="btn-soft" onClick={() => onNavigate('community-chats')}>
-              {L('לצ׳אטים של הקהילה', 'Community chats')}
-            </button>
-          </div>
-        )}
-      </header>
+  // ---------- מסך ראשי: שני טאבים + תוכן ----------
+  const unreadTotal = conversations.reduce((n, c) => n + c.unread, 0)
 
+  return (
+    <div className="msg-screen">
+      {/* מסך 7a: מסילת טאבים אחת מתחת לבאנר — אישי (עם מונה) והקבוצה */}
+      <div className="tabs msg-tabs">
+        <button className={tab === 'personal' ? 'tab active' : 'tab'} onClick={() => setTab('personal')}>
+          <MessageSquare size={15} aria-hidden="true" /> {L('אישי', 'Direct')}
+          {unreadTotal > 0 && <span className="tab-badge">{unreadTotal}</span>}
+        </button>
+        <button className={tab === 'team' ? 'tab active' : 'tab'} onClick={() => setTab('team')}>
+          <Users2 size={15} aria-hidden="true" /> {L('הקבוצה', 'Team')}
+        </button>
+      </div>
+
+      {tab === 'team' ? (
+        myTeams.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-ic"><Users2 size={26} /></span>
+            <div className="empty-title">{L('עדיין לא הגדרת קבוצות', 'No teams yet')}</div>
+            <p className="muted small">{L('הוסף את שכבות הגיל שאתה מאמן בפרופיל — וצ׳אט הקבוצה ייפתח כאן.', 'Add the age groups you coach in your profile — the team chat opens here.')}</p>
+            {onNavigate && (
+              <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('profile')}>
+                {L('לעריכת הפרופיל', 'Edit profile')}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="msg-team">
+            {myTeams.length > 1 && (
+              <div className="chips msg-team-chips">
+                {myTeams.map((tm) => (
+                  <button key={tm} className={chatTeam === tm ? 'chip selected' : 'chip'} onClick={() => setChatTeam(tm)}>{trTeam(tm)}</button>
+                ))}
+              </div>
+            )}
+            <TeamChat key={chatTeam} session={session} coachId={myId} team={chatTeam} isCoach />
+          </div>
+        )
+      ) : (
       <>
-          <div className="library-header">
-            <h2 style={{ marginBottom: 0 }}>{L('השיחות שלי', 'My chats')}</h2>
-            <button className="btn-ghost library-add" onClick={loadMessages}>
-              {L('רענון', 'Refresh')}
+          <div className="msg-search-wrap msg-search-top">
+            <Search size={16} aria-hidden="true" />
+            <input
+              className="finder-input msg-search"
+              type="search"
+              value={convSearch}
+              onChange={(e) => setConvSearch(e.target.value)}
+              placeholder={L('חיפוש מאמן או שחקן...', 'Search coach or player...')}
+              aria-label={L('חיפוש שיחה', 'Search conversation')}
+            />
+            <button className="icon-btn" onClick={loadMessages} aria-label={L('רענון', 'Refresh')} title={L('רענון', 'Refresh')}>
+              <RotateCw size={16} />
             </button>
           </div>
 
@@ -335,8 +373,17 @@ export default function Messages({ session, onNavigate }) {
                   </button>
                 )}
               </div>
+            ) : visibleConvs.length === 0 ? (
+              /* חיפוש בלי תוצאה אינו «אין הודעות» — ולכן גם היציאה ממנו שונה */
+              <div className="empty-state">
+                <span className="empty-ic"><Search size={26} /></span>
+                <div className="empty-title">{L('אין שיחה שמתאימה לחיפוש', 'No conversation matches your search')}</div>
+                <button type="button" className="btn-soft empty-cta" onClick={() => setConvSearch('')}>
+                  {L('ניקוי החיפוש', 'Clear search')}
+                </button>
+              </div>
             ) : (
-              conversations.map((c) => (
+              visibleConvs.map((c) => (
                 <button
                   key={c.coachId}
                   className="msg-conv"
@@ -348,6 +395,7 @@ export default function Messages({ session, onNavigate }) {
                       <span className="msg-conv-name">{nameOf(c.coachId)}</span>
                       {c.unread > 0 && <span className="msg-unread">{c.unread}</span>}
                     </div>
+                    <span className="msg-conv-role">{roleLabel(c.coachId)}</span>
                     <span className="msg-conv-preview">
                       {c.lastMessage.sender_id === myId ? L('אני: ', 'Me: ') : ''}
                       {c.lastMessage.content}
@@ -359,6 +407,7 @@ export default function Messages({ session, onNavigate }) {
             )}
           </div>
       </>
+      )}
     </div>
   )
 }
