@@ -191,7 +191,7 @@ export function TodayPlanCard({ session, profile, onNavigate }) {
         </div>
       </div>
       <div className="hp-nb-acts">
-        <button type="button" className="hp-btn hp-btn--navy" onClick={() => onNavigate('plans')}>
+        <button type="button" className="hp-btn hp-btn--navy" onClick={() => onNavigate(plan.entry?.plan_id ? `plans:${plan.entry.plan_id}` : 'plans')}>
           <NotebookPen size={15} aria-hidden="true" /> {L('למחברת המלאה', 'Open the full notebook')}
         </button>
         <button type="button" className="hp-btn" onClick={() => onNavigate('teams')}>

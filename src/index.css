@@ -20546,3 +20546,49 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+/* ---- עמוד 22: שתי דלתות לבניית תוכנית, לא שלוש ---- */
+.pn-doors {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (min-width: 620px) { .pn-doors { grid-template-columns: 1fr 1fr; } }
+.pn-door {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 15px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.pn-door:hover {
+  border-color: var(--brand-strong);
+  box-shadow: 0 6px 18px -10px rgba(179, 78, 28, 0.35);
+}
+.pn-door-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--brand-text);
+}
+.pn-door-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pn-door-body strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+}
+.pn-door-body span { font-size: 12.5px; line-height: 1.45; color: var(--text-muted); }

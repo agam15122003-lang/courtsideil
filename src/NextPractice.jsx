@@ -216,7 +216,7 @@ export default function NextPractice({ session, onNavigate, onEntry }) {
             <Target size={16} /> {L('מטרות לשחקנים', 'Player goals')}
           </button>
         )}
-        <button className={entry.team && !entry.is_personal ? 'btn-soft' : 'btn-primary'} onClick={() => onNavigate(entry.plan ? 'plans' : 'schedule')}>
+        <button className={entry.team && !entry.is_personal ? 'btn-soft' : 'btn-primary'} onClick={() => onNavigate(entry.plan ? `plans:${entry.plan.id}` : 'schedule')}>
           <PlayCircle size={17} /> {entry.plan ? L('תוכנית האימון', 'Practice plan') : L('פתח בלו"ז', 'Open in schedule')}
         </button>
         <button

@@ -51,13 +51,11 @@ function escapeHtml(s) {
 // ולחיצה על תרגיל חושפת את כל הפרטים שלו.
 // props:
 //   session - המשתמש המחובר
-export default function TrainingPlans({ session }) {
+export default function TrainingPlans({ session, initialPlanId, onConsumeInitialPlan }) {
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activePlanId, setActivePlanId] = useState(null)
-  const [newName, setNewName] = useState('')
-  const [creating, setCreating] = useState(false)
   const [smartOpen, setSmartOpen] = useState(false) // בנאי אימון חכם
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
@@ -116,24 +114,15 @@ export default function TrainingPlans({ session }) {
     loadPlans()
   }, [])
 
-  const createPlan = async () => {
-    if (!newName.trim()) return
-    setCreating(true)
-    const { data, error } = await supabase
-      .from('training_plans')
-      .insert({ name: newName.trim(), created_by: session.user.id })
-      .select()
-      .single()
-    setCreating(false)
-    if (error) {
-      toast.error(L('יצירת התוכנית נכשלה: ', 'Failed to create plan: ') + error.message)
-      return
-    }
-    setNewName('')
-    toast.success(L('התוכנית נוצרה', 'Plan created'))
-    await loadPlans()
-    setActivePlanId(data.id) // נכנסים ישר לבנייה
-  }
+  // תוכנית שהגיעה מדף הבית («למחברת המלאה» / «תוכנית האימון») נפתחת ישר,
+  // ונצרכת פעם אחת כדי שכניסה רגילה למסך תציג את הרשימה.
+  useEffect(() => {
+    if (!initialPlanId) return
+    setActivePlanId(initialPlanId)
+    onConsumeInitialPlan?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPlanId])
+
 
   const deletePlan = async (id) => {
     const ok = await confirmDialog({
@@ -285,39 +274,23 @@ export default function TrainingPlans({ session }) {
     <div className="welcome-card">
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
-      {/* יצירת תוכנית חדשה — שלוש דרכים */}
-      <div className="pn-create">
-        <button className="pn-create-main" onClick={() => setNotebookNew(true)}>
-          <span className="pn-create-ic"><BookOpen size={20} /></span>
-          <span className="pn-create-body">
-            <strong>{L('כתיבת תוכנית על המחברת', 'Write a plan on the notebook')}</strong>
-            <span>{L('בונים את מבנה האימון ישר על דף המחברת', 'Build the practice outline right on the page')}</span>
+      {/* שתי דלתות בלבד לאותו חדר (עמוד 22 במסמך): «בנה לי» ו«אני אבנה».
+          «צור ריקה» נמחקה — היא הייתה זהה ל«אני אבנה» עם שם בלבד. */}
+      <div className="pn-doors">
+        <button className="pn-door" onClick={() => setSmartOpen(true)}>
+          <span className="pn-door-ic"><Zap size={22} /></span>
+          <span className="pn-door-body">
+            <strong>{L('בנה לי', 'Build it for me')}</strong>
+            <span>{L('בוחרים נושא ואורך — והתוכנית נבנית מהתרגילים שלך', 'Pick a topic and a length — the plan builds itself from your drills')}</span>
           </span>
         </button>
-        <div className="pn-create-alts">
-          <button className="btn-soft" onClick={() => setSmartOpen(true)}>
-            <Zap size={16} /> {L('בנייה אוטומטית', 'Auto-build')}
-          </button>
-          <div className="pn-quick">
-            <input
-              className="finder-input"
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              aria-label={L('שם התוכנית', 'Plan name')}
-              placeholder={L('או שם מהיר לתוכנית ריקה...', 'Or a quick name for an empty plan...')}
-              onKeyDown={(e) => e.key === 'Enter' && newName.trim() && createPlan()}
-            />
-            <button
-              className="btn-ghost"
-              style={{ marginTop: 0, whiteSpace: 'nowrap' }}
-              disabled={creating || !newName.trim()}
-              onClick={createPlan}
-            >
-              {creating ? L('יוצר...', 'Creating...') : L('צור ריקה', 'Create empty')}
-            </button>
-          </div>
-        </div>
+        <button className="pn-door" onClick={() => setNotebookNew(true)}>
+          <span className="pn-door-ic"><BookOpen size={22} /></span>
+          <span className="pn-door-body">
+            <strong>{L('אני אבנה', "I'll build it")}</strong>
+            <span>{L('כותבים את מבנה האימון ישר על דף המחברת', 'Write the practice outline right on the notebook page')}</span>
+          </span>
+        </button>
       </div>
 
       <div className="finder-results">
@@ -331,7 +304,7 @@ export default function TrainingPlans({ session }) {
               <ClipboardList size={26} />
             </span>
             <div className="empty-title">{L('עדיין אין תוכניות אימון', 'No training plans yet')}</div>
-            <p className="muted small">{L('צור את התוכנית הראשונה למעלה, או נסה את הבנאי החכם.', 'Create your first plan above, or try the smart builder.')}</p>
+            <p className="muted small">{L('צור את התוכנית הראשונה למעלה, או נסה את השלמה אוטומטית.', 'Create your first plan above, or try the smart builder.')}</p>
           </div>
         ) : (
           myPlans.map((p) => {
@@ -650,7 +623,7 @@ function PlanBuilder({ planId, plan, onBack }) {
   const TARGET_MIN = 90 // יעד ברירת מחדל לאימון מלא
   const missingMin = Math.max(0, TARGET_MIN - total)
 
-  // "הבנאי החכם" — משלים את האימון בתרגילים מהספרייה עד היעד
+  // "השלמה אוטומטית" — משלים את האימון בתרגילים מהספרייה עד היעד
   const [completing, setCompleting] = useState(false)
   const autoComplete = async () => {
     setCompleting(true)
@@ -802,10 +775,10 @@ function PlanBuilder({ planId, plan, onBack }) {
         )}
       </div>
 
-      {/* "הבנאי החכם" — כרטיס אנרגיה שמשלים את האימון עד היעד (מסך היעד 04) */}
+      {/* "השלמה אוטומטית" — כרטיס אנרגיה שמשלים את האימון עד היעד (מסך היעד 04) */}
       {missingMin > 0 && (
         <div className="pb-smart">
-          <span className="pb-smart-head"><Zap size={17} /> {L('הבנאי החכם', 'Smart builder')}</span>
+          <span className="pb-smart-head"><Zap size={17} /> {L('השלמה אוטומטית', 'Smart builder')}</span>
           <p className="pb-smart-text">
             {L(`חסרות ${missingMin} דקות ליעד. תן לבנאי להשלים את האימון בתרגילים מהספרייה.`, `${missingMin} minutes missing to target. Let the builder fill the practice with library drills.`)}
           </p>

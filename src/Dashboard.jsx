@@ -147,6 +147,7 @@ export default function Dashboard({ session }) {
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
+  const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
 
   const [loadError, setLoadError] = useState(false)
@@ -158,6 +159,8 @@ export default function Dashboard({ session }) {
     if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
     // מהלו"ז אל ימי האימון הקבועים — עד היום זו הייתה הוראה בטקסט בלי קישור
     if (id === 'teams-practices') { setTeamsTab('practices'); setView('teams'); return }
+    // «למחברת המלאה» / «תוכנית האימון» הבטיחו תוכנית מסוימת ונחתו על הרשימה
+    if (typeof id === 'string' && id.startsWith('plans:')) { setPlanToOpen(id.slice(6)); setView('plans'); return }
     setView(id)
   }
 
@@ -468,7 +471,7 @@ export default function Dashboard({ session }) {
             </Page>
           ) : view === 'plans' ? (
             <Page {...PAGE_META.plans()}>
-              <TrainingPlans session={session} />
+              <TrainingPlans session={session} initialPlanId={planToOpen} onConsumeInitialPlan={() => setPlanToOpen(null)} />
             </Page>
           ) : view === 'schedule' ? (
             <Page {...PAGE_META.schedule()}>
