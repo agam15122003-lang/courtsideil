@@ -12,7 +12,7 @@ import { sendNotification } from './notify'
 import DrillCard from './DrillCard'
 import MultiSelect from './MultiSelect'
 import { SkeletonCards } from './Skeleton'
-import SmartImage from './SmartImage'
+import CourtArt from './CourtArt'
 
 // מסך "ספריית תרגילים" — מציג את כל התרגילים, עם חיפוש, סינון,
 // הוספה, דירוג בכוכבים, שמירה למועדפים, ומחיקת תרגיל שלי.
@@ -299,10 +299,13 @@ export default function DrillLibrary({ session, profile }) {
         </div>
       </header>
 
-      {/* כרטיס פוסטר — צילום אימון מהמאגר. שורת הליווי אינה כותרת display
-          (DESIGN.md §2: אחת למסך, וה-h1 שמעל תפס אותה). */}
+      {/* כרטיס פוסטר — איור המגרש על גרדיאנט נייבי (DESIGN.md §2ב, דפוס 1),
+          במקום צילום הסטוק שהיה כאן. הגובה, הרדיוס והצעיף לא השתנו.
+          שורת הליווי אינה כותרת display (DESIGN.md §2: אחת למסך, וה-h1 שמעל תפס אותה). */}
       <div className="drill-poster">
-        <SmartImage category="drills" fill sizes="100vw" priority />
+        <span className="drill-poster-art" aria-hidden="true">
+          <CourtArt variant="drills" />
+        </span>
         <span className="drill-poster-line">
           {L('תרגיל טוב הוא כזה שהקבוצה זוכרת גם מחר.', 'A good drill is one the team still remembers tomorrow.')}
         </span>

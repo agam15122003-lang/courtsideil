@@ -11,6 +11,7 @@ import QuoteStrip from './QuoteStrip'
 import Notifications from './Notifications'
 import PlayerDashboard from './PlayerDashboard'
 import ErrorBoundary from './ErrorBoundary'
+import useNavMarker from './useNavMarker'
 import { useLang, L } from './i18n'
 
 // מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
@@ -42,9 +43,11 @@ import {
   Moon,
   Languages,
   LogOut,
-  ChevronLeft,
   Smartphone,
 } from 'lucide-react'
+import { ChevronFwd } from './DirIcon'
+import Logo from './Logo'
+import Page from './Page'
 
 // "קהילה תחילה" (סדר לפי ה-handoff) — הפרופיל יושב בכרטיס המשתמש למטה
 const NAV = [
@@ -59,15 +62,68 @@ const NAV = [
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
 
-// התפריט התחתון במובייל — חמשת היעדים המרכזיים
+// התפריט התחתון במובייל — שבעת היעדים שבמוקאפ של מסמך המסירה (עמודים 3–4),
+// בסדר שלו: בית · קהילה · תוכניות · הקבוצה · הודעות · מדיה · פרופיל.
+// «תרגילים» יורד מהסרגל ונשאר במגירה ובניווט ההתראות.
+// הרוחב מונע ע"י --bn-count על .layout — סרגל השחקן נשאר על 5.
 const BOTTOM_NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
-  { id: 'drills', key: 'nav.drills', Icon: Dumbbell },
+  { id: 'plans', key: 'nav.plans', Icon: ClipboardList },
+  { id: 'teams', key: 'nav.teamsShort', Icon: Shield },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
+  { id: 'media', key: 'nav.media', Icon: MonitorPlay },
   { id: 'profile', key: 'nav.profile', Icon: User },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
+
+// כותרות הבאנר לכל מסך (החלטת הבעלים: באנר נייבי בכל מסך).
+// פונקציות ולא אובייקט קפוא — L() חייב להיקרא בזמן רינדור כדי שהחלפת
+// שפה תעדכן גם את הבאנר.
+// מסכים שכבר יש להם hero משלהם (בית, קהילה, תרגילים) לא נכנסים לכאן.
+const PAGE_META = {
+  finder: () => ({
+    eyebrow: L('הקהילה', 'Community'), eyebrowIcon: Users,
+    title: L('מאתר המאמנים', 'Coach finder'),
+    subtitle: L('מוצאים מאמנים לפי מועדון ושכבת גיל, ומתחילים שיחה.', 'Find coaches by club and age group, and start a conversation.'),
+  }),
+  media: () => ({
+    eyebrow: L('צפייה', 'Watch'), eyebrowIcon: MonitorPlay,
+    title: L('מדיה', 'Media'),
+    subtitle: L('סרטוני אימון ופודקאסטים שהקהילה דירגה.', 'Training videos and podcasts, ranked by the community.'),
+  }),
+  plans: () => ({
+    eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: ClipboardList,
+    title: L('תוכניות אימון', 'Training plans'),
+    subtitle: L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
+  }),
+  schedule: () => ({
+    eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
+    title: L('לוח הזמנים', 'Schedule'),
+    subtitle: L('כל האימונים, המשחקים והפגישות שלך בשבוע אחד.', 'Every practice, game and meeting of yours in one week.'),
+  }),
+  teams: () => ({
+    eyebrow: L('הקבוצות שלי', 'My teams'), eyebrowIcon: Shield,
+    title: L('ניהול קבוצה', 'Team management'),
+    subtitle: L('סגל, נוכחות, מטרות, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, attendance, goals, games and the league table — for every team you coach.'),
+    size: 'lg',
+  }),
+  admin: () => ({
+    eyebrow: L('מערכת', 'System'), eyebrowIcon: ShieldCheck,
+    title: L('ניהול', 'Administration'),
+    subtitle: L('מאמנים, דיווחים ומצב המערכת.', 'Coaches, reports and system status.'),
+  }),
+  messages: () => ({
+    eyebrow: L('קשר', 'Contact'), eyebrowIcon: MessageSquare,
+    title: L('הודעות', 'Messages'),
+    subtitle: L('שיחות אישיות עם מאמנים אחרים.', 'Direct conversations with other coaches.'),
+  }),
+  profile: () => ({
+    eyebrow: L('החשבון שלי', 'My account'), eyebrowIcon: User,
+    title: L('הפרופיל שלי', 'My profile'),
+    subtitle: L('הפרטים שלך, המספרים שלך וההגדרות.', 'Your details, your numbers and your settings.'),
+  }),
+}
 
 export default function Dashboard({ session }) {
   const { t } = useLang()
@@ -77,6 +133,8 @@ export default function Dashboard({ session }) {
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const sidebarRef = useRef(null)
+  // המפתח כולל is_admin כי הוא מוסיף פריט לרשימה ומזיז את כל מה שמתחתיו
+  const [navRef, navBox] = useNavMarker(`${view}:${profile?.is_admin}`)
   const [initialCoach, setInitialCoach] = useState(null) // מאמן לפתוח ישירות (למשל מ"מאמן השבוע")
   const [communityTab, setCommunityTab] = useState(null) // טאב לפתיחה בקהילה ('chats' מכפתור בהודעות)
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
@@ -203,7 +261,7 @@ export default function Dashboard({ session }) {
   }
 
   return (
-    <div className="layout">
+    <div className="layout" style={{ '--bn-count': BOTTOM_NAV.length }}>
       <a href="#main" className="skip-link">
         {t('skip.toContent')}
       </a>
@@ -217,12 +275,7 @@ export default function Dashboard({ session }) {
           <Menu size={22} />
         </button>
         <div className="sidebar-brand">
-          <svg viewBox="0 0 100 100" width="26" height="26">
-            <circle cx="42" cy="55" r="22" fill="#E8763A" />
-            <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-            <circle cx="78" cy="30" r="6" fill="#E8763A" />
-          </svg>
+          <Logo size={26} />
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
@@ -240,12 +293,7 @@ export default function Dashboard({ session }) {
           ובעץ של קורא המסך גם כשהיא מחוץ למסך. */}
       <aside ref={sidebarRef} className={drawerOpen ? 'sidebar open' : 'sidebar'}>
         <div className="sidebar-brand">
-          <svg viewBox="0 0 100 100" width="30" height="30">
-            <circle cx="42" cy="55" r="22" fill="#E8763A" />
-            <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" />
-            <circle cx="78" cy="30" r="6" fill="#E8763A" />
-          </svg>
+          <Logo size={30} />
           <span>CourtSide</span>
           <span className="sidebar-bell">
             <Notifications session={session} onNavigate={navigate} />
@@ -259,7 +307,15 @@ export default function Dashboard({ session }) {
           </button>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" ref={navRef}>
+          {/* פס אחד שגולש בין הפריטים — מחליף את ה-::before שקפץ */}
+          {navBox && (
+            <span
+              className="nav-marker"
+              aria-hidden="true"
+              style={{ '--nm-y': `${navBox.y}px`, '--nm-h': `${navBox.h}px` }}
+            />
+          )}
           {(profile?.is_admin ? [...NAV, ADMIN_NAV] : NAV).map((item) => (
             <button
               key={item.id}
@@ -380,31 +436,49 @@ export default function Dashboard({ session }) {
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
           ) : view === 'finder' ? (
-            <CoachFinder
-              session={session}
-              initialCoach={initialCoach}
-              onConsumeInitial={() => setInitialCoach(null)}
-              initialTab={finderTab}
-              onConsumeInitialTab={() => setFinderTab(null)}
-            />
+            <Page {...PAGE_META.finder()}>
+              <CoachFinder
+                session={session}
+                initialCoach={initialCoach}
+                onConsumeInitial={() => setInitialCoach(null)}
+                initialTab={finderTab}
+                onConsumeInitialTab={() => setFinderTab(null)}
+              />
+            </Page>
           ) : view === 'drills' ? (
             /* המדיה חזרה למסך נפרד — החלטת הבעלים 25.7: סרטונים ופודקאסטים הם
-               תוכן צפייה, לא חלק מספריית התרגילים. */
+               תוכן צפייה, לא חלק מספריית התרגילים.
+               ל-DrillLibrary יש כבר באנר נייבי משלה — לא עוטפים ב-Page כדי
+               לא לקבל שני hero על אותו מסך. */
             <DrillLibrary session={session} profile={profile} />
           ) : view === 'media' ? (
-            <Media session={session} profile={profile} />
+            <Page {...PAGE_META.media()}>
+              <Media session={session} profile={profile} />
+            </Page>
           ) : view === 'plans' ? (
-            <TrainingPlans session={session} />
+            <Page {...PAGE_META.plans()}>
+              <TrainingPlans session={session} />
+            </Page>
           ) : view === 'schedule' ? (
-            <Schedule session={session} />
+            <Page {...PAGE_META.schedule()}>
+              <Schedule session={session} />
+            </Page>
           ) : view === 'teams' ? (
-            <Teams session={session} profile={profile} onNavigate={navigate} />
+            <Page {...PAGE_META.teams()}>
+              <Teams session={session} profile={profile} onNavigate={navigate} />
+            </Page>
           ) : view === 'send' ? (
-            <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
+            <Page {...PAGE_META.teams()}>
+              <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
+            </Page>
           ) : view === 'admin' && profile?.is_admin ? (
-            <Admin session={session} profile={profile} />
+            <Page {...PAGE_META.admin()}>
+              <Admin session={session} profile={profile} />
+            </Page>
           ) : view === 'messages' ? (
-            <Messages session={session} onNavigate={navigate} />
+            <Page {...PAGE_META.messages()}>
+              <Messages session={session} onNavigate={navigate} />
+            </Page>
           ) : (
             <div className="profile-page">
               <header className="page-header">
@@ -479,7 +553,7 @@ export default function Dashboard({ session }) {
                     </div>
                     <button type="button" className="pr-row pr-setting-row pr-signout" onClick={handleSignOut}>
                       <span className="pr-label"><LogOut size={15} aria-hidden="true" /> {t('action.signout')}</span>
-                      <ChevronLeft size={16} aria-hidden="true" />
+                      <ChevronFwd size={16} />
                     </button>
                   </section>
                 </aside>
@@ -494,21 +568,25 @@ export default function Dashboard({ session }) {
         </div>
       </main>
 
-      {/* תפריט תחתון — מובייל בלבד (לפי ה-handoff: 5 יעדים מרכזיים) */}
+      {/* תפריט תחתון — מובייל בלבד. שבעה יעדים לפי מוקאפ מסמך המסירה.
+          התווית עטופה ב-.bn-lbl כדי שתוכל להיעלם במסכים צרים; aria-label על
+          הכפתור שומר על השם הנגיש גם כשהיא מוסתרת. */}
       <nav className="bottom-nav" aria-label={L('ניווט תחתון', 'Bottom navigation')}>
         {BOTTOM_NAV.map((item) => (
           <button
             key={item.id}
             className={view === item.id ? 'bn-item active' : 'bn-item'}
+            aria-label={t(item.key)}
+            aria-current={view === item.id ? 'page' : undefined}
             onClick={() => { setEditing(false); setView(item.id); setDrawerOpen(false) }}
           >
             <span className="bn-ic">
               <item.Icon size={20} />
               {item.id === 'messages' && unread > 0 && (
-                <span className="bn-badge">{unread > 9 ? '9+' : unread}</span>
+                <span className="bn-badge" dir="ltr">{unread > 9 ? '9+' : unread}</span>
               )}
             </span>
-            {t(item.key)}
+            <span className="bn-lbl">{t(item.key)}</span>
           </button>
         ))}
       </nav>

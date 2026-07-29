@@ -10,6 +10,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import useNavMarker from './useNavMarker'
 import { ArrowFwd } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
@@ -31,6 +32,7 @@ import { burstConfetti } from './confetti'
 import { expandSlots } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
+import Logo from './Logo'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
@@ -1672,6 +1674,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const [drawer, setDrawer] = useState(false)
   const [editing, setEditing] = useState(false)
   const [memberships, setMemberships] = useState(null)
+  // editing במפתח: בעריכת פרופיל אף פריט אינו פעיל והפס צריך להיעלם
+  const [navRef, navBox] = useNavMarker(`${view}:${editing}`)
 
   const loadMemberships = useCallback(async () => {
     setMemberships(await myMemberships(session.user.id))
@@ -1756,7 +1760,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       <header className="mobile-topbar">
         <button className="drawer-toggle" onClick={() => setDrawer(true)} aria-label={L('תפריט', 'Menu')}><Menu size={22} /></button>
         <div className="sidebar-brand">
-          <svg viewBox="0 0 100 100" width="26" height="26"><circle cx="42" cy="55" r="22" fill="#E8763A" /><circle cx="42" cy="55" r="9" fill="#fff" /><path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" /><circle cx="78" cy="30" r="6" fill="#E8763A" /></svg>
+          <Logo size={26} />
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
@@ -1768,13 +1772,20 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       {drawer && <div className="drawer-overlay" onClick={() => setDrawer(false)} />}
       <aside className={drawer ? 'sidebar open' : 'sidebar'}>
         <div className="sidebar-brand">
-          <svg viewBox="0 0 100 100" width="30" height="30"><circle cx="42" cy="55" r="22" fill="#E8763A" /><circle cx="42" cy="55" r="9" fill="#fff" /><path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A" /><circle cx="78" cy="30" r="6" fill="#E8763A" /></svg>
+          <Logo size={30} />
           <span>CourtSide</span>
           <span className="sidebar-bell"><Notifications session={session} onNavigate={() => setView('coach')} /></span>
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" ref={navRef}>
+          {navBox && (
+            <span
+              className="nav-marker"
+              aria-hidden="true"
+              style={{ '--nm-y': `${navBox.y}px`, '--nm-h': `${navBox.h}px` }}
+            />
+          )}
           {nav.map((item) => (
             <button key={item.id} className={view === item.id && !editing ? 'nav-item active' : 'nav-item'} onClick={() => { setEditing(false); setView(item.id) }}>
               <item.Icon size={18} /> {label(item)}
@@ -1808,9 +1819,15 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         {PLAYER_BOTTOM.map((id) => {
           const item = nav.find((n) => n.id === id)
           return (
-            <button key={id} className={view === id && !editing ? 'bn-item active' : 'bn-item'} onClick={() => { setEditing(false); setView(id) }}>
+            <button
+              key={id}
+              className={view === id && !editing ? 'bn-item active' : 'bn-item'}
+              aria-label={label(item)}
+              aria-current={view === id && !editing ? 'page' : undefined}
+              onClick={() => { setEditing(false); setView(id) }}
+            >
               <span className="bn-ic"><item.Icon size={20} /></span>
-              {label(item)}
+              <span className="bn-lbl">{label(item)}</span>
             </button>
           )
         })}

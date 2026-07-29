@@ -1,17 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Dumbbell,
   ClipboardList,
   Users,
-  MessageSquare,
   ExternalLink,
   Newspaper,
   X,
-  Star,
   CalendarDays,
   Plus,
   Bookmark,
-  ChevronLeft,
+  UserCheck,
 } from 'lucide-react'
 import {
   NEWS_SOURCES,
@@ -22,13 +20,22 @@ import {
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import { ChevronFwd } from './DirIcon'
-import SmartImage, { SmartImageRotator, ImageCredit } from './SmartImage'
+import CourtArt from './CourtArt'
+import { motionOff } from './anim'
+import useReveal from './useReveal'
 import CoachOfWeek from './CoachOfWeek'
 import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
+import PracticeRsvp from './PracticeRsvp'
+import { OpenSessionBanner, TodayPlanCard, WeekSchedule, NeedsAttention } from './HomeSections'
+import { expandSlotsRange } from './sessionId'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+// כל כמה זמן מתחלף הציטוט בהירו. היה הקצב של מחליף התמונות שהוסר —
+// נשמר כאן כדי שהתחושה של ההירו לא תשתנה.
+const QUOTE_HOLD_MS = 7000
 
 // ספירה-למעלה של מספר סטטיסטיקה (לוח תוצאות, לא אקסל). מכבד reduced-motion.
 function useCountUp(target, dur = 700) {
@@ -60,7 +67,7 @@ function StatNum({ value, decimals = 0 }) {
 function useHomeStats(userId) {
   // null = עדיין נטען / לא זמין (מוצג כ-"—"), מספר = ערך אמיתי.
   // כך שגיאת רשת חולפת לא מציגה אפסים מזויפים כאילו אין נתונים.
-  const [s, setS] = useState({ rating: null, week: null, plans: null, saved: null })
+  const [s, setS] = useState({ attendance: null, week: null, plans: null, saved: null })
   useEffect(() => {
     if (!userId) return
     let alive = true
@@ -69,19 +76,33 @@ function useHomeStats(userId) {
       const day = now.getDay() // 0=ראשון
       const weekStart = new Date(now); weekStart.setDate(now.getDate() - day)
       const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6)
-      const [saved, plans, week, myDrills] = await Promise.all([
+      const [saved, plans, entries, slots, att] = await Promise.all([
         supabase.from('saved_drills').select('drill_id', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('training_plans').select('id', { count: 'exact', head: true }).eq('created_by', userId),
         supabase.from('schedule_entries').select('id', { count: 'exact', head: true }).gte('date', ymdLocal(weekStart)).lte('date', ymdLocal(weekEnd)),
-        supabase.from('drills').select('drill_ratings(rating)').eq('created_by', userId),
+        // אימונים מלוח קבוע אינם שורות ב-schedule_entries. בלעדיהם מאמן
+        // שעובד בימים קבועים ראה "0 אימונים השבוע" בזמן שהלו"ז מלא.
+        supabase.from('team_practice_slots').select('*').eq('coach_id', userId),
+        // אחוז הנוכחות הקבוצתי — אותה נוסחה כמו ב-Attendance.jsx:
+        // כל מה שאינו 'absent' נספר כנוכחות.
+        supabase.from('practice_attendance').select('status').eq('coach_id', userId),
       ])
       if (!alive) return
-      let sum = 0, cnt = 0
-      for (const d of myDrills.data || []) for (const r of d.drill_ratings || []) { sum += r.rating; cnt++ }
+
+      const recurring = slots.error ? [] : expandSlotsRange(slots.data || [], weekStart, weekEnd)
+      const weekCount = entries.error && slots.error
+        ? null
+        : (entries.error ? 0 : (entries.count || 0)) + recurring.length
+
+      const rows = att.error ? null : (att.data || [])
+      const attendance = rows && rows.length
+        ? Math.round((rows.filter((r) => r.status !== 'absent').length / rows.length) * 100)
+        : null
+
       setS({
-        rating: cnt ? (sum / cnt) : null,
+        attendance,
         // בשגיאה משאירים null (—) במקום 0 מזויף
-        week: week.error ? null : (week.count || 0),
+        week: weekCount,
         plans: plans.error ? null : (plans.count || 0),
         saved: saved.error ? null : (saved.count || 0),
       })
@@ -264,24 +285,37 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const stats = useHomeStats(profile?.id)
   const communityPosts = useCommunityTeaser()
 
-  // פעימה משותפת בהירו: המחליף מודיע על כל החלפת תמונה, והציטוט מתחלף איתה.
+  // פעימת הציטוט בהירו. קודם היא הגיעה מ-onTick של מחליף התמונות; מאז
+  // שההירו הוא איור קבוע (CourtArt) הטיימר יושב כאן, באותו קצב.
   // נקודת ההתחלה אקראית כדי שלא יתקבל אותו ציטוט בכל טעינה.
-  // הערה: תחת prefers-reduced-motion המחליף לא מתקתק בכלל, ולכן גם הציטוט
-  // נשאר קבוע — וזה הנכון: תוכן שמתחלף מעצמו הוא בדיוק מה שהמשתמש ביקש לעצור.
+  // חוזה הנגישות נשמר: תחת motionOff() (reduced-motion או html.a11y-motion)
+  // הטיימר לא נדלק בכלל — תוכן שמתחלף מעצמו הוא בדיוק מה שהמשתמש ביקש לעצור.
   const [quoteStart] = useState(() => Math.floor(Math.random() * COACHING_QUOTES.length))
   const [beat, setBeat] = useState(0)
   const quote = COACHING_QUOTES[(quoteStart + beat) % COACHING_QUOTES.length]
+  const homeRef = useRef(null)
+  // האימון הקרוב, כפי ש-NextPractice חישב אותו — משמש את רצועת אישורי ההגעה
+  const [nextEntry, setNextEntry] = useState(null)
+
+  useEffect(() => {
+    if (motionOff()) return
+    const t = setInterval(() => setBeat((n) => n + 1), QUOTE_HOLD_MS)
+    return () => clearInterval(t)
+  }, [])
 
   const today = new Date()
   const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
   const hour = today.getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
+  // ארבעת המספרים לפי מסך 3a במסמך המסירה, בסדר שלו:
+  // 87% נוכחות · 3 אימונים · 11 תוכניות · 24 שמורים.
+  // אחוז הנוכחות החליף את דירוג התרגילים — המסמך לא מציג אותו בבית.
   const STAT_TILES = [
-    { key: 'rating', Icon: Star, value: stats.rating, dec: 1, label: L('דירוג התרגילים שלך', 'Your drills rating'), star: true, c: 'orange' },
-    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים השבוע', 'Practices this week'), c: 'green' },
-    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות אימון', 'Practice plans'), c: 'purple' },
-    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('תרגילים שמורים', 'Saved drills'), c: 'blue' },
+    { key: 'attendance', Icon: UserCheck, value: stats.attendance, dec: 0, label: L('נוכחות הקבוצה', 'Team attendance'), pct: true, c: 'green' },
+    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
+    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
+    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('שמורים', 'Saved'), c: 'orange' },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
@@ -307,26 +341,20 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
     { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בנה אימון מלא — ידני או עם בנאי חכם','Build a full practice — manually or with the smart builder') },
   ]
 
-  const shortcuts = [
-    { id: 'community', Icon: Users, grad: 'orange', title: L('קהילת המאמנים', 'Coaches community'), desc: L('פיד שיתופים, תגובות וצילומים מהאימונים', 'A feed of posts, comments and practice photos') },
-    { id: 'drills', Icon: Dumbbell, grad: 'blue', title: L('ספריית תרגילים', 'Drill library'), desc: L('חיפוש, דירוג ושמירת תרגילים', 'Search, rate and save drills') },
-    { id: 'plans', Icon: ClipboardList, grad: 'green', title: L('בניית אימון', 'Practice builder'), desc: L('אימון מלא מהתרגילים של הקהילה', 'A full practice from the community drills') },
-    { id: 'messages', Icon: MessageSquare, grad: 'purple', title: L('הודעות', 'Messages'), desc: L('שיחות אישיות עם מאמנים', 'Personal conversations with coaches') },
-  ]
+  // חשיפה בגלילה. התלויות הן מה שמוסיף מקטעים ל-DOM אחרי הרינדור הראשון —
+  // בלעדיהן ה-observer לא היה רואה את הכתבות ואת טיזר הקהילה שהגיעו מאוחר יותר.
+  useReveal(homeRef, [loading, communityPosts.length, showOnboarding, netSmall])
 
   return (
-    <div className="home">
+    <div className="home" ref={homeRef}>
       {/* הירו נייבי — ברכה + האימון הבא בכרטיס זכוכית (handoff).
-          סימן-המים של המגרש היה SVG; הוחלף בצילום מגרש אמיתי מהמאגר,
-          מתחת ל-scrim הנייבי כדי שהטקסט הלבן ישמור על ניגודיות. */}
-      <header className="home-hero">
-        <SmartImageRotator
-          category="hero"
-          count={3}
-          className="home-hero-bg"
-          sizes="100vw"
-          onTick={setBeat}
-        />
+          הצילום מהמאגר הוסר; חזרנו לדפוס הבית מ-DESIGN.md §2ב — סימן-מים
+          של מגרש (CourtArt) על הגרדיאנט הנייבי, מתחת לאותו scrim.
+          הגובה, הרדיוס והפריסה לא זזו: זו החלפת שכבת רקע בלבד. */}
+      <header className="home-hero home-art-hero">
+        <span className="home-hero-bg home-art-fill" aria-hidden="true">
+          <CourtArt variant="home" />
+        </span>
         <span className="home-hero-glow" aria-hidden="true" />
         <div className="home-hero-text">
           <span className="home-greet-date">{dateLabel}</span>
@@ -350,9 +378,12 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           </div>
         </div>
         <div className="home-hero-card">
-          <NextPractice session={session} onNavigate={onNavigate} />
+          <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
         </div>
-        {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מסונכרן לתמונה.
+        {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
+            או אם אין אימון קרוב עם קבוצה. */}
+        {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
+        {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מתחלף לפי QUOTE_HOLD_MS.
             key={beat} — מרנדר מחדש כדי שאנימציית ההחלפה תתנגן. */}
         <p className="home-hero-quote" key={beat}>
           <span className="hhq-mark" aria-hidden="true">"</span>
@@ -367,8 +398,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           <div key={t.key} className="stat-tile" data-c={t.c}>
             <span className="stat-tile-ic"><t.Icon size={17} /></span>
             <span className="stat-tile-num">
-              {t.star && <Star size={15} className="stat-star" aria-hidden="true" />}
               <bdi><StatNum value={t.value} decimals={t.dec} /></bdi>
+              {t.pct && typeof t.value === 'number' && <span className="stat-tile-pct">%</span>}
             </span>
             <span className="stat-tile-label">{t.label}</span>
           </div>
@@ -404,22 +435,15 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </div>
       )}
 
-      <span className="sec-kicker">{L('כלים', 'Tools')}</span>
-      <h2 className="section-title">
-        {L('קיצורי דרך', 'Shortcuts')}
-      </h2>
-      <div className="home-grid">
-        {shortcuts.map((s) => (
-          <button key={s.id} className={`home-card grad-${s.grad}`} onClick={() => onNavigate(s.id)}>
-            <span className="home-ic">
-              <s.Icon size={20} />
-            </span>
-            <span className="home-card-title">{s.title}</span>
-            <span className="home-card-desc">{s.desc}</span>
-            <ChevronFwd size={16} className="home-card-chev" />
-          </button>
-        ))}
-      </div>
+      {/* ===== מסך 3a — ארבעת הסקשנים של מסמך המסירה =====
+          רשת «קיצורי הדרך» הוסרה: היא לא מופיעה במוקאפ, וכל ארבעת היעדים
+          שלה נמצאים עכשיו בסרגל התחתון בן שבעת הטאבים. המסמך מציין
+          במפורש שהביקורת פירקה את המסך מ-7 סקשנים שווי-משקל לשלושה
+          עם היררכיה — זה מה שקורה כאן. */}
+      <OpenSessionBanner session={session} onNavigate={onNavigate} />
+      <TodayPlanCard session={session} profile={profile} onNavigate={onNavigate} />
+      <WeekSchedule session={session} onNavigate={onNavigate} />
+      <NeedsAttention session={session} onNavigate={onNavigate} />
 
       {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
       {communityPosts.length > 0 && (
@@ -431,7 +455,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
               {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} />
             </button>
           </div>
-          <div className="home-community-grid">
+          <div className="home-community-grid reveal-up">
             {communityPosts.map((p) => {
               const author = p.author
                 ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
@@ -479,16 +503,20 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
       )}
 
       {!loading && !error && items.length > 0 && (
-        <div className="news-grid">
+        <div className="news-grid reveal-up">
           {items.map((a, i) => (
             <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
               <div
                 className="news-thumb"
                 style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}
               >
-                {/* אין תמונה בפיד ה-RSS → צילום מהמאגר במקום אייקון עיתון בודד */}
+                {/* אין תמונה בפיד ה-RSS → אריח placeholder ממותג (טוקנים +
+                    אייקון lucide), לא צילום סטוק. הגובה של .news-thumb קבוע,
+                    ולכן שום דבר לא זז בהחלפה. */}
                 {!a.image && (
-                  <SmartImage category="articles" fill sizes="(max-width: 900px) 100vw, 320px" />
+                  <span className="home-news-ph" aria-hidden="true">
+                    <Newspaper size={24} />
+                  </span>
                 )}
                 {a.source && <span className="news-source">{a.source}</span>}
               </div>
@@ -513,7 +541,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
       <h2 className="section-title" style={{ marginTop: 32 }}>
         {L('תוכן והשראה', 'Content & inspiration')}
       </h2>
-      <div className="home-grid">
+      <div className="home-grid reveal-up">
         {CONTENT_LINKS.map((l) => (
           <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
             <span className="home-card-title link-row">
@@ -524,8 +552,6 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           </a>
         ))}
       </div>
-
-      <ImageCredit />
     </div>
   )
 }

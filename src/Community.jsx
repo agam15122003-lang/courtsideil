@@ -30,7 +30,7 @@ import { SkeletonConvos, SkeletonFeed } from './Skeleton'
 import { L , cnt } from './i18n'
 import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
-import SmartImage from './SmartImage'
+import CourtArt from './CourtArt'
 
 const MAX_IMAGES = 4
 
@@ -1214,9 +1214,11 @@ export default function Community({ session, profile, onOpenCoach, initialTab, o
   return (
     <div className="welcome-card cm-page">
       {/* הירו ממורכז — כותרת, סטטיסטיקות חיות וחיפוש */}
-      <header className="cm-hero">
-        {/* צילום מהמאגר מתחת ל-scrim הנייבי — אותו טיפול כמו בהירו של דף הבית */}
-        <SmartImage category="community" fill className="cm-hero-bg" sizes="100vw" priority />
+      <header className="cm-hero cm-art-hero">
+        {/* סימן-מים של מגרש מתחת ל-scrim הנייבי — דפוס הבית (DESIGN.md §2ב), לא צילום סטוק */}
+        <span className="cm-hero-bg cm-art-fill" aria-hidden="true">
+          <CourtArt variant="community" />
+        </span>
         <div className="welcome-badge">{L('הקהילה', 'Community')}</div>
         <h1>{L('המגרש הביתי של המאמנים', 'The coaches’ home court')}</h1>
         <p className="cm-hero-sub">{L('שאלות, טיפים, סרטונים וצילומים — הכול במקום אחד.', 'Questions, tips, videos and photos — all in one place.')}</p>

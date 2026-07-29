@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { downloadIcs } from './ics'
@@ -13,8 +13,11 @@ const hm = (t) => (t ? String(t).slice(0, 5) : '')
 
 // הכרטיס החכם של המאמן — הזרימה מגיעה אליך:
 // לפני אימון → ספירה לאחור + "מטרות לשחקנים"; אחרי אימון → דוח מצב (כמה מילאו, עומס ממוצע).
-// props: session, onNavigate(viewId)
-export default function NextPractice({ session, onNavigate }) {
+// props: session, onNavigate(viewId), onEntry(entry|null)
+//
+// onEntry מדווח את האימון הקרוב כלפי מעלה, כדי שרצועת אישורי ההגעה בבית
+// המאמן תשתמש באותו מופע בדיוק — בלי לשכפל את מיזוג שלושת המקורות שכאן.
+export default function NextPractice({ session, onNavigate, onEntry }) {
   const me = session?.user?.id
   const [entry, setEntry] = useState(null)
   const [recent, setRecent] = useState(null) // {id, team, date, start_time, avg, rated, total}
@@ -22,6 +25,12 @@ export default function NextPractice({ session, onNavigate }) {
   const [now, setNow] = useState(() => Date.now())
   const [report, setReport] = useState(null) // entry לפתיחת SessionDetail
   const [pendingGame, setPendingGame] = useState(null) // משחק מהשבוע בלי סיכום
+
+  // דיווח האימון הקרוב כלפי מעלה. ב-ref כדי שהחלפת הפונקציה בהורה
+  // לא תפעיל את האפקט מחדש בכל רינדור.
+  const onEntryRef = useRef(onEntry)
+  onEntryRef.current = onEntry
+  useEffect(() => { onEntryRef.current?.(entry) }, [entry])
 
   useEffect(() => {
     let alive = true
