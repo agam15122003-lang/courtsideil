@@ -16,6 +16,9 @@ function ytId(url) {
 }
 
 // ספריית סרטונים משותפת — ממוינת לפי דירוג המשתמשים (הגבוה ביותר למעלה).
+// מסך 14a מציג שלושה סרטונים ואז «עוד סרטונים (N)» — כרטיס מוביל ושתי שורות.
+const PAGE = 3
+
 export default function Videos({ session, profile }) {
   const me = session.user.id
   const isAdmin = !!profile?.is_admin
@@ -29,7 +32,7 @@ export default function Videos({ session, profile }) {
   const [search, setSearch] = useState('')
   // כל כרטיס סרטון הוא ~30 אלמנטים (כולל 5 כוכבי דירוג); 106 סרטונים = 4,300 אלמנטים
   // ומסך שנתקע בטלפון. מציגים 12 ומרחיבים לפי בקשה.
-  const [limit, setLimit] = useState(12)
+  const [limit, setLimit] = useState(PAGE)
 
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -200,13 +203,13 @@ export default function Videos({ session, profile }) {
       )}
 
       <div className="chips" style={{ marginTop: 16 }}>
-        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(''); setLimit(12) }}>{L('הכל', 'All')}</button>
+        <button type="button" className={!filterCat ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(''); setLimit(PAGE) }}>{L('הכל', 'All')}</button>
         {VIDEO_CATEGORIES.map((c) => (
-          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(c); setLimit(12) }}>{tr(c)}</button>
+          <button type="button" key={c} className={filterCat === c ? 'chip selected' : 'chip'} onClick={() => { setFilterCat(c); setLimit(PAGE) }}>{tr(c)}</button>
         ))}
       </div>
 
-      <input className="finder-input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setLimit(12) }}
+      <input className="finder-input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setLimit(PAGE) }}
         aria-label={L('חיפוש סרטונים', 'Search videos')} placeholder={L('חיפוש חופשי בסרטונים...', 'Search videos...')} style={{ marginTop: 12 }} />
 
       {loading ? (
@@ -226,11 +229,13 @@ export default function Videos({ session, profile }) {
         </div>
       ) : (
         <div className="video-grid">
-          {results.slice(0, limit).map((v) => {
+          {/* מסך 14a: הסרטון הראשון הוא כרטיס גדול, וכל השאר שורות קומפקטיות.
+              בלי זה כל סרטון תופס מסך שלם והדף מגיע ל-5000px בטלפון. */}
+          {results.slice(0, limit).map((v, vi) => {
             const id = ytId(v.url)
             const r = ratings[v.id] || { avg: 0, count: 0, mine: 0 }
             return (
-              <div key={v.id} className="video-card">
+              <div key={v.id} className={vi === 0 ? 'video-card' : 'video-card is-compact'}>
                 <a className="video-thumb" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer" aria-label={L(`צפייה בסרטון: ${v.title}`, `Watch video: ${v.title}`)}>
                   {id ? <img src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" /> : <PlayCircle size={28} />}
                   <span className="video-play"><PlayCircle size={18} /></span>

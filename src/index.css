@@ -21049,3 +21049,44 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .plan-cats > span:nth-child(odd) { background: var(--surface); }
 .plan-cats b { font-size: 10.5px; font-weight: 700; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .plan-cats i { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   30.7.2026 · מסך 14a — שורת סרטון קומפקטית
+   בעיצוב רק הסרטון הראשון הוא כרטיס גדול; כל השאר שורות עם
+   תמונה ממוזערת בצד. בלי זה הדף מגיע ל-5000px בטלפון.
+   ============================================================ */
+.video-card.is-compact {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+}
+.video-card.is-compact .video-thumb {
+  width: 104px;
+  height: 68px;
+  aspect-ratio: auto;
+  border-radius: 10px;
+  margin: 0;
+}
+.video-card.is-compact .video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* הכפתור הגדול והתג יורדים — הם שייכים לכרטיס המוביל */
+.video-card.is-compact .video-play,
+.video-card.is-compact .video-rank-badge { display: none; }
+.video-card.is-compact .video-body { padding: 0; gap: 4px; }
+.video-card.is-compact .video-title {
+  font-size: 13.5px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.video-card.is-compact .video-rate-stars .vstar-btn { padding: 0 1px; }
+.video-card.is-compact .video-rate-stars svg { width: 13px; height: 13px; }
+.video-card.is-compact .video-rate { gap: 6px; flex-wrap: wrap; }
+.video-card.is-compact .video-rate-meta { font-size: 11px; }
+/* בשורה הקומפקטית לא מציגים הערה ולא סרגל פעולות — «צפה ביוטיוב»
+   נשאר דרך לחיצה על התמונה עצמה, שהיא כבר קישור. */
+.video-card.is-compact .video-actions,
+.video-card.is-compact .video-body > .muted.small:not(.video-rate-meta) { display: none; }
