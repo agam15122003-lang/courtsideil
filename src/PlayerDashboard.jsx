@@ -15,6 +15,7 @@ import { ArrowFwd } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Avatar from './Avatar'
+import SmartImage from './SmartImage'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
@@ -979,12 +980,13 @@ function HomeRsvp({ session, membership, next }) {
       : L('רשמנו שלא תגיע', "You're marked as not coming"))
   }
 
-  if (!membership || !sessionId || mine === undefined) return null
-  const isToday = next.date === new Date().toISOString().slice(0, 10)
+  if (!membership || !sessionId || mine === undefined) return null
   return (
     <div className="plh-rsvp">
       <div className="plh-rsvp-tx">
-        <strong>{isToday ? L('מגיע היום?', 'Coming today?') : L('מגיע לאימון הבא?', 'Coming to the next one?')}</strong>
+        {/* «מגיע היום?» / «מגיע מחר?» / «מגיע יום שלישי, 5.8?» — העיצוב
+            מנסח את השאלה ביחס ליום האימון, לא כשאלה כללית על «האימון הבא». */}
+        <strong>{L(`מגיע ${dayLabel(next.date)}?`, `Coming ${dayLabel(next.date)}?`)}</strong>
         <span>{L('המאמן רואה את התשובה מיד', 'Your coach sees the answer right away')}</span>
       </div>
       <div className="plh-rsvp-btns">
@@ -1140,31 +1142,34 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
     started = start.getTime() - now <= 0 && new Date(`${next.date}T${next.end_time || next.start_time || '23:59'}`).getTime() >= now
     const pad = (n) => String(n).padStart(2, '0')
     dd = pad(Math.floor(diff / 86400000)); hh = pad(Math.floor((diff % 86400000) / 3600000)); mm = pad(Math.floor((diff % 3600000) / 60000)); ss = pad(Math.floor((diff % 60000) / 1000))
-    whenStr = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' }) + (next.start_time ? ` · ${next.start_time.slice(0, 5)}` : '') + (next.location ? ` · ${next.location}` : '')
+    // «מחר · 18:00 · אולם ויתקין» — dayLabel נותן «היום»/«מחר» וכל השאר
+    // נופל לשם היום. קודם הוצג התאריך המלא, שהעיצוב לא מציג.
+    whenStr = dayLabel(next.date) + (next.start_time ? ` · ${next.start_time.slice(0, 5)}` : '') + (next.location ? ` · ${next.location}` : '')
     titleStr = next.title || L('אימון קבוצתי', 'Team practice')
   }
   const isGame = next?.kind === 'game'
 
   return (
     <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
-      <span className="plh-hero-glow" aria-hidden="true" />
-      {/* סימן-מים של מגרש (דפוס 1 במסמך העיצוב) — מחליף את אימוג'י הכדור */}
-      <svg className="plh-hero-court" viewBox="0 0 400 200" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <rect x="4" y="4" width="392" height="192" rx="8" />
-        <line x1="200" y1="4" x2="200" y2="196" />
-        <circle cx="200" cy="100" r="34" />
-        <rect x="4" y="58" width="76" height="84" />
-        <rect x="320" y="58" width="76" height="84" />
-        <path d="M80 4 A96 96 0 0 1 80 196" />
-        <path d="M320 4 A96 96 0 0 0 320 196" />
-      </svg>
-      {/* סדר מסך 3b: פס «האימון הבא» → «ערב טוב, אגם» → שורת מצב אחת →
-          אישור הגעה. הכותרת של האימון והתאריך נכנסים לפס עצמו, ולא
-          לשלוש שורות נפרדות עם קוביות ספירה מתחתן. */}
+      {/* מסך 3b בנוי משלוש רצועות: תמונה בגובה 292 עם התוכן עליה,
+          רצועת «מגיע?» מתחתיה, ופס ארבעת המספרים אחרון. */}
+      <div className="plh-hero-media">
+        <SmartImage category="hero" fill priority className="plh-hero-photo" />
+        <span className="plh-hero-glow" aria-hidden="true" />
+        {/* סימן-מים של מגרש (דפוס 1 במסמך העיצוב) — מחליף את אימוג'י הכדור */}
+        <svg className="plh-hero-court" viewBox="0 0 400 200" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <rect x="4" y="4" width="392" height="192" rx="8" />
+          <line x1="200" y1="4" x2="200" y2="196" />
+          <circle cx="200" cy="100" r="34" />
+          <rect x="4" y="58" width="76" height="84" />
+          <rect x="320" y="58" width="76" height="84" />
+          <path d="M80 4 A96 96 0 0 1 80 196" />
+          <path d="M320 4 A96 96 0 0 0 320 196" />
+        </svg>
+        <div className="plh-hero-bottom">
       {next && (
         <div className={started ? 'plh-next live' : 'plh-next'}>
           <span className="plh-next-tag">
-            <i className={started ? 'plh-dot live' : 'plh-dot'} />
             {started
               ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
               : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
@@ -1189,6 +1194,8 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
                 next ? (isGame ? L('ומשחק בדרך', 'and a game coming up') : null) : L('אין אימון קרוב בלו״ז', 'no upcoming practice'),
               ].filter(Boolean).join(' · ') || L('הכול מסודר — נתראה באימון', "You're all set — see you at practice")}
         </p>
+      </div>
+        </div>
       </div>
 
       <div className="plh-hero-foot">
