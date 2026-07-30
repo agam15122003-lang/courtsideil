@@ -8,6 +8,7 @@ import { L, tr, trTeam , cnt } from './i18n'
 import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
 import TacticsBoard from './TacticsBoard'
+import CourtDiagram from './CourtDiagram'
 import NotebookPage from './NotebookPage'
 
 // כרטיס תרגיל לשימוש חוזר — מציג תרגיל אחד עם דירוג, שמירה, מחיקה ותגובות.
@@ -139,6 +140,12 @@ export default function DrillCard({
 
       {/* תצוגה קומפקטית — נשארת ברשימה גם כשהפאנל הצף פתוח */}
       <div className="drill-compact">
+          {/* מסך 5a — תרשים חצי-מגרש אמיתי כתמונה ממוזערת בקצה הכרטיס */}
+          {hasBoard && (
+            <span className="drill-thumb" aria-hidden="true">
+              <CourtDiagram full={!!drill.board.fullCourt} step={drill.board.steps[0]} index={0} />
+            </span>
+          )}
           <div className="drill-compact-head">
             <h3 className="drill-compact-title">{drill.title}</h3>
             {drill.category && (

@@ -21090,3 +21090,29 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
    נשאר דרך לחיצה על התמונה עצמה, שהיא כבר קישור. */
 .video-card.is-compact .video-actions,
 .video-card.is-compact .video-body > .muted.small:not(.video-rate-meta) { display: none; }
+
+/* ============================================================
+   30.7.2026 · מסך 5a — תרשים חצי-מגרש כתמונה ממוזערת בכרטיס התרגיל
+   המסמך מגדיר את התרשים כחלק מהכרטיס («תרשים חצי-מגרש אמיתי
+   כתמונה ממוזערת»); בקוד היה רק תג «לוח מונפש · N שלבים».
+   ============================================================ */
+.drill-compact { display: grid; grid-template-columns: 1fr 108px; column-gap: 12px; align-items: start; }
+.drill-compact > * { grid-column: 1; min-width: 0; }
+.drill-compact > .drill-thumb {
+  grid-column: 2;
+  grid-row: 1 / span 99;
+  align-self: start;
+  display: block;
+  width: 108px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.drill-compact > .drill-thumb svg { display: block; width: 100%; height: auto; }
+/* התרשים דקורטיבי בכרטיס — בלי אנימציה שתרוץ על כל פריט ברשימה */
+.drill-compact > .drill-thumb * { animation: none !important; transition: none !important; }
+@media (max-width: 420px) {
+  .drill-compact { grid-template-columns: 1fr 92px; column-gap: 10px; }
+  .drill-compact > .drill-thumb { width: 92px; }
+}

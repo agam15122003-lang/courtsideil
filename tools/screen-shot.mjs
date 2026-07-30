@@ -23,6 +23,9 @@ const COACH = {
   '16a': { nav: 6, name: 'לו״ז' },
   '14a': { nav: 7, name: 'מדיה' },
   '3c': { nav: 0, name: 'בית המאמן · כהה', dark: true },
+  // מסכים שאינם פריט במגירה — נגישים דרך כרטיס המשתמש או טאב פנימי
+  '10a': { nav: -1, name: 'פרופיל המאמן', click: '.sidebar-user' },
+  '5a': { nav: 4, name: 'ספריית התרגילים', tab: 'בניית תרגיל' },
 }
 
 const arg = process.argv[2] ?? 'coach'
@@ -93,12 +96,21 @@ for (const id of ids) {
     // לא networkidle — לאפליקציה יש חיבור realtime פתוח שלא נסגר לעולם
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.bn-item, .nav-item', { timeout: 20000 })
-    if (spec.nav > 0) {
+    if (spec.click) {
+      await page.locator('button[aria-label]').first().click()
+      await page.waitForTimeout(500)
+      await page.locator(spec.click).first().click()
+      await page.waitForTimeout(6000)
+    } else if (spec.nav > 0) {
       await page.locator('[aria-label]').filter({ hasText: '' }).first().waitFor({ timeout: 5000 }).catch(() => {})
       await page.locator('button[aria-label]').first().click() // פתיחת המגירה
       await page.waitForTimeout(500)
       await page.locator('.nav-item').nth(spec.nav).click()
-      await page.waitForTimeout(6000)
+      await page.waitForTimeout(3000)
+      if (spec.tab) {
+        await page.locator('.tab', { hasText: spec.tab }).first().click().catch(() => {})
+        await page.waitForTimeout(3500)
+      } else await page.waitForTimeout(3000)
     } else {
       await page.waitForTimeout(6000)
     }
