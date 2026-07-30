@@ -20902,3 +20902,87 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
     color: var(--orange-300);
   }
 }
+
+/* ============================================================
+   30.7.2026 · מסך 16a — רצועת ימים וסדר יום מעל הגריד השבועי
+   הערכים מהבלוק של 16a ב-«Courtside Mobile.dc.html».
+   ============================================================ */
+.cal-daystrip {
+  display: flex;
+  gap: 5px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.cal-daychip {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 7px 0;
+  border-radius: 12px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.cal-daychip-d { display: block; font-size: 9.5px; font-weight: 800; color: var(--mut); }
+.cal-daychip-n {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--tx);
+  font-variant-numeric: tabular-nums;
+}
+.cal-daychip i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--brand); margin: 3px auto 0; }
+.cal-daychip.is-on { background: var(--navy-1); border-color: var(--navy-1); }
+.cal-daychip.is-on .cal-daychip-d { color: rgba(255, 255, 255, 0.75); }
+.cal-daychip.is-on .cal-daychip-n { color: #fff; }
+
+.cal-day {
+  margin-top: 12px;
+  background: var(--sf);
+  border: 1px solid var(--ln);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.cal-day-hd {
+  padding: 11px 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sf2);
+}
+.cal-day-hd > b { flex: 1; font-family: var(--font-display); font-weight: 900; font-size: 14px; color: var(--tx); }
+.cal-day-hd > span { font-size: 11.5px; color: var(--mut); }
+.cal-day-empty { margin: 0; padding: 14px 15px; font-size: 12.5px; line-height: 1.6; color: var(--mut); }
+.cal-day-item + .cal-day-item { border-top: 1px solid var(--ln); }
+.cal-day-row { padding: 14px 15px; display: flex; gap: 12px; }
+.cal-day-time { width: 52px; flex: none; text-align: center; }
+.cal-day-time > b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 17px;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day-time > span { font-size: 11px; color: var(--mut); font-variant-numeric: tabular-nums; }
+.cal-day-bar { width: 3px; border-radius: 999px; background: var(--brand); flex: none; }
+.cal-day-body { flex: 1; min-width: 0; }
+.cal-day-body > b { font-size: 15px; display: block; color: var(--tx); }
+.cal-day-body > span { display: block; font-size: 12px; color: var(--mut); margin-top: 3px; }
+.cal-day-acts { padding: 0 15px 14px; display: flex; gap: 7px; }
+.cal-day-acts > .btn-primary {
+  flex: 2;
+  min-height: 44px;
+  margin: 0;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+.cal-day-acts > .btn-soft { flex: 1; min-height: 44px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+
+.cal-weeksep { display: flex; align-items: center; gap: 8px; margin: 16px 0 4px; }
+.cal-weeksep > span[aria-hidden] { flex: 1; height: 1px; background: var(--ln); }
+.cal-weeksep-t { font-size: 11.5px; font-weight: 700; color: var(--mut); }

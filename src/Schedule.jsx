@@ -44,11 +44,23 @@ const ilDate = (str) => {
   return d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+// אותיות הימים ברצועת הימים (מסך 16a) — א׳ עד ש׳
+const DAY_LETTERS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
+const DAY_LETTERS_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+// "יום שלישי · 29.7" — הכותרת של סדר היום
+const dayHeading = (d) =>
+  L(
+    `יום ${d.toLocaleDateString('he-IL', { weekday: 'long' }).replace(/^יום /, '')} · `,
+    d.toLocaleDateString('en-GB', { weekday: 'long' }) + ' · ',
+  )
+
 // לו"ז שבועי בסגנון Outlook — ימים בעמודות, שעות בשורות, אימונים כבלוקים.
 // props: session
 export default function Schedule({ session, onNavigate }) {
   const me = session.user.id
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()))
+  // 16a — הלו״ז נפתח על תצוגת יום: רצועת ימים + סדר היום, ומתחתיהם הגריד השבועי
+  const [selectedDay, setSelectedDay] = useState(() => ymd(new Date()))
   const [entries, setEntries] = useState([])
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -400,6 +412,98 @@ export default function Schedule({ session, onNavigate }) {
       ) : error ? (
         <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
       ) : (
+        <>
+        {/* ===== 16a · רצועת הימים וסדר היום, מעל הגריד השבועי ===== */}
+        <div className="cal-daystrip" role="tablist" aria-label={L('ימי השבוע', 'Days of the week')}>
+          {days.map((d) => {
+            const ds = ymd(d)
+            const busy =
+              entries.some((e) => e.date === ds) ||
+              (weekSlotOccs || []).some((o) => o.date === ds) ||
+              (meetings || []).some((m) => m.date === ds)
+            return (
+              <button
+                key={ds}
+                type="button"
+                role="tab"
+                aria-selected={ds === selectedDay}
+                className={'cal-daychip' + (ds === selectedDay ? ' is-on' : '')}
+                onClick={() => setSelectedDay(ds)}
+              >
+                <b className="cal-daychip-d">{L(DAY_LETTERS[d.getDay()], DAY_LETTERS_EN[d.getDay()])}</b>
+                <b className="cal-daychip-n" dir="ltr">{d.getDate()}</b>
+                {busy && <i aria-hidden="true" />}
+              </button>
+            )
+          })}
+        </div>
+
+        {(() => {
+          const dayItems = [
+            ...entries.filter((e) => e.date === selectedDay),
+            ...(weekSlotOccs || []).filter((o) => o.date === selectedDay),
+          ].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
+          const sel = new Date(selectedDay + 'T00:00')
+          const n = dayItems.length
+          return (
+            <div className="cal-day">
+              <div className="cal-day-hd">
+                <b>
+                  {dayHeading(sel)}
+                  <bdi dir="ltr">{`${sel.getDate()}.${sel.getMonth() + 1}`}</bdi>
+                </b>
+                <span>
+                  {n === 0
+                    ? L('אין מועדים', 'No sessions')
+                    : n === 1
+                      ? L('מועד אחד', 'One session')
+                      : L(`${n} מועדים`, `${n} sessions`)}
+                </span>
+              </div>
+
+              {n === 0 ? (
+                <p className="cal-day-empty">
+                  {L('אין אימונים ביום הזה. לחיצה על משבצת ריקה בלוח מוסיפה אימון.', 'Nothing scheduled. Tap an empty slot in the grid to add a practice.')}
+                </p>
+              ) : (
+                dayItems.map((e) => (
+                  <div className="cal-day-item" key={e.id ?? `${e.date}-${e.start_time}`}>
+                    <div className="cal-day-row">
+                      <div className="cal-day-time">
+                        <b dir="ltr">{e.start_time}</b>
+                        {e.end_time && <span dir="ltr">{e.end_time}</span>}
+                      </div>
+                      <span className="cal-day-bar" aria-hidden="true" />
+                      <div className="cal-day-body">
+                        <b>{e.is_personal ? L('אימון אישי', 'Personal session') : trTeam(e.team)}</b>
+                        {e.plan?.name ? (
+                          <span>{L('תוכנית «', 'Plan “')}{e.plan.name}{L('» מצורפת', '” attached')}</span>
+                        ) : (
+                          <span>{L('אין תוכנית מצורפת', 'No plan attached')}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="cal-day-acts">
+                      <button type="button" className="btn-primary" onClick={() => setSelected(e)}>
+                        {e.plan?.name ? L('פתח את התוכנית', 'Open the plan') : L('פרטי האימון', 'Session details')}
+                      </button>
+                      <button type="button" className="btn-soft" onClick={() => setSelected(e)}>
+                        {L('נוכחות', 'Attendance')}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )
+        })()}
+
+        <div className="cal-weeksep">
+          <span aria-hidden="true" />
+          <span className="cal-weeksep-t">{L('תצוגה שבועית', 'Weekly view')}</span>
+          <span aria-hidden="true" />
+        </div>
+
         <div className="cal-scroll" ref={calRef}>
           {/* key לפי שבוע — החלפת שבוע נכנסת ב-fade קצר במקום swap יבש */}
           <div className="cal-grid" key={ymd(weekStart)}>
@@ -554,6 +658,7 @@ export default function Schedule({ session, onNavigate }) {
             })}
           </div>
         </div>
+        </>
       )}
 
       <p className="muted small" style={{ marginTop: 10 }}>
