@@ -1555,10 +1555,15 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 
   return (
     <div className="pl-screen pl-narrow">
+      {/* 18a — הירו הנייבי של הפרופיל: אווטאר בצד, שם ומטא לצדו,
+          כמו בכל שאר מסכי השחקן */}
       <div className="plp-head">
-        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={94} />
-        <h2 className="plp-name">{profile.first_name} {profile.last_name}</h2>
-        <span className="plp-role">{role}</span>
+        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={72} />
+        <div className="plp-head-txt">
+          <span className="plp-eyebrow">{L('הפרופיל שלי', 'My profile')}</span>
+          <h2 className="plp-name">{profile.first_name} {profile.last_name}</h2>
+          <span className="plp-role">{role}</span>
+        </div>
       </div>
 
       {st && (

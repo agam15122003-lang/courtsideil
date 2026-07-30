@@ -21129,3 +21129,38 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ============================================================
+   30.7.2026 · מסך 18a — הירו הנייבי של פרופיל השחקן
+   בעיצוב זהו אותו בלוק כהה כמו בשאר מסכי השחקן: אווטאר בצד,
+   eyebrow, שם ומטא לצדו. בקוד הוא היה כותרת בהירה ממורכזת.
+   ============================================================ */
+.plp-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  text-align: start;
+  padding: 18px 16px 20px;
+  margin: calc(var(--space-8) * -1) calc(var(--space-6) * -1) 0;
+  background: linear-gradient(158deg, var(--navy-1), var(--navy-2));
+  color: var(--on-dark);
+}
+.plp-head-txt { min-width: 0; flex: 1; }
+.plp-eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--orange-300);
+  margin-bottom: 3px;
+}
+.plp-head .plp-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 25px;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.plp-head .plp-role { display: block; margin-top: 3px; font-size: 12.5px; color: rgba(255, 255, 255, 0.72); }
