@@ -98,9 +98,9 @@ for (const id of ids) {
       await page.locator('button[aria-label]').first().click() // פתיחת המגירה
       await page.waitForTimeout(500)
       await page.locator('.nav-item').nth(spec.nav).click()
-      await page.waitForTimeout(2500)
+      await page.waitForTimeout(6000)
     } else {
-      await page.waitForTimeout(2500)
+      await page.waitForTimeout(6000)
     }
     await page.screenshot({ path: path.join(OUT, `app-${id}.png`), fullPage: true })
     console.log('app', id, '·', spec.name)

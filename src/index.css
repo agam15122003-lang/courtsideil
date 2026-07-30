@@ -20847,3 +20847,58 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 
 /* 1f — הערת האבטחה נצמדת לתחתית המסך, מתחת לכרטיס «לא הגיע?» */
 .csa .csa-sheet--center .csa-sheet-in > .csa-fine { margin-block-start: auto; }
+
+/* ============================================================
+   30.7.2026 · ראש המסך לפי «Courtside Mobile.dc.html»
+   בעיצוב, ראש כל מסך הוא בלוק כהה רציף: רצועת הציטוט על #0A1428
+   ומתחתיה ההירו הנייבי. בקוד הסרגל העליון היה בהיר והציטוט ישב
+   מתחתיו כפס קרם — שני פסים בהירים שחתכו את הבלוק לשניים.
+   ============================================================ */
+@media (max-width: 640px) {
+  .mobile-topbar {
+    background: var(--navy-2);
+    color: var(--on-dark);
+    border-bottom: 0;
+  }
+  .mobile-topbar .sidebar-brand,
+  .mobile-topbar .drawer-toggle,
+  .mobile-topbar .topbar-actions > * {
+    color: var(--on-dark);
+  }
+
+  /* רצועת הציטוט — המשך ישיר של הסרגל, לא כרטיס נפרד */
+  .main-inner > .quote-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    /* מבטל את ריפוד .main-content כדי שהרצועה תיגע בסרגל ובשתי הקצוות */
+    margin: calc(var(--space-8) * -1) calc(var(--space-6) * -1) 0;
+    padding: 9px 16px 11px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    background: var(--navy-2);
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .main-inner > .quote-strip .quote-strip-mark {
+    display: block;
+    flex: none;
+    margin-top: 1px;
+    font: 900 15px/1 var(--font-display);
+    color: var(--brand);
+  }
+  .main-inner > .quote-strip .quote-strip-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.72);
+  }
+  .main-inner > .quote-strip .quote-strip-author {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--orange-300);
+  }
+}
