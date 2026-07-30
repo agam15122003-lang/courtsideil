@@ -21294,3 +21294,31 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   .plh-hero .plh-stat > b { font-family: var(--font-display); font-weight: 900; font-size: 23px; font-variant-numeric: tabular-nums; }
   .plh-hero .plh-stat > span { font-size: 10.5px; opacity: 0.6; }
 }
+
+/* ============================================================
+   30.7.2026 · מסך 3a — הבאנר של המאמן כרצועה מלאה
+   בעיצוב הבאנר נוגע בשני הקצוות וממשיך ישירות את רצועת הציטוט,
+   בלי פינות ובלי צל. בקוד הוא היה כרטיס מרחף עם רדיוס ומרווח צד,
+   כך שנוצר פס בהיר משני הצדדים ובין הציטוט לבאנר.
+   ============================================================ */
+@media (max-width: 640px) {
+  .home-hero {
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0 calc(var(--space-6) * -1);
+    padding: 16px 18px 18px;
+  }
+  /* רצועת אישורי ההגעה יושבת על הנייבי עצמו, לא ככרטיס בתוך כרטיס */
+  .home-hero .cs-rsvp {
+    margin: 14px calc(-18px) 0;
+    padding: 12px 18px 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  /* בעיצוב אין אייקון וי — רק הכותרת, המונה וכפתור התזכורת */
+  .home-hero .cs-rsvp-ic { display: none; }
+  .home-hero .cs-rsvp-tx b { font-family: var(--font-display); font-weight: 900; font-size: 14.5px; }
+  .home-hero .cs-rsvp-tx > span { font-size: 12px; color: rgba(255, 255, 255, 0.7); }
+}

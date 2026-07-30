@@ -391,8 +391,11 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             <button className="btn-primary" onClick={() => onNavigate('plans')}>
               <Plus size={17} /> {L('תוכנית חדשה', 'New plan')}
             </button>
-            <button className="btn-heroghost" onClick={() => onNavigate('schedule')}>
-              <CalendarDays size={17} /> {L('לו"ז השבוע', 'This week')}
+            {/* בעיצוב (3a) הכפתור השני הוא «הסגל שלי» — הלו״ז כבר יעד
+                בסרגל, והסגל הוא מה שהבאנר מפנה אליו («שני שחקנים דורשים
+                תשומת לב»). */}
+            <button className="btn-heroghost" onClick={() => onNavigate('teams')}>
+              <Users size={17} /> {L('הסגל שלי', 'My roster')}
             </button>
           </div>
         </div>
