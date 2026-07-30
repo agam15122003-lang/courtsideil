@@ -21010,3 +21010,42 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   /* בעיצוב אין נקודות צבע ליד התוויות — רק המספר והתווית */
   .home-stats .stat-tile-label::before { display: none; }
 }
+
+/* ============================================================
+   30.7.2026 · מסך 13a — פס היעד ורצועת הזמן על כרטיס התוכנית
+   בעיצוב הם יושבים על כל כרטיס ברשימה; בקוד הם היו רק בתוך העורך.
+   ============================================================ */
+.plan-target { margin-top: 10px; }
+.plan-target-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.plan-target-num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.plan-target-num > b {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 26px;
+  color: var(--text);
+  margin-inline-end: 2px;
+}
+.plan-target .pb-target-bar { margin-top: 6px; }
+
+/* רצועת הזמן — מקטע לכל קטגוריה, ברוחב יחסי לדקות */
+.plan-cats {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.plan-cats > span {
+  min-width: 0;
+  padding: 5px 6px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.plan-cats > span:nth-child(odd) { background: var(--surface); }
+.plan-cats b { font-size: 10.5px; font-weight: 700; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.plan-cats i { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }

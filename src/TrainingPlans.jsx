@@ -13,6 +13,9 @@ import { safeUrl } from './constants'
 import { waShare } from './share'
 import { confirmDialog } from './confirm'
 
+// יעד אורך אימון מלא. מוצג גם בעורך התוכנית וגם על כרטיס התוכנית ברשימה (13a).
+export const PLAN_TARGET_MIN = 90
+
 // ממיר פריטי תוכנית לפורמט "דף מחברת" (כותרת, פרטים, הערה, ולוח טקטיקה לאנימציה)
 export function planToNotebook(name, items) {
   return {
@@ -99,7 +102,8 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     setLoading(true)
     const { data, error } = await supabase
       .from('training_plans')
-      .select('*, plan_items(id, duration_minutes)')
+      // הקטגוריה נדרשת לרצועת הזמן שבכרטיס (מסך 13a)
+      .select('*, plan_items(id, duration_minutes, drill:drills(category))')
       .order('created_at', { ascending: false })
     if (error) {
       setError(L('שגיאה בטעינת התוכניות: ', 'Failed to load plans: ') + error.message)
@@ -325,13 +329,60 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                     <ListChecks size={14} />
                     <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
                   </span>
-                  {total > 0 && (
+                  {p.updated_at && (
                     <span className="meta-item">
                       <Clock size={14} />
-                      <bdi>{total}</bdi> {L('דקות', 'min')}
+                      {L('עודכן ', 'updated ')}
+                      <bdi dir="ltr">
+                        {new Date(p.updated_at).getDate()}.{new Date(p.updated_at).getMonth() + 1}
+                      </bdi>
                     </span>
                   )}
                 </div>
+
+                {/* מסך 13a — פס היעד ורצועת הזמן לפי קטגוריה, על הכרטיס עצמו.
+                    עד עכשיו הם היו רק בתוך עורך התוכנית. */}
+                {total > 0 && (
+                  <div className="plan-target">
+                    <div className="plan-target-row">
+                      <span className="plan-target-num" dir="ltr">
+                        <b>{total}</b> / {PLAN_TARGET_MIN} {L('דק׳', 'min')}
+                      </span>
+                      <span className={total >= PLAN_TARGET_MIN ? 'pb-target-hint done' : 'pb-target-hint'}>
+                        {total >= PLAN_TARGET_MIN
+                          ? L('מוכן לאימון', 'Ready to run')
+                          : L(`עוד ${PLAN_TARGET_MIN - total} דק׳ ליעד`, `${PLAN_TARGET_MIN - total} min to target`)}
+                      </span>
+                    </div>
+                    <span
+                      className={total >= PLAN_TARGET_MIN ? 'pb-target-bar done' : 'pb-target-bar'}
+                      aria-hidden="true"
+                    >
+                      <span style={{ width: `${Math.min(100, Math.round((total / PLAN_TARGET_MIN) * 100))}%` }} />
+                    </span>
+                    {(() => {
+                      // רצועת זמן: מקטע לכל קטגוריה, ברוחב יחסי לדקות שלה
+                      const byCat = new Map()
+                      for (const it of items) {
+                        const m = Number(it.duration_minutes) || 0
+                        if (!m) continue
+                        const c = it.drill?.category || L('אחר', 'Other')
+                        byCat.set(c, (byCat.get(c) || 0) + m)
+                      }
+                      if (byCat.size === 0) return null
+                      return (
+                        <span className="plan-cats" aria-hidden="true">
+                          {[...byCat.entries()].map(([c, m]) => (
+                            <span key={c} style={{ flex: m }}>
+                              <b>{tr(c)}</b>
+                              <i dir="ltr">{m}׳</i>
+                            </span>
+                          ))}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                )}
                 <div className="coach-card-actions">
                   <button
                     className="btn-primary"
@@ -620,7 +671,7 @@ function PlanBuilder({ planId, plan, onBack }) {
 
   // Number() חשוב — קלט מהמשתמש נשמר כמחרוזת, ו-"15"+"20" היה משרשר ל-"1520"
   const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
-  const TARGET_MIN = 90 // יעד ברירת מחדל לאימון מלא
+  const TARGET_MIN = PLAN_TARGET_MIN
   const missingMin = Math.max(0, TARGET_MIN - total)
 
   // "השלמה אוטומטית" — משלים את האימון בתרגילים מהספרייה עד היעד
