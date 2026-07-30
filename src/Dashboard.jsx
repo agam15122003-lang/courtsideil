@@ -23,6 +23,8 @@ const Community = lazy(() => import('./Community'))
 const Schedule = lazy(() => import('./Schedule'))
 const Teams = lazy(() => import('./Teams'))
 const Admin = lazy(() => import('./Admin'))
+// 10a — הצד הציבורי של הפרופיל הוא בדיוק המסך שמאמן אחר רואה
+const CoachProfile = lazy(() => import('./CoachProfile'))
 const Media = lazy(() => import('./Media'))
 import {
   Home as HomeIcon,
@@ -45,6 +47,7 @@ import {
   LogOut,
   Smartphone,
   Plus,
+  Eye,
 } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
@@ -142,6 +145,8 @@ export default function Dashboard({ session }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
+  // מסך 10a — מתג «כך רואים אותך»: הצד הפרטי מול התצוגה הציבורית
+  const [profileTab, setProfileTab] = useState('private')
   const [view, setView] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const sidebarRef = useRef(null)
@@ -529,6 +534,27 @@ export default function Dashboard({ session }) {
               )}
             >
             <div className="profile-page">
+              {/* 10a — שני צדדים לאותו פרופיל: מה שאתה רואה, ומה שמאמן אחר רואה */}
+              <div className="tabs pr-tabs">
+                <button
+                  type="button"
+                  className={profileTab === 'private' ? 'tab active' : 'tab'}
+                  onClick={() => setProfileTab('private')}
+                >
+                  {L('הפרופיל שלי', 'My profile')}
+                </button>
+                <button
+                  type="button"
+                  className={profileTab === 'public' ? 'tab active' : 'tab'}
+                  onClick={() => setProfileTab('public')}
+                >
+                  <Eye size={15} aria-hidden="true" /> {L('כך רואים אותך', 'How others see you')}
+                </button>
+              </div>
+
+              {profileTab === 'public' ? (
+                <CoachProfile coach={profile} session={session} />
+              ) : (
               <div className="profile-grid">
                 {/* עמודה ראשית — כרטיס פרטי המאמן */}
                 <section className="pr-card pr-main">
@@ -594,9 +620,12 @@ export default function Dashboard({ session }) {
                   </section>
                 </aside>
               </div>
+              )}
 
-              {/* [15] התרגילים שיצרתי — במרוכז, לפי ה-handoff */}
-              <MyDrills session={session} onNavigate={navigate} />
+              {/* [15] התרגילים שיצרתי — במרוכז, לפי ה-handoff.
+                  בצד הציבורי CoachProfile כבר מציג את התרגילים כפי שאחרים
+                  רואים אותם, ולכן הרשימה הזו שייכת לצד הפרטי בלבד. */}
+              {profileTab === 'private' && <MyDrills session={session} onNavigate={navigate} />}
             </div>
             </Page>
           )}

@@ -152,13 +152,19 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
 
   return (
     <div className="welcome-card coach-profile">
-      <button className="link-button" onClick={onBack}>
-        <ArrowRight size={15} className="back-ic" /> {L('חזרה למאתר המאמנים', 'Back to Coach Finder')}
-      </button>
+      {/* בתצוגה העצמית (10a · «כך רואים אותך») אין מאיפה לחזור —
+          הכפתור והתג שייכים לכניסה ממאתר המאמנים בלבד. */}
+      {onBack && (
+        <>
+          <button className="link-button" onClick={onBack}>
+            <ArrowRight size={15} className="back-ic" /> {L('חזרה למאתר המאמנים', 'Back to Coach Finder')}
+          </button>
 
-      <div className="welcome-badge" style={{ marginTop: 14 }}>
-        {L('פרופיל מאמן', 'Coach Profile')}
-      </div>
+          <div className="welcome-badge" style={{ marginTop: 14 }}>
+            {L('פרופיל מאמן', 'Coach Profile')}
+          </div>
+        </>
+      )}
       <div className="coach-profile-head">
         <Avatar name={fullName} url={coach.avatar_url} size={64} />
         <h2 style={{ margin: 0 }}>{fullName}</h2>
