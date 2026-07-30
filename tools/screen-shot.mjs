@@ -28,8 +28,16 @@ const COACH = {
   '5a': { nav: 4, name: 'ספריית התרגילים', tab: 'בניית תרגיל' },
 }
 
+const PLAYER = {
+  '3b': { navText: 'בית', name: 'בית השחקן' },
+  '12a': { navText: 'המשימות שלי', name: 'המשימות שלי' },
+  '9a': { navText: 'האימונים שלי', name: 'האימונים שלי' },
+  '18a': { navText: 'פרופיל', name: 'פרופיל השחקן' },
+  '3d': { navText: 'בית', name: 'בית השחקן · כהה', dark: true },
+}
+
 const arg = process.argv[2] ?? 'coach'
-const ids = arg === 'coach' ? Object.keys(COACH) : [arg]
+const ids = arg === 'coach' ? Object.keys(COACH) : arg === 'player' ? Object.keys(PLAYER) : [arg]
 fs.mkdirSync(OUT, { recursive: true })
 
 // --- פרטי החיבור מ-.env.local, בלי להעתיק אותם לקוד ---
@@ -81,7 +89,7 @@ await proto.close()
 
 // --- צילומי האפליקציה ---
 for (const id of ids) {
-  const spec = COACH[id]
+  const spec = COACH[id] || PLAYER[id]
   if (!spec) { console.log('app', id, 'אין מסלול מוגדר'); continue }
   const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 2, locale: 'he-IL' })
   const page = await ctx.newPage()
@@ -96,14 +104,22 @@ for (const id of ids) {
     // לא networkidle — לאפליקציה יש חיבור realtime פתוח שלא נסגר לעולם
     await page.goto(appUrl, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.bn-item, .nav-item', { timeout: 20000 })
-    if (spec.click) {
-      await page.locator('button[aria-label]').first().click()
+    // הניווט נצבע אחרי טעינת הפרופיל — לחיצה מוקדמת מדי מחטיאה את המגירה
+    await page.waitForTimeout(3500)
+    if (spec.navText) {
+      if (spec.navText !== 'בית') {
+        await page.locator('button[aria-label*="תפריט"]').first().click()
+        await page.waitForTimeout(500)
+        await page.locator('.nav-item', { hasText: spec.navText }).first().click()
+      }
+      await page.waitForTimeout(6000)
+    } else if (spec.click) {
+      await page.locator('button[aria-label*="תפריט"]').first().click()
       await page.waitForTimeout(500)
       await page.locator(spec.click).first().click()
       await page.waitForTimeout(6000)
     } else if (spec.nav > 0) {
-      await page.locator('[aria-label]').filter({ hasText: '' }).first().waitFor({ timeout: 5000 }).catch(() => {})
-      await page.locator('button[aria-label]').first().click() // פתיחת המגירה
+      await page.locator('button[aria-label*="תפריט"]').first().click() // פתיחת המגירה
       await page.waitForTimeout(500)
       await page.locator('.nav-item').nth(spec.nav).click()
       await page.waitForTimeout(3000)

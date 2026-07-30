@@ -1003,11 +1003,13 @@ function HomeRsvp({ session, membership, next }) {
 
 // ---------- בית: ארבעת המספרים בתוך הבאנר (מסך 3b) ----------
 function HeroStats({ stats, setView }) {
+  // ב-RTL הפריט הראשון ב-DOM הוא הימני ביותר. בעיצוב הימני הוא «נוכחות»
+  // והשמאלי «משובים» — לכן הסדר כאן הפוך מסדר הקריאה במסך.
   const tiles = [
-    { k: 'fb', num: stats?.fbCount ?? 0, lbl: L('משובים', 'Feedback'), go: 'feedback' },
-    { k: 'open', num: stats?.open ?? 0, lbl: L('משימות', 'Tasks'), go: 'drills', hot: true },
-    { k: 'load', num: stats?.avgLoad ?? '—', lbl: L('עומס ממוצע', 'Avg load'), go: 'feedback' },
     { k: 'att', num: stats?.attendancePct != null ? stats.attendancePct + '%' : '—', lbl: L('נוכחות', 'Attendance'), go: 'schedule' },
+    { k: 'load', num: stats?.avgLoad ?? '—', lbl: L('עומס ממוצע', 'Avg load'), go: 'feedback' },
+    { k: 'open', num: stats?.open ?? 0, lbl: L('משימות', 'Tasks'), go: 'drills', hot: true },
+    { k: 'fb', num: stats?.fbCount ?? 0, lbl: L('משובים', 'Feedback'), go: 'feedback' },
   ]
   return (
     <div className="plh-stats">
