@@ -15,7 +15,6 @@ import { ArrowFwd } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Avatar from './Avatar'
-import SmartImage from './SmartImage'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import PlayerCommunity from './PlayerCommunity'
@@ -980,7 +979,7 @@ function HomeRsvp({ session, membership, next }) {
       : L('רשמנו שלא תגיע', "You're marked as not coming"))
   }
 
-  if (!membership || !sessionId || mine === undefined) return null
+  if (!membership || !sessionId || mine === undefined) return null
   return (
     <div className="plh-rsvp">
       <div className="plh-rsvp-tx">
@@ -1153,8 +1152,9 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
     <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
       {/* מסך 3b בנוי משלוש רצועות: תמונה בגובה 292 עם התוכן עליה,
           רצועת «מגיע?» מתחתיה, ופס ארבעת המספרים אחרון. */}
+      {/* העיצוב מראה כאן צילום של השחקן באימון. אין לזה עמודה בסכימה,
+          והחלטת הבעלים היא גרדיאנט עד שתהיה דרך להעלות צילום אמיתי. */}
       <div className="plh-hero-media">
-        <SmartImage category="hero" fill priority className="plh-hero-photo" />
         <span className="plh-hero-glow" aria-hidden="true" />
         {/* סימן-מים של מגרש (דפוס 1 במסמך העיצוב) — מחליף את אימוג'י הכדור */}
         <svg className="plh-hero-court" viewBox="0 0 400 200" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

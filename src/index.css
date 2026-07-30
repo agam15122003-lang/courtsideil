@@ -21188,10 +21188,8 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
     position: relative;
     height: 292px;
     overflow: hidden;
-    background: var(--navy-2);
+    background: linear-gradient(158deg, var(--navy-1), var(--navy-2));
   }
-  .plh-hero-photo { position: absolute; inset: 0; }
-  .plh-hero-photo img { width: 100%; height: 100%; object-fit: cover; }
   /* ההכהיה מלמטה — הטקסט יושב עליה */
   .plh-hero-media::after {
     content: '';
