@@ -20986,3 +20986,27 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .cal-weeksep { display: flex; align-items: center; gap: 8px; margin: 16px 0 4px; }
 .cal-weeksep > span[aria-hidden] { flex: 1; height: 1px; background: var(--ln); }
 .cal-weeksep-t { font-size: 11.5px; font-weight: 700; color: var(--mut); }
+
+/* ============================================================
+   30.7.2026 · מסך 3a — פס הסטטיסטיקות
+   בעיצוב זו שורה אחת של ארבעה מספרים ברוחב 390px. בקוד היו
+   כללי @media מוקדמים יותר שהפכו אותו ל-2×2 מתחת ל-720px.
+   ============================================================ */
+@media (max-width: 720px) {
+  .home-stats { grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .home-stats .stat-tile { padding: 14px 6px; text-align: center; }
+  .home-stats .stat-tile-num { font-size: 22px; }
+  .home-stats .stat-tile-pct { font-size: 14px; }
+  .home-stats .stat-tile-label {
+    font-size: 10px;
+    line-height: 1.3;
+    justify-content: center;
+    gap: 4px;
+  }
+  /* הגבול בין התאים חוזר לכל תא חוץ מהראשון — כללי nth-child(odd)
+     של פריסת 2×2 הותירו קווים באמצע השורה */
+  .home-stats .stat-tile { border-inline-start: 1px solid var(--border); }
+  .home-stats .stat-tile:first-child { border-inline-start: none; }
+  /* בעיצוב אין נקודות צבע ליד התוויות — רק המספר והתווית */
+  .home-stats .stat-tile-label::before { display: none; }
+}

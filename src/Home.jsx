@@ -327,14 +327,14 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const hour = today.getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
-  // ארבעת המספרים לפי מסך 3a במסמך המסירה, בסדר שלו:
-  // 87% נוכחות · 3 אימונים · 11 תוכניות · 24 שמורים.
-  // אחוז הנוכחות החליף את דירוג התרגילים — המסמך לא מציג אותו בבית.
+  // ארבעת המספרים לפי מסך 3a. ב-RTL הפריט הראשון ב-DOM הוא הימני ביותר,
+  // ובעיצוב הימני הוא «שמורים» — לכן הסדר כאן הפוך מסדר הקריאה במסמך
+  // (שמורים · תוכניות · אימונים · נוכחות הקבוצה).
   const STAT_TILES = [
-    { key: 'attendance', Icon: UserCheck, value: stats.attendance, dec: 0, label: L('נוכחות הקבוצה', 'Team attendance'), pct: true, c: 'green' },
-    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
-    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
     { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('שמורים', 'Saved'), c: 'orange' },
+    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
+    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
+    { key: 'attendance', Icon: UserCheck, value: stats.attendance, dec: 0, label: L('נוכחות הקבוצה', 'Team attendance'), pct: true, c: 'green' },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
@@ -418,8 +418,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         {STAT_TILES.map((t) => (
           <div key={t.key} className="stat-tile" data-c={t.c}>
             <span className="stat-tile-ic"><t.Icon size={17} /></span>
-            <span className="stat-tile-num">
-              <bdi><StatNum value={t.value} decimals={t.dec} /></bdi>
+            {/* dir="ltr" — בלעדיו סימן האחוז נדחף לשמאל המספר ומתקבל «%87» */}
+            <span className="stat-tile-num" dir="ltr">
+              <StatNum value={t.value} decimals={t.dec} />
               {t.pct && typeof t.value === 'number' && <span className="stat-tile-pct">%</span>}
             </span>
             <span className="stat-tile-label">{t.label}</span>
