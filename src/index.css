@@ -21116,3 +21116,16 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   .drill-compact { grid-template-columns: 1fr 92px; column-gap: 10px; }
   .drill-compact > .drill-thumb { width: 92px; }
 }
+
+/* ============================================================
+   30.7.2026 · מסך 12a — כרטיס משימה קומפקטי
+   בעיצוב הכרטיס הוא כותרת, מטא ופעולה. בקוד הוא הדפיס את תיאור
+   התרגיל במלואו — שבעה שלבים ממוספרים לכל משימה, וכל כרטיס
+   נמתח לגובה מסך שלם.
+   ============================================================ */
+.pla .pla-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

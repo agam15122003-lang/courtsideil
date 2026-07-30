@@ -454,8 +454,8 @@ function MyAssignments({ session }) {
   return (
     <div className="pl-screen pl-narrow">
       <PlHead Icon={Dumbbell} tone="green"
-        title={L('התרגילים שלי', 'My drills')}
-        subtitle={L('מה שהמאמן שלח לך לתרגל בבית', 'What your coach sent you to practice at home')} />
+        title={L('המשימות שלי', 'My tasks')}
+        subtitle={L('מה שהמאמן שלח לך · תרגילים, סרטונים ומטרות', 'What your coach sent you · drills, videos and goals')} />
       {items.length > 0 && (
         <div className="pla-progress">
           <div className="pla-progress-top">
