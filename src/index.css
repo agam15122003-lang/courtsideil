@@ -20822,3 +20822,28 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .plhg-tabs::-webkit-scrollbar { display: none; }
 .plhg-tabs .tab { white-space: nowrap; padding-inline: 14px; }
 .plhg-none { margin: 6px 2px 0; }
+
+/* ============================================================
+   30.7.2026 · מסכי הדלת 1:1 מול design_handoff_auth
+   הבאנר חזר להיות תמונת המגרש (הכללים ל-.csa-banner-img כבר קיימים
+   למעלה — עד עכשיו לא היה <img> שיתפוס אותם).
+   ============================================================ */
+
+/* 1d — הרקע הכהה: object-position 52% 40% ו-opacity .16 לפי הפרוטוטייפ */
+.csa .cjc-img { object-position: 52% 40%; }
+
+/* 1b / 1j — שורת האמון היא טקסט על רקע הגלולה. כללים ישנים
+   (‎.auth-trust-inline li:nth-child(n)‎) נתנו לכל פריט רקע גלולה צבעוני,
+   ובמצב כהה הם ניצחו בספציפיות. כאן מאפסים בשני המצבים. */
+.csa .auth-trust-inline li,
+[data-theme='dark'] .csa .auth-trust-inline li {
+  background: none;
+  color: var(--mut);
+  padding: 0;
+  border-radius: 0;
+}
+.csa .auth-trust-inline li svg,
+[data-theme='dark'] .csa .auth-trust-inline li svg { color: var(--ok); }
+
+/* 1f — הערת האבטחה נצמדת לתחתית המסך, מתחת לכרטיס «לא הגיע?» */
+.csa .csa-sheet--center .csa-sheet-in > .csa-fine { margin-block-start: auto; }

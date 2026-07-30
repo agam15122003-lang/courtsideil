@@ -18,3 +18,6 @@ dist-ssr
 # עמוד עזר זמני לבדיקות מקומיות — מכיל טוקן, לעולם לא בגיט
 public/__devlogin.html
 public/__devlogout.html
+
+# פלט אימות ויזואלי — לא נכנס לריפו
+shots-auth

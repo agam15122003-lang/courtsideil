@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ClipboardList, Volleyball } from 'lucide-react'
 import { ChevronBack, ChevronFwd } from './DirIcon'
-import CourtArt from './CourtArt'
 import Logo from './Logo'
 import { L } from './i18n'
 
@@ -50,9 +49,7 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
       {/* באנר — סימן-מים של מגרש מעל גרדיאנט נייבי (DESIGN.md §2ב, דפוס 1).
           במובייל הוא הבאנר העליון; מעל 861px הוא חוזר להיות פאנל צד. */}
       <aside className="auth-hero-panel csa-banner csa-banner--role">
-        <span className="auth-hero-court csa-banner-art" aria-hidden="true">
-          <CourtArt variant="role" />
-        </span>
+        <img className="csa-banner-img" src="/auth-court.jpg" alt="" aria-hidden="true" />
         <div className="auth-hero-overlay csa-veil" aria-hidden="true" />
 
         <div className="auth-hero-content csa-banner-body">

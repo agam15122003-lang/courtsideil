@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { Info, XCircle } from 'lucide-react'
 import { ChevronBack } from './DirIcon'
-import CourtArt from './CourtArt'
 import { L } from './i18n'
 
 // 1d · הרשמה · שחקן עם קוד — המסך הכהה המלא.
@@ -146,9 +145,9 @@ export default function JoinWithCode({ onJoin, onBack, onSkip }) {
 
   return (
     <div className="auth-page csa csa--dark cjc">
-      {/* סימן-המים של המגרש מתחת לכל התוכן — לא צילום (DESIGN.md §2ב) */}
+      {/* תמונת המגרש ב-opacity .16 מתחת לכל התוכן, לפי 1d בפרוטוטייפ */}
       <span className="cjc-art" aria-hidden="true">
-        <CourtArt variant="join" />
+        <img className="csa-banner-img cjc-img" src="/auth-court.jpg" alt="" />
       </span>
       <span className="cjc-veil" aria-hidden="true" />
 

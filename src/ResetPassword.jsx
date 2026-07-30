@@ -250,17 +250,14 @@ export default function ResetPassword() {
             {!done && (
               <div className="csa-note csa-note--warn rp-push">
                 <AlertTriangle size={18} aria-hidden="true" />
-                <div className="csa-note-col">
-                  <span>
-                    {L(
-                      'הגעת לכאן מקישור ישן? קישורי איפוס תקפים לשעה אחת ולשימוש אחד. אם העדכון נכשל — מבקשים קישור חדש דרך "שכחת סיסמה?" בדף ההתחברות.',
-                      'Arrived from an old link? Reset links are valid for one hour and a single use. If the update fails, request a new link via "Forgot password?" on the login page.',
-                    )}
-                  </span>
-                  <button type="button" className="csa-note-act" onClick={goHome}>
-                    {L('בקשת קישור חדש', 'Request a new link')}
+                {/* הקישור יושב בתוך המשפט, לא ככפתור נפרד (1h בפרוטוטייפ) */}
+                <span>
+                  {L('הגעת לכאן מקישור ישן? קישורי איפוס תקפים לשעה ולשימוש אחד — נבקש חדש ב', 'Arrived from an old link? Reset links are valid for one hour and a single use — request a new one via ')}
+                  <button type="button" className="link-button" onClick={goHome}>
+                    {L('שכחת סיסמה', 'Forgot password')}
                   </button>
-                </div>
+                  .
+                </span>
               </div>
             )}
           </form>

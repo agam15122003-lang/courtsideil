@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Mail, Lock, Eye, EyeOff, KeyRound, Check, Clock, ChevronDown, MailCheck, AlertTriangle } from 'lucide-react'
 import { ChevronBack } from './DirIcon'
-import CourtArt from './CourtArt'
 import Logo from './Logo'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -429,20 +428,14 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
       <aside className={bannerClass}>
         {!flatBanner && (
           <>
-            <span className="auth-hero-court csa-banner-art" aria-hidden="true">
-              <CourtArt variant={mode} />
-            </span>
+            {/* תמונת המגרש היא הבאנר עצמו — ה-object-position משתנה לפי המסך
+                דרך .csa-banner--role / --signup, כמו בפרוטוטייפ (42% / 38% / 30%) */}
+            <img className="csa-banner-img" src="/auth-court.jpg" alt="" aria-hidden="true" />
             <div className="auth-hero-overlay csa-veil" aria-hidden="true" />
           </>
         )}
 
         <div className="auth-hero-content csa-banner-body">
-          {mode === 'signin' && onBack && (
-            <button type="button" className="csa-back" onClick={onBack}>
-              <ChevronBack size={17} /> {L('חזרה לדף הבית', 'Back to home')}
-            </button>
-          )}
-
           {mode === 'signin' && (
             <>
               <div className="csa-brand" style={{ marginTop: 6 }}>
@@ -463,8 +456,9 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
 
           {mode === 'signup' && (
             <>
-              <button type="button" className="csa-back csa-back--push" onClick={() => goMode('signin')}>
-                <ChevronBack size={17} /> {L('חזרה להתחברות', 'Back to log in')}
+              {/* 1c — הקישור חוזר לבחירת התפקיד, לא להתחברות (README §1c) */}
+              <button type="button" className="csa-back csa-back--push" onClick={onBack}>
+                <ChevronBack size={17} /> {L('חזרה לבחירת תפקיד', 'Back to role selection')}
               </button>
               <h1 className="csa-title">
                 {role === 'player'
@@ -525,7 +519,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                   <button type="button" disabled={cooldown > 0 || loading} onClick={resendReset}>
                     {cooldown > 0 ? (
                       <>
-                        {L('שליחה מחדש', 'Resend')} (<bdi dir="ltr">{cooldown}</bdi>)
+                        {L('שליחה מחדש', 'Resend')} <bdi dir="ltr">({cooldown})</bdi>
                       </>
                     ) : (
                       L('שליחה מחדש', 'Resend')
@@ -552,7 +546,8 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
             </>
           )}
 
-          {!sentScreen && (mode === 'signin' || mode === 'signup') && (
+          {/* מסילת הטאבים קיימת ב-1b בלבד; 1c מגיע מבחירת התפקיד ואין בו טאבים */}
+          {!sentScreen && mode === 'signin' && (
             <div className="tabs">
               <button
                 type="button"
@@ -581,8 +576,25 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
           {mode === 'otp' && (
             <div className="csa-head">
               {otpStep === 'verify' ? (
-                /* 1g — שורת «שלחנו שש ספרות ל-...» יושבת מתחת לתאים, לא כאן */
-                <h1>{L('הקוד מהמייל', 'The code from your email')}</h1>
+                /* 1g — הכותרת ושורת «שלחנו שש ספרות ל-» הן בלוק אחד מעל התאים */
+                <>
+                  <h1>{L('הקוד מהמייל', 'The code from your email')}</h1>
+                  <p className="csa-code-hint">
+                    {L('שלחנו שש ספרות ל־', 'We sent six digits to ')}
+                    <bdi dir="ltr">{sentTo}</bdi>.{' '}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => {
+                        setOtpStep('request')
+                        clearCode()
+                        clearAlerts()
+                      }}
+                    >
+                      {L('שינוי כתובת', 'Change address')}
+                    </button>
+                  </p>
+                </>
               ) : (
                 <>
                   <h1>{L('כניסה עם קוד למייל', 'Sign in with an email code')}</h1>
@@ -729,22 +741,6 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                     ))}
                   </div>
 
-                  <p className="csa-code-hint">
-                    {L('שלחנו שש ספרות ל-', 'We sent six digits to ')}
-                    <bdi dir="ltr">{sentTo}</bdi>{' '}
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => {
-                        setOtpStep('request')
-                        clearCode()
-                        clearAlerts()
-                      }}
-                    >
-                      {L('שינוי כתובת', 'Change address')}
-                    </button>
-                  </p>
-
                   {error && (
                     <div className="csa-note csa-note--danger" role="alert">
                       <AlertTriangle size={18} aria-hidden="true" />
@@ -769,7 +765,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                     >
                       {cooldown > 0 ? (
                         <>
-                          {L('שליחה מחדש', 'Resend')} (<bdi dir="ltr">{cooldown}</bdi>)
+                          {L('שליחה מחדש', 'Resend')} <bdi dir="ltr">({cooldown})</bdi>
                         </>
                       ) : (
                         L('שליחת קוד מחדש', 'Resend code')
@@ -781,7 +777,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                   </div>
                   <div className="csa-card csa-card--push">
                     <b>{L('גם הקישור במייל עובד', 'The link in the email works too')}</b>
-                    <p>{L('אם פתחת את המייל בטלפון — לחיצה על קישור הכניסה מדלגת על הקלדת הקוד לגמרי.', 'If you opened the email on your phone, tapping the sign-in link skips typing the code entirely.')}</p>
+                    <p>{L('אם פתחת את המייל בטלפון — לחיצה על «כניסה מהירה» מדלגת על הקלדת הקוד לגמרי.', 'If you opened the email on your phone, tapping “Quick sign-in” skips typing the code entirely.')}</p>
                   </div>
                 </>
               )}
