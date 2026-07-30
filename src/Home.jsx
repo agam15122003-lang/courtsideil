@@ -328,13 +328,13 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
   // ארבעת המספרים לפי מסך 3a. ב-RTL הפריט הראשון ב-DOM הוא הימני ביותר,
-  // ובעיצוב הימני הוא «שמורים» — לכן הסדר כאן הפוך מסדר הקריאה במסמך
-  // (שמורים · תוכניות · אימונים · נוכחות הקבוצה).
+  // ובעיצוב הימני הוא «נוכחות הקבוצה» והשמאלי «שמורים» (נמדד מהפרוטוטייפ:
+  // 24 שמורים · 11 תוכניות · 3 אימונים · 87% נוכחות, משמאל לימין).
   const STAT_TILES = [
-    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('שמורים', 'Saved'), c: 'orange' },
-    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
-    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
     { key: 'attendance', Icon: UserCheck, value: stats.attendance, dec: 0, label: L('נוכחות הקבוצה', 'Team attendance'), pct: true, c: 'green' },
+    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
+    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
+    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('שמורים', 'Saved'), c: 'orange' },
   ]
 
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
