@@ -4,6 +4,7 @@ import {
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
+  Printer,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -13,6 +14,7 @@ import SessionDetail from './SessionDetail'
 // את './SendToPlayers' לקובץ העזר sendToPlayers.js — ואז הרכיב קרס במסך לבן.
 import SendToPlayers from './SendToPlayers.jsx'
 import TeamAssignments from './TeamAssignments'
+import { printPlayerReport } from './playerReport'
 import TeamSlots from './TeamSlots'
 import TeamGoalsBoard from './TeamGoalsBoard'
 import TeamFocus from './TeamFocus'
@@ -636,6 +638,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </label>
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
+              {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, מטרות ומשוב */}
+              <button className="btn-soft" onClick={() => printPlayerReport({ player: pEdit, team, att: attByPlayer[pEdit.id] })}>
+                <Printer size={15} /> {L('דוח התקדמות', 'Progress report')}
+              </button>
               <button className="btn-ghost danger" onClick={() => delPlayer(pEdit.id)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
             </div>
 
