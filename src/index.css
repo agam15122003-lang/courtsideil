@@ -21501,3 +21501,15 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .vco-acts .video-rate-stars { display: inline-flex; margin-inline-end: auto; }
 .vco-acts .icon-btn { width: 34px; height: 34px; }
 .vco-on { color: var(--brand-strong); }
+
+/* ============================================================
+   31.7.2026 · TODO §11 — עיצוב «המטרות שלי»
+   המספר בולט, הרישום גלוי, וטאבי תקופה.
+   ============================================================ */
+.plg2-tabs { margin-bottom: 12px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.plg2-tabs::-webkit-scrollbar { display: none; }
+.plg2-tabs .tab { white-space: nowrap; padding-inline: 14px; }
+/* «620 / 1000» — לוח תוצאות, לא הערת שוליים */
+.plg2-count { font-variant-numeric: tabular-nums; }
+.plg2-count b { font-family: var(--font-display); font-weight: 900; font-size: 22px; }
+.plg2-amt { margin-top: 10px; }

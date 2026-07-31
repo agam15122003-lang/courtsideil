@@ -227,6 +227,7 @@ export function MyGoals({ session, membership }) {
   const [openId, setOpenId] = useState(null)
   const [amtInput, setAmtInput] = useState({})
   const [addOpen, setAddOpen] = useState(false)
+  const [periodF, setPeriodF] = useState('') // §11 — סינון לפי תקופה; '' = הכל
   const me = session.user.id
 
   const load = useCallback(async () => {
@@ -325,8 +326,18 @@ export function MyGoals({ session, membership }) {
           <p className="muted small">{L('המאמן יגדיר לך מטרות — או שתוכל להוסיף מטרה אישית משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
         </div>
       ) : (
+        <>
+        {/* §11 — סינון לפי תקופת המטרה */}
+        <div className="tabs plg2-tabs">
+          <button type="button" className={!periodF ? 'tab active' : 'tab'} onClick={() => setPeriodF('')}>{L('הכל', 'All')}</button>
+          {PERIODS.filter((pp) => goals.some((g) => g.period === pp.id)).map((pp) => (
+            <button key={pp.id} type="button" className={periodF === pp.id ? 'tab active' : 'tab'} onClick={() => setPeriodF(pp.id)}>
+              {L(pp.short[0], pp.short[1])}
+            </button>
+          ))}
+        </div>
         <ul className="plg2-list">
-          {goals.map((g) => {
+          {goals.filter((g) => !periodF || g.period === periodF).map((g) => {
             const isCount = !!g.target_value
             const pct = isCount ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
             const isDone = goalFrac(g) >= 1
@@ -363,6 +374,20 @@ export function MyGoals({ session, membership }) {
                 </div>
                 )}
 
+                {/* §11 — «כמה ביצעת?» גלוי על הכרטיס, לא קבור באקורדיון הגרף */}
+                {isCount && g.player_id && !isDone && (
+                  <div className="plg2-amt">
+                    <input className="plg2-amt-input" dir="ltr" inputMode="numeric"
+                      placeholder={L('כמה ביצעת היום?', 'How much today?')}
+                      value={amtInput[g.id] || ''}
+                      onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+                      onKeyDown={(e) => e.key === 'Enter' && logAmount(g)} />
+                    <button className="plg2-amt-btn" onClick={() => logAmount(g)} disabled={!amtInput[g.id]}>
+                      <Plus size={14} /> {L('רישום', 'Log')}
+                    </button>
+                  </div>
+                )}
+
                 {isCount && (
                   <button className="plg2-more" onClick={() => setOpenId(openId === g.id ? null : g.id)} aria-expanded={openId === g.id}>
                     <TrendingUp size={13} /> {L('גרף התקדמות', 'Progress chart')}
@@ -374,22 +399,13 @@ export function MyGoals({ session, membership }) {
                     {(logsBy[g.id] || []).length >= 2
                       ? <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
                       : <p className="muted small plg2-prog-empty">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא', 'Log your progress — the chart will start filling up')}</p>}
-                    <div className="plg2-amt">
-                      <input className="plg2-amt-input" dir="ltr" inputMode="numeric"
-                        placeholder={L('כמה ביצעת?', 'How much?')}
-                        value={amtInput[g.id] || ''}
-                        onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
-                        onKeyDown={(e) => e.key === 'Enter' && logAmount(g)} />
-                      <button className="plg2-amt-btn" onClick={() => logAmount(g)} disabled={!amtInput[g.id]}>
-                        <Plus size={14} /> {L('רישום', 'Log')}
-                      </button>
-                    </div>
                   </div>
                 )}
               </li>
             )
           })}
         </ul>
+        </>
       )}
 
       <button className="plg2-add" onClick={() => setAddOpen(true)}>
