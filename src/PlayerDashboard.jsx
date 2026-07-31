@@ -17,6 +17,7 @@ import LanguageToggle from './LanguageToggle'
 import Avatar from './Avatar'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
+import ChangePassword from './ChangePassword'
 import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
@@ -1618,6 +1619,8 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
           <span className="plp-set-label">{L('שפה', 'Language')}</span>
           <span className="plp-set-ctrl"><LanguageToggle /></span>
         </div>
+        {/* שינוי סיסמה מתוך הפרופיל (TODO §13) */}
+        <ChangePassword />
         <button className="plp-set-row plp-logout" onClick={onSignOut}>
           <span className="plp-set-ic brand"><LogOut size={17} /></span>
           <span className="plp-set-label">{L('התנתקות', 'Sign out')}</span>

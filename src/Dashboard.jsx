@@ -52,6 +52,7 @@ import {
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
 import Page from './Page'
+import ChangePassword from './ChangePassword'
 
 // "קהילה תחילה" (סדר לפי ה-handoff) — הפרופיל יושב בכרטיס המשתמש למטה
 const NAV = [
@@ -613,6 +614,8 @@ export default function Dashboard({ session }) {
                       <span className="pr-label"><Languages size={15} aria-hidden="true" /> {L('שפה', 'Language')}</span>
                       <LanguageToggle />
                     </div>
+                    {/* שינוי סיסמה מתוך הפרופיל (TODO §13) */}
+                    <ChangePassword />
                     <button type="button" className="pr-row pr-setting-row pr-signout" onClick={handleSignOut}>
                       <span className="pr-label"><LogOut size={15} aria-hidden="true" /> {t('action.signout')}</span>
                       <ChevronFwd size={16} />
