@@ -20,7 +20,7 @@ export async function loadRoster(coachId) {
 
 // שולח שיגור אחד או יותר.
 // opts: { coachId, mode:'team'|'players', team, players:[{player_id,...}], content:{drillId,planId,videoUrl,title,kind}, note, dueDate, target, unit }
-export async function sendAssignments({ coachId, mode, team, players = [], content = {}, note, dueDate, target, unit }) {
+export async function sendAssignments({ coachId, mode, team, players = [], content = {}, note, dueDate, target, unit, repeatWeeks = 1 }) {
   const base = { coach_id: coachId }
   if (content.drillId) base.drill_id = content.drillId
   if (content.planId) base.plan_id = content.planId
@@ -47,6 +47,17 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   } else {
     rows = players.map((p) => ({ ...base, player_id: p.player_id }))
     recipients = players.map((p) => p.player_id).filter(Boolean)
+  }
+
+  // א-2 — הקצאה חוזרת: עותק לכל שבוע, עם תאריך יעד שנדחף ב-7 ימים.
+  // דורש תאריך יעד — בלעדיו אין למחזור משמעות (ה-UI אוכף את זה).
+  if (repeatWeeks > 1 && dueDate) {
+    const addWeeks = (d, k) => {
+      const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + 7 * k)
+      const pad = (n) => String(n).padStart(2, '0')
+      return x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate())
+    }
+    rows = Array.from({ length: repeatWeeks }, (_, k) => rows.map((r) => ({ ...r, due_date: addWeeks(dueDate, k) }))).flat()
   }
 
   let { error } = await supabase.from('player_assignments').insert(rows)

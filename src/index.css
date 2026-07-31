@@ -21543,3 +21543,7 @@ button.cal-weeksep {
   cursor: pointer;
 }
 button.cal-weeksep .cal-weeksep-t { color: var(--brand-text, var(--muted)); }
+
+/* א-2 — חזרה שבועית בשליחת משימה */
+.sp-repeat { margin-top: 8px; align-items: center; }
+.sp-repeat-hint { flex-basis: 100%; margin-top: 4px; }

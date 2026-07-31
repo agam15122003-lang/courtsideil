@@ -61,6 +61,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
   const [note, setNote] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [repeatWeeks, setRepeatWeeks] = useState(1) // א-2 — הקצאה חוזרת שבועית
   const [reply, setReply] = useState('done') // 'done' | 'count'
   const [target, setTarget] = useState('')
   const [unit, setUnit] = useState('')
@@ -135,6 +136,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
       players: roster.players.filter((p) => picked.has(p.player_id)),
       content: buildContent(), note: note.trim(), dueDate: dueDate || null,
       target: reply === 'count' ? target : null, unit: reply === 'count' ? unit : '',
+      repeatWeeks: dueDate ? repeatWeeks : 1,
     })
     setSending(false)
     if (!res.ok) { toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + res.error); return }
@@ -143,6 +145,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     // אישור כמסך ולא כטוסט: השליחה היא סוף תהליך, וצריך לראות מה יצא
     setSent({ count: res.count, label, title: buildContent().title, due: dueDate })
     resetForm()
+    setRepeatWeeks(1)
     if (!embedded && !variant) refreshFeed(roster)
     if (embedded) toast.success(L(`נשלח ל-${label}`, `Sent to ${label}`))
   }
@@ -193,6 +196,17 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
       </div>
       <input type="date" dir="ltr" className="finder-input sp-due-date" value={dueDate}
         onChange={(e) => setDueDate(e.target.value)} aria-label={L('תאריך יעד', 'Due date')} />
+      {/* א-2 — חזרה שבועית: זמינה רק כשיש תאריך יעד */}
+      {dueDate && (
+        <div className="chips sp-repeat">
+          {[[1, L('חד-פעמי', 'One-time')], [4, L('×4 שבועות', '×4 weeks')], [8, L('×8 שבועות', '×8 weeks')]].map(([n, lbl]) => (
+            <button key={n} type="button" className={repeatWeeks === n ? 'chip selected' : 'chip'} onClick={() => setRepeatWeeks(n)}>
+              {lbl}
+            </button>
+          ))}
+          {repeatWeeks > 1 && <span className="muted small sp-repeat-hint">{L('אותה משימה תישלח לכל שבוע, עם תאריך יעד משלה', 'The task repeats weekly, each with its own due date')}</span>}
+        </div>
+      )}
     </div>
   )
 
