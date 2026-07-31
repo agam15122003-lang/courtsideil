@@ -18,6 +18,16 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* לא קריטי */ })
   })
+  // גרסה חדשה נפרסה → ה-worker החדש משתלט (skipWaiting) → רענון אחד
+  // אוטומטי במקום «רענון קשה» ידני. הדגל מונע לולאת רענונים, ובדיקת
+  // ה-controller מוודאת שההתקנה הראשונה (אין worker קודם) לא מרעננת.
+  const swHadController = !!navigator.serviceWorker.controller
+  let swRefreshing = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!swHadController || swRefreshing) return
+    swRefreshing = true
+    window.location.reload()
+  })
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

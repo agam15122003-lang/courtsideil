@@ -1207,7 +1207,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
       <div className="plh-hero-head">
         <h1 className="plh-hero-title-big">
           <span className="plh-hero-greet">{greet},</span>{' '}
-          <span className="plh-hero-name">{profile.first_name}</span>
+          <span className="plh-hero-name" dir="auto">{profile.first_name}</span>
         </h1>
         {/* שורה אחת שאומרת מה מחכה לך — במקום שם הקבוצה והמאמן, שכבר
             מופיעים בפס למעלה ובסרגל הניווט. */}
@@ -1662,7 +1662,7 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
         <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={72} />
         <div className="plp-head-txt">
           <span className="plp-eyebrow">{L('הפרופיל שלי', 'My profile')}</span>
-          <h2 className="plp-name">{profile.first_name} {profile.last_name}</h2>
+          <h2 className="plp-name" dir="auto">{profile.first_name} {profile.last_name}</h2>
           <span className="plp-role">{role}</span>
         </div>
       </div>
@@ -1851,7 +1851,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         </div>
         <div className="topbar-actions">
           <Notifications session={session} onNavigate={navFromNotification} />
-          <LanguageToggle /><ThemeToggle />
+          {/* ב-4 מהסקירה: תמה ושפה ירדו מהסרגל — הן במגירה ובפרופיל */}
         </div>
       </header>
 
