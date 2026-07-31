@@ -77,6 +77,8 @@ export function FbReact({ fb, coachId, me }) {
 // מטרות ✓✗, משוב המאמן, סיכום, MVP.
 // ============================================================
 export default function PlayerTimeline({ session, membership }) {
+  // §12 — «אימונים שהיו» כסטאק: כרטיס אחד פתוח, השאר שורות מקופלות
+  const [openId, setOpenId] = useState(null)
   const [items, setItems] = useState(null)
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
@@ -236,16 +238,18 @@ export default function PlayerTimeline({ session, membership }) {
                 )
               }
               // כרטיס סיכום אימון/משחק
+              const isOpen = (openId ?? items.find((x) => x.type !== 'note')?.session_id) === c.session_id
               return (
-                <div key={c.session_id} className={isMvp ? 'th-card mvp' : 'th-card'}>
-                  <div className="th-card-head">
+                <div key={c.session_id} className={(isMvp ? 'th-card mvp' : 'th-card') + (isOpen ? '' : ' is-folded')}>
+                  <button type="button" className="th-card-head th-fold" onClick={() => setOpenId(isOpen ? '-' : c.session_id)} aria-expanded={isOpen}>
                     <span className="th-title">
                       {c.type === 'game'
                         ? <><Volleyball size={15} /> {c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')}</>
                         : <><Dumbbell size={15} /> {L('אימון קבוצתי', 'Team practice')}</>}
                     </span>
                     <span className="th-date">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
-                  </div>
+                  </button>
+                  {isOpen && (<>
 
                   {isMvp && <div className="th-mvp"><Crown size={15} /> {L('נבחרת ל-MVP של האימון!', 'You were the MVP!')}</div>}
 
@@ -284,6 +288,7 @@ export default function PlayerTimeline({ session, membership }) {
                   {c.review?.overall_note && (
                     <p className="th-summary"><StickyNote size={12} /> {L('סיכום המאמן: ', 'Coach summary: ')}{c.review.overall_note}</p>
                   )}
+                  </>)}
                 </div>
               )
             })}
