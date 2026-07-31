@@ -21531,3 +21531,18 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .ta-summary-bar { grid-column: 1 / -1; display: block; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .ta-summary-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand-strong), var(--brand)); }
 .ta-remind { margin: 8px 0 4px; min-height: 40px; font-size: 13px; }
+
+/* א-4 — צ'יפ כשירות בסגל */
+.fit-chip {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.fit-chip.fit-fit { background: var(--success-bg, #ddf0e4); color: var(--ok, #1f7a44); }
+.fit-chip.fit-light { background: var(--warn-soft, #fdf1e1); color: var(--warn, #a85b00); }
+.fit-chip.fit-out { background: var(--danger-soft, #f7deda); color: var(--danger, #b0392f); }

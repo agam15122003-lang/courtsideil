@@ -85,6 +85,20 @@ export default function Attendance({ session, team, players }) {
   const presentToday = players.filter((p) => todays[p.id] && todays[p.id] !== 'absent').length
 
   // סימון סטטוס לשחקן. לחיצה חוזרת על אותו סטטוס — מבטלת את הסימון.
+  // א-4 — סטטוס כשירות: מתגלגל כשיר → פציעה קלה → מושבת → כשיר.
+  // הסגל מגיע כ-prop, ולכן העדכון המקומי חי ב-fitLocal עד רענון המסך.
+  const [fitLocal, setFitLocal] = useState({})
+  const cycleFitness = async (p) => {
+    const cur = fitLocal[p.id] ?? p.fitness ?? 'fit'
+    const next = cur === 'fit' ? 'light' : cur === 'light' ? 'out' : 'fit'
+    setFitLocal((m) => ({ ...m, [p.id]: next }))
+    const { error } = await supabase.from('team_players').update({ fitness: next }).eq('id', p.id)
+    if (error) {
+      setFitLocal((m) => ({ ...m, [p.id]: cur }))
+      toast.error(L('שמירת הכשירות נכשלה — ודא שהרצת את supabase_todo_31_7.sql', 'Saving fitness failed — make sure supabase_todo_31_7.sql was run'))
+    }
+  }
+
   const setStatus = async (playerId, status) => {
     if (todays[playerId] === status) {
       const { error } = await supabase
@@ -200,7 +214,18 @@ export default function Attendance({ session, team, players }) {
               {p.number
                 ? <span className="roster-jersey">{p.number}</span>
                 : <span className="roster-jersey att-jersey-empty" aria-hidden="true">·</span>}
-              <span className="roster-name">{p.name}</span>
+              <span className="roster-name" dir="auto">{p.name}</span>
+              {/* א-4 — סטטוס כשירות: לחיצה מגלגלת כשיר → פציעה קלה → מושבת */}
+              <button
+                type="button"
+                className={`fit-chip fit-${fitLocal[p.id] ?? p.fitness ?? 'fit'}`}
+                onClick={() => cycleFitness(p)}
+                title={L('סטטוס כשירות — לחיצה משנה', 'Fitness status — tap to change')}
+              >
+                {(p.fitness || 'fit') === 'fit' ? L('כשיר', 'Fit')
+                  : p.fitness === 'light' ? L('פציעה קלה', 'Light injury')
+                  : L('מושבת', 'Out')}
+              </button>
               <div className="att-seg" role="group" aria-label={L(`נוכחות של ${p.name}`, `Attendance for ${p.name}`)}>
                 {STATUS_META.map(({ key, he, en, Icon }) => (
                   <button

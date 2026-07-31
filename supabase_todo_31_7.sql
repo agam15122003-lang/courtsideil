@@ -22,3 +22,14 @@ alter table public.player_goals
 alter table public.player_goals
   add constraint player_goals_period_check
   check (period in ('week', 'month', 'half_year', 'year', 'session'));
+
+-- ============================================================
+-- הצעה א-4 · מעקב פציעות: סטטוס זמינות על שחקן
+--   fit = כשיר · light = פציעה קלה · out = מושבת
+-- ============================================================
+alter table public.team_players
+  add column if not exists fitness text not null default 'fit'
+  check (fitness in ('fit', 'light', 'out'));
+alter table public.team_players
+  add column if not exists fitness_note text
+  check (fitness_note is null or char_length(fitness_note) <= 120);
