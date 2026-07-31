@@ -21378,3 +21378,25 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .cpw-save:disabled { opacity: 0.55; }
 /* אצל השחקן השורות בכרטיס plp-settings — מיישרים לשפה שלו */
 .plp-settings .cpw-row { border-top: 1px solid var(--border); padding-inline: 2px; }
+
+/* §6 — סיבת אי-הגעה */
+.plh-rsvp-reason { display: flex; gap: 8px; width: 100%; margin-top: 10px; }
+.plh-rsvp-reason input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.plh-rsvp-reason input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.plh-rsvp-reason input:focus { outline: none; border-color: var(--orange-300); }
+.plh-rsvp { flex-wrap: wrap; }
+.cs-rsvp-nolist { width: 100%; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; color: rgba(255, 255, 255, 0.75); }
+.cs-rsvp-nolist li { padding: 2px 0; }
+.cs-rsvp-nolist b { font-weight: 700; color: #fff; }
+.cs-rsvp-reason { color: var(--orange-300); }

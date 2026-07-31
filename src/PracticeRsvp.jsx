@@ -37,19 +37,25 @@ export default function PracticeRsvp({ session, practice }) {
       if (!alive) return
       if (roster.error || !roster.data?.length) { setState(null); return }
 
+      // select('*') — בטוח גם אם עמודת reason (supabase_todo_31_7.sql) טרם נוספה
       const replies = await supabase
         .from('practice_rsvp')
-        .select('player_id, response')
+        .select('*')
         .eq('session_id', sessionId)
       // הטבלה טרם נוצרה — הרצועה פשוט לא מוצגת
       if (!alive || replies.error) { setState(null); return }
 
       const byPlayer = new Map((replies.data || []).map((r) => [r.player_id, r.response]))
+      const nameOf = new Map(roster.data.map((p) => [p.player_id, p.name]))
       const pending = roster.data.filter((p) => !byPlayer.has(p.player_id))
       setState({
         total: roster.data.length,
         yes: (replies.data || []).filter((r) => r.response === 'yes').length,
         pending,
+        // §6 — מי שלא מגיע, עם הסיבה שכתב (אם כתב)
+        no: (replies.data || [])
+          .filter((r) => r.response === 'no')
+          .map((r) => ({ name: nameOf.get(r.player_id) || L('שחקן', 'Player'), reason: r.reason || null })),
       })
     })()
 
@@ -94,6 +100,17 @@ export default function PracticeRsvp({ session, practice }) {
             ? L('שולח...', 'Sending...')
             : <>{L('תזכורת ל-', 'Remind ')}<bdi dir="ltr">{state.pending.length}</bdi></>}
         </button>
+      )}
+      {/* §6 — מי הודיע שלא מגיע, והסיבה שכתב */}
+      {state.no?.length > 0 && (
+        <ul className="cs-rsvp-nolist">
+          {state.no.map((p, i) => (
+            <li key={i}>
+              <b>{p.name}</b> {L('לא מגיע', 'not coming')}
+              {p.reason && <> — <span className="cs-rsvp-reason">{p.reason}</span></>}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

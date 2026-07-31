@@ -12,6 +12,7 @@ export const PERIODS = [
   { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון', 'Session'] },
   { id: 'week', label: ['השבוע', 'This week'], short: ['שבועי', 'Weekly'] },
   { id: 'month', label: ['החודש', 'This month'], short: ['חודשי', 'Monthly'] },
+  { id: 'half_year', label: ['חצי שנה', 'Half a year'], short: ['חצי-שנתי', 'Half-year'] },
   { id: 'year', label: ['העונה', 'This season'], short: ['שנתי', 'Season'] },
 ]
 const periodShort = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : id }

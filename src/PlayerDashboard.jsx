@@ -948,6 +948,9 @@ function PrePracticeGoals({ session, membership }) {
 function HomeRsvp({ session, membership, next }) {
   const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
   const [busy, setBusy] = useState(false)
+  // §6 — «לא אוכל» פותח שדה סיבה במלל חופשי שהמאמן רואה
+  const [askReason, setAskReason] = useState(false)
+  const [reason, setReason] = useState('')
   const sessionId = next?.session_id
 
   useEffect(() => {
@@ -964,20 +967,26 @@ function HomeRsvp({ session, membership, next }) {
     return () => { alive = false }
   }, [sessionId, session.user.id])
 
-  const answer = async (response) => {
+  const answer = async (response, withReason) => {
     if (!sessionId || busy) return
     setBusy(true)
-    const { error } = await supabase.from('practice_rsvp').upsert({
+    const row = {
       coach_id: membership.coach_id, team: membership.team,
       session_id: sessionId, session_date: next.date,
       player_id: session.user.id, response,
-    }, { onConflict: 'session_id,player_id' })
+    }
+    // הסיבה נשלחת רק אם העמודה קיימת (supabase_todo_31_7.sql). אם השמירה
+    // איתה נכשלת — מנסים בלעדיה, כדי שהתשובה עצמה לא תלך לאיבוד.
+    let { error } = await supabase.from('practice_rsvp')
+      .upsert({ ...row, reason: response === 'no' ? (withReason || null) : null }, { onConflict: 'session_id,player_id' })
+    if (error) ({ error } = await supabase.from('practice_rsvp').upsert(row, { onConflict: 'session_id,player_id' }))
     setBusy(false)
     if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
     setMine(response)
+    setAskReason(false)
     toast.success(response === 'yes'
       ? L('רשמנו שאתה מגיע', "You're marked as coming")
-      : L('רשמנו שלא תגיע', "You're marked as not coming"))
+      : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
   }
 
   if (!membership || !sessionId || mine === undefined) return null
@@ -995,10 +1004,25 @@ function HomeRsvp({ session, membership, next }) {
           {L('מגיע', 'Coming')}
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
-          onClick={() => answer('no')} disabled={busy} aria-pressed={mine === 'no'}>
+          onClick={() => setAskReason((v) => !v)} disabled={busy} aria-pressed={mine === 'no'}>
           {L('לא אוכל', "Can't make it")}
         </button>
       </div>
+      {askReason && (
+        <div className="plh-rsvp-reason">
+          <input
+            type="text"
+            value={reason}
+            maxLength={200}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
+            onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+          />
+          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={() => answer('no', reason.trim())}>
+            {L('שליחה', 'Send')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1290,7 +1314,9 @@ const PERIOD_TABS = [
   { id: 'session', he: 'לאימון', en: 'Practice' },
   { id: 'week', he: 'השבוע', en: 'Week' },
   { id: 'month', he: 'החודש', en: 'Month' },
-  { id: 'season', he: 'העונה', en: 'Season' },
+  { id: 'half_year', he: 'חצי שנה', en: 'Half year' },
+  // הבאג הישן: הטאב סינן לפי 'season' שה-constraint מעולם לא הרשה — ריק תמיד
+  { id: 'year', he: 'העונה', en: 'Season' },
 ]
 
 function HomeGoals({ session, membership, setView }) {

@@ -578,7 +578,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               <div className="goal-card-top"><span className="goal-ic"><Trophy size={17} /></span><h3>{L('העונה', 'This season')}</h3></div>
               <p className="muted small" style={{ margin: '0 0 8px' }}>{L('היעדים הגדולים של העונה כולה.', 'The big targets for the whole season.')}</p>
               <textarea className="finder-input goal-text" rows={4} value={sText} onChange={(e) => setSText(e.target.value)} placeholder={L('יעדי העונה...', 'Season targets...')} />
-              <button className="btn-primary goal-save" onClick={() => saveGoal('season', '', sText)}><Save size={15} /> {L('שמירה', 'Save')}</button>
+              <button className="btn-primary goal-save" onClick={() => saveGoal('year', '', sText)}><Save size={15} /> {L('שמירה', 'Save')}</button>
             </div>
           </div>
 
