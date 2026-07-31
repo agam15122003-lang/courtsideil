@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Dumbbell, ChevronDown, Check, Clock, Inbox } from 'lucide-react'
+import { Dumbbell, ChevronDown, Check, Clock, Inbox, BellRing } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { sendNotification } from './notify'
+import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
@@ -12,6 +14,7 @@ export default function TeamAssignments({ coachId, team }) {
   const [items, setItems] = useState(null)
   const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState(null)
+  const [reminding, setReminding] = useState(null)
 
   const load = useCallback(async () => {
     const { data: rp } = await supabase
@@ -62,12 +65,42 @@ export default function TeamAssignments({ coachId, team }) {
 
   useEffect(() => { load() }, [load])
 
+  // א-1 — תזכורת לכל מי שטרם ביצע, באותו מנגנון של אישורי ההגעה
+  const remindPending = async (a) => {
+    setReminding(a.id)
+    const pending = a.targets.filter((p) => !a.doneSet.has(p.player_id))
+    await Promise.all(pending.map((p) => sendNotification({
+      to: p.player_id,
+      actor: coachId,
+      type: 'event',
+      content: L('תזכורת מהמאמן: «' + a.title + '» עוד מחכה לך', 'Coach reminder: "' + a.title + '" is still waiting'),
+      nav: 'drills',
+    })))
+    setReminding(null)
+    toast.success(L('התזכורת נשלחה', 'Reminder sent'))
+  }
+
   if (items === null) return <SkeletonCards count={3} lines={2} />
   if (failed) return <ErrorState compact message={L('לא הצלחנו לטעון את המטלות של הקבוצה.', "We couldn't load this team's tasks.")} onRetry={load} />
+
+  // א-1 מהסקירה — שורת הסיכום: כמה מהמשימות הפתוחות בוצעו בסך הכול
+  const open = items.filter((a) => a.total > 0)
+  const doneAll = open.reduce((s, a) => s + a.done, 0)
+  const totalAll = open.reduce((s, a) => s + a.total, 0)
+  const pctAll = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0
 
   return (
     <div className="team-section">
       <h3 className="ta-title" style={{ marginTop: 18 }}><Dumbbell size={16} /> {L('מה נשלח ומי ביצע', 'Sent & done')}</h3>
+      {totalAll > 0 && (
+        <div className="ta-summary">
+          <span className="ta-summary-pct" dir="ltr">{pctAll}%</span>
+          <span className="ta-summary-tx">
+            {L(`ביצוע כולל — ${doneAll} מתוך ${totalAll} שיגורים הושלמו`, `Overall completion — ${doneAll} of ${totalAll} deliveries done`)}
+          </span>
+          <span className="ta-summary-bar" aria-hidden="true"><i style={{ width: `${pctAll}%` }} /></span>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Inbox size={26} /></span>
@@ -92,6 +125,19 @@ export default function TeamAssignments({ coachId, team }) {
                   <span className={pct >= 100 ? 'ta-ratio done' : 'ta-ratio'}>{a.done}/{a.total} ✓</span>
                   <ChevronDown size={16} className={isOpen ? 'ta-chev open' : 'ta-chev'} />
                 </button>
+                {isOpen && a.done < a.total && (
+                  <button
+                    type="button"
+                    className="btn-soft ta-remind"
+                    disabled={reminding === a.id}
+                    onClick={() => remindPending(a)}
+                  >
+                    <BellRing size={14} aria-hidden="true" />
+                    {reminding === a.id
+                      ? L('שולח...', 'Sending...')
+                      : <>{L('תזכורת ל-', 'Remind ')}<bdi dir="ltr">{a.total - a.done}</bdi> {L('שטרם ביצעו', 'pending')}</>}
+                  </button>
+                )}
                 {isOpen && (
                   <ul className="ta-players">
                     {a.targets.length === 0 ? (
