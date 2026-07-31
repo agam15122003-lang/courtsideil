@@ -61,6 +61,7 @@ export default function Schedule({ session, onNavigate }) {
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()))
   // 16a — הלו״ז נפתח על תצוגת יום: רצועת ימים + סדר היום, ומתחתיהם הגריד השבועי
   const [selectedDay, setSelectedDay] = useState(() => ymd(new Date()))
+  const [teamFilter, setTeamFilter] = useState('')
   const [entries, setEntries] = useState([])
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -120,11 +121,21 @@ export default function Schedule({ session, onNavigate }) {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
-  const weekSlotOccs = expandSlotsRange(slots, weekStart, weekEnd)
+  const allSlotOccs = expandSlotsRange(slots, weekStart, weekEnd)
+  // §4 — בורר קבוצה: כשמאמנים יותר מקבוצה אחת, אפשר לצפות בלו"ז של
+  // קבוצה ספציפית. '' = כל הקבוצות. אימון אישי מוצג תמיד.
+  // הרשימה מ-myTeams (כל הקבוצות של המאמן), לא מנתוני השבוע — אחרת
+  // בשבוע שיש בו קבוצה אחת הצ'יפים נעלמים ואי אפשר להחליף
+  const weekTeams = [...new Set([...entries, ...allSlotOccs].map((x) => x.team).filter(Boolean))]
+  const slotTeams = [...new Set((slots || []).map((x) => x.team).filter(Boolean))]
+  const teamNames = [...new Set([...myTeams, ...weekTeams, ...slotTeams])]
+  const inTeam = (t, personal) => !teamFilter || personal || t === teamFilter
+  const fEntries = teamFilter ? entries.filter((e) => inTeam(e.team, e.is_personal)) : entries
+  const weekSlotOccs = teamFilter ? allSlotOccs.filter((o) => o.team === teamFilter) : allSlotOccs
   // טווח השעות מותאם למה שבאמת יש בשבוע. קודם לכן הוצגו תמיד 06:00–23:00,
   // כלומר כמעט תמיד חצי לוח ריק מעל האימון הראשון. "כל השעות" פותח את הטווח המלא.
   const weekHours = []
-  for (const e of entries) {
+  for (const e of fEntries) {
     const s = hoursOf(e.start_time) ?? e.hour
     if (s != null) { weekHours.push(s); weekHours.push((hoursOf(e.end_time) ?? s + 1)) }
   }
@@ -414,11 +425,25 @@ export default function Schedule({ session, onNavigate }) {
       ) : (
         <>
         {/* ===== 16a · רצועת הימים וסדר היום, מעל הגריד השבועי ===== */}
+        {teamNames.length > 1 && (
+          <div className="cal-teamchips" role="tablist" aria-label={L('סינון לפי קבוצה', 'Filter by team')}>
+            <button type="button" role="tab" aria-selected={!teamFilter}
+              className={!teamFilter ? 'chip selected' : 'chip'} onClick={() => setTeamFilter('')}>
+              {L('כל הקבוצות', 'All teams')}
+            </button>
+            {teamNames.map((t) => (
+              <button key={t} type="button" role="tab" aria-selected={teamFilter === t}
+                className={teamFilter === t ? 'chip selected' : 'chip'} onClick={() => setTeamFilter(t)}>
+                {trTeam(t)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="cal-daystrip" role="tablist" aria-label={L('ימי השבוע', 'Days of the week')}>
           {days.map((d) => {
             const ds = ymd(d)
             const busy =
-              entries.some((e) => e.date === ds) ||
+              fEntries.some((e) => e.date === ds) ||
               (weekSlotOccs || []).some((o) => o.date === ds) ||
               (meetings || []).some((m) => m.date === ds)
             return (
@@ -440,7 +465,7 @@ export default function Schedule({ session, onNavigate }) {
 
         {(() => {
           const dayItems = [
-            ...entries.filter((e) => e.date === selectedDay),
+            ...fEntries.filter((e) => e.date === selectedDay),
             ...(weekSlotOccs || []).filter((o) => o.date === selectedDay),
           ].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
           const sel = new Date(selectedDay + 'T00:00')
@@ -534,7 +559,7 @@ export default function Schedule({ session, onNavigate }) {
                 id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time,
                 team: o.team, location: o.location, is_personal: false, plan: null, _recurring: true,
               }))
-              const dayEntries = [...entries.filter((e) => e.date === ds), ...slotEntries]
+              const dayEntries = [...fEntries.filter((e) => e.date === ds), ...slotEntries]
               const dayMeetings = meetings.filter((m) => m.date === ds)
 
               // אירועים חופפים נפרסים זה-לצד-זה (interval partitioning):

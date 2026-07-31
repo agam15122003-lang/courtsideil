@@ -21400,3 +21400,17 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .cs-rsvp-nolist li { padding: 2px 0; }
 .cs-rsvp-nolist b { font-weight: 700; color: #fff; }
 .cs-rsvp-reason { color: var(--orange-300); }
+
+/* §3 — מצב «הכול מסודר» של דורש תשומת לב */
+.hp-att-clear {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* §4 — צ'יפי סינון קבוצה בלו"ז */
+.cal-teamchips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }

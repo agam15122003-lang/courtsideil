@@ -303,10 +303,14 @@ export function NeedsAttention({ session, onNavigate }) {
     let alive = true
     ;(async () => {
       const monthAgo = new Date(Date.now() - 30 * 86400000)
-      const [roster, att] = await Promise.all([
+      const [roster, att, fb] = await Promise.all([
         supabase.from('team_players').select('id, name, player_id, team').eq('coach_id', me),
         supabase.from('practice_attendance').select('player_id, status, session_date')
           .eq('coach_id', me).gte('session_date', ymd(monthAgo)),
+        // §3 — משוב שנתתי בחודש האחרון, לזיהוי שחקנים שלא נסגר להם משוב.
+        // המפתח כאן הוא profiles.id (בניגוד לנוכחות שמפתחה team_players.id).
+        supabase.from('player_feedback').select('player_id')
+          .eq('coach_id', me).gte('created_at', monthAgo.toISOString()),
       ])
       if (!alive || roster.error || !roster.data?.length) return
 
@@ -320,6 +324,10 @@ export function NeedsAttention({ session, onNavigate }) {
         byPlayer.set(r.player_id, cur)
       }
 
+      // כמה משובים נתן המאמן לכל שחקן (לפי profiles.id) בחודש האחרון
+      const fbBy = new Map()
+      for (const r of fb.error ? [] : fb.data || []) fbBy.set(r.player_id, (fbBy.get(r.player_id) || 0) + 1)
+
       const flagged = []
       for (const p of roster.data) {
         const a = byPlayer.get(p.id)
@@ -329,6 +337,14 @@ export function NeedsAttention({ session, onNavigate }) {
             flagged.push({ ...p, reason: L(`נוכחות ${pct}% בחודש`, `${pct}% attendance this month`), tone: 'warn' })
             continue
           }
+        }
+        // §3 — שחקן שנכח באימונים ולא קיבל ממני אף משוב בחודש
+        if (a && a.present >= 3 && p.player_id && !fbBy.get(p.player_id)) {
+          flagged.push({
+            ...p,
+            reason: L(`${a.present} אימונים בלי משוב`, `${a.present} practices without feedback`),
+            tone: 'bad',
+          })
         }
       }
       setPlayers(flagged.slice(0, 3))
@@ -344,7 +360,17 @@ export function NeedsAttention({ session, onNavigate }) {
       </>
     )
   }
-  if (!players.length) return null
+  // §3 — הסקשן מופיע גם כשאין דגלים, עם שורת «הכול מסודר» במקום להיעלם
+  if (!players.length) {
+    return (
+      <>
+        <SecHead eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
+        <p className="hp-att-clear">
+          {L('כרגע אין שחקנים שדורשים תשומת לב — כולם עם נוכחות תקינה ומשוב עדכני.', 'No players need attention right now — everyone has solid attendance and recent feedback.')}
+        </p>
+      </>
+    )
+  }
 
   return (
     <>
