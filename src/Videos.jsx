@@ -1,6 +1,7 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud, X, Check } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
 import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
@@ -33,6 +34,7 @@ export default function Videos({ session, profile }) {
   // כל כרטיס סרטון הוא ~30 אלמנטים (כולל 5 כוכבי דירוג); 106 סרטונים = 4,300 אלמנטים
   // ומסך שנתקע בטלפון. מציגים 12 ומרחיבים לפי בקשה.
   const [limit, setLimit] = useState(PAGE)
+  const [playing, setPlaying] = useState(null) // {id(yt), title} — נגן בתוך האפליקציה (§5)
 
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
@@ -65,6 +67,12 @@ export default function Videos({ session, profile }) {
   }
 
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setPlaying(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const rate = async (videoId, value) => {
     // עדכון אופטימי מיידי
@@ -228,69 +236,83 @@ export default function Videos({ session, profile }) {
           )}
         </div>
       ) : (
-        <div className="video-grid">
-          {/* מסך 14a: הסרטון הראשון הוא כרטיס גדול, וכל השאר שורות קומפקטיות.
-              בלי זה כל סרטון תופס מסך שלם והדף מגיע ל-5000px בטלפון. */}
-          {results.slice(0, limit).map((v, vi) => {
+        <div className="pl-vid-grid">
+          {/* §5 — אותה שפה כמו מסך הסרטונים של השחקן: שורות אחידות עם
+              תמונה, נגן בתוך האפליקציה, דירוג קטן ופעולות כאייקונים. */}
+          {results.slice(0, limit).map((v) => {
             const id = ytId(v.url)
             const r = ratings[v.id] || { avg: 0, count: 0, mine: 0 }
             return (
-              <div key={v.id} className={vi === 0 ? 'video-card' : 'video-card is-compact'}>
-                <a className="video-thumb" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer" aria-label={L(`צפייה בסרטון: ${v.title}`, `Watch video: ${v.title}`)}>
-                  {id ? <img src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" /> : <PlayCircle size={28} />}
-                  <span className="video-play"><PlayCircle size={18} /></span>
-                  {r.count > 0 && <span className="video-rank-badge"><Star size={11} /> {r.avg.toFixed(1)}</span>}
-                </a>
-                <div className="video-body">
-                  <span className="cat-badge">{tr(v.category)}</span>
-                  <span className="video-title" dir="auto">{cleanVideoTitle(v.title)}</span>
-                  {v.note && <span className="muted small">{v.note}</span>}
-
-                  {/* דירוג משתמשים */}
-                  <div className="video-rate">
-                    <span className="video-rate-stars" role="radiogroup" aria-label={L('דרג סרטון', 'Rate video')}>
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button key={n} type="button" className="vstar-btn" onClick={() => rate(v.id, n)}
-                          aria-label={L(`${n} כוכבים`, `${n} stars`)} title={L(`דרג ${n}`, `Rate ${n}`)}>
-                          <Star size={17} className={n <= (r.mine || Math.round(r.avg)) ? (r.mine ? 'vstar mine' : 'vstar avg') : 'vstar'} />
-                        </button>
-                      ))}
+              <div key={v.id} className="pl-vid vco-row">
+                <button
+                  type="button"
+                  className="vco-open"
+                  onClick={() => (id ? setPlaying({ id, title: v.title }) : window.open(safeUrl(v.url) || '#', '_blank'))}
+                  aria-label={L(`צפייה בסרטון: ${v.title}`, `Watch video: ${v.title}`)}
+                >
+                  <span className="pl-vid-thumb" style={id ? { backgroundImage: `url("https://img.youtube.com/vi/${id}/hqdefault.jpg")` } : undefined}>
+                    <span className="pl-vid-play"><PlayCircle size={18} /></span>
+                    {v.featured && <span className="vco-star"><Star size={11} fill="currentColor" /></span>}
+                  </span>
+                  <span className="pl-vid-body">
+                    <span className="pl-vid-title" dir="auto">{cleanVideoTitle(v.title)}</span>
+                    <span className="vco-meta">
+                      {v.category && <span className="cat-badge" data-cat={v.category}>{tr(v.category)}</span>}
+                      {r.count > 0 && <span className="vco-avg"><Star size={11} fill="currentColor" /> {r.avg.toFixed(1)} · {r.count}</span>}
+                      {v.approved === false && <span className="video-pending">{L('ממתין לאישור', 'Pending approval')}</span>}
                     </span>
-                    <span className="muted small video-rate-meta">
-                      {r.count > 0 ? L(`${r.avg.toFixed(1)} · ${r.count} דירוגים`, `${r.avg.toFixed(1)} · ${r.count} ratings`) : L('עדיין לא דורג', 'Not rated yet')}
-                    </span>
-                  </div>
-
-                  {v.approved === false && (
-                    <span className="video-pending">
-                      {isAdmin
-                        ? L('ממתין לאישור — לא מוצג לשחקנים', 'Pending approval — hidden from players')
-                        : L('ממתין לאישור מנהל', 'Pending admin approval')}
-                    </span>
+                  </span>
+                </button>
+                <span className="vco-acts">
+                  <span className="video-rate-stars" role="radiogroup" aria-label={L('דרג סרטון', 'Rate video')}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} type="button" className="vstar-btn" onClick={() => rate(v.id, n)}
+                        aria-label={L(`${n} כוכבים`, `${n} stars`)}>
+                        <Star size={14} className={n <= (r.mine || Math.round(r.avg)) ? (r.mine ? 'vstar mine' : 'vstar avg') : 'vstar'} />
+                      </button>
+                    ))}
+                  </span>
+                  <a className="icon-btn" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer" title={L('פתיחה ביוטיוב', 'Open on YouTube')}><ExternalLink size={15} /></a>
+                  {isAdmin && (
+                    <button type="button" className={v.featured ? 'icon-btn vco-on' : 'icon-btn'} onClick={() => toggleFeatured(v)}
+                      title={L('מדף «המאמן ממליץ» אצל השחקנים', "Players' recommended shelf")}>
+                      <Star size={15} fill={v.featured ? 'currentColor' : 'none'} />
+                    </button>
                   )}
-                  <div className="video-actions">
-                    <a className="btn-soft video-watch" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {L('צפה ביוטיוב', 'Watch on YouTube')}</a>
-                    {isAdmin && (
-                      <button type="button" className="btn-ghost video-approve" onClick={() => toggleApproved(v)}>
-                        {v.approved === false ? L('אשר לשחקנים', 'Approve') : L('בטל אישור', 'Unapprove')}
-                      </button>
-                    )}
-                    {isAdmin && (
-                      <button type="button" className={v.featured ? 'btn-ghost video-feature on' : 'btn-ghost video-feature'}
-                        onClick={() => toggleFeatured(v)}
-                        title={L('מדף "המאמן ממליץ" אצל השחקנים', 'Players\' recommended shelf')}>
-                        <Star size={14} fill={v.featured ? 'currentColor' : 'none'} /> {v.featured ? L('מומלץ', 'Featured') : L('המלץ', 'Feature')}
-                      </button>
-                    )}
-                    {v.created_by === me && (
-                      <button type="button" className="msg-del" onClick={() => remove(v.id)} aria-label={L('מחיקת סרטון', 'Delete video')} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={16} /></button>
-                    )}
-                  </div>
-                </div>
+                  {isAdmin && (
+                    <button type="button" className="icon-btn" onClick={() => toggleApproved(v)}
+                      title={v.approved === false ? L('אישור לשחקנים', 'Approve for players') : L('ביטול אישור', 'Unapprove')}>
+                      {v.approved === false ? <Check size={15} /> : <X size={15} />}
+                    </button>
+                  )}
+                  {v.created_by === me && (
+                    <button type="button" className="icon-btn" onClick={() => remove(v.id)} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={15} /></button>
+                  )}
+                </span>
               </div>
             )
           })}
         </div>
+      )}
+
+      {playing && createPortal(
+        <div className="pl-video-modal" onClick={() => setPlaying(null)}>
+          <div className="pl-video-inner" onClick={(e) => e.stopPropagation()}>
+            <div className="pl-video-bar">
+              <span dir="auto">{playing.title}</span>
+              <button className="icon-btn" onClick={() => setPlaying(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+            </div>
+            <div className="pl-video-frame">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${playing.id}?autoplay=1&rel=0`}
+                title={playing.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
       {results.length > limit && (
         <button type="button" className="pl-more" onClick={() => setLimit((l) => l + 12)}>
