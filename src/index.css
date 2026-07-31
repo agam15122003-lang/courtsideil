@@ -21532,3 +21532,14 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
 .ta-summary-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand-strong), var(--brand)); }
 .ta-remind { margin: 8px 0 4px; min-height: 40px; font-size: 13px; }
 
+
+/* ב-6 — «תצוגה שבועית» היא עכשיו מתג: הגריד נפתח לפי דרישה */
+button.cal-weeksep {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+button.cal-weeksep .cal-weeksep-t { color: var(--brand-text, var(--muted)); }

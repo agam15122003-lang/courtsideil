@@ -62,6 +62,8 @@ export default function Schedule({ session, onNavigate }) {
   // 16a — הלו״ז נפתח על תצוגת יום: רצועת ימים + סדר היום, ומתחתיהם הגריד השבועי
   const [selectedDay, setSelectedDay] = useState(() => ymd(new Date()))
   const [teamFilter, setTeamFilter] = useState('')
+  // ב-6 — במובייל תצוגת היום מספיקה; הגריד השבועי נפתח לפי דרישה
+  const [showGrid, setShowGrid] = useState(() => window.innerWidth > 640)
   const [entries, setEntries] = useState([])
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -523,12 +525,15 @@ export default function Schedule({ session, onNavigate }) {
           )
         })()}
 
-        <div className="cal-weeksep">
+        <button type="button" className="cal-weeksep" onClick={() => setShowGrid((v) => !v)} aria-expanded={showGrid}>
           <span aria-hidden="true" />
-          <span className="cal-weeksep-t">{L('תצוגה שבועית', 'Weekly view')}</span>
+          <span className="cal-weeksep-t">
+            {L('תצוגה שבועית', 'Weekly view')} {showGrid ? '▴' : '▾'}
+          </span>
           <span aria-hidden="true" />
-        </div>
+        </button>
 
+        {showGrid && (
         <div className="cal-scroll" ref={calRef}>
           {/* key לפי שבוע — החלפת שבוע נכנסת ב-fade קצר במקום swap יבש */}
           <div className="cal-grid" key={ymd(weekStart)}>
@@ -683,12 +688,15 @@ export default function Schedule({ session, onNavigate }) {
             })}
           </div>
         </div>
+        )}
         </>
       )}
 
+      {showGrid && (
       <p className="muted small" style={{ marginTop: 10 }}>
         {L('לחיצה על משבצת ריקה מוסיפה אימון באותה שעה.', 'Tap an empty slot to add a practice at that time.')}
       </p>
+      )}
 
       {/* פרטי פגישה שנבחרה */}
       {selected && selected._meeting && (
