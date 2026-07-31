@@ -18,6 +18,7 @@ import Avatar from './Avatar'
 import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import ChangePassword from './ChangePassword'
+import { FbReact } from './PlayerTimeline'
 import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
@@ -1319,6 +1320,77 @@ const PERIOD_TABS = [
   { id: 'year', he: 'העונה', en: 'Season' },
 ]
 
+// §7 — «המשימות שלי» בבית: עד שלוש משימות פתוחות אמיתיות מהמאמן, עם פס
+// התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק מטרות.
+function HomeTasks({ session, setView }) {
+  const me = session.user.id
+  const [rows, setRows] = useState(null)
+
+  const load = useCallback(async () => {
+    const [{ data: asg }, { data: compl }] = await Promise.all([
+      supabase.from('player_assignments').select('*, drill:drills(title)').order('created_at', { ascending: false }),
+      supabase.from('assignment_completions').select('assignment_id, progress_value, done_at').eq('player_id', me),
+    ])
+    const by = new Map((compl || []).map((c) => [c.assignment_id, c]))
+    setRows(
+      (asg || [])
+        .filter((a) => !by.get(a.id)?.done_at)
+        .slice(0, 3)
+        .map((a) => ({ a, prog: Number(by.get(a.id)?.progress_value) || 0 })),
+    )
+  }, [me])
+  useEffect(() => { load() }, [load])
+
+  // רישום מהיר: אותו מודל בדיוק כמו addProgress במסך המשימות
+  const quick = async (a, prog) => {
+    const target = Number(a.target_value)
+    const step = Math.max(1, Math.round(target / 20))
+    const next = Math.min(target, prog + step)
+    const done_at = next >= target ? new Date().toISOString() : null
+    const { error } = await supabase.from('assignment_completions')
+      .upsert({ assignment_id: a.id, player_id: me, progress_value: next, done_at })
+    if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); return }
+    if (done_at) { toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉')); burstConfetti() }
+    load()
+  }
+
+  if (rows === null || rows.length === 0) return null
+  return (
+    <section className="pl-block plht">
+      <div className="plhg-head">
+        <p className="pl-section-label"><Dumbbell size={15} /> {L('המשימות שלי', 'My tasks')}</p>
+        <button className="plhg-all" onClick={() => setView('drills')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
+      </div>
+      <div className="plht-rows">
+        {rows.map(({ a, prog }) => {
+          const target = Number(a.target_value)
+          const title = a.drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
+          return (
+            <div key={a.id} className="plht-row">
+              <button type="button" className="plht-body" onClick={() => setView('drills')}>
+                <b>{title}</b>
+                {target > 0 ? (
+                  <>
+                    <span className="plht-nums" dir="ltr">{prog}/{target}{a.unit ? ` ${a.unit}` : ''}</span>
+                    <span className="plht-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((prog / target) * 100))}%` }} /></span>
+                  </>
+                ) : (
+                  <span className="plht-free">{a.note || L('משימה מהמאמן', 'Task from your coach')}</span>
+                )}
+              </button>
+              {target > 0 && (
+                <button type="button" className="plht-quick" onClick={() => quick(a, prog)}>
+                  +{Math.max(1, Math.round(target / 20))}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function HomeGoals({ session, membership, setView }) {
   const [goals, setGoals] = useState(null)
   const [period, setPeriod] = useState('week')
@@ -1348,7 +1420,7 @@ function HomeGoals({ session, membership, setView }) {
   return (
     <section className="pl-block plhg">
       <div className="plhg-head">
-        <p className="pl-section-label"><Target size={15} /> {L('המשימות שלי', 'My tasks')}</p>
+        <p className="pl-section-label"><Target size={15} /> {L('המטרות שלי', 'My goals')}</p>
         <button className="plhg-all" onClick={() => setView('goals')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
       </div>
 
@@ -1412,53 +1484,45 @@ function LastPracticeFeedback({ session, membership, setView }) {
   const mood = eff?.mood ? MOOD_BY_KEY[eff.mood] : null
   const dateStr = eff?.session_date ? new Date(eff.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : null
 
+  // §8 — לפי מסך 3b: המשוב של המאמן הוא הכרטיס הראשי (כוכבים → טקסט →
+  // תגובה באמוג'י), והסיכום שמילאת הוא שורה משנית מתחתיו — לא שני חצאים
+  // שווי-משקל עם פס כתום.
+  const fbDate = fb?.created_at
+    ? new Date(fb.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })
+    : null
   return (
     <section className="pl-block plfb">
       <div className="plhg-head">
-        <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('המשוב מהאימון האחרון', 'Last session feedback')}</p>
-        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל האימונים', 'All sessions')} <ArrowFwd size={14} /></button>
+        <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('מה המאמן אמר', 'From your coach')}</p>
+        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל המשובים', 'All feedback')} <ArrowFwd size={14} /></button>
       </div>
-      <div className="plfb-card">
-        {/* דפוס 2 במסמך העיצוב — פס כותרת כתום מלא, אחד למסך */}
-        <div className="plfb-bar">
-          {L('סיכום האימון האחרון', 'Last session summary')}
-          {dateStr && <span>{dateStr}</span>}
+
+      {fb ? (
+        <div className="plfb2">
+          {fb.rating > 0 && (
+            <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={14} fill={n <= fb.rating ? 'currentColor' : 'none'} />)}</span>
+          )}
+          {fb.content && <p className="plfb2-txt">{fb.content}</p>}
+          <span className="plfb2-meta">
+            {L('המאמן', 'Coach')}{fbDate && <> · <bdi dir="ltr">{fbDate}</bdi></>}
+          </span>
+          <FbReact fb={fb} coachId={membership?.coach_id} me={me} />
         </div>
-        <div className="plfb-body">
-        {eff && (
-          <div className="plfb-half me">
-            <span className="plfb-lbl">{L('מה מילאת', 'What you filled')}{dateStr ? ` · ${dateStr}` : ''}</span>
-            <div className="plfb-eff">
-              <Flame size={17} /> <b>{eff.effort}/10</b> <span className="muted small">{L('רמת קושי', 'difficulty')}</span>
-              {mood && <span className="plfb-mood" style={{ color: mood.col }}>· {L(mood.label[0], mood.label[1])}</span>}
-            </div>
-            {Array.isArray(eff.focus) && eff.focus.length > 0 && (
-              <div className="plfb-tags">{eff.focus.map((f) => <span key={f}>{f}</span>)}</div>
-            )}
-            {marks.length > 0 && (
-              <div className="plfb-marks">
-                {marks.map((m, i) => (
-                  <span key={i} className={m.met ? 'plfb-mark on' : 'plfb-mark'}>
-                    {m.met ? <Check size={12} /> : <X size={12} />} {m.goal.title}
-                  </span>
-                ))}
-              </div>
-            )}
-            {eff.note && <p className="plfb-note">„{eff.note}”</p>}
-            {eff.coach_ack && <span className="plfb-ack"><Eye size={13} /> {L('המאמן ראה את הסיכום שלך', 'Your coach saw your summary')}</span>}
-          </div>
-        )}
-        {fb && (
-          <div className="plfb-half coach">
-            <span className="plfb-lbl">{L('מה המאמן אמר', 'From your coach')}</span>
-            {fb.rating > 0 && (
-              <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= fb.rating ? 'currentColor' : 'none'} />)}</span>
-            )}
-            {fb.content && <p className="plfb-coach-txt">{fb.content}</p>}
-          </div>
-        )}
+      ) : (
+        <p className="plfb2-none">{L('עוד אין משוב מהמאמן — אחרי האימון הבא הוא יופיע כאן.', 'No coach feedback yet — after the next practice it shows up here.')}</p>
+      )}
+
+      {eff && (
+        <div className="plfb2-mine">
+          <Flame size={15} aria-hidden="true" />
+          <span>
+            {L('הסיכום שלך', 'Your summary')}{dateStr && <> · <bdi dir="ltr">{dateStr}</bdi></>}: <b>{eff.effort}/10</b>
+            {mood && <span style={{ color: mood.col }}> · {L(mood.label[0], mood.label[1])}</span>}
+            {marks.length > 0 && <> · {marks.filter((m) => m.met).length}/{marks.length} {L('מטרות', 'goals')}</>}
+          </span>
+          {eff.coach_ack && <span className="plfb2-ack"><Eye size={13} aria-hidden="true" /> {L('המאמן ראה', 'Seen')}</span>}
         </div>
-      </div>
+      )}
     </section>
   )
 }
@@ -1517,6 +1581,9 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
           הכתבות, קיצורי הדרך ומשימת השבוע ירדו — הם לא במוקאפ, והם דחפו
           את המשימות ואת הלו״ז אל מתחת לקו הקיפול. */}
       {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
+
+      {/* §7 — המשימות האמיתיות מהמאמן, לפני המטרות */}
+      {membership && <div className="pl-stagger"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>}
 
       {membership && <div className="pl-stagger"><HomeGoals session={session} membership={membership} setView={setView} key={`g${fbRefresh}`} /></div>}
 

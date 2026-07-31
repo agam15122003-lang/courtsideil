@@ -53,7 +53,7 @@ function LoadTrend({ series }) {
 // דורש את react_to_feedback() מ-supabase_engagement2.sql; אם ה-RPC חסר —
 // הכפתורים פשוט לא ישנו כלום והשגיאה תוצג בטוסט.
 const REACTIONS = ['👍', '🔥', '💪', '🙏']
-function FbReact({ fb, coachId, me }) {
+export function FbReact({ fb, coachId, me }) {
   const [chosen, setChosen] = useState(fb?.player_reaction || null)
   if (!fb?.id) return null
   if (chosen) return <span className="th-react-done">{chosen} {L('הגבת', 'You reacted')}</span>
