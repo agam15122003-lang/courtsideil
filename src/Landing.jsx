@@ -112,8 +112,8 @@ export default function Landing({ onEnter }) {
   // "למה CourtSide" — רצועת ערך בין ההירו לפיצ'רים (דפוס ההמרה מהסקיל: Hero → Value → Features → Social Proof → CTA)
   const WHY = [
     { Icon: LayoutGrid, title: L('הכול במקום אחד', 'Everything in one place'), desc: L('תרגילים, תוכניות, לוח טקטיקה, לו"ז וקבוצות — במקום פתקים, וואטסאפ ואקסלים מפוזרים.', 'Drills, plans, a tactics board, a schedule and teams — instead of scattered notes, WhatsApp and spreadsheets.') },
-    { Icon: Zap, title: L('מהיר תוך כדי אימון', 'Fast in mid-practice'), desc: L('פותחים את התוכנית, מסמנים תרגיל שהסתיים וממשיכים — בלי לעצור את הקבוצה ובלי מחשב.', 'Open the plan, tick off a finished drill and move on — without stopping the team or needing a laptop.') },
-    { Icon: Users, title: L('ידע של קהילה שלמה', 'The knowledge of a whole community'), desc: L('תרגילים, דירוגים ותוכניות ששיתפו מאמנים פעילים — במקום להמציא כל אימון מאפס.', 'Drills, ratings and plans shared by active coaches — instead of inventing every practice from scratch.') },
+    { Icon: Zap, title: L('התוכנית איתך במגרש', 'Your plan, on the court'), desc: L('התוכנית פתוחה בטלפון: מסמנים תרגיל שהסתיים, נוכחות בסוף האימון, ומשוב לשחקן — בלי מחשב.', 'The plan stays open on your phone: tick a finished drill, mark attendance, send feedback — no laptop.') },
+    { Icon: Users, title: L('תרגילים מהקהילה', 'Drills from the community'), desc: L('תרגילים, דירוגים ותוכניות ששיתפו מאמנים פעילים — במקום להמציא כל אימון מאפס.', 'Drills, ratings and plans shared by active coaches — instead of inventing every practice from scratch.') },
   ]
 
   // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
@@ -164,11 +164,11 @@ export default function Landing({ onEnter }) {
             <Star size={14} /> {L('חינם · בעברית · למאמנים ולשחקנים', 'Free · in Hebrew · for coaches & players')}
           </span>
           <h1 className="land-title">
-            {L('הבית הדיגיטלי של', 'The digital home of')}<br />
-            <span className="land-title-accent">{L('הכדורסל הישראלי.', 'Israeli basketball.')}</span>
+            {L('כלי העבודה של מאמן הכדורסל.', "The basketball coach's working tools.")}<br />
+            <span className="land-title-accent">{L('במקום אחד.', 'In one place.')}</span>
           </h1>
           <p className="land-sub">
-            {L('מהתרגיל שהמאמן שולח ועד הדיווח של השחקן — תרגילים, תוכניות, לוח טקטיקה, לו"ז וקהילה. פלטפורמה אחת, מהירה מספיק למגרש.', "From the drill a coach sends to the player's report — drills, plans, a tactics board, a schedule and a community. One platform, fast enough for the court.")}
+            {L('בונים תוכנית אימון, שולחים תרגילים לשחקנים, מסמנים נוכחות וכותבים משוב. תרגילים, לוח טקטיקה, לו"ז וקהילת מאמנים — במערכת אחת, בעברית.', 'Build a practice plan, send drills to your players, mark attendance and write feedback. Drills, a tactics board, a schedule and a coaching community — one system, in Hebrew.')}
           </p>
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>
