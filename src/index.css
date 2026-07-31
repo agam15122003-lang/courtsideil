@@ -21318,3 +21318,19 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   .home-hero .cs-rsvp-tx b { font-family: var(--font-display); font-weight: 900; font-size: 14.5px; }
   .home-hero .cs-rsvp-tx > span { font-size: 12px; color: rgba(255, 255, 255, 0.7); }
 
+
+/* ============================================================
+   31.7.2026 · TODO §2 — הכותרת בפרופיל (ובכל מסך באנר) נחתכה לחצי
+   .cs-page מושך את עצמו space-8 למעלה כדי לבלוע את ריפוד העמוד —
+   אבל כשרצועת הציטוט יושבת מעליו הוא טיפס עליה וחתך את ה-H1.
+   כשיש רצועה לפניו, אין ריפוד לבלוע — אז לא מטפסים.
+   ============================================================ */
+.main-inner > .quote-strip + .cs-page { margin-block-start: 0; }
+
+/* התיקון האמיתי של §2: הבאנר היה בגובה קבוע עם overflow:hidden ותוכן
+   מוצמד לתחתית — כותרת + תת-כותרת + כפתור פעולה גבוהים מ-150px,
+   וה-H1 נחתך למעלה. גובה מינימום במקום גובה קשיח — הבאנר גדל עם התוכן. */
+.cs-hero { height: auto; min-height: 150px; }
+.cs-hero--sm { height: auto; min-height: 120px; }
+.cs-hero--lg { height: auto; min-height: 206px; }
+.cs-hero-body { height: auto; min-height: inherit; }
