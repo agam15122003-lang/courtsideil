@@ -22,8 +22,7 @@ import { FbReact } from './PlayerTimeline'
 import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
-import CoachChat from './CoachChat'
-import TeamChat from './TeamChat'
+import PlayerTeamHub from './PlayerTeamHub'
 import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
@@ -826,43 +825,7 @@ function PlayerSchedule({ session, membership }) {
         </>
       )}
 
-      {/* הסגל — עבר לכאן ממסך "הקבוצה שלי" שמוזג לתוך הלו"ז */}
-      <TeamRoster membership={membership} />
     </div>
-  )
-}
-
-// סגל הקבוצה — רשימה מקופלת בתחתית "הקבוצה והלו״ז"
-function TeamRoster({ membership }) {
-  const [mates, setMates] = useState(null)
-  useEffect(() => {
-    if (!membership) return
-    ;(async () => {
-      // 1.7 — הסגל לחברי הקבוצה עובר דרך RPC שמחזיר פרטים יבשים בלבד
-      // (שם, מספר, עמדה). fallback לשליפה הישנה עד שהמיגרציה תרוץ.
-      let { data, error } = await supabase.rpc('team_roster', { _coach: membership.coach_id, _team: membership.team })
-      if (error) {
-        ;({ data } = await supabase.from('team_players')
-          .select('id, name, number, position')
-          .eq('coach_id', membership.coach_id).eq('team', membership.team).order('number'))
-      }
-      setMates(data || [])
-    })()
-  }, [membership])
-  if (!mates || mates.length === 0) return null
-  return (
-    <details className="tg-collapse pls-roster">
-      <summary><Users size={15} /> {L(`הסגל (${mates.length})`, `Roster (${mates.length})`)}</summary>
-      <ul className="pls-roster-list">
-        {mates.map((m) => (
-          <li key={m.id}>
-            {m.number ? <span className="pl-mate-num">{m.number}</span> : <Avatar name={m.name} size={28} />}
-            <span className="pls-roster-name">{m.name}</span>
-            {m.position && <span className="muted small">{m.position}</span>}
-          </li>
-        ))}
-      </ul>
-    </details>
   )
 }
 
@@ -1812,13 +1775,13 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 // ============================================================
 // ניווט ממוקד (משוב הבעלים 25.7): "הקבוצה שלי" מוזג לתוך הלו"ז, צ'אט הקבוצה
 // עלה לניווט, והקהילה (0 פוסטים) ירדה — המסך נשאר בקוד וניתן להחזרה.
+// 1.13 — הצ'אטים אוחדו לתוך «הקבוצה והלו״ז» (ארבע לשוניות), והטאבים
+// הנפרדים שלהם ירדו מהניווט. יעדי עומק ישנים (coach/teamchat) עדיין עובדים.
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['המשימות שלי', 'My tasks'], Icon: Dumbbell },
-  { id: 'goals', label: ['המטרות שלי', 'My goals'], Icon: Target, team: true },
+  { id: 'goals', label: ['היעדים שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
-  { id: 'teamchat', label: ['צ׳אט הקבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
-  { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['מדיה', 'Media'], Icon: MonitorPlay },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
@@ -1879,7 +1842,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       case 'drills': return <MyAssignments session={session} />
       case 'coach':
         return hasTeam
-          ? <CoachChat session={session} coach={coach} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="coach"
+              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('המאמן שלי', 'My coach')}
               desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
@@ -1897,22 +1861,25 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               desc={L('המאמן יגדיר לך מטרות ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
       case 'schedule':
         return hasTeam
-          ? <PlayerSchedule session={session} membership={membership} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="schedule"
+              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('לוח האימונים והמשחקים', 'Schedule')}
               desc={L('לו״ז האימונים והמשחקים של הקבוצה יופיע כאן. הצטרפו לקבוצה עם קוד מהמאמן.', 'Your team’s practices and games appear here. Join a team with a code from your coach.')} />
       case 'videos': return <PlayerVideos />
       case 'teamchat':
         return hasTeam
-          ? <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="chat"
+              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('צ׳אט הקבוצה', 'Team chat')}
               desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
       case 'community': return <PlayerCommunity session={session} profile={profile} />
       case 'team':
-        // "הקבוצה שלי" מוזג ללו"ז — קישורים ישנים ממשיכים לעבוד
+        // קישורים ישנים ממשיכים לעבוד — נפתח על לשונית «הקבוצה שלי»
         return hasTeam
-          ? <PlayerSchedule session={session} membership={membership} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="team"
+              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
