@@ -25,6 +25,7 @@ import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
 import TeamGames from './TeamGames'
 import TeamConnect from './TeamConnect'
+import PlayerCard from './PlayerCard'
 import Page from './Page'
 import { ChevronFwd } from './DirIcon'
 import { sendNotification } from './notify'
@@ -98,6 +99,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   // עריכה (מודאלים)
   const [pEdit, setPEdit] = useState(null)
   const [sEdit, setSEdit] = useState(null)
+  const [playerPage, setPlayerPage] = useState(null) // 1.7 — כרטיס שחקן מלא
 
 
   // משוב לשחקן (בתוך מודל השחקן)
@@ -321,6 +323,11 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     return <TeamGames session={session} profile={profile} team={team} teams={teams} onBack={() => { setSub(null); load() }} />
   }
 
+  // 1.7 — כרטיס שחקן מלא: נפתח מלחיצה על שחקן בסגל
+  if (playerPage) {
+    return <PlayerCard coachId={me} team={team} player={playerPage} onBack={() => { setPlayerPage(null); load() }} />
+  }
+
   return (
     <Page
       eyebrow={profile?.club || L('הקבוצה שלי', 'My team')}
@@ -400,7 +407,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </div>
             <ul className="roster-list">
               {players.map((p) => (
-                <li key={p.id} className="roster-row roster-clickable" onClick={() => setPEdit({ ...p })}>
+                <li key={p.id} className="roster-row roster-clickable" onClick={() => setPlayerPage({ ...p })}>
                   {p.number ? <span className="roster-jersey">{p.number}</span> : <Avatar name={p.name} size={34} />}
                   <span className="roster-name">
                     {p.name}

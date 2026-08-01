@@ -877,9 +877,14 @@ function TeamRoster({ membership }) {
   useEffect(() => {
     if (!membership) return
     ;(async () => {
-      const { data } = await supabase.from('team_players')
-        .select('id, name, number, position')
-        .eq('coach_id', membership.coach_id).eq('team', membership.team).order('number')
+      // 1.7 — הסגל לחברי הקבוצה עובר דרך RPC שמחזיר פרטים יבשים בלבד
+      // (שם, מספר, עמדה). fallback לשליפה הישנה עד שהמיגרציה תרוץ.
+      let { data, error } = await supabase.rpc('team_roster', { _coach: membership.coach_id, _team: membership.team })
+      if (error) {
+        ;({ data } = await supabase.from('team_players')
+          .select('id, name, number, position')
+          .eq('coach_id', membership.coach_id).eq('team', membership.team).order('number'))
+      }
       setMates(data || [])
     })()
   }, [membership])
@@ -1751,24 +1756,21 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
   const [st, setSt] = useState(null)
   useEffect(() => {
     ;(async () => {
-      const [compl, att, eff, glogs] = await Promise.all([
+      const [compl, att, eff] = await Promise.all([
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
         supabase.from('practice_attendance').select('status'),
-        supabase.from('session_effort').select('created_at').eq('player_id', session.user.id),
-        supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
+        supabase.from('session_effort').select('effort').eq('player_id', session.user.id),
       ])
       const doneRows = compl.data || []
       const attRows = att.data || []
       const attTotal = attRows.length
       const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
       const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-      // רצף = כל פעילות (תרגיל / סיכום אימון / תיעוד מטרה) — כמו בבית.
+      // 1.7 — רצף הימים ירד מהפרופיל; במקומו ממוצע הקושי מהדיווחים
+      const effs = (eff.data || []).map((r) => r.effort).filter((v) => v != null)
+      const avgLoad = effs.length ? (effs.reduce((s, v) => s + v, 0) / effs.length).toFixed(1) : null
       // בוצע = done_at מלא (שורה בלי done_at = התקדמות חלקית בלבד)
-      setSt({ done: doneRows.filter((c) => c.done_at).length, streak: computeStreak([
-        ...doneRows.map((c) => c.done_at),
-        ...(eff.data || []).map((r) => r.created_at),
-        ...(glogs.data || []).map((r) => r.created_at),
-      ].filter(Boolean)), attendancePct })
+      setSt({ done: doneRows.filter((c) => c.done_at).length, avgLoad, attendancePct })
     })()
   }, [session.user.id])
 
@@ -1790,7 +1792,7 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
       {st && (
         <div className="plt-trio" style={{ marginTop: 18 }}>
           <div className="plt-stat"><b className="green">{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attendance')}</span></div>
-          <div className="plt-stat"><b className="brand">{st.streak}</b><span>{L('רצף ימים', 'Day streak')}</span></div>
+          <div className="plt-stat"><b className="brand" dir="ltr">{st.avgLoad ?? '—'}</b><span>{L('עומס ממוצע', 'Avg load')}</span></div>
           <div className="plt-stat"><b>{st.done}</b><span>{L('תרגילים', 'Drills')}</span></div>
         </div>
       )}
