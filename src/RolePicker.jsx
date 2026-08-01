@@ -68,7 +68,7 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
           <h1 className="csa-title">
             {L('ברוכים הבאים', 'Welcome to')}
             <br />
-            {L('לחדר המאמנים', 'the coaches’ room')}
+            {L('לקהילת הכדורסל', 'the basketball community')}
           </h1>
           <p className="csa-sub">
             {L(

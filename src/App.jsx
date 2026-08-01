@@ -244,7 +244,14 @@ export default function App() {
         />
       )}
 
-      {authStep === 'auth' && <Auth role={role} initialMode={authMode} onBack={backAuth} />}
+      {authStep === 'auth' && (
+        <Auth
+          role={role}
+          initialMode={authMode}
+          onBack={backAuth}
+          onSignupFlow={() => goAuth('role', 'signup')}
+        />
+      )}
 
       {/* דיאלוג אישור מעוצב — מרונדר פעם אחת בענף הזה, כמו קודם */}
       <ConfirmHost />

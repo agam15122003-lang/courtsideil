@@ -39,7 +39,10 @@ function openMailbox(address) {
   else window.location.href = 'mailto:'
 }
 
-export default function Auth({ onBack, role = 'coach', initialMode = 'signin' }) {
+// onSignupFlow — «הרשמה» מהטאבים מוביל לאותו מסלול בדיוק כמו מדף הנחיתה:
+// בחירת תפקיד (מאמן/שחקן) ואז הרשמה. בלעדיו המשתמש היה נרשם בתפקיד
+// שנשמר מקודם, בלי לדעת שיש בחירה בכלל.
+export default function Auth({ onBack, role = 'coach', initialMode = 'signin', onSignupFlow }) {
   // 'signin' = התחברות בסיסמה, 'signup' = הרשמה, 'forgot' = איפוס, 'otp' = קוד חד-פעמי
   // מי שהגיע דרך בחירת תפקיד או קוד קבוצה נוחת ישר על ההרשמה (App.jsx קובע)
   const [mode, setMode] = useState(initialMode)
@@ -454,8 +457,8 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                 ״{L(quote.text, quote.text_en)}״ <cite>— {L(quote.author, quote.author_en)}</cite>
               </p>
               <ul className="auth-hero-caps">
-                <li>{L('הבית של המאמנים', 'The coaches’ home')}</li>
-                <li>{L('ידע שמאמנים משתפים', 'Knowledge coaches share')}</li>
+                <li>{L('הבית של מאמנים ושחקנים', 'A home for coaches and players')}</li>
+                <li>{L('ידע שמשתפים יחד', 'Knowledge shared together')}</li>
                 <li>{L('קהילה שגדלה יחד', 'A community growing together')}</li>
               </ul>
             </>
@@ -468,9 +471,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
                 <ChevronBack size={17} /> {L('חזרה לבחירת תפקיד', 'Back to role selection')}
               </button>
               <h1 className="csa-title">
-                {role === 'player'
-                  ? L('מצטרפים לקבוצה', 'Joining the team')
-                  : L('פותחים חדר מאמנים', 'Opening a coaches’ room')}
+                {L('מצטרפים ל-CourtSide', 'Joining CourtSide')}
               </h1>
             </>
           )}
@@ -566,7 +567,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
               <button
                 type="button"
                 className={mode === 'signup' ? 'tab active' : 'tab'}
-                onClick={() => goMode('signup')}
+                onClick={() => (onSignupFlow ? onSignupFlow() : goMode('signup'))}
               >
                 {L('הרשמה', 'Sign Up')}
               </button>
@@ -678,7 +679,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
               {mode === 'signin' && (
                 <ul className="auth-trust-inline">
                   <li><Check size={14} aria-hidden="true" /> {L('חינם להתחלה', 'Free to start')}</li>
-                  <li><Check size={14} aria-hidden="true" /> {L('קהילת מאמנים', 'Coaching community')}</li>
+                  <li><Check size={14} aria-hidden="true" /> {L('קהילת כדורסל', 'Basketball community')}</li>
                   <li><Check size={14} aria-hidden="true" /> {L('מאובטח ופרטי', 'Secure & private')}</li>
                 </ul>
               )}
