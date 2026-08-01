@@ -154,11 +154,15 @@ export default function GamesBoard({ session }) {
 
   return (
     <>
-      {/* טופס פרסום בקשה */}
+      {/* טופס פרסום בקשה — «הצעת הקבוצה שלי למשחק אימון» */}
       <section className="form-section" style={{ marginTop: 16 }}>
         <h3 className="form-section-title">
-          <CalendarClock size={16} /> {L('פרסום בקשה למשחק אימון', 'Post a scrimmage request')}
+          <CalendarClock size={16} /> {L('הצע את הקבוצה שלך למשחק אימון', 'Offer your team for a scrimmage')}
         </h3>
+        <p className="muted small" style={{ marginTop: -4, marginBottom: 10 }}>
+          {L('הבקשה תופיע לכל המאמנים — הם יסננו לפי אזור ושכבת גיל וישלחו לך הודעה.',
+            'Your request appears to every coach — they filter by region and age group and message you.')}
+        </p>
         <div className="field-group">
           <span className="field-label">{L('שכבת גיל (חובה)', 'Age group (required)')}</span>
           <div className="chips">

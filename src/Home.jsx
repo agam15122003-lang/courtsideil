@@ -17,6 +17,7 @@ import {
   NEWS_HOME_COUNT,
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
+  NEWS_FALLBACK_IMAGES,
   CONTENT_LINKS, COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
@@ -261,9 +262,13 @@ function useNews() {
         r++
       }
 
-      // בלי תמונות סטוק אקראיות (DESIGN.md: אין תוכן מזויף) —
-      // כתבה בלי תמונה אמיתית מקבלת placeholder ממותג ב-CSS
-      const items = mixed
+      // כתבה בלי תמונה בפיד מקבלת תמונת כדורסל חופשית (Unsplash — רישיון
+      // חופשי גם לשימוש מסחרי). התמונה נבחרת דטרמיניסטית לפי הקישור, כך
+      // שאותה כתבה מקבלת תמיד את אותה תמונה ולא "קופצת" בין רענונים.
+      const hashOf = (s) => { let h = 0; for (const ch of String(s || '')) h = (h * 31 + ch.charCodeAt(0)) % 99991; return h }
+      const items = mixed.map((a, i) => a.image
+        ? a
+        : { ...a, image: NEWS_FALLBACK_IMAGES[(hashOf(a.link) + i) % NEWS_FALLBACK_IMAGES.length], stockImage: true })
 
       // אם השליפה לא החזירה כלום אבל יש קאש ישן — עדיף להציג אותו מאשר שגיאה
       if (items.length === 0 && staleItems) {
@@ -564,9 +569,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
                 className="news-thumb"
                 style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}
               >
-                {/* אין תמונה בפיד ה-RSS → אריח placeholder ממותג (טוקנים +
-                    אייקון lucide), לא צילום סטוק. הגובה של .news-thumb קבוע,
-                    ולכן שום דבר לא זז בהחלפה. */}
+                {/* אין תמונה בפיד ולא נבחרה תמונת גיבוי → אריח ממותג */}
                 {!a.image && (
                   <span className="home-news-ph" aria-hidden="true">
                     <Newspaper size={24} />

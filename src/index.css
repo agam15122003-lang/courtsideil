@@ -21849,3 +21849,28 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
 .pth-quick-btn.on { background: var(--brand-soft); border-color: transparent; color: var(--brand-text); }
 .pth-quick-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .pth-quick-kind { display: flex; gap: 6px; }
+
+/* ============================================================
+   1.8.2026 · בקשות הבעלים — תמונות ממוזערות לסרטונים
+   הבאג: .pl-vid-thumb הוגדר עם aspect-ratio בלבד; בתוך שורת ה-flex
+   של מסך המדיה (.vco-open) הוא נמעך ל-0×0 והתמונה מיוטיוב לא נראתה.
+   ============================================================ */
+.vco-open .pl-vid-thumb {
+  width: 128px;
+  flex: 0 0 128px;
+  border-radius: 12px;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+@media (max-width: 480px) {
+  .vco-open .pl-vid-thumb { width: 104px; flex-basis: 104px; }
+}
+/* גם ברשת של מסך השחקן — רוחב מלא של הכרטיס, יחס 16:9 */
+.pl-vid-grid .pl-vid-thumb {
+  width: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}

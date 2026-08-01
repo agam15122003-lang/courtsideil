@@ -6,17 +6,15 @@ import CoachProfile from './CoachProfile'
 import GamesBoard from './GamesBoard'
 import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
-import { useNetworkSmall } from './network'
 import { SkeletonCards } from './Skeleton'
 import ReportButton, { VerifiedBadge } from './ReportButton'
-import { Users } from 'lucide-react'
+import { Users, Swords } from 'lucide-react'
 
 // טאב "מאמנים" — מתג בין מאתר מאמנים ללוח משחקי אימון.
 // props:
 //   session - המשתמש המחובר (כדי לא להציג אותך בתוצאות שלך עצמך)
 export default function CoachFinder({ session, initialCoach, onConsumeInitial, initialTab, onConsumeInitialTab }) {
   const [mode, setMode] = useState(initialTab || 'coaches') // 'coaches' | 'games'
-  const netSmall = useNetworkSmall()
   // ניתוב עומק — למשל "ללוח המשחקים" מטאב המשחקים בקבוצות
   useEffect(() => {
     if (initialTab) {
@@ -121,25 +119,24 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
     <div className="welcome-card">
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
-      {/* לוח משחקי האימון דורש רשת של מאמנים — מוסתר כשהרשת קטנה (רעש) */}
-      {netSmall === false && (
-        <div className="tabs">
-          <button
-            className={mode === 'coaches' ? 'tab active' : 'tab'}
-            onClick={() => setMode('coaches')}
-          >
-            {L('מאתר מאמנים', 'Coach Finder')}
-          </button>
-          <button
-            className={mode === 'games' ? 'tab active' : 'tab'}
-            onClick={() => setMode('games')}
-          >
-            {L('לוח משחקי אימון', 'Scrimmage board')}
-          </button>
-        </div>
-      )}
+      {/* לוח משחקי האימון גלוי תמיד (בקשת הבעלים 1.8) — גם מאמן אחד צריך
+          לפרסם בקשה ולראות בקשות של אחרים; שער «רשת קטנה» הוסר. */}
+      <div className="tabs">
+        <button
+          className={mode === 'coaches' ? 'tab active' : 'tab'}
+          onClick={() => setMode('coaches')}
+        >
+          <Users size={15} /> {L('מאתר מאמנים', 'Coach Finder')}
+        </button>
+        <button
+          className={mode === 'games' ? 'tab active' : 'tab'}
+          onClick={() => setMode('games')}
+        >
+          <Swords size={15} /> {L('משחקי אימון', 'Scrimmages')}
+        </button>
+      </div>
 
-      {mode === 'games' && netSmall === false ? (
+      {mode === 'games' ? (
         <GamesBoard session={session} />
       ) : (
         <>
