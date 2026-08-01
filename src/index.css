@@ -21677,3 +21677,12 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
   background: var(--ok-soft); color: var(--ok); border-radius: 14px;
   padding: 14px 16px; font-weight: 700; font-size: 14px;
 }
+
+/* ============================================================
+   יעדים (מסמך ההשקה 1.5) · 1.8.2026 — טופס נקי + קבוצות בסדר קבוע
+   ============================================================ */
+.pg-due { max-width: 150px; }
+.pg-due-line { margin: 4px 2px 0; }
+.plg2-group { margin-top: 16px; }
+.plg2-group .pl-section-label { margin-bottom: 8px; }
+.plg2-group-empty { margin: 0 2px 4px; }

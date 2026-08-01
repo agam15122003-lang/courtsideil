@@ -349,7 +349,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       <div className="tabs team-tabs" style={{ marginTop: 14 }}>
         <button className={tab === 'roster' ? 'tab active' : 'tab'} onClick={() => setTab('roster')}><Users2 size={15} /> {L('סגל', 'Roster')}</button>
         <button className={tab === 'practices' ? 'tab active' : 'tab'} onClick={() => setTab('practices')}><CalendarClock size={15} /> {L('לו״ז ונוכחות', 'Schedule')}</button>
-        <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('מטרות ומשימות', 'Goals & tasks')}</button>
+        <button className={tab === 'goals' ? 'tab active' : 'tab'} onClick={() => setTab('goals')}><Target size={15} /> {L('יעדים ומשימות', 'Goals & tasks')}</button>
       </div>
 
       {loading ? (

@@ -8,29 +8,26 @@ import { L } from './i18n'
 import { burstConfetti } from './confetti'
 import { SkeletonCards } from './Skeleton'
 
+// ארבעת הטווחים של מסמך ההשקה (1.5), בסדר הקבוע. 'week' נשאר לתצוגת
+// יעדים ישנים בלבד (legacy) — לא מוצע ביצירת יעד חדש.
 export const PERIODS = [
-  { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון', 'Session'] },
-  { id: 'week', label: ['השבוע', 'This week'], short: ['שבועי', 'Weekly'] },
+  { id: 'session', label: ['לאימון הקרוב', 'Next practice'], short: ['לאימון הקרוב', 'Next practice'] },
   { id: 'month', label: ['החודש', 'This month'], short: ['חודשי', 'Monthly'] },
   { id: 'half_year', label: ['חצי שנה', 'Half a year'], short: ['חצי-שנתי', 'Half-year'] },
-  { id: 'year', label: ['העונה', 'This season'], short: ['שנתי', 'Season'] },
+  { id: 'year', label: ['השנה', 'This year'], short: ['שנתי', 'Yearly'] },
+  { id: 'week', label: ['השבוע', 'This week'], short: ['שבועי', 'Weekly'], legacy: true },
 ]
 const periodShort = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : id }
+const dueLabel = (d) => { const x = new Date(d + 'T00:00'); return isNaN(x) ? '' : `${x.getDate()}.${x.getMonth() + 1}` }
 
-// מטרות נפוצות — טאפ אחד מוסיף, בלי להקליד
-const GOAL_CHIPS = [
-  ['יד שמאל', 'Weak hand'], ['עונשין', 'Free throws'], ['הגנה אישית', '1v1 defense'],
-  ['ריבאונד', 'Rebounds'], ['ראיית מגרש', 'Court vision'], ['תקשורת בהגנה', 'Talk on D'],
-  ['תנועה בלי כדור', 'Off-ball movement'], ['חיטוט', 'Steals'],
-]
-
-// ---------- עורך מטרות (מאמן, בתוך חלון עריכת השחקן) ----------
+// ---------- עורך יעדים (מאמן, בתוך חלון עריכת השחקן) ----------
+// טופס נקי לפי מסמך ההשקה (1.5): טווח · מה היעד · עד מתי. בלי הצעות
+// אוטומטיות ובלי נתוני עומס — רק היעד עצמו.
 export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   const [goals, setGoals] = useState(null)
   const [period, setPeriod] = useState('session')
   const [title, setTitle] = useState('')
-  const [target, setTarget] = useState('')
-  const [unit, setUnit] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [busy, setBusy] = useState(false)
   // גרף ההתקדמות שהשחקן רואה — עכשיו גם אצל המאמן (pgl_coach_read קיימת)
   const [chartId, setChartId] = useState(null)
@@ -50,24 +47,26 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   }, [coachId, playerId])
   useEffect(() => { load() }, [load])
 
-  const insertGoal = async (goalTitle, tv) => {
+  const insertGoal = async (goalTitle) => {
     if (!goalTitle.trim() || busy) return false
     setBusy(true)
-    const { error } = await supabase.from('player_goals').insert({
+    const row = {
       coach_id: coachId, player_id: playerId, team,
-      period, title: goalTitle.trim(), target_value: tv || null,
-      metric_type: tv ? 'count' : 'checkbox',
-    })
+      period, title: goalTitle.trim(), due_date: dueDate || null,
+    }
+    // created_by (supabase_goals_launch.sql) — אם העמודה טרם נוספה, שומרים בלעדיה
+    let { error } = await supabase.from('player_goals').insert({ ...row, created_by: coachId })
+    if (error) ({ error } = await supabase.from('player_goals').insert(row))
     setBusy(false)
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
-    sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך מטרה לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך מטרה חדשה 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
+    sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
     load()
     return true
   }
 
   const add = async () => {
-    const ok = await insertGoal(title, target ? Number(target) : null)
-    if (ok) { setTitle(''); setTarget(''); setUnit('') }
+    const ok = await insertGoal(title)
+    if (ok) { setTitle(''); setDueDate('') }
   }
 
   const bump = async (g, delta) => {
@@ -88,25 +87,19 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   return (
     <div className="pg-editor">
       <div className="pg-periods">
-        {PERIODS.map((p) => (
+        {PERIODS.filter((p) => !p.legacy).map((p) => (
           <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
             {L(p.short[0], p.short[1])}
           </button>
         ))}
       </div>
-      <div className="pg-chips">
-        {GOAL_CHIPS.map(([he, en]) => (
-          <button key={he} type="button" className="pg-chip" disabled={busy} onClick={() => insertGoal(L(he, en), null)}>
-            <Plus size={12} /> {L(he, en)}
-          </button>
-        ))}
-      </div>
       <div className="pg-add">
         <div className="pg-add-row">
-          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('מטרה משלך... לדוגמה: 200 עונשין', 'Your own goal... e.g. 200 free throws')} maxLength={120} />
-          <input className="finder-input pg-target" dir="ltr" inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('יעד', 'Nr.')} />
-          <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף מטרה', 'Add goal')}><Plus size={15} /></button>
+          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('מה היעד? לדוגמה: שיפור ביד שמאל', "What's the goal? e.g. improve the weak hand")} maxLength={120} />
+          <input className="finder-input pg-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={L('עד מתי', 'Due date')} />
+          <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף יעד', 'Add goal')}><Plus size={15} /></button>
         </div>
+        {dueDate && <p className="muted small pg-due-line">{L('עד ', 'Due ')}{dueLabel(dueDate)}</p>}
       </div>
 
       {goals && goals.length > 0 && (
@@ -116,7 +109,8 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
               <div className="pg-item-main">
                 <span className="pg-per">{periodShort(g.period)}</span>
                 <strong>{g.title}</strong>
-                {g.target_value ? <span className="muted small">{g.progress_value || 0}/{g.target_value}{g.unit ? ` ${g.unit}` : ''}</span> : null}
+                {g.target_value ? <span className="muted small" dir="ltr">{g.progress_value || 0}/{g.target_value}{g.unit ? ` ${g.unit}` : ''}</span> : null}
+                {g.due_date && <span className="muted small">{L('עד ', 'due ')}{dueLabel(g.due_date)}</span>}
               </div>
               {g.target_value ? (
                 <div className="pg-ctl">
@@ -147,12 +141,12 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   )
 }
 
-const periodTag = (id) => { const p = PERIODS.find((x) => x.id === id); return p ? L(p.short[0], p.short[1]) : '' }
 
-// ---------- גיליון "מטרה חדשה" (השחקן מוסיף מטרה אישית) ----------
+// ---------- גיליון "יעד חדש" (השחקן מוסיף יעד אישי) ----------
 function AddGoalSheet({ open, onClose, onAdd }) {
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
+  const [period, setPeriod] = useState('month')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -166,7 +160,7 @@ function AddGoalSheet({ open, onClose, onAdd }) {
   const submit = async () => {
     if (!title.trim() || busy) return
     setBusy(true)
-    const ok = await onAdd(title.trim(), target ? Math.max(1, parseInt(target, 10)) : null)
+    const ok = await onAdd(title.trim(), target ? Math.max(1, parseInt(target, 10)) : null, period)
     setBusy(false)
     if (ok) { setTitle(''); setTarget(''); onClose() }
   }
@@ -174,19 +168,27 @@ function AddGoalSheet({ open, onClose, onAdd }) {
   if (!open) return null
   return createPortal(
     <div className="fbs-scrim" onClick={onClose}>
-      <div className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={L('מטרה חדשה', 'New goal')}>
+      <div className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={L('יעד חדש', 'New goal')}>
         <span className="fbs-grip" />
         <button className="fbs-x" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
-        <div className="fbs-title">{L('מטרה חדשה', 'New goal')}</div>
-        <div className="fbs-sub">{L('הגדר יעד אישי למעקב', 'Set a personal target to track')}</div>
-        <div className="fbs-q">{L('שם המטרה', 'Goal name')}</div>
+        <div className="fbs-title">{L('יעד חדש', 'New goal')}</div>
+        <div className="fbs-sub">{L('יעד אישי שלך — המאמן יראה אותו מסומן «אישי»', 'Your personal goal — your coach sees it marked “personal”')}</div>
+        <div className="fbs-q">{L('לאיזה טווח?', 'For when?')}</div>
+        <div className="pg-periods">
+          {PERIODS.filter((p) => !p.legacy).map((p) => (
+            <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
+              {L(p.short[0], p.short[1])}
+            </button>
+          ))}
+        </div>
+        <div className="fbs-q">{L('מה היעד?', "What's the goal?")}</div>
         <input className="plg2-input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
           placeholder={L('למשל: 100 זריקות ליום', 'e.g. 100 shots a day')} />
         <div className="fbs-q">{L('יעד (מספר) — לא חובה', 'Target (number) — optional')}</div>
         <input className="plg2-input" dir="ltr" inputMode="numeric" value={target}
           onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('למשל: 100', 'e.g. 100')} />
         <button className="fbs-send" onClick={submit} disabled={!title.trim() || busy}>
-          <Plus size={18} /> {busy ? L('מוסיף…', 'Adding…') : L('הוסף מטרה', 'Add goal')}
+          <Plus size={18} /> {busy ? L('מוסיף…', 'Adding…') : L('הוסף יעד', 'Add goal')}
         </button>
       </div>
     </div>,
@@ -227,7 +229,6 @@ export function MyGoals({ session, membership }) {
   const [openId, setOpenId] = useState(null)
   const [amtInput, setAmtInput] = useState({})
   const [addOpen, setAddOpen] = useState(false)
-  const [periodF, setPeriodF] = useState('') // §11 — סינון לפי תקופה; '' = הכל
   const me = session.user.id
 
   const load = useCallback(async () => {
@@ -281,13 +282,16 @@ export function MyGoals({ session, membership }) {
     if (done) toast.success(L('כל הכבוד! 💪', 'Nice! 💪'))
   }
 
-  const addGoal = async (title, target) => {
-    const { error } = await supabase.from('player_goals').insert({
+  const addGoal = async (title, target, period) => {
+    const row = {
       coach_id: membership?.coach_id, player_id: me, team: membership?.team || null,
-      period: 'week', title, target_value: target, metric_type: target ? 'count' : 'checkbox',
-    })
+      period: period || 'month', title, target_value: target, metric_type: target ? 'count' : 'checkbox',
+    }
+    // created_by = השחקן — מסמן את היעד כ«אישי» (supabase_goals_launch.sql)
+    let { error } = await supabase.from('player_goals').insert({ ...row, created_by: me })
+    if (error) ({ error } = await supabase.from('player_goals').insert(row))
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
-    toast.success(L('המטרה נוספה', 'Goal added'))
+    toast.success(L('היעד נוסף', 'Goal added'))
     load()
     return true
   }
@@ -297,16 +301,20 @@ export function MyGoals({ session, membership }) {
   const total = goals.length
   const inProg = goals.filter((g) => goalFrac(g) < 1).length
   const overallPct = total ? Math.round(goals.reduce((a, g) => a + goalFrac(g), 0) / total * 100) : 0
+  // 1.5 — סדר קבוע: לאימון הקרוב · חודשי · חצי-שנתי · שנתי (+שבועי ישן אם קיים)
+  const groups = PERIODS
+    .map((p) => ({ ...p, items: goals.filter((g) => g.period === p.id) }))
+    .filter((p) => p.items.length > 0 || !p.legacy)
 
   return (
     <div className="pl-screen pl-narrow">
       <header className="pl-head tone-orange">
         <span className="pl-head-ic"><Target size={22} /></span>
         <div className="pl-head-txt">
-          <h2>{L('המטרות שלי', 'My goals')}</h2>
-          <p>{total === 0 ? L('היעדים שלך — מהמאמן וגם שלך', 'Your targets — from your coach and your own')
-            : inProg > 0 ? L(`${inProg} מתוך ${total} מטרות בתהליך`, `${inProg} of ${total} goals in progress`)
-            : L('כל המטרות הושלמו — כל הכבוד', 'All goals complete — nice work')}</p>
+          <h2>{L('היעדים שלי', 'My goals')}</h2>
+          <p>{total === 0 ? L('היעדים שלך — מהמאמן וגם שלך', 'Your goals — from your coach and your own')
+            : inProg > 0 ? L(`${inProg} מתוך ${total} יעדים בתהליך`, `${inProg} of ${total} goals in progress`)
+            : L('כל היעדים הושלמו — כל הכבוד', 'All goals complete — nice work')}</p>
         </div>
       </header>
 
@@ -322,22 +330,20 @@ export function MyGoals({ session, membership }) {
       {total === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Target size={26} /></span>
-          <div className="empty-title">{L('עוד אין מטרות', 'No goals yet')}</div>
-          <p className="muted small">{L('המאמן יגדיר לך מטרות — או שתוכל להוסיף מטרה אישית משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
+          <div className="empty-title">{L('עוד אין יעדים', 'No goals yet')}</div>
+          <p className="muted small">{L('המאמן יגדיר לך יעדים — או שתוכל להוסיף יעד אישי משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
         </div>
       ) : (
         <>
-        {/* §11 — סינון לפי תקופת המטרה */}
-        <div className="tabs plg2-tabs">
-          <button type="button" className={!periodF ? 'tab active' : 'tab'} onClick={() => setPeriodF('')}>{L('הכל', 'All')}</button>
-          {PERIODS.filter((pp) => goals.some((g) => g.period === pp.id)).map((pp) => (
-            <button key={pp.id} type="button" className={periodF === pp.id ? 'tab active' : 'tab'} onClick={() => setPeriodF(pp.id)}>
-              {L(pp.short[0], pp.short[1])}
-            </button>
-          ))}
-        </div>
+        {/* 1.5 — סדר קבוע לפי טווח, בלי טאבים של סינון */}
+        {groups.map((grp) => (
+          <section key={grp.id} className="plg2-group">
+            <p className="pl-section-label">{L(grp.label[0], grp.label[1])}</p>
+            {grp.items.length === 0 ? (
+              <p className="muted small plg2-group-empty">{L('אין יעדים לטווח הזה עדיין.', 'No goals for this horizon yet.')}</p>
+            ) : (
         <ul className="plg2-list">
-          {goals.filter((g) => !periodF || g.period === periodF).map((g) => {
+          {grp.items.map((g) => {
             const isCount = !!g.target_value
             const pct = isCount ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
             const isDone = goalFrac(g) >= 1
@@ -346,7 +352,12 @@ export function MyGoals({ session, membership }) {
                 <div className="plg2-top">
                   <div className="plg2-title">
                     <strong>{g.title}</strong>
-                    <span className="plg2-tag">{periodTag(g.period)}{!g.player_id ? ` · ${L('קבוצתי', 'Team')}` : ''}</span>
+                    <span className="plg2-tag">
+                      {!g.player_id
+                        ? L('קבוצתי', 'Team')
+                        : g.created_by === me ? L('אישי', 'Personal') : L('מהמאמן', 'From coach')}
+                      {g.due_date ? ` · ${L('עד ', 'due ')}${dueLabel(g.due_date)}` : ''}
+                    </span>
                   </div>
                   {isDone
                     ? <span className="plg2-donepill"><Check size={12} /> {L('הושלם', 'Done')}</span>
@@ -405,11 +416,14 @@ export function MyGoals({ session, membership }) {
             )
           })}
         </ul>
+            )}
+          </section>
+        ))}
         </>
       )}
 
       <button className="plg2-add" onClick={() => setAddOpen(true)}>
-        <Plus size={18} /> {L('מטרה חדשה', 'New goal')}
+        <Plus size={18} /> {L('יעד חדש', 'New goal')}
       </button>
 
       <AddGoalSheet open={addOpen} onClose={() => setAddOpen(false)} onAdd={addGoal} />
