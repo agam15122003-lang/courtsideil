@@ -209,6 +209,9 @@ export const VIDEO_CATEGORIES = [
   'כושר',
 ]
 
+// 20 הקטגוריות של מסמך ההשקה בלבד (בלי הישנות) — הייבוא האוטומטי רץ רק עליהן
+export const VIDEO_CATEGORIES_CORE = VIDEO_CATEGORIES.slice(0, 20)
+
 // סרטונים אוטומטיים לפי נושא — אגרגטור חוקי: רק קישור לחיפוש יוטיוב ממוקד-נושא
 // (לא מאחסנים תוכן). פותח את הסרטונים הרלוונטיים והעדכניים ביותר לאותו נושא.
 export const VIDEO_TOPIC_EN = {
@@ -256,6 +259,11 @@ export const safeUrl = (u) => {
 }
 // כמה סרטונים לייבא לכל נושא בלחיצה
 export const YT_IMPORT_PER_CATEGORY = 12
+// מסמך ההשקה 2.3 — מסנני איכות לייבוא: סף צפיות מינימלי, ומשך 3–30 דקות
+// (פודקאסטים פטורים מתקרת המשך)
+export const YT_MIN_VIEWS = 3000
+export const YT_MIN_MINUTES = 3
+export const YT_MAX_MINUTES = 30
 
 // ===== כתבות כדורסל לדף הבית (אגרגטור חוקי דרך rss2json) =====
 // גישה חוקית: לא מעתיקים תוכן. מציגים כותרת מקורית + תמונה כשיש + שם המקור + קישור
@@ -282,11 +290,13 @@ const gnews = (query) =>
 // בלבד, דרך Google News (מקשר החוצה לכתבה המקורית — לא מעתיקים תוכן).
 // google:true → הכותרת מכילה סיומת " - שם מקור"; נחלץ ממנה את המקור לקרדיט.
 // ה-topic משמש לשילוב מתחלף (round-robin) כדי שלא יהיו 4 כתבות מאותו אתר.
+// ‎-כדורגל — בלי זה שאילתת site: מחזירה גם כתבות כדורגל שהמילה «כדורסל»
+// מופיעה אצלן רק בתפריט האתר (נבדק חי: ONE החזיר תוצאות 0:0 מכדורגל).
 export const NEWS_SOURCES = [
-  { name: 'ערוץ הספורט', topic: 'sport5', google: true, api: rss2json(gnews('כדורסל site:sport5.co.il')) },
-  { name: 'ONE', topic: 'one', google: true, api: rss2json(gnews('כדורסל site:one.co.il')) },
-  { name: 'ספורט1', topic: 'sport1', google: true, api: rss2json(gnews('כדורסל site:sport1maccabi.co.il OR כדורסל site:sport1.co.il')) },
-  { name: 'וואלה ספורט', topic: 'walla', google: true, api: rss2json(gnews('כדורסל site:walla.co.il')) },
+  { name: 'ערוץ הספורט', topic: 'sport5', google: true, api: rss2json(gnews('כדורסל -כדורגל site:sport5.co.il')) },
+  { name: 'ONE', topic: 'one', google: true, api: rss2json(gnews('כדורסל -כדורגל site:one.co.il')) },
+  { name: 'וואלה ספורט', topic: 'walla', google: true, api: rss2json(gnews('כדורסל -כדורגל site:walla.co.il')) },
+  { name: 'ישראל היום', topic: 'israelhayom', google: true, api: rss2json(gnews('כדורסל -כדורגל site:israelhayom.co.il')) },
 ]
 
 // שמות שמזהים את ערוץ הספורט — לצורך הקפצה לראש (עדיפות, כבקשת המשתמש).
@@ -309,7 +319,7 @@ export const NEWS_FALLBACK_IMAGES = [
 export const NEWS_COUNT = 8
 export const NEWS_HOME_COUNT = 4
 export const NEWS_CACHE_MINUTES = 15
-export const NEWS_CACHE_KEY = 'home_news_cache_v7_il'
+export const NEWS_CACHE_KEY = 'home_news_cache_v8_il'
 
 // קישורי תוכן קבועים (גיבוי + השראה) — מוצגים תחת הכתבות.
 export const CONTENT_LINKS = [

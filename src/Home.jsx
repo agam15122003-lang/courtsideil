@@ -213,7 +213,8 @@ function useNews() {
               : { title: it.title, source: null }
             return {
               title: parsed.title,
-              source: parsed.source || src.name,
+              // סיומת שנראית כדומיין ("site.sport5.co.il") — מציגים את שם המקור במקומה
+              source: parsed.source && !parsed.source.includes('.') ? parsed.source : src.name,
               topic: src.topic,
               link: it.link,
               image: pickImage(it),

@@ -33,11 +33,12 @@ const decode = (s) =>
     .trim()
 
 // חיפוש סרטונים. מחזיר [{ id, title, channel, url }]
-export async function searchYouTube(query, max = 12) {
+// lang: 'he' / 'en' — מסמך ההשקה 2.3 מבקש שאילתות בשתי השפות לכל קטגוריה.
+export async function searchYouTube(query, max = 12, lang = 'en') {
   if (!ytConfigured()) throw new Error('missing YOUTUBE_API_KEY')
   const url =
     'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video' +
-    `&maxResults=${Math.min(max, 50)}&safeSearch=strict&relevanceLanguage=en` +
+    `&maxResults=${Math.min(max, 50)}&safeSearch=strict&relevanceLanguage=${lang === 'he' ? 'iw' : 'en'}` +
     `&q=${encodeURIComponent(query)}&key=${YOUTUBE_API_KEY.trim()}`
   const r = await fetch(url)
   const j = await r.json()
@@ -50,4 +51,36 @@ export async function searchYouTube(query, max = 12) {
       channel: decode(it.snippet?.channelTitle),
       url: `https://www.youtube.com/watch?v=${it.id.videoId}`,
     }))
+}
+
+// משך ISO8601 (PT12M34S) → דקות. null אם לא ניתן לפענח.
+function isoMinutes(iso) {
+  const m = String(iso || '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/)
+  if (!m) return null
+  return (Number(m[1] || 0) * 60) + Number(m[2] || 0) + (Number(m[3] || 0) > 0 ? 1 : 0)
+}
+
+// פרטי סרטונים בבת אחת (עד 50) — משך, צפיות, והאם ניתן להטמעה.
+// מחזיר Map: id → { minutes, views, embeddable }
+export async function fetchVideoDetails(ids) {
+  if (!ytConfigured()) throw new Error('missing YOUTUBE_API_KEY')
+  const out = new Map()
+  const list = [...new Set(ids)].filter(Boolean)
+  for (let i = 0; i < list.length; i += 50) {
+    const batch = list.slice(i, i + 50)
+    const url =
+      'https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,status' +
+      `&id=${batch.join(',')}&key=${YOUTUBE_API_KEY.trim()}`
+    const r = await fetch(url)
+    const j = await r.json()
+    if (j.error) throw new Error(j.error.message || 'YouTube API error')
+    for (const it of j.items || []) {
+      out.set(it.id, {
+        minutes: isoMinutes(it.contentDetails?.duration),
+        views: Number(it.statistics?.viewCount || 0),
+        embeddable: it.status?.embeddable !== false,
+      })
+    }
+  }
+  return out
 }

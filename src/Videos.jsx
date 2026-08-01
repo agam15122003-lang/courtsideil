@@ -3,8 +3,11 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, PlayCircle, Trash2, ExternalLink, Star, DownloadCloud, X, Check } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import { VIDEO_CATEGORIES, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY, safeUrl } from './constants'
-import { searchYouTube, ytConfigured, cleanVideoTitle } from './youtube'
+import {
+  VIDEO_CATEGORIES, VIDEO_CATEGORIES_CORE, VIDEO_TOPIC_EN, YT_IMPORT_PER_CATEGORY,
+  YT_MIN_VIEWS, YT_MIN_MINUTES, YT_MAX_MINUTES, safeUrl,
+} from './constants'
+import { searchYouTube, fetchVideoDetails, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonMedia } from './Skeleton'
 import { L, tr } from './i18n'
 import { ErrorState } from './states'
@@ -101,7 +104,10 @@ export default function Videos({ session, profile }) {
     toast.success(L('הסרטון נוסף', 'Video added')); load()
   }
 
-  // ייבוא אוטומטי של סרטונים אמיתיים מיוטיוב — נושא אחר נושא (אדמין בלבד)
+  // ייבוא אוטומטי מיוטיוב (מסמך ההשקה 2.3, אדמין בלבד):
+  // שאילתות בעברית ובאנגלית לכל קטגוריית ליבה, ואז סינון איכות דרך
+  // videos.list — ניתן להטמעה, משך 3–30 דק' (פודקאסטים בלי תקרה),
+  // וסף צפיות מינימלי. דה-דופליקציה מול הקיים ובתוך הריצה.
   const importFromYouTube = async () => {
     if (!ytConfigured()) {
       toast.error(L('הייבוא האוטומטי לא זמין כרגע — אפשר להוסיף סרטון עם קישור יוטיוב.', 'Auto-import is unavailable right now — you can add a video with a YouTube link.'))
@@ -110,30 +116,59 @@ export default function Videos({ session, profile }) {
     setImporting(true)
     const seen = new Set(videos.map((v) => ytId(v.url)).filter(Boolean))
     let added = 0
-    for (const cat of VIDEO_CATEGORIES) {
+    let skipped = 0
+    for (const cat of VIDEO_CATEGORIES_CORE) {
+      const isPodcast = cat === 'פודקאסטים'
       let found = []
       try {
-        found = await searchYouTube('basketball ' + (VIDEO_TOPIC_EN[cat] || cat) + ' coaching drills', YT_IMPORT_PER_CATEGORY)
+        const [he, en] = await Promise.all([
+          searchYouTube(isPodcast ? 'פודקאסט כדורסל' : `כדורסל ${cat} אימון`, YT_IMPORT_PER_CATEGORY, 'he'),
+          searchYouTube('basketball ' + (VIDEO_TOPIC_EN[cat] || cat), YT_IMPORT_PER_CATEGORY, 'en'),
+        ])
+        found = [...he, ...en]
       } catch (e) {
         toast.error(L('שגיאת יוטיוב: ', 'YouTube error: ') + e.message)
         break
       }
-      const rows = found
-        .filter((v) => v.id && !seen.has(v.id))
-        .map((v) => { seen.add(v.id); return { created_by: me, title: v.title.slice(0, 140), category: cat, url: v.url, note: v.channel || null } })
+      const fresh = found.filter((v) => v.id && !seen.has(v.id))
+      fresh.forEach((v) => seen.add(v.id))
+      if (fresh.length === 0) continue
+
+      // מסנני האיכות — סרטון בלי פרטים לא עובר
+      let details = new Map()
+      try {
+        details = await fetchVideoDetails(fresh.map((v) => v.id))
+      } catch (e) {
+        toast.error(L('שגיאת יוטיוב: ', 'YouTube error: ') + e.message)
+        break
+      }
+      const rows = fresh
+        .filter((v) => {
+          const d = details.get(v.id)
+          const ok = d && d.embeddable && d.views >= YT_MIN_VIEWS &&
+            d.minutes != null && d.minutes >= YT_MIN_MINUTES &&
+            (isPodcast || d.minutes <= YT_MAX_MINUTES)
+          if (!ok) skipped++
+          return ok
+        })
+        .map((v) => ({ created_by: me, title: v.title.slice(0, 140), category: cat, url: v.url, note: v.channel || null }))
       if (rows.length) {
         const { error } = await supabase.from('drill_videos').insert(rows)
         if (!error) added += rows.length
       }
     }
     setImporting(false)
-    toast.success(L(`${added} סרטונים אמיתיים יובאו מיוטיוב`, `${added} real videos imported from YouTube`))
+    toast.success(L(`${added} סרטונים איכותיים יובאו (${skipped} נפסלו בסינון)`, `${added} quality videos imported (${skipped} filtered out)`))
     load()
   }
 
-  const remove = async (id) => {
+  const remove = async (v) => {
     if (!(await confirmDialog({ message: L('למחוק את הסרטון?', 'Delete this video?'), danger: true }))) return
-    const { error } = await supabase.from('drill_videos').delete().eq('id', id)
+    // אדמין מוחק סרטון של אחרים דרך RPC (supabase_stage2_launch.sql);
+    // סרטון של עצמך — מחיקה רגילה דרך ה-RLS הקיים.
+    const { error } = v.created_by === me
+      ? await supabase.from('drill_videos').delete().eq('id', v.id)
+      : await supabase.rpc('admin_delete_video', { p_id: v.id })
     if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return }
     toast.success(L('הסרטון נמחק', 'Video deleted')); load()
   }
@@ -287,8 +322,9 @@ export default function Videos({ session, profile }) {
                       {v.approved === false ? <Check size={15} /> : <X size={15} />}
                     </button>
                   )}
-                  {v.created_by === me && (
-                    <button type="button" className="icon-btn" onClick={() => remove(v.id)} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={15} /></button>
+                  {/* 2.3 — גם אדמין מוחק (הסרה ידנית מהפאנל, דרך RPC) */}
+                  {(v.created_by === me || isAdmin) && (
+                    <button type="button" className="icon-btn" onClick={() => remove(v)} title={L('מחיקת סרטון', 'Delete video')}><Trash2 size={15} /></button>
                   )}
                 </span>
               </div>
