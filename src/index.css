@@ -21686,3 +21686,21 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
 .plg2-group { margin-top: 16px; }
 .plg2-group .pl-section-label { margin-bottom: 8px; }
 .plg2-group-empty { margin: 0 2px 4px; }
+
+/* ============================================================
+   משימות (מסמך ההשקה 1.6) · 1.8.2026 — ארכיון + פסי התקדמות פר-שחקן
+   ============================================================ */
+.ta-views { margin: 8px 0 10px; }
+.ta-item-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ta-archive { color: var(--mut); }
+.ta-pwrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ta-pbar {
+  width: 64px; height: 8px; border-radius: 999px; background: var(--sf2);
+  overflow: hidden; flex-shrink: 0;
+}
+.ta-pbar i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--orange-300));
+}
+.ta-pbar i.done { background: var(--ok); }
+.sp-target-hint { margin: 6px 2px 0; }

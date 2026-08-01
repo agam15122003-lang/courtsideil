@@ -62,7 +62,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const [note, setNote] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [repeatWeeks, setRepeatWeeks] = useState(1) // א-2 — הקצאה חוזרת שבועית
-  const [reply, setReply] = useState('done') // 'done' | 'count'
+  // 1.6 — בלי בורר סוגים: יעד מספרי אופציונלי. יש מספר → דיווח התקדמות;
+  // אין מספר → השחקן פשוט מסמן «סיימתי».
   const [target, setTarget] = useState('')
   const [unit, setUnit] = useState('')
   const [sending, setSending] = useState(false)
@@ -108,9 +109,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const lockedContent = preset && !swapping ? preset : null
   const chosenItem = lockedContent || (source !== 'task' ? (items[source] || []).find((i) => i.id === contentId) : null)
   const hasContent = source === 'task' ? taskTitle.trim().length > 0 : !!chosenItem
-  // «מספר» בלי מספר זה לא בקשה — זה סתם כותרת
-  const replyOk = reply !== 'count' || Number(target) > 0
-  const canSend = targetCount > 0 && hasContent && replyOk && !sending
+  const canSend = targetCount > 0 && hasContent && !sending
 
   const togglePick = (pid) => setPicked((cur) => { const n = new Set(cur); n.has(pid) ? n.delete(pid) : n.add(pid); return n })
 
@@ -125,7 +124,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
   const resetForm = () => {
     if (!preset) { setContentId(null); setTaskTitle('') }
-    setNote(''); setDueDate(''); setReply('done'); setTarget(''); setUnit(''); setPicked(new Set())
+    setNote(''); setDueDate(''); setTarget(''); setUnit(''); setPicked(new Set())
   }
 
   const doSend = async () => {
@@ -135,7 +134,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
       coachId: me, mode, team,
       players: roster.players.filter((p) => picked.has(p.player_id)),
       content: buildContent(), note: note.trim(), dueDate: dueDate || null,
-      target: reply === 'count' ? target : null, unit: reply === 'count' ? unit : '',
+      target: Number(target) > 0 ? target : null, unit: Number(target) > 0 ? unit : '',
       repeatWeeks: dueDate ? repeatWeeks : 1,
     })
     setSending(false)
@@ -155,33 +154,23 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   // ו-Escape סוגר. בלי זה aria-modal הוא הצהרה לא נכונה.
   const sheetRef = useFocusTrap(variant === 'sheet', onClose)
 
-  // ---------- «מה מבקשים בחזרה» ----------
+  // ---------- «יעד מספרי» (1.6 — בלי בורר סוגים) ----------
   // פונקציות שמחזירות JSX ולא רכיבים פנימיים: רכיב שנוצר מחדש בכל רינדור
   // מתחיל מאפס בכל הקלדה — והשדות היו מאבדים פוקוס אחרי כל תו.
-  const replyPicker = () => (
+  // יש מספר → דיווח התקדמות (100/200); אין → השחקן מסמן «סיימתי».
+  const targetPicker = () => (
     <div className="sp-reply">
-      <button type="button" className={reply === 'done' ? 'sp-reply-opt on' : 'sp-reply-opt'} onClick={() => setReply('done')}>
-        <span className="sp-reply-ic"><CheckCheck size={17} /></span>
-        <span className="sp-reply-tx">
-          <strong>{L('«סיימתי»', 'A check')}</strong>
-          <span className="muted small">{L('השחקן מסמן וי כשסיים', 'The player ticks it off when done')}</span>
-        </span>
-      </button>
-      <button type="button" className={reply === 'count' ? 'sp-reply-opt on' : 'sp-reply-opt'} onClick={() => setReply('count')}>
-        <span className="sp-reply-ic"><Hash size={17} /></span>
-        <span className="sp-reply-tx">
-          <strong>{L('מספר', 'A number')}</strong>
-          <span className="muted small">{L('דיווח מצטבר מול יעד, למשל 200 זריקות', 'Progress against a target, e.g. 200 shots')}</span>
-        </span>
-      </button>
-      {reply === 'count' && (
-        <div className="sp-target-row">
-          <input type="number" dir="ltr" min="1" className="finder-input sp-target-num" value={target}
-            onChange={(e) => setTarget(e.target.value)} placeholder="200" aria-label={L('כמות יעד', 'Target amount')} />
-          <input className="finder-input sp-target-unit" value={unit} onChange={(e) => setUnit(e.target.value)}
-            placeholder={L('זריקות', 'shots')} maxLength={30} aria-label={L('יחידה', 'Unit')} />
-        </div>
-      )}
+      <div className="sp-target-row">
+        <input type="number" dir="ltr" min="1" className="finder-input sp-target-num" value={target}
+          onChange={(e) => setTarget(e.target.value)} placeholder="200" aria-label={L('כמות יעד', 'Target amount')} />
+        <input className="finder-input sp-target-unit" value={unit} onChange={(e) => setUnit(e.target.value)}
+          placeholder={L('זריקות', 'shots')} maxLength={30} aria-label={L('יחידה', 'Unit')} />
+      </div>
+      <p className="muted small sp-target-hint">
+        {Number(target) > 0
+          ? L('השחקן ידווח התקדמות מול היעד — למשל 100 מתוך 200.', 'The player reports progress against the target — e.g. 100 of 200.')
+          : L('בלי מספר — השחקן פשוט יסמן «סיימתי».', 'Without a number the player just ticks “done”.')}
+      </p>
     </div>
   )
 
@@ -284,8 +273,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
               </ul>
             )}
 
-            <span className="sp-lbl">{L('מה מבקשים בחזרה', 'What you ask back')}</span>
-            {replyPicker()}
+            <span className="sp-lbl">{L('יעד מספרי (לא חובה)', 'Numeric target (optional)')}</span>
+            {targetPicker()}
             <span className="sp-lbl">{L('עד מתי', 'By when')}</span>
             {duePicker()}
             <input className="finder-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('הערה (לא חובה)', 'Note (optional)')} maxLength={400} />
@@ -397,10 +386,10 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
             )}
           </section>
 
-          {/* 3 — מה מבקשים בחזרה */}
+          {/* 3 — יעד מספרי (1.6 — בלי בורר סוגים) */}
           <section className="sp-card">
-            <h3 className="sp-h3"><CheckCheck size={16} /> {L('מה מבקשים בחזרה?', 'What do you ask back?')}</h3>
-            {replyPicker()}
+            <h3 className="sp-h3"><Hash size={16} /> {L('יעד מספרי? (לא חובה)', 'Numeric target? (optional)')}</h3>
+            {targetPicker()}
           </section>
 
           {/* 4 — עד מתי + הערה */}
@@ -418,8 +407,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     <div className="sp-bar">
       <span className="sp-bar-sum">
         {hasContent
-          ? L(`${cnt(targetCount, 'מקבל אחד', 'מקבלים')} · ${reply === 'count' ? `יעד ${target || '—'} ${unit || ''}`.trim() : 'סימון «סיימתי»'}`,
-              `${targetCount} recipients · ${reply === 'count' ? `target ${target || '—'} ${unit || ''}`.trim() : 'a check'}`)
+          ? L(`${cnt(targetCount, 'מקבל אחד', 'מקבלים')} · ${Number(target) > 0 ? `יעד ${target} ${unit || ''}`.trim() : 'סימון «סיימתי»'}`,
+              `${targetCount} recipients · ${Number(target) > 0 ? `target ${target} ${unit || ''}`.trim() : 'a check'}`)
           : L('בחרו מה לשלוח', 'Pick what to send')}
       </span>
       <button className="btn-primary sp-send" onClick={doSend} disabled={!canSend} aria-busy={sending}>

@@ -387,7 +387,8 @@ function MyAssignments({ session }) {
       .select('*, drill:drills(id, title, category, description, duration_minutes), plan:training_plans(id, name)')
       .order('created_at', { ascending: false })
       .limit(100)
-    setItems(data || [])
+    // 1.6 — משימות מאורכבות יורדות מהמסך של השחקן (סובלני אם העמודה חסרה)
+    setItems((data || []).filter((a) => (a.status || 'active') !== 'archived'))
     // fallback לסכמה ישנה (לפני supabase_assignments_progress.sql): בלי progress_value
     let { data: compl, error } = await supabase
       .from('assignment_completions')
@@ -1453,7 +1454,7 @@ function HomeTasks({ session, setView }) {
     const by = new Map((compl || []).map((c) => [c.assignment_id, c]))
     setRows(
       (asg || [])
-        .filter((a) => !by.get(a.id)?.done_at)
+        .filter((a) => !by.get(a.id)?.done_at && (a.status || 'active') !== 'archived')
         .slice(0, 3)
         .map((a) => ({ a, prog: Number(by.get(a.id)?.progress_value) || 0 })),
     )

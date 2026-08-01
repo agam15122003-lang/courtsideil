@@ -63,6 +63,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 22 | `supabase_game_scores.sql` | תוצאת משחק וסיכום (our_score / their_score / summary) |
 | 23 | `supabase_todo_31_7.sql` | סיבת אי-הגעה + טווחי יעדים מורחבים (half_year) |
 | 24 | `supabase_goals_launch.sql` | יעדים 1.5 — created_by (יעד «אישי» מול «מהמאמן») |
+| 25 | `supabase_tasks_launch.sql` | משימות 1.6 — status (פעילה/ארכיון) וארכוב אוטומטי |
 
 > **סביבת ייצור קיימת?** שלבים 1–15 כבר רצים אצלך (ודא ש-`supabase_goal_logs.sql` מ-15 אכן רץ); **16–20 חדשים מ-24–25.7.2026 וחייבים לרוץ** —
 > בלי 18 כל משתמש מחובר יכול לקרוא טלפון ומייל של כל שחקן. אחרי ההרצה:
