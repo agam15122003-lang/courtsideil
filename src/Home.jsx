@@ -152,6 +152,17 @@ function splitGoogleTitle(title) {
   return { title, source: null }
 }
 
+// כתבה בלי תמונה בפיד מקבלת תמונת כדורסל חופשית (Unsplash — רישיון חופשי
+// גם לשימוש מסחרי). הבחירה דטרמיניסטית לפי הקישור, כך שאותה כתבה מקבלת
+// תמיד את אותה תמונה. **חשוב שזה יקרה ברינדור ולא בשליפה** — אחרת כתבות
+// שכבר שמורות ב-localStorage (בלי תמונה) ימשיכו להופיע ריקות עד שהקאש יפוג.
+function newsImage(a) {
+  if (a?.image) return a.image
+  let h = 0
+  for (const ch of String(a?.link || a?.title || '')) h = (h * 31 + ch.charCodeAt(0)) % 99991
+  return NEWS_FALLBACK_IMAGES[h % NEWS_FALLBACK_IMAGES.length]
+}
+
 // המרת תאריך rss2json ("YYYY-MM-DD HH:MM:SS") לזמן תקין בכל הדפדפנים (כולל Safari/iOS,
 // שמחזיר Invalid Date למחרוזת עם רווח במקום T).
 function parseDate(d) {
@@ -262,13 +273,7 @@ function useNews() {
         r++
       }
 
-      // כתבה בלי תמונה בפיד מקבלת תמונת כדורסל חופשית (Unsplash — רישיון
-      // חופשי גם לשימוש מסחרי). התמונה נבחרת דטרמיניסטית לפי הקישור, כך
-      // שאותה כתבה מקבלת תמיד את אותה תמונה ולא "קופצת" בין רענונים.
-      const hashOf = (s) => { let h = 0; for (const ch of String(s || '')) h = (h * 31 + ch.charCodeAt(0)) % 99991; return h }
-      const items = mixed.map((a, i) => a.image
-        ? a
-        : { ...a, image: NEWS_FALLBACK_IMAGES[(hashOf(a.link) + i) % NEWS_FALLBACK_IMAGES.length], stockImage: true })
+      const items = mixed
 
       // אם השליפה לא החזירה כלום אבל יש קאש ישן — עדיף להציג אותו מאשר שגיאה
       if (items.length === 0 && staleItems) {
@@ -567,14 +572,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
               <div
                 className="news-thumb"
-                style={a.image ? { backgroundImage: `url("${a.image}")` } : undefined}
+                style={{ backgroundImage: `url("${newsImage(a)}")` }}
               >
-                {/* אין תמונה בפיד ולא נבחרה תמונת גיבוי → אריח ממותג */}
-                {!a.image && (
-                  <span className="home-news-ph" aria-hidden="true">
-                    <Newspaper size={24} />
-                  </span>
-                )}
                 {a.source && <span className="news-source">{a.source}</span>}
               </div>
               <div className="news-body">

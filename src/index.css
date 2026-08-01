@@ -21855,22 +21855,26 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
    הבאג: .pl-vid-thumb הוגדר עם aspect-ratio בלבד; בתוך שורת ה-flex
    של מסך המדיה (.vco-open) הוא נמעך ל-0×0 והתמונה מיוטיוב לא נראתה.
    ============================================================ */
+/* הכרטיס אנכי כמו ביוטיוב: תמונה מלאה 16:9 למעלה, טקסט מתחת.
+   קודם הוא היה שורה אופקית (תמונה 128px לצד הכותרת) בתוך עמודת רשת
+   צרה — הכותרת נחתכה והתמונה נראתה זעירה. */
+.pl-vid-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.vco-open { flex-direction: column; align-items: stretch; gap: 0; }
+.pl-vid-thumb,
 .vco-open .pl-vid-thumb {
-  width: 128px;
-  flex: 0 0 128px;
-  border-radius: 12px;
-  overflow: hidden;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-}
-@media (max-width: 480px) {
-  .vco-open .pl-vid-thumb { width: 104px; flex-basis: 104px; }
-}
-/* גם ברשת של מסך השחקן — רוחב מלא של הכרטיס, יחס 16:9 */
-.pl-vid-grid .pl-vid-thumb {
   width: 100%;
+  flex: none;
+  aspect-ratio: 16 / 9;
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
 }
+.vco-open .pl-vid-body { padding: 10px 12px 12px; }
+.vco-open .pl-vid-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+}
+.vco-acts { padding-inline: 12px 12px; padding-bottom: 10px; }
