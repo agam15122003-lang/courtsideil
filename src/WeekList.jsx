@@ -115,9 +115,9 @@ export default function WeekList({
                         </button>
                       )}
                       {ev.kind === 'practice' && !isPast && total > 0 && (
-                        <span className="wl-chip soft">
+                        <button type="button" className="wl-chip soft" onClick={onOpen ? () => onOpen(ev) : undefined}>
                           <bdi dir="ltr">{yes}/{total}</bdi> {L('אישרו', 'confirmed')}
-                        </span>
+                        </button>
                       )}
                     </div>
                   )}

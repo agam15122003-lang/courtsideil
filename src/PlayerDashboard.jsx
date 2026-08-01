@@ -619,6 +619,84 @@ const wkYmd = (d) => `${d.getFullYear()}-${wkPad(d.getMonth() + 1)}-${wkPad(d.ge
 const wkSunday = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x }
 const wkAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 
+// 1.3 — אישור הגעה על כרטיס אימון ברשימה השבועית. אותה טבלה (practice_rsvp)
+// כמו הרצועה בבית — היעדר שורה = טרם ענה; 'לא אגיע' פותח שדה סיבה.
+function RsvpButtons({ session, membership, sessionId, sessionDate }) {
+  const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
+  const [busy, setBusy] = useState(false)
+  const [askReason, setAskReason] = useState(false)
+  const [reason, setReason] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase.from('practice_rsvp')
+        .select('response').eq('session_id', sessionId).eq('player_id', session.user.id).maybeSingle()
+      if (!alive) return
+      // הטבלה טרם נוצרה — הכפתורים לא מוצגים, כמו שאר הפיצ'רים התלויים ב-SQL
+      if (error) { setMine(undefined); return }
+      setMine(data?.response || null)
+    })()
+    return () => { alive = false }
+  }, [sessionId, session.user.id])
+
+  const answer = async (response, withReason) => {
+    if (busy) return
+    setBusy(true)
+    const row = {
+      coach_id: membership.coach_id, team: membership.team,
+      session_id: sessionId, session_date: sessionDate,
+      player_id: session.user.id, response,
+    }
+    let { error } = await supabase.from('practice_rsvp')
+      .upsert({ ...row, reason: response === 'no' ? (withReason || null) : null }, { onConflict: 'session_id,player_id' })
+    if (error) ({ error } = await supabase.from('practice_rsvp').upsert(row, { onConflict: 'session_id,player_id' }))
+    setBusy(false)
+    if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
+    setMine(response)
+    setAskReason(false)
+    toast.success(response === 'yes'
+      ? L('רשמנו שאתה מגיע', "You're marked as coming")
+      : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
+  }
+
+  if (!membership || mine === undefined) return null
+  return (
+    <div className="wl-rsvp">
+      <span className="wl-rsvp-q">
+        {mine === 'yes' ? L('אישרת הגעה', "You're coming")
+          : mine === 'no' ? L('הודעת שלא תגיע', "You're not coming")
+          : L('מגיע לאימון?', 'Coming to practice?')}
+      </span>
+      <div className="plh-rsvp-btns">
+        <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
+          onClick={() => answer('yes')} disabled={busy} aria-pressed={mine === 'yes'}>
+          {L('מגיע', 'Coming')}
+        </button>
+        <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
+          onClick={() => setAskReason((v) => !v)} disabled={busy} aria-pressed={mine === 'no'}>
+          {L('לא אגיע', "Can't make it")}
+        </button>
+      </div>
+      {askReason && (
+        <div className="plh-rsvp-reason">
+          <input
+            type="text"
+            value={reason}
+            maxLength={200}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
+            onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+          />
+          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={() => answer('no', reason.trim())}>
+            {L('שליחה', 'Send')}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlayerSchedule({ session, membership }) {
   const [items, setItems] = useState(null)
   const [past, setPast] = useState([])
@@ -752,7 +830,15 @@ function PlayerSchedule({ session, membership }) {
               </button>
               <span className="wl-nav-label" dir="ltr">{weekLabel}</span>
             </div>
-            <WeekList days={weekDays} isCoach={false} />
+            <WeekList
+              days={weekDays}
+              isCoach={false}
+              renderActions={(ev) =>
+                ev.kind === 'practice' && ev.date >= wkYmd(new Date()) ? (
+                  <RsvpButtons session={session} membership={membership} sessionId={ev.session_id} sessionDate={ev.date} />
+                ) : null
+              }
+            />
           </section>
 
           {past.length > 0 && (

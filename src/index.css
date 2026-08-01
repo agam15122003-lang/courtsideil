@@ -21627,3 +21627,24 @@ button.cal-weeksep .cal-weeksep-t { color: var(--brand-text, var(--muted)); }
   .wl-chip { min-height: 44px; }
   .wl-head { min-height: 56px; }
 }
+
+/* ============================================================
+   אישורי הגעה (מסמך ההשקה 1.3) · 1.8.2026
+   שלוש הרשימות (אישרו / לא מגיעים / טרם) + כפתורי שחקן ברשימה
+   ============================================================ */
+.rsvp-lists { display: grid; gap: 8px; margin-top: 10px; }
+.rsvp-group { border: 1px solid var(--ln); border-radius: 12px; padding: 8px 12px; background: var(--sf); }
+.rsvp-group > b { display: flex; align-items: center; gap: 5px; font-size: 12.5px; }
+.rsvp-group.yes > b { color: var(--ok); }
+.rsvp-group.no > b { color: var(--danger); }
+.rsvp-group.pending > b { color: var(--mut); }
+.rsvp-group ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.rsvp-group li { font-size: 13px; color: var(--tx); }
+.rsvp-breakdown { margin-top: 12px; }
+.rsvp-breakdown-hd { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--tx); }
+/* המונה בבית המאמן הפך לכפתור שפותח שמות — שומר על מראה הטקסט */
+button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer; text-align: start; font: inherit; color: inherit; }
+/* כפתורי אישור הגעה בכרטיס הלו"ז של השחקן */
+.wl-rsvp { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-top: 1px dashed var(--ln); padding-top: 10px; }
+.wl-rsvp-q { font-size: 13px; font-weight: 700; color: var(--mut); }
+.wl-rsvp .plh-rsvp-reason { flex-basis: 100%; }

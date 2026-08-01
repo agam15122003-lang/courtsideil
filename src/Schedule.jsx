@@ -12,6 +12,7 @@ import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
 import { useNetworkSmall } from './network'
 import WeekList from './WeekList'
+import { RsvpBreakdown } from './PracticeRsvp'
 
 // טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
 const START_HOUR = 6
@@ -781,6 +782,10 @@ export default function Schedule({ session, onNavigate }) {
             </button>
           )}
           {selected.note && <p className="muted small" style={{ marginTop: 8 }}>{selected.note}</p>}
+          {/* 1.3 — אישורי הגעה לאימון: אישרו / לא מגיעים / טרם ענו */}
+          {!selected.is_personal && selected.team && (
+            <RsvpBreakdown coachId={me} team={selected.team} sessionId={selected.id} />
+          )}
           {!selected.is_personal && selected.team && (
             <button
               className="btn-primary"
