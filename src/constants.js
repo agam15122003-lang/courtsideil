@@ -278,17 +278,15 @@ const gnews = (query) =>
   encodeURIComponent(query + ' when:21d') +
   '&hl=he-IL&gl=IL&ceid=IL:he'
 
-// מקורות הכתבות — שאילתות Google News מסוננות-כדורסל מראש (כל הכותרות מכילות "כדורסל").
-// google:true → הכותרת מכילה סיומת " - שם מקור"; נחלץ ממנה את המקור האמיתי לקרדיט.
-// השאילתה הראשונה ממקדת בערוץ הספורט (Sport5); השנייה מרחיבה לכלל המקורות הישראליים.
-// כמה שאילתות לפי נושאים שונים — כדי שהכתבות לא יהיו כולן על אותו אירוע.
-// ה-topic משמש לשילוב מתחלף (round-robin) בין הנושאים.
+// מקורות הכתבות (מסמך ההשקה 2.2) — מדורי הכדורסל של אתרי ספורט ישראליים
+// בלבד, דרך Google News (מקשר החוצה לכתבה המקורית — לא מעתיקים תוכן).
+// google:true → הכותרת מכילה סיומת " - שם מקור"; נחלץ ממנה את המקור לקרדיט.
+// ה-topic משמש לשילוב מתחלף (round-robin) כדי שלא יהיו 4 כתבות מאותו אתר.
 export const NEWS_SOURCES = [
-  { name: 'ליגת ווינר', topic: 'israel', google: true, api: rss2json(gnews('כדורסל ("ליגת ווינר" OR מכבי OR הפועל OR "ליגת העל בכדורסל")')) },
-  { name: 'NBA', topic: 'nba', google: true, api: rss2json(gnews('NBA כדורסל')) },
-  { name: 'יורוליג', topic: 'europe', google: true, api: rss2json(gnews('(יורוליג OR יורוקאפ) כדורסל')) },
-  { name: 'נבחרת ישראל', topic: 'national', google: true, api: rss2json(gnews('נבחרת ישראל כדורסל')) },
   { name: 'ערוץ הספורט', topic: 'sport5', google: true, api: rss2json(gnews('כדורסל site:sport5.co.il')) },
+  { name: 'ONE', topic: 'one', google: true, api: rss2json(gnews('כדורסל site:one.co.il')) },
+  { name: 'ספורט1', topic: 'sport1', google: true, api: rss2json(gnews('כדורסל site:sport1maccabi.co.il OR כדורסל site:sport1.co.il')) },
+  { name: 'וואלה ספורט', topic: 'walla', google: true, api: rss2json(gnews('כדורסל site:walla.co.il')) },
 ]
 
 // שמות שמזהים את ערוץ הספורט — לצורך הקפצה לראש (עדיפות, כבקשת המשתמש).
@@ -307,9 +305,11 @@ export const NEWS_FALLBACK_IMAGES = [
 ]
 
 // כמה כתבות להציג, וכל כמה זמן לרענן (קאשינג ב-localStorage).
+// בבית מוצגות 4 (מסמך ההשקה 2.2); שולפים יותר כדי שהערבוב יהיה מגוון.
 export const NEWS_COUNT = 8
+export const NEWS_HOME_COUNT = 4
 export const NEWS_CACHE_MINUTES = 15
-export const NEWS_CACHE_KEY = 'home_news_cache_v6'
+export const NEWS_CACHE_KEY = 'home_news_cache_v7_il'
 
 // קישורי תוכן קבועים (גיבוי + השראה) — מוצגים תחת הכתבות.
 export const CONTENT_LINKS = [

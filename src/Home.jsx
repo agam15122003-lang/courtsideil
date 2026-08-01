@@ -14,6 +14,7 @@ import {
 import {
   NEWS_SOURCES,
   NEWS_COUNT,
+  NEWS_HOME_COUNT,
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
   CONTENT_LINKS, COACHING_QUOTES, safeUrl } from './constants'
@@ -157,10 +158,9 @@ function parseDate(d) {
   return isNaN(x) ? 0 : x.getTime()
 }
 
-// עמוד 22 במסמך המסירה מבקש להסתיר את הכתבות מדף הבית של המאמן: הן
-// לא עבודה, והן דוחפות את «השבוע» ו«דורש תשומת לב» מתחת לקו הקיפול.
-// הקוד נשאר במקומו — החזרה היא שינוי הערך הזה ל-true.
-const SHOW_NEWS = false
+// מסמך ההשקה 2.2 מחזיר את הכתבות — אבל בתחתית הבית (אחרי כל העבודה),
+// 4 כתבות ממדורי כדורסל ישראליים בלבד, קישור החוצה למקור.
+const SHOW_NEWS = true
 
 // במובייל כרטיס «האימון הקרוב» יורד מתוך הבאנר הנייבי אל הגלולה הלבנה:
 // בתוך הבאנר הוא הוסיף 415px של נייבי לפני שהתחיל תוכן כלשהו.
@@ -514,14 +514,31 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
       )}
 
+      <h2 className="section-title" style={{ marginTop: 32 }}>
+        {L('תוכן והשראה', 'Content & inspiration')}
+      </h2>
+      <div className="home-grid reveal-up">
+        {CONTENT_LINKS.map((l) => (
+          <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
+            <span className="home-card-title link-row">
+              {l.title}
+              <ExternalLink size={15} />
+            </span>
+            <span className="home-card-desc">{l.desc}</span>
+          </a>
+        ))}
+      </div>
+
+      {/* 2.2 — כתבות בתחתית הבית: 4 כתבות ממדורי כדורסל ישראליים,
+          כותרת + תמונה + קישור החוצה למקור. לא מעתיקים תוכן. */}
       {SHOW_NEWS && <>
-      <span className="sec-kicker">{L('השראה', 'Inspiration')}</span>
+      <span className="sec-kicker" style={{ marginTop: 24 }}>{L('מהתקשורת', 'From the press')}</span>
       <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
-        {L('כתבות כדורסל', 'Basketball news')}
+        {L('כתבות כדורסל ישראלי', 'Israeli basketball news')}
       </h2>
       <p className="muted small" style={{ marginTop: -2, marginBottom: 4 }}>
-        {L('מבחר כתבות כדורסל ממקורות ישראליים — לחיצה פותחת את הכתבה המלאה במקור.', 'A selection of basketball articles from Israeli sources — tap to open the full article at its source.')}
+        {L('ממדורי הכדורסל של אתרי הספורט הישראליים — לחיצה פותחת את הכתבה המלאה במקור.', 'From the basketball sections of Israeli sports sites — tap to open the full article at its source.')}
       </p>
 
       {loading && (
@@ -540,7 +557,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
       {!loading && !error && items.length > 0 && (
         <div className="news-grid reveal-up">
-          {items.map((a, i) => (
+          {items.slice(0, NEWS_HOME_COUNT).map((a, i) => (
             <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
               <div
                 className="news-thumb"
@@ -570,25 +587,10 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
       {!loading && (error || items.length === 0) && (
         <p className="muted small" style={{ marginTop: 8 }}>
-          {L('לא הצלחנו לטעון כתבות כרגע. בינתיים — מקורות התוכן שלמטה.', "We couldn't load articles right now. In the meantime — the content sources below.")}
+          {L('לא הצלחנו לטעון כתבות כרגע — ננסה שוב בכניסה הבאה.', "We couldn't load articles right now — we'll retry next visit.")}
         </p>
       )}
       </>}
-
-      <h2 className="section-title" style={{ marginTop: 32 }}>
-        {L('תוכן והשראה', 'Content & inspiration')}
-      </h2>
-      <div className="home-grid reveal-up">
-        {CONTENT_LINKS.map((l) => (
-          <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
-            <span className="home-card-title link-row">
-              {l.title}
-              <ExternalLink size={15} />
-            </span>
-            <span className="home-card-desc">{l.desc}</span>
-          </a>
-        ))}
-      </div>
     </div>
   )
 }

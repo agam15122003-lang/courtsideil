@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
+import { NEWS_CACHE_KEY } from './constants'
 import Avatar from './Avatar'
 import { L, trTeam } from './i18n'
 import { SkeletonStats, SkeletonRoster } from './Skeleton'
@@ -116,6 +117,21 @@ export default function Admin({ session, profile }) {
             <div className="admin-stat"><span className="admin-stat-n">{stats.banned}</span><span className="admin-stat-l">{L('חסומים', 'Banned')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.openReports}</span><span className="admin-stat-l">{L('דיווחים פתוחים', 'Open reports')}</span></div>
             <div className="admin-stat"><span className="admin-stat-n">{stats.dupGroups}</span><span className="admin-stat-l">{L('חשד התחזות', 'Impersonation flags')}</span></div>
+          </div>
+
+          {/* 2.2 — רענון ידני של הכתבות: מרוקן את קאש ה-localStorage,
+              והביקור הבא בדף הבית מושך פידים טריים */}
+          <div className="form-actions" style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn-soft"
+              onClick={() => {
+                try { localStorage.removeItem(NEWS_CACHE_KEY) } catch { /* לא קריטי */ }
+                toast.success(L('קאש הכתבות נוקה — הבית ימשוך כתבות טריות בכניסה הבאה', 'News cache cleared — home fetches fresh articles next visit'))
+              }}
+            >
+              <RefreshCw size={14} /> {L('רענון כתבות הבית', 'Refresh home articles')}
+            </button>
           </div>
 
           {duplicates.length > 0 && (
