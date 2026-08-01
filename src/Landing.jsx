@@ -105,7 +105,7 @@ export default function Landing({ onEnter }) {
   ]
 
   const STATS = [
-    { num: L('הכול', 'All'), label: L('הכלים במקום אחד', 'tools in one place') },
+    { num: L('הכל במקום אחד', 'All in one place'), label: L('כל מה ששחקן ומאמן צריכים', 'everything a player and a coach need') },
     { num: L('קהילה', 'Community'), label: L('של מאמנים שמשתפים ידע', 'of coaches sharing knowledge') },
     { num: L('בעברית', 'In Hebrew'), label: L('בנוי לכדורסל הישראלי', 'built for Israeli basketball') },
   ]
@@ -198,7 +198,6 @@ export default function Landing({ onEnter }) {
 
       {/* הלולאה מאמן↔שחקן — הבידול של CourtSide, הסיפור שהעיצוב צועק */}
       <section className="land-section land-loop reveal">
-        <span className="land-kicker">{L('הלולאה', 'The Loop')}</span>
         <h2 className="land-h2">{L('הקשר בין מאמן לשחקן מעולם לא היה נוח יותר.', 'The coach–player connection has never been easier.')}</h2>
         <div className="land-loop-grid">
           <div className="land-loop-step">
@@ -221,7 +220,6 @@ export default function Landing({ onEnter }) {
 
       {/* יום אימון עם CourtSide — שלושת הרגעים של יום אימון */}
       <section className="land-section land-why reveal">
-        <span className="land-kicker">{L('יום אימון', 'Practice Day')}</span>
         <h2 className="land-h2">{L('יום אימון עם CourtSide', 'A practice day with CourtSide')}</h2>
         <div className="land-why-grid">
           <div className="land-why-item">
@@ -243,7 +241,6 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-section land-why reveal">
-        <span className="land-kicker">{L('למה CourtSide', 'Why CourtSide')}</span>
         <h2 className="land-h2">{L('למה כדאי להשתמש ב-CourtSide?', 'Why use CourtSide?')}</h2>
         <div className="land-why-grid">
           {WHY.map((w) => (
@@ -259,7 +256,6 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-section reveal" id="features">
-        <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
         <h2 className="land-h2">{L('כל מה שהקבוצה שלכם צריכה כדי להתקדם', 'Everything your team needs to move forward')}</h2>
         <div className="land-features">
           {FEATURES.map((f) => (
@@ -276,7 +272,6 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-section land-steps-wrap reveal" id="how">
-        <span className="land-kicker">{L('איך זה עובד', 'How It Works')}</span>
         <h2 className="land-h2">{L('איך מתחילים?', 'How do you start?')}</h2>
         <div className="land-steps">
           {STEPS.map((s) => (
@@ -290,7 +285,6 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-section land-quotes-wrap reveal">
-        <span className="land-kicker">{L('השראה', 'Inspiration')}</span>
         <h2 className="land-h2">{L('ציטוטים מהמגרש', 'Quotes from the court')}</h2>
         <p className="land-lead">{L('מהפילוסופיה של גדולי המאמנים — ישר אל האימון הבא שלך.', 'From the philosophy of the great coaches — straight into your next practice.')}</p>
         <div className="land-quotes">
@@ -315,7 +309,6 @@ export default function Landing({ onEnter }) {
       </section>
 
       <section className="land-section land-faq-wrap reveal" id="faq">
-        <span className="land-kicker">{L('שאלות נפוצות', 'FAQ')}</span>
         <h2 className="land-h2">{L('יש שאלות? יש תשובות', 'Questions? Answers')}</h2>
         <div className="land-faq">
           {FAQ.map((f, i) => (

@@ -28,6 +28,10 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   const [period, setPeriod] = useState('session')
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
+  // בקשת הבעלים (2.8): אפשרות להציב יעד ידני מדיד — מספר + יחידה.
+  // בלי מספר היעד נשאר «וי» רגיל, בדיוק כמו קודם.
+  const [target, setTarget] = useState('')
+  const [unit, setUnit] = useState('')
   const [busy, setBusy] = useState(false)
   // גרף ההתקדמות שהשחקן רואה — עכשיו גם אצל המאמן (pgl_coach_read קיימת)
   const [chartId, setChartId] = useState(null)
@@ -50,9 +54,12 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   const insertGoal = async (goalTitle) => {
     if (!goalTitle.trim() || busy) return false
     setBusy(true)
+    const tv = Number(target) > 0 ? Number(target) : null
     const row = {
       coach_id: coachId, player_id: playerId, team,
       period, title: goalTitle.trim(), due_date: dueDate || null,
+      target_value: tv, unit: tv ? (unit.trim() || null) : null,
+      metric_type: tv ? 'count' : 'checkbox',
     }
     // created_by (supabase_goals_launch.sql) — אם העמודה טרם נוספה, שומרים בלעדיה
     let { error } = await supabase.from('player_goals').insert({ ...row, created_by: coachId })
@@ -66,7 +73,7 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
 
   const add = async () => {
     const ok = await insertGoal(title)
-    if (ok) { setTitle(''); setDueDate('') }
+    if (ok) { setTitle(''); setDueDate(''); setTarget(''); setUnit('') }
   }
 
   const bump = async (g, delta) => {
@@ -99,7 +106,22 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
           <input className="finder-input pg-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={L('עד מתי', 'Due date')} />
           <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף יעד', 'Add goal')}><Plus size={15} /></button>
         </div>
-        {dueDate && <p className="muted small pg-due-line">{L('עד ', 'Due ')}{dueLabel(dueDate)}</p>}
+        {/* יעד ידני מדיד (בקשת הבעלים): מספר + יחידה — בלי מספר זה יעד «וי» */}
+        <div className="pg-add-row pg-target-row">
+          <input className="finder-input pg-target" dir="ltr" inputMode="numeric" value={target}
+            onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder={L('יעד מספרי (לא חובה)', 'Numeric target (optional)')} />
+          <input className="finder-input pg-unit" value={unit} onChange={(e) => setUnit(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder={L('יחידה — זריקות', 'Unit — shots')} maxLength={30} />
+        </div>
+        <p className="muted small pg-due-line">
+          {Number(target) > 0
+            ? L(`השחקן ידווח התקדמות עד ${target} ${unit.trim()}`.trim(), `The player logs progress up to ${target} ${unit.trim()}`.trim())
+            : L('בלי מספר — השחקן פשוט מסמן שהיעד הושג.', 'Without a number the player just ticks the goal off.')}
+          {dueDate ? L(` · עד ${dueLabel(dueDate)}`, ` · due ${dueLabel(dueDate)}`) : ''}
+        </p>
       </div>
 
       {goals && goals.length > 0 && (

@@ -64,7 +64,7 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
             <span>CourtSide</span>
           </div>
 
-          <span className="csa-eyebrow">{L('קהילת המאמנים של ישראל', 'Israel’s coaching community')}</span>
+          <span className="csa-eyebrow">{L('קהילת הכדורסל של ישראל', 'Israel’s basketball community')}</span>
           <h1 className="csa-title">
             {L('ברוכים הבאים', 'Welcome to')}
             <br />

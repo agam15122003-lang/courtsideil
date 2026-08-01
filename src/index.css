@@ -21878,3 +21878,8 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
   line-height: 1.35;
 }
 .vco-acts { padding-inline: 12px 12px; padding-bottom: 10px; }
+
+/* ===== 2.8 · יעד ידני מדיד בטופס הצבת היעדים ===== */
+.pg-target-row { margin-top: 8px; }
+.pg-target-row .pg-target { max-width: 180px; }
+.pg-target-row .pg-unit { max-width: 200px; }

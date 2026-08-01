@@ -18,23 +18,16 @@ import useFocusTrap from './useFocusTrap'
 // משהו בחזרה ובלי אישור. המסמך מבקש מסך אחד שעונה על ארבע השאלות:
 // **מה שולחים · למי · מה מבקשים בחזרה · עד מתי** — ואז מאשר מה קרה.
 //
-// «מה מבקשים בחזרה» מתורגם לסכימה הקיימת בלי שינוי מסד:
-//   וי  — אין target_value, השחקן מסמן «סיימתי» (MyAssignments).
-//   מספר — target_value + unit, השחקן מדווח התקדמות (100/200 זריקות).
-// דיווח בווידאו לא קיים בצד השחקן, ולכן אין כאן כפתור כזה — כפתור
-// שעובד חצי הוא גרוע מכפתור שלא קיים.
+// **בקשת הבעלים (2.8): המסך הזה הוא מלל חופשי בלבד.** בורר המקורות
+// (תרגיל / תוכנית / סרטון) הוסר — משימה נכתבת במילים, עם יעד מספרי
+// אופציונלי ותאריך. שליחת תרגיל ממשיכה לעבוד מכרטיס התרגיל עצמו
+// («לשחקנים»), שמגיע לכאן עם preset נעול.
 //
 // props:
 //   embedded  - כרטיס קומפקטי בתוך מסך אחר
 //   variant   - 'sheet' לפתיחה מעל מסך (מכרטיס התרגיל), אחרת מסך מלא
 //   preset    - {kind,id,title,sub,url} תוכן נעול מראש (הגעת מכרטיס תרגיל)
 //   onClose   - סגירת הגיליון
-const SOURCES = [
-  { id: 'drill', label: ['תרגיל', 'Drill'], Icon: Dumbbell, tone: 'blue' },
-  { id: 'plan', label: ['תוכנית', 'Plan'], Icon: ClipboardList, tone: 'purple' },
-  { id: 'video', label: ['סרטון', 'Video'], Icon: MonitorPlay, tone: 'green' },
-  { id: 'task', label: ['משימה חופשית', 'Free task'], Icon: PencilLine, tone: 'orange' },
-]
 
 // תאריכי יעד מהירים — «עד מתי» בלחיצה אחת, בלי לפתוח לוח שנה
 const pad = (n) => String(n).padStart(2, '0')
@@ -52,12 +45,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const [picked, setPicked] = useState(new Set())
   const [pQuery, setPQuery] = useState('')
 
-  const [source, setSource] = useState(preset?.kind || 'drill')
-  const [items, setItems] = useState({}) // {drill:[], plan:[], video:[]}
-  const [contentId, setContentId] = useState(preset?.id || null)
+  // מלל חופשי הוא ברירת המחדל היחידה; preset (מכרטיס תרגיל) נשאר נעול
+  const source = preset?.kind || 'task'
   const [taskTitle, setTaskTitle] = useState('')
-  const [sQuery, setSQuery] = useState('')
-  const [swapping, setSwapping] = useState(false) // «החלפה» לתוכן שהגיע נעול
 
   const [note, setNote] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -84,30 +74,11 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     })()
   }, [me, refreshFeed])
 
-  // טעינת רשימת המקור לפי הטאב (פעם אחת לכל סוג)
-  useEffect(() => {
-    if (source === 'task' || items[source]) return
-    ;(async () => {
-      let data = []
-      if (source === 'drill') {
-        const res = await supabase.from('drills').select('id, title, category').eq('created_by', me).order('created_at', { ascending: false }).limit(200)
-        data = (res.data || []).map((d) => ({ id: d.id, title: d.title, sub: d.category }))
-      } else if (source === 'plan') {
-        const res = await supabase.from('training_plans').select('id, name').eq('created_by', me).order('created_at', { ascending: false }).limit(200)
-        data = (res.data || []).map((p) => ({ id: p.id, title: p.name }))
-      } else if (source === 'video') {
-        const res = await supabase.from('drill_videos').select('id, title, category, url').eq('created_by', me).order('created_at', { ascending: false }).limit(200)
-        data = (res.data || []).map((v) => ({ id: v.id, title: v.title, sub: v.category, url: v.url }))
-      }
-      setItems((cur) => ({ ...cur, [source]: data }))
-    })()
-  }, [source, items, me])
-
   const connectedInTeam = roster.players.filter((p) => p.team === team)
   const targetCount = mode === 'team' ? connectedInTeam.length : picked.size
 
-  const lockedContent = preset && !swapping ? preset : null
-  const chosenItem = lockedContent || (source !== 'task' ? (items[source] || []).find((i) => i.id === contentId) : null)
+  const lockedContent = preset || null
+  const chosenItem = lockedContent
   const hasContent = source === 'task' ? taskTitle.trim().length > 0 : !!chosenItem
   const canSend = targetCount > 0 && hasContent && !sending
 
@@ -123,7 +94,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   }
 
   const resetForm = () => {
-    if (!preset) { setContentId(null); setTaskTitle('') }
+    if (!preset) setTaskTitle('')
     setNote(''); setDueDate(''); setTarget(''); setUnit(''); setPicked(new Set())
   }
 
@@ -213,7 +184,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={() => { setSent(null); onClose ? onClose() : null }}>
           {onClose ? L('סגירה', 'Close') : L('סיימתי', 'Done')}
         </button>
-        <button type="button" className="btn-soft" style={{ marginTop: 0 }} onClick={() => { setSent(null); setSwapping(!!preset) }}>
+        <button type="button" className="btn-soft" style={{ marginTop: 0 }} onClick={() => setSent(null)}>
           <Repeat2 size={16} /> {L('שליחה נוספת', 'Send another')}
         </button>
       </div>
@@ -229,30 +200,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
           <p className="muted small">{L('אין שחקנים מחוברים עדיין — שתפו את קוד ההצטרפות מטאב "סגל".', 'No connected players yet — share the join code from the roster tab.')}</p>
         ) : (
           <>
-            <div className="sp-mini-src">
-              {SOURCES.map((s) => (
-                <button key={s.id} className={source === s.id ? `sp-src active ${s.tone}` : 'sp-src'} onClick={() => { setSource(s.id); setContentId(null) }}>
-                  <s.Icon size={15} /> {L(s.label[0], s.label[1])}
-                </button>
-              ))}
-            </div>
-
-            {source === 'task' ? (
-              <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('מה המשימה? לדוגמה: 100 זריקות עונשין', 'The task, e.g. 100 free throws')} maxLength={120} />
-            ) : (
-              <ul className="sp-items sp-items-mini">
-                {(items[source] || []).filter((i) => !sQuery || i.title?.includes(sQuery)).slice(0, 40).map((i) => (
-                  <li key={i.id}>
-                    <button className={contentId === i.id ? 'sp-item on' : 'sp-item'} onClick={() => setContentId(contentId === i.id ? null : i.id)}>
-                      <span className="sp-check">{contentId === i.id ? <Check size={14} /> : null}</span>
-                      <span className="sp-item-title">{i.title}</span>
-                      {i.sub && <span className="muted small">{i.sub}</span>}
-                    </button>
-                  </li>
-                ))}
-                {(items[source] || []).length === 0 && <p className="muted small" style={{ padding: '6px 2px' }}>{L('אין פריטים עדיין.', 'Nothing here yet.')}</p>}
-              </ul>
-            )}
+            {/* מלל חופשי בלבד (בקשת הבעלים) */}
+            <span className="sp-lbl">{L('מה המשימה?', 'The task')}</span>
+            <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('לדוגמה: 100 זריקות עונשין', 'e.g. 100 free throws')} maxLength={120} />
 
             <div className="sp-mini-who">
               <button className={mode === 'team' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setMode('team')}><Users size={14} /> {L(`כל הקבוצה (${connectedInTeam.length})`, `Whole team (${connectedInTeam.length})`)}</button>
@@ -314,40 +264,10 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
                   <strong>{lockedContent.title}</strong>
                   {lockedContent.sub && <span className="muted small">{lockedContent.sub}</span>}
                 </span>
-                <button type="button" className="link-button" onClick={() => { setSwapping(true); setContentId(null) }}>
-                  {L('החלפה', 'Change')}
-                </button>
               </div>
             ) : (
-              <>
-                <div className="sp-source-tabs">
-                  {SOURCES.map((s) => (
-                    <button key={s.id} className={source === s.id ? `sp-src active ${s.tone}` : 'sp-src'} onClick={() => { setSource(s.id); setContentId(null) }}>
-                      <s.Icon size={16} /> {L(s.label[0], s.label[1])}
-                    </button>
-                  ))}
-                </div>
-
-                {source === 'task' ? (
-                  <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('לדוגמה: 100 זריקות עונשין', 'e.g. 100 free throws')} maxLength={120} />
-                ) : (
-                  <>
-                    <div className="sp-search"><Search size={15} /><input className="finder-input" value={sQuery} onChange={(e) => setSQuery(e.target.value)} placeholder={L('חיפוש...', 'Search...')} /></div>
-                    <ul className="sp-items">
-                      {(items[source] || []).filter((i) => !sQuery || i.title?.includes(sQuery)).slice(0, 60).map((i) => (
-                        <li key={i.id}>
-                          <button className={contentId === i.id ? 'sp-item on' : 'sp-item'} onClick={() => setContentId(i.id)}>
-                            <span className="sp-check">{contentId === i.id ? <Check size={14} /> : null}</span>
-                            <span className="sp-item-title">{i.title}</span>
-                            {i.sub && <span className="muted small">{i.sub}</span>}
-                          </button>
-                        </li>
-                      ))}
-                      {(items[source] || []).length === 0 && <p className="muted small" style={{ padding: '8px 2px' }}>{L('אין פריטים להצגה.', 'Nothing to show.')}</p>}
-                    </ul>
-                  </>
-                )}
-              </>
+              /* מלל חופשי בלבד — בלי בורר תרגיל/תוכנית/סרטון (בקשת הבעלים) */
+              <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('לדוגמה: 100 זריקות עונשין', 'e.g. 100 free throws')} maxLength={120} />
             )}
           </section>
 
