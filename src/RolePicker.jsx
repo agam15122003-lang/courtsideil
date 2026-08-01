@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ClipboardList, Volleyball } from 'lucide-react'
+import { ClipboardList } from 'lucide-react'
 import { ChevronBack, ChevronFwd } from './DirIcon'
 import Logo from './Logo'
+import BasketballIcon from './BasketballIcon'
 import { L } from './i18n'
 
 // 1a · בחירת תפקיד — המסך הראשון בזרימת "לא מחובר": Landing → RolePicker → Auth.
@@ -23,7 +24,7 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
     },
     {
       id: 'player',
-      Icon: Volleyball,
+      Icon: BasketballIcon,
       name: L('שחקן', 'Player'),
       desc: L(
         'מקבל משימות מהמאמן ועוקב אחרי היעדים שלו',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
-  Dumbbell, Volleyball, StickyNote, Send, TrendingUp, Share2,
+  Dumbbell, StickyNote, Send, TrendingUp, Share2,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -12,6 +12,7 @@ import { expandSlots } from './sessionId'
 import { waShare } from './share'
 import FeedbackSheet from './FeedbackSheet'
 import { SkeletonCards } from './Skeleton'
+import BasketballIcon from './BasketballIcon'
 
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
@@ -263,7 +264,7 @@ export default function PlayerTimeline({ session, membership }) {
                   <button type="button" className="th-card-head th-fold" onClick={() => setOpenId(isOpen ? '-' : c.session_id)} aria-expanded={isOpen}>
                     <span className="th-title">
                       {c.type === 'game'
-                        ? <><Volleyball size={15} /> {c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')}</>
+                        ? <><BasketballIcon size={15} /> {c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')}</>
                         : <><Dumbbell size={15} /> {L('אימון קבוצתי', 'Team practice')}</>}
                     </span>
                     <span className="th-date">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>

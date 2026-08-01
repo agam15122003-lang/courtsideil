@@ -5,7 +5,7 @@ import {
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
-  MapPin, Volleyball, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
+  MapPin, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -27,6 +27,7 @@ import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import WeekList from './WeekList'
+import BasketballIcon from './BasketballIcon'
 import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
@@ -784,7 +785,7 @@ function PlayerSchedule({ session, membership }) {
           {next && (
             <div className={`pl-next-up ${next.kind}`}>
               
-              <span className="pl-next-up-label">{next.kind === 'game' ? <Volleyball size={13} /> : <Flame size={13} />} {L('הבא בתור', 'Next up')}</span>
+              <span className="pl-next-up-label">{next.kind === 'game' ? <BasketballIcon size={13} /> : <Flame size={13} />} {L('הבא בתור', 'Next up')}</span>
               <h3>{next.title}</h3>
               <div className="pl-next-up-meta">
                 <span><CalendarDays size={15} /> {dayLabel(next.date)}</span>
