@@ -1762,6 +1762,25 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
           <span className="plp-set-ic brand"><LogOut size={17} /></span>
           <span className="plp-set-label">{L('התנתקות', 'Sign out')}</span>
         </button>
+        {/* 1.15 — נתיב בקשת מחיקת חשבון (טבלה מ-supabase_legal_launch.sql; fallback למייל) */}
+        <button
+          className="plp-set-row plp-delreq"
+          onClick={async () => {
+            const ok = window.confirm(L(
+              'לבקש מחיקת חשבון? נטפל בבקשה בתוך 30 יום, וניצור קשר במייל של החשבון.',
+              'Request account deletion? We handle requests within 30 days and reply to your account email.'))
+            if (!ok) return
+            const { error } = await supabase.from('account_deletion_requests').insert({ user_id: session.user.id })
+            if (error) {
+              window.location.href = 'mailto:agam15122003@gmail.com?subject=' + encodeURIComponent('בקשת מחיקת חשבון CourtSide')
+              return
+            }
+            toast.success(L('הבקשה נרשמה — נחזור אליך במייל', 'Request logged — we will reply by email'))
+          }}
+        >
+          <span className="plp-set-ic"><X size={17} /></span>
+          <span className="plp-set-label">{L('בקשת מחיקת חשבון', 'Request account deletion')}</span>
+        </button>
       </div>
     </div>
   )

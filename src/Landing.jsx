@@ -363,6 +363,7 @@ export default function Landing({ onEnter }) {
             <h3>{L('משפטי', 'Legal')}</h3>
             <a href="/privacy.html">{L('מדיניות פרטיות', 'Privacy Policy')}</a>
             <a href="/terms.html">{L('תנאי שימוש', 'Terms of Use')}</a>
+            <a href="/accessibility.html">{L('הצהרת נגישות', 'Accessibility')}</a>
           </nav>
           <nav className="land-footer-col" aria-label={L('הצטרפות', 'Get started')}>
             <h3>{L('הצטרפות', 'Get started')}</h3>

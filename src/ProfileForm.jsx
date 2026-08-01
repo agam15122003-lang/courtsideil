@@ -33,12 +33,13 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const isPlayer = role === 'player'
 
-  // הסכמת הורה לשחקן מתחת לגיל 16 (נאכף גם בטריגר ב-DB, supabase_privacy4.sql)
+  // הסכמת הורה לשחקן מתחת לגיל 18 (מסמך ההשקה 1.15; נאכף גם בטריגר ב-DB)
   const [guardianName, setGuardianName] = useState(profile?.guardian_name || '')
   const [guardianEmail, setGuardianEmail] = useState(profile?.guardian_email || '')
+  const [guardianPhone, setGuardianPhone] = useState(profile?.guardian_phone || '')
   const [consent, setConsent] = useState(!!profile?.guardian_consent_at)
   const age = birthYear ? new Date().getFullYear() - Number(birthYear) : null
-  const isMinor = isPlayer && age !== null && age < 16
+  const isMinor = isPlayer && age !== null && age < 18
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -73,8 +74,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       return
     }
     if (isMinor && (!guardianEmail.trim() || !consent)) {
-      setError(L('שחקן מתחת לגיל 16 — נדרש מייל של הורה ואישור ההורה.',
-        'Player under 16 — a parent email and parental approval are required.'))
+      setError(L('שחקן מתחת לגיל 18 — נדרש מייל של הורה ואישור ההורה.',
+        'Player under 18 — a parent email and parental approval are required.'))
       return
     }
     setSaving(true)
@@ -113,7 +114,10 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       if (isMinor) {
         payload.guardian_name = guardianName.trim() || null
         payload.guardian_email = guardianEmail.trim()
+        payload.guardian_phone = guardianPhone.trim() || null
+        // רשומת הסכמה: מי (guardian_*), מתי (consent_at), גרסת נוסח (version)
         payload.guardian_consent_at = profile?.guardian_consent_at || new Date().toISOString()
+        payload.guardian_consent_version = profile?.guardian_consent_version || 'v1 · 1.8.2026'
       }
     } else {
       payload.age_groups = orderedTeams
@@ -121,7 +125,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // גיבוי: אם עמודות התפקיד עוד לא קיימות במסד — שומרים בלי לחסום
     let { error } = await supabase.from('profiles').upsert(payload)
     if (error && /column .* does not exist|could not find the .* column/i.test(error.message || '')) {
-      const { role: _r, birth_year: _b, position: _p, ...basic } = payload
+      const { role: _r, birth_year: _b, position: _p, guardian_phone: _gp, guardian_consent_version: _gv, ...basic } = payload
       ;({ error } = await supabase.from('profiles').upsert(basic))
     }
 
@@ -333,8 +337,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               <div className="pf-guardian">
                 <h4 className="pf-guardian-title">{L('אישור הורה', 'Parental consent')}</h4>
                 <p className="muted small">
-                  {L('כיוון שאתה מתחת לגיל 16, נדרש אישור של הורה או אחראי כדי לפתוח חשבון שחקן. ההורה יקבל עדכונים על החשבון.',
-                    'Because you are under 16, a parent or guardian must approve opening a player account. The parent will receive updates about the account.')}
+                  {L('כיוון שאתה מתחת לגיל 18, נדרש אישור של הורה או אחראי כדי להפעיל חשבון שחקן. ההורה יקבל עדכונים על החשבון.',
+                    'Because you are under 18, a parent or guardian must approve activating a player account. The parent will receive updates about the account.')}
                 </p>
                 <div className="form-grid-2">
                   <label className="pf-label">
@@ -346,6 +350,11 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                     {L('מייל של ההורה', 'Parent email')} <span className="pf-req">*</span>
                     <input type="email" dir="ltr" required value={guardianEmail}
                       onChange={(e) => setGuardianEmail(e.target.value)} placeholder="parent@example.com" />
+                  </label>
+                  <label className="pf-label">
+                    {L('טלפון של ההורה', 'Parent phone')}
+                    <input type="tel" dir="ltr" value={guardianPhone}
+                      onChange={(e) => setGuardianPhone(e.target.value)} placeholder="050-0000000" maxLength={20} />
                   </label>
                 </div>
                 <label className="pf-consent">
