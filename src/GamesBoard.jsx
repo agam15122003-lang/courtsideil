@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, MapPin, XCircle } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS } from './constants'
 import { L, tr } from './i18n'
@@ -16,7 +16,17 @@ function fmtDate(d) {
   })
 }
 
-// לוח משחקים — מאמנים מפרסמים בקשה למשחק אימון, ואחרים יכולים לשלוח הודעה.
+// שמונת האזורים של מסמך ההשקה (2.1)
+export const REGIONS = ['צפון', 'חיפה', 'שרון', 'מרכז', 'תל אביב', 'ירושלים', 'שפלה', 'דרום']
+const HOME_AWAY = [
+  { id: 'home', label: ['אצלנו', 'Home'] },
+  { id: 'away', label: ['אצלם', 'Away'] },
+  { id: 'either', label: ['לא משנה', 'Either'] },
+]
+const homeAwayLabel = (id) => { const h = HOME_AWAY.find((x) => x.id === id); return h ? L(h.label[0], h.label[1]) : '' }
+
+// לוח משחקי אימון (מסמך ההשקה 2.1) — מאמנים מפרסמים בקשה (שכבת גיל, אזור,
+// טווח תאריכים, בית/חוץ), מסננים לפי אזור ושכבה, ויוצרים קשר בהודעות.
 // props:
 //   session - המשתמש המחובר
 export default function GamesBoard({ session }) {
@@ -27,10 +37,17 @@ export default function GamesBoard({ session }) {
 
   // טופס פרסום
   const [ageGroup, setAgeGroup] = useState('')
-  const [date, setDate] = useState('')
+  const [region, setRegion] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [homeAway, setHomeAway] = useState('either')
   const [location, setLocation] = useState('')
   const [note, setNote] = useState('')
   const [posting, setPosting] = useState(false)
+
+  // סינון הלוח
+  const [fRegion, setFRegion] = useState('')
+  const [fAge, setFAge] = useState('')
 
   // תיבת הודעה (לאיזו בקשה היא פתוחה)
   const [msgFor, setMsgFor] = useState(null)
@@ -66,21 +83,29 @@ export default function GamesBoard({ session }) {
       toast.error(L('בחר שכבת גיל למשחק.', 'Select an age group for the game.'))
       return
     }
+    if (dateFrom && dateTo && dateTo < dateFrom) {
+      toast.error(L('טווח התאריכים הפוך.', 'Date range is reversed.'))
+      return
+    }
     setPosting(true)
-    const { error } = await supabase.from('game_requests').insert({
+    const base = {
       created_by: myId,
       age_group: ageGroup,
-      game_date: date || null,
+      game_date: dateFrom || null,
       location: location.trim() || null,
       note: note.trim() || null,
+    }
+    // עמודות 2.1 (supabase_stage2_launch.sql) — fallback בלעדיהן עד שהמיגרציה תרוץ
+    let { error } = await supabase.from('game_requests').insert({
+      ...base, region: region || null, date_from: dateFrom || null, date_to: dateTo || null, home_away: homeAway,
     })
+    if (error) ({ error } = await supabase.from('game_requests').insert(base))
     setPosting(false)
     if (error) {
       toast.error(L('הפרסום נכשל: ', 'Posting failed: ') + error.message)
       return
     }
-    setAgeGroup('')
-    setDate('')
+    setAgeGroup(''); setRegion(''); setDateFrom(''); setDateTo(''); setHomeAway('either')
     setLocation('')
     setNote('')
     toast.success(L('הבקשה פורסמה', 'Request posted'))
@@ -95,6 +120,17 @@ export default function GamesBoard({ session }) {
       return
     }
     toast.success(L('הבקשה נמחקה', 'Request deleted'))
+    load()
+  }
+
+  // 2.1 — סגירת בקשה (נשארת בלוח כהיסטוריה אצל הבעלים, נעלמת מהלוח הפתוח)
+  const closeReq = async (id) => {
+    const { error } = await supabase.from('game_requests').update({ status: 'closed' }).eq('id', id)
+    if (error) {
+      toast.error(L('הסגירה דורשת את המיגרציה supabase_stage2_launch.sql', 'Closing needs the supabase_stage2_launch.sql migration'))
+      return
+    }
+    toast.success(L('הבקשה נסגרה', 'Request closed'))
     load()
   }
 
@@ -139,22 +175,50 @@ export default function GamesBoard({ session }) {
           </div>
         </div>
 
+        <div className="field-group" style={{ marginTop: 10 }}>
+          <span className="field-label">{L('אזור', 'Region')}</span>
+          <div className="chips">
+            {REGIONS.map((r) => (
+              <button type="button" key={r} className={region === r ? 'chip selected' : 'chip'}
+                onClick={() => setRegion(region === r ? '' : r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field-group" style={{ marginTop: 10 }}>
+          <span className="field-label">{L('בית או חוץ?', 'Home or away?')}</span>
+          <div className="chips">
+            {HOME_AWAY.map((h) => (
+              <button type="button" key={h.id} className={homeAway === h.id ? 'chip selected' : 'chip'}
+                onClick={() => setHomeAway(h.id)}>
+                {L(h.label[0], h.label[1])}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="auth-form" style={{ marginTop: 12 }}>
           <div className="form-grid-2">
             <label>
-              {L('תאריך (לא חובה)', 'Date (optional)')}
-              <input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} />
+              {L('מתאריך (לא חובה)', 'From date (optional)')}
+              <input type="date" dir="ltr" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </label>
             <label>
-              {L('מיקום (לא חובה)', 'Location (optional)')}
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={L('לדוגמה: אולם רמת גן', 'e.g. Ramat Gan gym')}
-              />
+              {L('עד תאריך (לא חובה)', 'To date (optional)')}
+              <input type="date" dir="ltr" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </label>
           </div>
+          <label>
+            {L('מיקום (לא חובה)', 'Location (optional)')}
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder={L('לדוגמה: אולם רמת גן', 'e.g. Ramat Gan gym')}
+            />
+          </label>
           <label>
             {L('פרטים (לא חובה)', 'Details (optional)')}
             <input
@@ -171,39 +235,67 @@ export default function GamesBoard({ session }) {
         </div>
       </section>
 
-      {/* רשימת הבקשות */}
+      {/* רשימת הבקשות + סינון לפי אזור ושכבת גיל (2.1) */}
       <h3 className="section-title" style={{ marginTop: 24 }}>
         {L('בקשות פתוחות', 'Open requests')}
       </h3>
+      <div className="chips" style={{ marginTop: 8 }}>
+        <button type="button" className={!fRegion ? 'chip selected' : 'chip'} onClick={() => setFRegion('')}>{L('כל הארץ', 'All regions')}</button>
+        {REGIONS.map((r) => (
+          <button type="button" key={r} className={fRegion === r ? 'chip selected' : 'chip'} onClick={() => setFRegion(fRegion === r ? '' : r)}>{r}</button>
+        ))}
+      </div>
+      <div className="chips" style={{ marginTop: 6 }}>
+        <button type="button" className={!fAge ? 'chip selected' : 'chip'} onClick={() => setFAge('')}>{L('כל השכבות', 'All ages')}</button>
+        {AGE_GROUPS.map((g) => (
+          <button type="button" key={g} className={fAge === g ? 'chip selected' : 'chip'} onClick={() => setFAge(fAge === g ? '' : g)}>{tr(g)}</button>
+        ))}
+      </div>
       <div className="finder-results">
         {loading ? (
           <SkeletonCards count={2} />
         ) : error ? (
           <div className="alert alert-error">{error}</div>
-        ) : games.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <CalendarClock size={26} />
-            </span>
-            <div className="empty-title">{L('אין בקשות פתוחות כרגע', 'No open requests right now')}</div>
-            <p className="muted small">{L('פרסם את בקשת המשחק הראשונה והמאמנים יוכלו ליצור קשר.', 'Post the first game request and coaches will be able to reach out.')}</p>
-          </div>
-        ) : (
-          games.map((g) => {
+        ) : (() => {
+          // פתוחות בלבד (לפני המיגרציה אין status — הכול נחשב פתוח), ואז הסינון
+          const open = games.filter((g) => (g.status || 'open') === 'open')
+          const shown = open.filter((g) =>
+            (!fRegion || g.region === fRegion) && (!fAge || g.age_group === fAge))
+          if (shown.length === 0) return (
+            <div className="empty-state">
+              <span className="empty-ic">
+                <CalendarClock size={26} />
+              </span>
+              <div className="empty-title">
+                {open.length === 0 ? L('אין בקשות פתוחות כרגע', 'No open requests right now') : L('אין בקשות בסינון הזה', 'No requests match this filter')}
+              </div>
+              <p className="muted small">
+                {open.length === 0
+                  ? L('פרסם את בקשת המשחק הראשונה והמאמנים יוכלו ליצור קשר.', 'Post the first game request and coaches will be able to reach out.')
+                  : L('נסו אזור או שכבה אחרים.', 'Try another region or age group.')}
+              </p>
+            </div>
+          )
+          return shown.map((g) => {
             const mine = g.created_by === myId
+            const range = g.date_from
+              ? `${fmtDate(g.date_from)}${g.date_to && g.date_to !== g.date_from ? ` – ${fmtDate(g.date_to)}` : ''}`
+              : (g.game_date ? fmtDate(g.game_date) : '')
             return (
               <div key={g.id} className="coach-card">
                 <div className="drill-card-top">
                   <h3 className="coach-name">{nameOf(g)}</h3>
                   {g.age_group && <span className="cat-badge">{tr(g.age_group)}</span>}
+                  {g.region && <span className="cat-badge"><MapPin size={11} /> {g.region}</span>}
+                  {g.home_away && <span className="cat-badge">{homeAwayLabel(g.home_away)}</span>}
                 </div>
 
-                {(g.game_date || g.location) && (
+                {(range || g.location) && (
                   <div className="drill-meta" style={{ marginTop: 10 }}>
-                    {g.game_date && (
+                    {range && (
                       <div className="drill-meta-row">
-                        <span className="detail-label">{L('תאריך', 'Date')}</span>
-                        <span className="detail-value">{fmtDate(g.game_date)}</span>
+                        <span className="detail-label">{L('מתי', 'When')}</span>
+                        <span className="detail-value" dir="ltr">{range}</span>
                       </div>
                     )}
                     {g.location && (
@@ -219,9 +311,14 @@ export default function GamesBoard({ session }) {
 
                 <div className="coach-card-actions">
                   {mine ? (
-                    <button className="btn-ghost danger" onClick={() => remove(g.id)}>
-                      {L('מחק', 'Delete')}
-                    </button>
+                    <>
+                      <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => closeReq(g.id)}>
+                        <XCircle size={14} /> {L('סגירת הבקשה', 'Close request')}
+                      </button>
+                      <button className="btn-ghost danger" onClick={() => remove(g.id)}>
+                        {L('מחק', 'Delete')}
+                      </button>
+                    </>
                   ) : (
                     <button
                       className="btn-primary"
@@ -267,7 +364,7 @@ export default function GamesBoard({ session }) {
               </div>
             )
           })
-        )}
+        })()}
       </div>
     </>
   )
