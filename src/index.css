@@ -21787,3 +21787,36 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
 
 /* ===== מדיה (מסמך ההשקה 1.11) · 1.8.2026 — ערוץ על הכרטיס ===== */
 .vco-channel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+
+/* ============================================================
+   דף הבית של השחקן (מסמך ההשקה 1.12) · 1.8.2026
+   ============================================================ */
+/* יעד האימון הקרוב — בתוך כרטיס האימון בבאנר */
+.plh-nextgoal {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--brand-soft); color: var(--brand-text);
+  border-radius: 12px; padding: 9px 12px; margin-bottom: 8px;
+  font-size: 13px; font-weight: 600;
+}
+.plh-nextgoal svg { flex-shrink: 0; }
+/* משימות לתרגול — כרטיסים גדולים */
+.plht-row { padding: 14px 14px; }
+.plht-body b { font-size: 15px; }
+/* רצועת הסרטונים בתחתית */
+.plhv-strip {
+  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+}
+.plhv-card {
+  flex: 0 0 150px; display: flex; flex-direction: column; gap: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: start;
+  color: inherit; font: inherit;
+}
+.plhv-thumb {
+  display: block; width: 150px; height: 84px; border-radius: 12px;
+  background: var(--sf2) center/cover no-repeat; border: 1px solid var(--ln);
+}
+.plhv-title {
+  font-size: 12.5px; font-weight: 600; color: var(--tx);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}

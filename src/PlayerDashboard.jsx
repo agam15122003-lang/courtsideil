@@ -1164,57 +1164,130 @@ function HeroStats({ stats, setView }) {
 }
 
 // ---------- בית: «השבוע שלי» — שלושת האירועים הבאים (מסך 3b) ----------
-function WeekStrip({ membership, setView }) {
-  const [rows, setRows] = useState(null)
+// 1.12 — הלו"ז השבועי הגדול בבית: רכיב הרשימה המשותף (1.2) לשבוע הנוכחי,
+// כולל כפתורי אישור הגעה על אימונים קרובים.
+function HomeWeek({ session, membership, setView }) {
+  const [days, setDays] = useState(null)
   useEffect(() => {
-    if (!membership) { setRows([]); return }
+    if (!membership) return
     let alive = true
     ;(async () => {
-      const today = new Date().toISOString().slice(0, 10)
-      const [ent, slots, games] = await Promise.all([
-        supabase.from('schedule_entries').select('id, date, start_time, location, plan:training_plans(name)')
-          .eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').limit(10),
+      const ws = wkSunday(new Date())
+      const from = wkYmd(ws)
+      const to = wkYmd(wkAdd(ws, 6))
+      const [{ data: slots }, { data: pr }, { data: gm }] = await Promise.all([
         supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-        supabase.from('team_games').select('id, game_date, game_time, opponent, location')
-          .eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(10),
+        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', to),
+        supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', to),
       ])
       if (!alive) return
-      const all = [
-        ...(ent.data || []).map((e) => ({ id: e.id, date: e.date, time: e.start_time, kind: 'practice',
-          title: e.plan?.name ? L('אימון · ' + e.plan.name, 'Practice · ' + e.plan.name) : L('אימון', 'Practice'), where: e.location })),
-        ...expandSlots(slots.data || [], 0, 14).map((o) => ({ id: o.session_id, date: o.date, time: o.start_time, kind: 'practice',
-          title: L('אימון · ' + trTeam(membership.team), 'Practice · ' + trTeam(membership.team)), where: o.location })),
-        ...(games.data || []).map((g) => ({ id: g.id, date: g.game_date, time: g.game_time, kind: 'game',
-          title: g.opponent ? L('משחק · מול ' + g.opponent, 'Game · vs ' + g.opponent) : L('משחק', 'Game'), where: g.location })),
-      ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''))).slice(0, 3)
-      setRows(all)
+      const occs = expandSlotsRange(slots || [], ws, wkAdd(ws, 6))
+      setDays(Array.from({ length: 7 }, (_, i) => wkAdd(ws, i)).map((d) => {
+        const ds = wkYmd(d)
+        return {
+          date: ds,
+          items: [
+            ...occs.filter((o) => o.date === ds).map((o) => ({
+              key: 's' + o.session_id, session_id: o.session_id, kind: 'practice', date: ds,
+              start_time: o.start_time, end_time: o.end_time, team: o.team, location: o.location, plan: null, recurring: true,
+            })),
+            ...(pr || []).filter((e) => e.date === ds).map((e) => ({
+              key: 'e' + e.id, session_id: e.id, kind: 'practice', date: ds,
+              start_time: e.start_time, end_time: e.end_time, team: e.team, location: e.location, plan: e.plan,
+            })),
+            ...(gm || []).filter((g) => g.game_date === ds).map((g) => ({
+              key: 'g' + g.id, session_id: g.id, kind: 'game', date: ds,
+              start_time: g.game_time, end_time: null, team: g.team, location: g.location, opponent: g.opponent,
+            })),
+          ],
+        }
+      }))
     })()
     return () => { alive = false }
   }, [membership])
 
-  if (!membership || rows === null || !rows.length) return null
+  if (!membership || !days) return null
   return (
     <section className="pl-block">
       <div className="plhg-head">
-        <p className="pl-section-label"><CalendarDays size={15} /> {L('השבוע שלי', 'My week')}</p>
-        <button className="plhg-all" onClick={() => setView('schedule')}>{L('כל הלו״ז', 'Full schedule')} <ArrowFwd size={14} /></button>
+        <p className="pl-section-label"><CalendarDays size={15} /> {L('הלו״ז השבועי', 'This week')}</p>
+        <button className="plhg-all" onClick={() => setView('schedule')}>{L('ללו״ז המלא', 'Full schedule')} <ArrowFwd size={14} /></button>
       </div>
-      <ul className="plw-list">
-        {rows.map((r) => (
-          <li key={r.kind + '-' + r.id} className={r.kind === 'game' ? 'plw-row game' : 'plw-row'}>
-            <span className="plw-date">
-              <i>{new Date(r.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'narrow' })}</i>
-              <b dir="ltr">{String(new Date(r.date + 'T00:00').getDate()).padStart(2, '0')}</b>
-            </span>
-            <span className="plw-main">
-              <strong>{r.title}</strong>
-              {r.where && <span>{r.where}</span>}
-            </span>
-            {r.time && <span className="plw-time" dir="ltr">{String(r.time).slice(0, 5)}</span>}
-          </li>
-        ))}
-      </ul>
+      <WeekList
+        days={days}
+        isCoach={false}
+        renderActions={(ev) =>
+          ev.kind === 'practice' && ev.date >= wkYmd(new Date()) ? (
+            <RsvpButtons session={session} membership={membership} sessionId={ev.session_id} sessionDate={ev.date} />
+          ) : null
+        }
+      />
     </section>
+  )
+}
+
+// 1.12 — רצועת סרטונים בתחתית הבית: 4–6 מובילים מהמדיה, לחיצה מובילה למדיה
+function HomeVideos({ setView }) {
+  const [vids, setVids] = useState(null)
+  useEffect(() => {
+    ;(async () => {
+      let { data, error } = await supabase.from('drill_videos')
+        .select('id, title, url, featured').order('created_at', { ascending: false }).limit(30)
+      if (error) {
+        const legacy = await supabase.from('drill_videos')
+          .select('id, title, url').order('created_at', { ascending: false }).limit(30)
+        data = legacy.data
+      }
+      const rows = data || []
+      const featured = rows.filter((v) => v.featured)
+      setVids((featured.length >= 4 ? featured : rows).slice(0, 6))
+    })()
+  }, [])
+  if (!vids || vids.length === 0) return null
+  return (
+    <section className="pl-block">
+      <div className="plhg-head">
+        <p className="pl-section-label"><MonitorPlay size={15} /> {L('סרטונים', 'Videos')}</p>
+        <button className="plhg-all" onClick={() => setView('videos')}>{L('לכל המדיה', 'All media')} <ArrowFwd size={14} /></button>
+      </div>
+      <div className="plhv-strip">
+        {vids.map((v) => {
+          const yt = getYouTubeId(v.url)
+          return (
+            <button key={v.id} type="button" className="plhv-card" onClick={() => setView('videos')}>
+              <span className="plhv-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined} aria-hidden="true" />
+              <span className="plhv-title" dir="auto">{cleanVideoTitle(v.title)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// 1.12 — יעד האימון הקרוב, בתוך כרטיס האימון הבא (שאר היעדים במסך היעדים)
+function NextPracticeGoal({ session, membership }) {
+  const [goals, setGoals] = useState([])
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const [{ data: gl }, { data: marks }] = await Promise.all([
+        supabase.from('player_goals').select('id, title, player_id').eq('period', 'session').neq('status', 'done'),
+        supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
+      ])
+      const marked = new Set((marks || []).map((m) => m.goal_id))
+      setGoals((gl || []).filter((g) => !marked.has(g.id)).slice(0, 3))
+    })()
+  }, [membership, session.user.id])
+  if (goals.length === 0) return null
+  return (
+    <div className="plh-nextgoal">
+      <Target size={14} aria-hidden="true" />
+      <span>
+        {L('היעד שלך לאימון: ', 'Your goal for practice: ')}
+        <b>{goals.map((g) => g.title).join(' · ')}</b>
+      </span>
+    </div>
   )
 }
 
@@ -1353,6 +1426,8 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
         {!membership && (
           <strong className="plh-hero-title">{L('הצטרפו לקבוצה', 'Join a team')}</strong>
         )}
+        {/* 1.12 — יעד האימון הקרוב חי בתוך כרטיס האימון */}
+        {next && membership && !isGame && <NextPracticeGoal session={session} membership={membership} />}
         {/* אישור הגעה — הפעולה היחידה בבאנר, לפי מסך 3b */}
         {next && session && <HomeRsvp session={session} membership={membership} next={next} />}
       </div>
@@ -1394,45 +1469,6 @@ function LastTeamReview({ membership, me }) {
 }
 
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
-// ---------- בית: כרטיס מטרה בודד — צבעוני, עם פס התקדמות וגרף ----------
-function HomeGoalCard({ g, logs, tone }) {
-  const target = Number(g.target_value) || 0
-  const prog = Number(g.progress_value) || 0
-  const done = g.status === 'done' || (target > 0 && prog >= target)
-  const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : (done ? 100 : 0)
-  return (
-    <div className={`plhg-card ${tone}${done ? ' done' : ''}`}>
-      <div className="plhg-card-top">
-        <strong className="plhg-title">{g.title}</strong>
-        {!g.player_id && <span className="plhg-team"><Users2 size={12} /> {L('קבוצתי', 'Team')}</span>}
-        {done && <span className="plhg-donetag"><Check size={13} /> {L('הושג!', 'Done!')}</span>}
-      </div>
-      {target > 0 ? (
-        <>
-          <div className="plhg-nums"><b dir="ltr">{prog}/{target}</b>{g.unit ? ` ${g.unit}` : ''} · {pct}%</div>
-          <div className="plhg-bar"><span style={{ width: `${pct}%` }} /></div>
-        </>
-      ) : (
-        <div className="plhg-checkline">
-          {done ? L('כל הכבוד! המשך כך', 'Nice! Keep it up') : L('מסמנים אם עמדת בה בסיכום שאחרי האימון', 'Mark it in your post-practice summary')}
-        </div>
-      )}
-      {(logs || []).length >= 2 && <GoalChart logs={logs} target={g.target_value} goalId={g.id} />}
-    </div>
-  )
-}
-
-// ---------- בית: המטרות שלי בגדול — מטרות לאימון + מטרות כלליות לשיפור ----------
-// טאבי התקופה של «המשימות שלי» (מוקאפ 3b)
-const PERIOD_TABS = [
-  { id: 'session', he: 'לאימון', en: 'Practice' },
-  { id: 'week', he: 'השבוע', en: 'Week' },
-  { id: 'month', he: 'החודש', en: 'Month' },
-  { id: 'half_year', he: 'חצי שנה', en: 'Half year' },
-  // הבאג הישן: הטאב סינן לפי 'season' שה-constraint מעולם לא הרשה — ריק תמיד
-  { id: 'year', he: 'העונה', en: 'Season' },
-]
-
 // §7 — «המשימות שלי» בבית: עד שלוש משימות פתוחות אמיתיות מהמאמן, עם פס
 // התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק מטרות.
 function HomeTasks({ session, setView }) {
@@ -1471,7 +1507,7 @@ function HomeTasks({ session, setView }) {
   return (
     <section className="pl-block plht">
       <div className="plhg-head">
-        <p className="pl-section-label"><Dumbbell size={15} /> {L('המשימות שלי', 'My tasks')}</p>
+        <p className="pl-section-label"><Dumbbell size={15} /> {L('משימות לתרגול', 'Tasks to practice')}</p>
         <button className="plhg-all" onClick={() => setView('drills')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
       </div>
       <div className="plht-rows">
@@ -1500,70 +1536,6 @@ function HomeTasks({ session, setView }) {
           )
         })}
       </div>
-    </section>
-  )
-}
-
-function HomeGoals({ session, membership, setView }) {
-  const [goals, setGoals] = useState(null)
-  const [period, setPeriod] = useState('week')
-  const [logsBy, setLogsBy] = useState({})
-  useEffect(() => {
-    if (!membership) return
-    ;(async () => {
-      // RLS מחזיר לבד את המטרות שלי + המטרות הקבוצתיות של הקבוצה
-      const { data } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
-      const list = data || []
-      setGoals(list)
-      const ids = list.filter((g) => g.target_value).map((g) => g.id)
-      if (!ids.length) { setLogsBy({}); return }
-      const { data: logs, error } = await supabase.from('player_goal_logs')
-        .select('goal_id, value, created_at').in('goal_id', ids).order('created_at', { ascending: true })
-      if (error) { setLogsBy({}); return } // הטבלה אולי חסרה בפרוד — פשוט בלי גרפים
-      const by = {}
-      for (const r of logs || []) (by[r.goal_id] = by[r.goal_id] || []).push(r)
-      setLogsBy(by)
-    })()
-  }, [membership, session.user.id])
-
-  if (!membership || goals === null) return null
-  const activeFirst = (list) => [...list].sort((a, b) => (a.status === 'done') - (b.status === 'done'))
-  const shown = activeFirst(goals.filter((g) => (period === 'session' ? g.period === 'session' : g.period === period)))
-
-  return (
-    <section className="pl-block plhg">
-      <div className="plhg-head">
-        <p className="pl-section-label"><Target size={15} /> {L('המטרות שלי', 'My goals')}</p>
-        <button className="plhg-all" onClick={() => setView('goals')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
-      </div>
-
-      {goals.length === 0 ? (
-        <div className="plhg-empty">
-          <span className="plhg-empty-ic"><Target size={22} /></span>
-          <strong>{L('המאמן עוד לא הגדיר לך מטרות', 'No goals from your coach yet')}</strong>
-          <span className="muted small">{L('אפשר גם להוסיף מטרה משלך במסך המטרות', 'You can also add your own goal')}</span>
-          <button className="btn-soft" onClick={() => setView('goals')}>{L('למסך המטרות', 'Go to goals')}</button>
-        </div>
-      ) : (
-        <>
-          {/* טאבים לפי תקופה, כמו במוקאפ 3b — במקום שתי כותרות קטגוריה
-              ופס «ההתקדמות הכוללת» שלא מופיע שם. */}
-          <div className="tabs plhg-tabs">
-            {PERIOD_TABS.map((t) => (
-              <button key={t.id} className={period === t.id ? 'tab active' : 'tab'} onClick={() => setPeriod(t.id)}>
-                {L(t.he, t.en)}
-              </button>
-            ))}
-          </div>
-          {shown.length === 0 ? (
-            <p className="muted small plhg-none">{L('אין משימות בתקופה הזו.', 'No tasks for this period.')}</p>
-          ) : (
-            <div className="plhg-cards">
-              {shown.slice(0, 4).map((g) => <HomeGoalCard key={g.id} g={g} logs={logsBy[g.id]} tone={g.period === 'session' ? 'orange' : 'purple'} />)}
-            </div>
-          )}
-        </>
-      )}
     </section>
   )
 }
@@ -1606,7 +1578,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
   return (
     <section className="pl-block plfb">
       <div className="plhg-head">
-        <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('מה המאמן אמר', 'From your coach')}</p>
+        <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('משוב אחרון', 'Latest feedback')}</p>
         <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל המשובים', 'All feedback')} <ArrowFwd size={14} /></button>
       </div>
 
@@ -1690,19 +1662,18 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
       )}
 
-      {/* סדר מסך 3b: מה המאמן אמר → המשימות שלי → השבוע שלי → מהאימון האחרון.
-          הכתבות, קיצורי הדרך ומשימת השבוע ירדו — הם לא במוקאפ, והם דחפו
-          את המשימות ואת הלו״ז אל מתחת לקו הקיפול. */}
+      {/* סדר 1.12: משוב אחרון → משימות לתרגול → הלו"ז השבועי הגדול →
+          סיכום המאמן → רצועת סרטונים. היעדים ירדו מהבית — חוץ מיעד
+          האימון הקרוב שחי בתוך כרטיס האימון בבאנר. */}
       {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
 
-      {/* §7 — המשימות האמיתיות מהמאמן, לפני המטרות */}
       {membership && <div className="pl-stagger"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>}
 
-      {membership && <div className="pl-stagger"><HomeGoals session={session} membership={membership} setView={setView} key={`g${fbRefresh}`} /></div>}
-
-      {membership && <div className="pl-stagger"><WeekStrip membership={membership} setView={setView} /></div>}
+      {membership && <div className="pl-stagger"><HomeWeek session={session} membership={membership} setView={setView} /></div>}
 
       {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
+
+      {membership && <div className="pl-stagger"><HomeVideos setView={setView} /></div>}
 
       {membership && (
         <button type="button" className="plh-msg-cta pl-stagger" onClick={() => setView('coach')}>
