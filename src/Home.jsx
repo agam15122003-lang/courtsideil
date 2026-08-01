@@ -27,7 +27,8 @@ import CoachOfWeek from './CoachOfWeek'
 import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
 import PracticeRsvp from './PracticeRsvp'
-import { OpenSessionBanner, TodayPlanCard, WeekSchedule, NeedsAttention } from './HomeSections'
+import { TodayPlanCard, WeekSchedule, NeedsAttention } from './HomeSections'
+import CoachTodo from './CoachTodo'
 import { expandSlotsRange } from './sessionId'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -473,7 +474,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           שלה נמצאים עכשיו בסרגל התחתון בן שבעת הטאבים. המסמך מציין
           במפורש שהביקורת פירקה את המסך מ-7 סקשנים שווי-משקל לשלושה
           עם היררכיה — זה מה שקורה כאן. */}
-      <OpenSessionBanner session={session} onNavigate={onNavigate} />
+      {/* 1.4 — «דברים לביצוע»: מחליף את באנר «האימון עוד פתוח» ומרחיב אותו לשש בדיקות */}
+      <CoachTodo session={session} onNavigate={onNavigate} />
       <TodayPlanCard session={session} profile={profile} onNavigate={onNavigate} />
       <WeekSchedule session={session} onNavigate={onNavigate} />
       <NeedsAttention session={session} onNavigate={onNavigate} />
