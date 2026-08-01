@@ -120,7 +120,7 @@ export const COACHING_QUOTES = [
   { text: 'תראה איך הם מתאמנים ואיך הם מתייחסים לחברים לקבוצה — זה אומר לך מי הם.', author: 'גרג פופוביץ׳',
     text_en: 'Watch how they practice. Watch how they react to their teammates. That tells you who they are.', author_en: 'Gregg Popovich',
     source: 'https://www.cbssports.com/nba/news/hall-of-fame-inductee-gregg-popovich-longest-tenured-active-coach-in-american-pro-sports-shares-his-wisdom/' },
-  { text: 'המשמעת היא הגשר בין מטרות להישגים.', author: 'ג׳ים רוהן',
+  { text: 'המשמעת היא הגשר בין יעדים להישגים.', author: 'ג׳ים רוהן',
     text_en: 'Discipline is the bridge between goals and accomplishment.', author_en: 'Jim Rohn',
     source: 'https://en.wikiquote.org/wiki/Jim_Rohn' },
 

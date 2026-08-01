@@ -5,11 +5,12 @@ import {
   Users,
   CalendarDays,
   MessageSquare,
-  PencilRuler,
   PlayCircle,
   Star,
-  ArrowLeft,
-  LayoutGrid,
+  Target,
+  CalendarCheck,
+  ListChecks,
+  BarChart3,
   Zap,
   Quote,
   ChevronDown,
@@ -89,36 +90,36 @@ function CourtArt() {
 export default function Landing({ onEnter }) {
   useReveal()
   const FEATURES = [
-    { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('מאות תרגילים עם הסבר מלא, דירוג ומועדפים — כולל מה שמאמנים אחרים שיתפו.', 'Hundreds of drills with full explanations, ratings and favorites — including what other coaches shared.') },
-    { Icon: ClipboardList, title: L('בונה אימונים', 'Practice Builder'), desc: L('מרכיבים אימון שלם בכמה דקות — לבד או עם בנאי אוטומטי לפי גיל, נושא וזמן.', 'Put together a full practice in a few minutes — on your own or with an auto-builder by age, topic and time.') },
-    { Icon: PencilRuler, title: L('לוח טקטיקה', 'Tactics Board'), desc: L('שרטט מהלכים על מגרש דיגיטלי, הוסף חצי תנועה ומסירה, ונגן אנימציה שלב-אחרי-שלב.', 'Diagram plays on a digital court, add movement and passing arrows, and play back the animation step by step.') },
-    { Icon: CalendarDays, title: L('לו"ז חכם', 'Smart Schedule'), desc: L('כל האימונים והמשחקים בלוח שנה אחד, עם התוכנית צמודה לכל אימון — והשחקנים רואים אותו גם.', 'All practices and games on one calendar, with the plan attached to each session — and the players see it too.') },
-    { Icon: Users, title: L('קהילת מאמנים', 'Coaches Community'), desc: L('מצא מאמנים, צפה בתרגילים שלהם, העתק תוכניות ששותפו ותאם משחקי אימון.', 'Find coaches, browse their drills, copy shared plans and arrange scrimmages.') },
-    { Icon: MessageSquare, title: L('תקשורת', 'Messaging'), desc: L('הודעות אישיות וצ׳אט קבוצתי — עם מאמנים אחרים, ועכשיו גם ישירות מול השחקנים והקבוצה שלך.', 'Personal messages and group chat — with other coaches, and now directly with your players and team too.') },
+    { Icon: Target, title: L('הצבת יעדים', 'Goal Setting'), desc: L('מציבים יעדים מוגדרים בזמן, שנשמרים וניתן לעקוב אחריהם.', 'Set time-bound goals that are saved and easy to track.') },
+    { Icon: ClipboardList, title: L('משימות אישיות', 'Personal Tasks'), desc: L('מתאימים לכל שחקן משימות אישיות שמתאימות בדיוק לו — כי לכל אחד מגיע יחס אישי.', 'Tailor personal tasks that fit each player exactly — because everyone deserves personal attention.') },
+    { Icon: CalendarDays, title: L('לו"ז מותאם אישית', 'Personalized Schedule'), desc: L('המאמן מסדר את הלו"ז, השחקנים רואים בזמן אמת את שעות האימונים והמשחק הבא — ואפילו מקבלים תזכורת.', 'The coach sets the schedule, players see practice times and the next game in real time — and even get a reminder.') },
+    { Icon: MessageSquare, title: L('תקשורת נוחה', 'Easy Communication'), desc: L('אחרי כל אימון או משחק השחקן מסמן אם ביצע את המשימות ויכול לכתוב הודעה אישית למאמן. המאמן מקבל דוח סיכום ויכול לשלוח הודעה לכולם — ומשוב אישי לכל שחקן.', 'After every practice or game the player marks completed tasks and can message the coach. The coach gets a summary report and can message everyone — plus personal feedback for each player.') },
+    { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('ספריית תרגילים בעברית שגדלה כל שבוע — עם הסבר מלא, דירוג ומועדפים.', 'A Hebrew drill library that grows every week — with full explanations, ratings and favorites.') },
+    { Icon: PlayCircle, title: L('אזור מדיה', 'Media Zone'), desc: L('סרטונים מסוננים לפי קטגוריות — בלי לחפש שעות באינטרנט. רוצים לעבוד על יכולות אישיות? מסננים, ועשרות סרטונים מוכנים מופיעים.', 'Videos filtered by category — no more hours of searching. Want to work on individual skills? Filter, and dozens of ready videos appear.') },
   ]
 
   const STEPS = [
-    { n: '1', title: L('הקם פרופיל', 'Set Up Your Profile'), desc: L('מועדון, שכבות גיל ופרטים — והצטרף לקהילה.', 'Club, age groups and details — then join the community.') },
-    { n: '2', title: L('בנה את הארסנל', 'Build Your Arsenal'), desc: L('שמור תרגילים, הרכב תוכניות ושרטט מהלכים.', 'Save drills, assemble plans and diagram plays.') },
-    { n: '3', title: L('נהל את העונה', 'Run Your Season'), desc: L('מסמנים נוכחות, כותבים משוב אחרי אימון ושולחים תרגול לשחקנים — הכל מהטלפון.', 'Take attendance, write feedback after practice and send drills to players — all from your phone.') },
+    { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים כמאמן או כשחקן וממלאים את הפרטים. מאמנים פשוט מתחברים; שחקנים מצטרפים לקבוצה עם קוד מהמאמן.', 'Sign up as a coach or a player and fill in your details. Coaches just log in; players join a team with a code from the coach.') },
+    { n: '2', title: L('אתם בפנים', "You're in"), desc: L('חוקרים את האפליקציה וממלאים את החלקים: יעדים, לו"ז ומשימות.', 'Explore the app and fill in the parts: goals, schedule and tasks.') },
+    { n: '3', title: L('נהנים', 'Enjoy'), desc: L('מנצלים את CourtSide כדי להשתפר ולנהל את העונה בצורה הכי נוחה ומקצועית.', 'Use CourtSide to improve and run the season in the most convenient, professional way.') },
   ]
 
   const STATS = [
     { num: L('הכול', 'All'), label: L('הכלים במקום אחד', 'tools in one place') },
     { num: L('קהילה', 'Community'), label: L('של מאמנים שמשתפים ידע', 'of coaches sharing knowledge') },
-    { num: L('חינם', 'Free'), label: L('לכל מאמן', 'for every coach') },
+    { num: L('בעברית', 'In Hebrew'), label: L('בנוי לכדורסל הישראלי', 'built for Israeli basketball') },
   ]
 
   // "למה CourtSide" — רצועת ערך בין ההירו לפיצ'רים (דפוס ההמרה מהסקיל: Hero → Value → Features → Social Proof → CTA)
   const WHY = [
-    { Icon: LayoutGrid, title: L('הכול במקום אחד', 'Everything in one place'), desc: L('תרגילים, תוכניות, לוח טקטיקה, לו"ז וקבוצות — במקום פתקים, וואטסאפ ואקסלים מפוזרים.', 'Drills, plans, a tactics board, a schedule and teams — instead of scattered notes, WhatsApp and spreadsheets.') },
-    { Icon: Zap, title: L('התוכנית איתך במגרש', 'Your plan, on the court'), desc: L('התוכנית פתוחה בטלפון: מסמנים תרגיל שהסתיים, נוכחות בסוף האימון, ומשוב לשחקן — בלי מחשב.', 'The plan stays open on your phone: tick a finished drill, mark attendance, send feedback — no laptop.') },
-    { Icon: Users, title: L('תרגילים מהקהילה', 'Drills from the community'), desc: L('תרגילים, דירוגים ותוכניות ששיתפו מאמנים פעילים — במקום להמציא כל אימון מאפס.', 'Drills, ratings and plans shared by active coaches — instead of inventing every practice from scratch.') },
+    { Icon: Zap, title: L('נוח לשימוש', 'Easy to use'), desc: L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: לראות התקדמות, לשלוח יעדים מותאמים אישית ולעקוב אחריהם.', 'The easiest way to follow the team and every player personally: see progress, send personalized goals and track them.') },
+    { Icon: ClipboardList, title: L('תוכניות אימון ותרגילים', 'Practice plans & drills'), desc: L('כל תרגיל ותוכנית שאתם רושמים נשמרים אצלכם: רואים על מה עבדתם, חוזרים לתרגיל שלא ישב טוב, ומשלבים תרגילים שמורים לתוכנית חדשה. אין דרך קלה יותר לשמור את הידע שלכם.', 'Every drill and plan you write is saved: see what you worked on, revisit a drill that didn’t sit right, and combine saved drills into a new plan. There is no easier way to keep your knowledge.') },
+    { Icon: Users, title: L('קהילה וצבירת ידע', 'Community & knowledge'), desc: L('אין דבר חשוב יותר למאמן מהרחבת הידע. ב-CourtSide קהילת מאמנים שלמה שאפשר להתייעץ איתה על הכל: תרגיל חדש, קביעת משחק אימון או סתם לדבר כדורסל. רואים תרגילים של מאמנים אחרים, שואלים ומיישמים.', 'Nothing matters more to a coach than growing knowledge. CourtSide has a whole community of coaches to consult about anything: a new drill, arranging a scrimmage or just talking basketball. See other coaches’ drills, ask and apply.') },
   ]
 
   // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
   const FAQ = [
-    { q: L('האם CourtSide באמת חינם?', 'Is CourtSide really free?'), a: L('כן. כל הכלים — ספריית התרגילים, בונה האימונים, לוח הטקטיקה, הלו"ז, ניהול הקבוצות, עריכת הווידאו והקהילה — פתוחים לכל מאמן ללא עלות. נרשמים ומתחילים.', 'Yes. Every tool — the drill library, practice builder, tactics board, schedule, team management, video editing and the community — is open to every coach at no cost. Sign up and start.') },
+    { q: L('כמה זה עולה?', 'How much does it cost?'), a: L('אפשר להתחיל בחינם ולהשתמש בכלים המרכזיים. בהמשך ייפתחו מסלולים מתקדמים למאמנים ולמועדונים — ומי שמצטרף עכשיו ייהנה מתנאי מייסדים.', 'You can start for free and use the core tools. Advanced plans for coaches and clubs will open later — and early joiners enjoy founders’ terms.') },
     { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
     { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
     {
@@ -130,7 +131,7 @@ export default function Landing({ onEnter }) {
         </>
       ),
     },
-    { q: L('איך מצטרפים?', 'How do I join?'), a: L('לוחצים "התחל עכשיו", נרשמים עם אימייל ומקימים פרופיל מאמן — מועדון, שכבות גיל ופרטים. וזהו, אתם בפנים.', 'Click "Start now", sign up with your email and set up a coach profile — club, age groups and details. That’s it, you’re in.') },
+    { q: L('איך מצטרפים?', 'How do I join?'), a: L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל — מאמן או שחקן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a profile — coach or player. That’s it, you’re in.') },
     { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
   ]
 
@@ -161,18 +162,19 @@ export default function Landing({ onEnter }) {
         <span className="lhn-glow" aria-hidden="true" />
         <div className="land-hero-text">
           <span className="land-eyebrow">
-            <Star size={14} /> {L('חינם · בעברית · למאמנים ולשחקנים', 'Free · in Hebrew · for coaches & players')}
+            <Star size={14} /> {L('בעברית · למאמנים ולשחקנים', 'In Hebrew · for coaches & players')}
           </span>
           <h1 className="land-title">
-            {L('כלי העבודה של מאמן הכדורסל.', "The basketball coach's working tools.")}<br />
-            <span className="land-title-accent">{L('במקום אחד.', 'In one place.')}</span>
+            <span className="land-title-accent">CourtSide</span><br />
+            {L('הבית של מאמני ושחקני הכדורסל הישראלי.', 'The home of Israeli basketball coaches and players.')}
           </h1>
           <p className="land-sub">
-            {L('בונים תוכנית אימון, שולחים תרגילים לשחקנים, מסמנים נוכחות וכותבים משוב. תרגילים, לוח טקטיקה, לו"ז וקהילת מאמנים — במערכת אחת, בעברית.', 'Build a practice plan, send drills to your players, mark attendance and write feedback. Drills, a tactics board, a schedule and a coaching community — one system, in Hebrew.')}
+            <strong>{L('כל מה שמאמן ושחקן צריכים במקום אחד.', 'Everything a coach and a player need in one place.')}</strong><br />
+            {L("שיתוף תרגילים, יעדים, משוב על אימונים ומשחקים, לו\"ז שבועי — ועוד מגוון רחב של פיצ'רים.", 'Drill sharing, goals, feedback on practices and games, a weekly schedule — and a wide range of extra features.')}
           </p>
           <div className="land-cta">
             <button className="btn-primary btn-lg" onClick={onEnter}>
-              {L('התחל עכשיו — חינם', 'Start now — free')}
+              {L('מתחילים בחינם', 'Start free')}
               <ArrowFwd size={18} />
             </button>
             <a className="btn-soft btn-lg" href="#features">
@@ -197,30 +199,52 @@ export default function Landing({ onEnter }) {
       {/* הלולאה מאמן↔שחקן — הבידול של CourtSide, הסיפור שהעיצוב צועק */}
       <section className="land-section land-loop reveal">
         <span className="land-kicker">{L('הלולאה', 'The Loop')}</span>
-        <h2 className="land-h2">{L('מאמן ↔ שחקן. זה כל הסיפור.', 'Coach ↔ player. That’s the whole story.')}</h2>
-        <p className="land-lead">{L('מה שאף קבוצת וואטסאפ לא נותנת: מעגל אימון סגור, שרואים אותו.', 'What no WhatsApp group gives you: a closed training loop you can actually see.')}</p>
+        <h2 className="land-h2">{L('הקשר בין מאמן לשחקן מעולם לא היה נוח יותר.', 'The coach–player connection has never been easier.')}</h2>
         <div className="land-loop-grid">
           <div className="land-loop-step">
             <span className="lls-ic orange"><Send size={22} /></span>
-            <h3 className="land-feature-title">{L('המאמן שולח', 'The coach sends')}</h3>
-            <p className="land-feature-desc">{L('תרגיל עם יעד כמותי — "200 זריקות עונשין עד שלישי".', 'A drill with a target — “200 free throws by Tuesday”.')}</p>
+            <h3 className="land-feature-title">{L('המאמן שולח משימה', 'The coach sends a task')}</h3>
+            <p className="land-feature-desc">{L('לכל הקבוצה או לשחקן ספציפי.', 'To the whole team or a specific player.')}</p>
           </div>
           <div className="land-loop-step">
             <span className="lls-ic green"><Dumbbell size={22} /></span>
-            <h3 className="land-feature-title">{L('השחקן מתאמן ומדווח', 'The player trains & reports')}</h3>
-            <p className="land-feature-desc">{L('מסמן התקדמות מהטלפון — גם 100 מתוך 200 נספרות, וכל אימון מקבל סיכום.', 'Logs progress from their phone — even 100 of 200 counts, and every practice gets a summary.')}</p>
+            <h3 className="land-feature-title">{L('השחקן מסמן את ההתקדמות שלו', 'The player marks their progress')}</h3>
+            <p className="land-feature-desc">{L('מהטלפון.', 'Straight from the phone.')}</p>
           </div>
           <div className="land-loop-step">
             <span className="lls-ic navy"><Eye size={22} /></span>
-            <h3 className="land-feature-title">{L('המאמן רואה ומגיב', 'The coach sees & responds')}</h3>
-            <p className="land-feature-desc">{L('מי ביצע, כמה קשה היה, ומשוב אישי שסוגר את המעגל — ומתחיל אותו מחדש.', 'Who did it, how hard it felt, and personal feedback that closes the loop — and starts it again.')}</p>
+            <h3 className="land-feature-title">{L('המאמן רואה את ההתקדמות', 'The coach sees the progress')}</h3>
+            <p className="land-feature-desc">{L('ונותן משוב.', 'And gives feedback.')}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* יום אימון עם CourtSide — שלושת הרגעים של יום אימון */}
+      <section className="land-section land-why reveal">
+        <span className="land-kicker">{L('יום אימון', 'Practice Day')}</span>
+        <h2 className="land-h2">{L('יום אימון עם CourtSide', 'A practice day with CourtSide')}</h2>
+        <div className="land-why-grid">
+          <div className="land-why-item">
+            <span className="land-why-ic"><CalendarCheck size={22} /></span>
+            <h3 className="land-feature-title">{L('לפני האימון', 'Before practice')}</h3>
+            <p className="land-feature-desc">{L('השחקן מאשר הגעה ורואה את היעדים שהמאמן הציב לו.', 'The player confirms attendance and sees the goals the coach set for them.')}</p>
+          </div>
+          <div className="land-why-item">
+            <span className="land-why-ic"><ListChecks size={22} /></span>
+            <h3 className="land-feature-title">{L('אחרי האימון', 'After practice')}</h3>
+            <p className="land-feature-desc">{L('מסמן מה ביצע ומוסיף משוב אישי על האימון.', 'Marks what they did and adds personal feedback on the practice.')}</p>
+          </div>
+          <div className="land-why-item">
+            <span className="land-why-ic"><BarChart3 size={22} /></span>
+            <h3 className="land-feature-title">{L('המאמן', 'The coach')}</h3>
+            <p className="land-feature-desc">{L('מקבל דוח קבוצתי: כמה האימון היה קשה, מי ביצע את המשימות, אחוז הנוכחות ומי מחסיר ברצף — ומגיב.', 'Gets a team report: how hard the practice felt, who completed the tasks, the attendance rate and who keeps missing — and responds.')}</p>
           </div>
         </div>
       </section>
 
       <section className="land-section land-why reveal">
         <span className="land-kicker">{L('למה CourtSide', 'Why CourtSide')}</span>
-        <h2 className="land-h2">{L('בנוי לעבודה האמיתית של המאמן', "Built for a coach's real work")}</h2>
+        <h2 className="land-h2">{L('למה כדאי להשתמש ב-CourtSide?', 'Why use CourtSide?')}</h2>
         <div className="land-why-grid">
           {WHY.map((w) => (
             <div key={w.title} className="land-why-item">
@@ -236,8 +260,7 @@ export default function Landing({ onEnter }) {
 
       <section className="land-section reveal" id="features">
         <span className="land-kicker">{L('הכלים', 'The Tools')}</span>
-        <h2 className="land-h2">{L('כל מה שמאמן צריך', 'Everything a coach needs')}</h2>
-        <p className="land-lead">{L('כל מה שצריך כדי לנהל קבוצה — במקום אחד, בלי לקפוץ בין אפליקציות.', 'Everything you need to run a team — in one place, no jumping between apps.')}</p>
+        <h2 className="land-h2">{L('כל מה שהקבוצה שלכם צריכה כדי להתקדם', 'Everything your team needs to move forward')}</h2>
         <div className="land-features">
           {FEATURES.map((f) => (
             <div key={f.title} className="land-feature">
@@ -249,11 +272,12 @@ export default function Landing({ onEnter }) {
             </div>
           ))}
         </div>
+        <p className="land-lead">{L("ויש עוד הרבה פיצ'רים מעולים — שנשאיר לכם לגלות לבד :)", 'And plenty more great features — we’ll let you discover them yourself :)')}</p>
       </section>
 
       <section className="land-section land-steps-wrap reveal" id="how">
         <span className="land-kicker">{L('איך זה עובד', 'How It Works')}</span>
-        <h2 className="land-h2">{L('שלושה צעדים ואתם בפנים', 'Three steps and you’re in')}</h2>
+        <h2 className="land-h2">{L('איך מתחילים?', 'How do you start?')}</h2>
         <div className="land-steps">
           {STEPS.map((s) => (
             <div key={s.n} className="land-step">
@@ -308,9 +332,9 @@ export default function Landing({ onEnter }) {
 
       <section className="land-band reveal">
         <h2 className="land-band-title">{L('יאללה, מתחילים.', 'Let’s get started.')}</h2>
-        <p className="land-band-sub">{L('בחינם ובעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'Free and in Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')}</p>
+        <p className="land-band-sub">{L('בעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'In Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')}</p>
         <button className="btn-hero btn-lg" onClick={onEnter}>
-          {L('הצטרפות חינם', 'Join free')}
+          {L('מתחילים בחינם', 'Start free')}
           <ArrowFwd size={18} />
         </button>
       </section>
@@ -342,7 +366,7 @@ export default function Landing({ onEnter }) {
           </nav>
           <nav className="land-footer-col" aria-label={L('הצטרפות', 'Get started')}>
             <h3>{L('הצטרפות', 'Get started')}</h3>
-            <button type="button" className="land-footer-cta" onClick={onEnter}>{L('הצטרפות חינם', 'Join free')}</button>
+            <button type="button" className="land-footer-cta" onClick={onEnter}>{L('מתחילים בחינם', 'Start free')}</button>
             <a href="#features">{L('סיור בכלים', 'Tour the tools')}</a>
           </nav>
         </div>
