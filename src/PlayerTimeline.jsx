@@ -82,13 +82,14 @@ export default function PlayerTimeline({ session, membership }) {
   const [items, setItems] = useState(null)
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
+  const [latestFb, setLatestFb] = useState(null) // 1.8 — המשוב המלא האחרון
   const me = session.user.id
 
   const load = useCallback(async () => {
     if (!membership) return
     const from = ymdAgo(90)
     const today = new Date().toISOString().slice(0, 10)
-    const [slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ] = await Promise.all([
+    const [slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ, complQ] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('schedule_entries').select('id, date, start_time, end_time, location').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
       supabase.from('team_games').select('id, game_date, game_time, opponent, location').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today),
@@ -97,7 +98,11 @@ export default function PlayerTimeline({ session, membership }) {
       supabase.from('session_reviews').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('session_date', from),
       supabase.from('session_goal_marks').select('session_id, met, goal:player_goals(title)').eq('player_id', me),
       supabase.from('team_players').select('id').eq('coach_id', membership.coach_id).eq('team', membership.team).eq('player_id', me),
+      // 1.8 — «משימות שבוצעו» בסיכום הכללי
+      supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', me),
     ])
+    // 1.8 — המשוב המלא האחרון מהמאמן, מוצג למעלה
+    setLatestFb((fbQ.data || []).find((r) => r.content) || null)
     const rosterId = rosterQ.data?.[0]?.id || null
     const [attQ, gattQ] = rosterId ? await Promise.all([
       supabase.from('practice_attendance').select('session_date, status').eq('coach_id', membership.coach_id).eq('team', membership.team).eq('player_id', rosterId),
@@ -152,6 +157,7 @@ export default function PlayerTimeline({ session, membership }) {
     const present = attRows.filter((c) => c.att && c.att !== 'absent').length
     setStats({
       sessions: cards.filter((c) => c.type !== 'note').length,
+      tasksDone: (complQ.data || []).filter((c) => c.done_at).length,
       avgEffort: effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length) : null,
       attendancePct: attRows.length ? Math.round((present / attRows.length) * 100) : null,
       series,
@@ -177,11 +183,24 @@ export default function PlayerTimeline({ session, membership }) {
         <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
       </button>
 
+      {/* 1.8 — המשוב המלא מהאימון האחרון, למעלה */}
+      {latestFb && (
+        <div className="plt-lastfb">
+          <p className="pl-section-label">{L('המשוב האחרון מהמאמן', "Coach's latest feedback")}</p>
+          <div className="plt-lastfb-card">
+            <span className="muted small">
+              {latestFb.created_at ? new Date(latestFb.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''}
+            </span>
+            <p>{latestFb.content}</p>
+          </div>
+        </div>
+      )}
+
       {stats && (
         <div className="plt-trio">
-          <div className="plt-stat"><b>{stats.sessions}</b><span>{L('אימונים', 'Sessions')}</span></div>
-          <div className="plt-stat"><b className="brand">{stats.avgEffort != null ? stats.avgEffort.toFixed(1) : '—'}</b><span>{L('עומס ממוצע', 'Avg load')}</span></div>
           <div className="plt-stat"><b className="green">{stats.attendancePct != null ? `${stats.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attendance')}</span></div>
+          <div className="plt-stat"><b>{stats.tasksDone}</b><span>{L('משימות שבוצעו', 'Tasks done')}</span></div>
+          <div className="plt-stat"><b className="brand">{stats.avgEffort != null ? stats.avgEffort.toFixed(1) : '—'}</b><span>{L('עומס ממוצע', 'Avg load')}</span></div>
         </div>
       )}
 
@@ -216,7 +235,7 @@ export default function PlayerTimeline({ session, membership }) {
         </div>
       ) : (
         <>
-          <p className="pl-section-label" style={{ marginTop: 18 }}>{L('אימונים שהיו', 'Past sessions')}</p>
+          <p className="pl-section-label" style={{ marginTop: 18 }}>{L('ארכיון אימונים', 'Session archive')}</p>
           <div className="thist">
             {items.map((c) => {
               const isMvp = c.review && c.review.mvp_player_id === me

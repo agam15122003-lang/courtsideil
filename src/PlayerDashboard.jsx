@@ -700,7 +700,6 @@ function RsvpButtons({ session, membership, sessionId, sessionDate }) {
 
 function PlayerSchedule({ session, membership }) {
   const [items, setItems] = useState(null)
-  const [past, setPast] = useState([])
   const [slotRows, setSlotRows] = useState([])
   const [weekStart, setWeekStart] = useState(() => wkSunday(new Date()))
   const [weekData, setWeekData] = useState({ entries: [], games: [] })
@@ -723,15 +722,10 @@ function PlayerSchedule({ session, membership }) {
   const load = useCallback(async () => {
     if (!membership) return
     const today = new Date().toISOString().slice(0, 10)
-    const from = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
-    const [{ data: slots }, { data: pr }, { data: gm }, { data: pastPr }, { data: pastGm }, { data: eff }, { data: marks }] = await Promise.all([
+    const [{ data: slots }, { data: pr }, { data: gm }] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(40),
       supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(40),
-      supabase.from('schedule_entries').select('id, date, start_time').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lt('date', today),
-      supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lt('game_date', today),
-      supabase.from('session_effort').select('session_id, effort').eq('player_id', me),
-      supabase.from('session_goal_marks').select('session_id, met, goal:player_goals(title)').eq('player_id', me),
     ])
     const list = [
       ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', id: 's' + o.session_id, date: o.date, time: o.start_time, end: o.end_time, title: L('אימון קבוצתי', 'Team practice'), location: o.location })),
@@ -740,22 +734,7 @@ function PlayerSchedule({ session, membership }) {
     ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
     setItems(list)
     setSlotRows(slots || [])
-
-    // אימונים שהיו — מתוך הדירוגים של השחקן ב-14 הימים האחרונים
-    const effBy = {}; for (const r of eff || []) effBy[r.session_id] = r.effort
-    const marksBy = {}; for (const m of marks || []) (marksBy[m.session_id] = marksBy[m.session_id] || []).push({ title: m.goal?.title || L('מטרה', 'Goal'), met: m.met })
-    const pastSessions = [
-      ...expandSlots(slots || [], -14, -1).map((o) => ({ session_id: o.session_id, date: o.date, title: L('אימון קבוצתי', 'Team practice') })),
-      ...(pastPr || []).map((e) => ({ session_id: e.id, date: e.date, title: L('אימון', 'Practice') })),
-      ...(pastGm || []).map((g) => ({ session_id: g.id, date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
-    ]
-    const seen = new Set()
-    setPast(pastSessions
-      .filter((s) => { if (seen.has(s.session_id)) return false; seen.add(s.session_id); return effBy[s.session_id] != null || marksBy[s.session_id] })
-      .map((s) => ({ ...s, effort: effBy[s.session_id], marks: marksBy[s.session_id] || [] }))
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 3))
-  }, [membership, me])
+  }, [membership])
 
   useEffect(() => { load() }, [load])
 
@@ -795,7 +774,7 @@ function PlayerSchedule({ session, membership }) {
         title={L('הלו״ז שלי', 'My schedule')}
         subtitle={L('אימונים ומשחקים · שבוע אחרי שבוע', 'Practices and games · week by week')} />
 
-      {items.length === 0 && past.length === 0 ? (
+      {items.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><CalendarDays size={26} /></span>
           <div className="empty-title">{L('אין אירועים קרובים', 'Nothing coming up')}</div>
@@ -842,26 +821,8 @@ function PlayerSchedule({ session, membership }) {
             />
           </section>
 
-          {past.length > 0 && (
-            <section className="pls-day" style={{ marginTop: 6 }}>
-              <p className="pl-section-label">{L('אימונים שהיו', 'Past sessions')}</p>
-              {past.map((s) => (
-                <div key={s.session_id} className="pls-past">
-                  <div className="pls-past-head">
-                    <strong>{s.title} · {new Date(s.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })}</strong>
-                    {s.effort != null && <span className="pls-load"><Flame size={13} /> {L('עומס', 'Load')} {s.effort}/10</span>}
-                  </div>
-                  {s.marks.map((m, i) => (
-                    <div key={i} className="pls-past-goal">
-                      <span className={m.met ? 'pls-mark on' : 'pls-mark'}>{m.met ? <Check size={12} /> : null}</span>
-                      {m.title}{m.met ? L(' — עמדתי במטרה', ' — met') : L(' — נמשיך באימון הבא', ' — next time')}
-                    </div>
-                  ))}
-                  <div className="pls-past-note"><Eye size={12} /> {L('המאמן רואה את הסיכום והעומס שלך', 'Your coach sees your summary and load')}</div>
-                </div>
-              ))}
-            </section>
-          )}
+          {/* 1.8 — «אימונים שהיו» ירד מהלו"ז הפעיל; הארכיון המלא נמצא
+              ב«האימונים שלי» (PlayerTimeline). */}
         </>
       )}
 

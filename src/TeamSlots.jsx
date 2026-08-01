@@ -20,16 +20,33 @@ export default function TeamSlots({ coachId, team, onReview }) {
   const [loc, setLoc] = useState('')
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false) // כשל טעינה ≠ «אין ימי אימון»
+  // 1.8 — סיכומי אימונים: גם חד-פעמיים, וסטטוס סגור/פתוח לכל אימון
+  const [extra, setExtra] = useState({ entries: [], attSet: new Set(), revSet: new Set() })
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('team_practice_slots')
-      .select('*')
-      .eq('coach_id', coachId).eq('team', team)
-      .order('weekday').order('start_time')
-    if (error) { setFailed(true); setSlots([]); return }
+    const pad2 = (n) => String(n).padStart(2, '0')
+    const ymd2 = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+    const from = new Date(); from.setDate(from.getDate() - 21)
+    const [slotsRes, entRes, attRes, revRes] = await Promise.all([
+      supabase.from('team_practice_slots').select('*')
+        .eq('coach_id', coachId).eq('team', team)
+        .order('weekday').order('start_time'),
+      supabase.from('schedule_entries').select('id, date, start_time, end_time')
+        .eq('created_by', coachId).eq('team', team)
+        .gte('date', ymd2(from)).lte('date', ymd2(new Date())),
+      supabase.from('practice_attendance').select('session_date')
+        .eq('coach_id', coachId).eq('team', team).gte('session_date', ymd2(from)),
+      supabase.from('session_reviews').select('session_id')
+        .eq('coach_id', coachId).eq('session_type', 'practice'),
+    ])
+    if (slotsRes.error) { setFailed(true); setSlots([]); return }
     setFailed(false)
-    setSlots(data || [])
+    setSlots(slotsRes.data || [])
+    setExtra({
+      entries: entRes.error ? [] : entRes.data || [],
+      attSet: new Set((attRes.error ? [] : attRes.data || []).map((r) => r.session_date)),
+      revSet: new Set((revRes.error ? [] : revRes.data || []).map((r) => r.session_id)),
+    })
   }, [coachId, team])
   useEffect(() => { load() }, [load])
 
@@ -59,7 +76,16 @@ export default function TeamSlots({ coachId, team, onReview }) {
   if (slots === null) return <div className="team-section"><SkeletonRoster count={3} /></div>
   if (failed) return <div className="team-section"><ErrorState message={L('לא הצלחנו לטעון את ימי האימון.', "We couldn't load the practice days.")} onRetry={load} /></div>
 
-  const recent = expandSlots(slots, -21, -1).reverse().slice(0, 8) // אימונים אחרונים (הכי חדש קודם)
+  // 1.8 — סיכומי אימונים: מופעי הלו"ז הקבוע + אימונים חד-פעמיים, הכי חדש קודם
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+  const recent = [
+    ...expandSlots(slots, -21, -1).map((o) => ({ session_id: o.session_id, date: o.date, weekday: o.weekday, start_time: o.start_time, end_time: o.end_time, location: o.location })),
+    ...extra.entries.filter((e) => e.date && e.date < todayStr).map((e) => ({
+      session_id: e.id, date: e.date, weekday: new Date(e.date + 'T00:00').getDay(),
+      start_time: e.start_time ? String(e.start_time).slice(0, 5) : '', end_time: e.end_time ? String(e.end_time).slice(0, 5) : '', location: null,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
+  const isClosed = (o) => extra.attSet.has(o.date) && extra.revSet.has(o.session_id)
   const upcoming = expandSlots(slots, 0, 20).slice(0, 6)
 
   return (
@@ -105,20 +131,26 @@ export default function TeamSlots({ coachId, team, onReview }) {
 
       {recent.length > 0 && (
         <div className="slot-recent">
-          <h3 className="ta-title" style={{ marginTop: 22 }}><ClipboardCheck size={16} /> {L('אימונים אחרונים — סיכום ועומס', 'Recent practices — review & load')}</h3>
-          <p className="muted small" style={{ marginBottom: 10 }}>{L('אחרי כל אימון — פתח את רשימת השחקנים: עומס שדירגו, מה שהם רשמו, מקום להערה, ומטרות.', 'After each practice — open the player list: rated load, their notes, a note field, and goals.')}</p>
+          <h3 className="ta-title" style={{ marginTop: 22 }}><ClipboardCheck size={16} /> {L('סיכומי אימונים', 'Practice summaries')}</h3>
+          <p className="muted small" style={{ marginBottom: 10 }}>{L('כל אימון שהיה — עם סטטוס: סגור (נוכחות + סיכום) או פתוח. לחיצה משלימה מכאן.', 'Every past practice — closed (attendance + review) or open. Tap to complete from here.')}</p>
           <ul className="slot-recent-list">
-            {recent.map((o) => (
-              <li key={o.session_id} className="slot-recent-row">
-                <div className="slot-recent-main">
-                  <strong>{L(WEEKDAYS[o.weekday][0], WEEKDAYS[o.weekday][1])} · {new Date(o.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</strong>
-                  <span className="muted small" dir="ltr">{o.start_time}{o.end_time ? `–${o.end_time}` : ''}{o.location ? ` · ${o.location}` : ''}</span>
-                </div>
-                <button className="btn-soft slot-review-btn" style={{ marginTop: 0 }} onClick={() => onReview({ id: o.session_id, team, date: o.date, start_time: o.start_time, session_type: 'practice', location: o.location })}>
-                  <ClipboardCheck size={15} /> {L('סיכום ומשוב', 'Review')}
-                </button>
-              </li>
-            ))}
+            {recent.map((o) => {
+              const closed = isClosed(o)
+              return (
+                <li key={o.session_id} className="slot-recent-row">
+                  <div className="slot-recent-main">
+                    <strong>{L(WEEKDAYS[o.weekday][0], WEEKDAYS[o.weekday][1])} · {new Date(o.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</strong>
+                    <span className="muted small" dir="ltr">{o.start_time}{o.end_time ? `–${o.end_time}` : ''}{o.location ? ` · ${o.location}` : ''}</span>
+                  </div>
+                  <span className={closed ? 'slot-state closed' : 'slot-state open'}>
+                    {closed ? L('סגור', 'Closed') : L('פתוח', 'Open')}
+                  </span>
+                  <button className="btn-soft slot-review-btn" style={{ marginTop: 0 }} onClick={() => onReview({ id: o.session_id, team, date: o.date, start_time: o.start_time, session_type: 'practice', location: o.location })}>
+                    <ClipboardCheck size={15} /> {closed ? L('צפייה ועריכה', 'View & edit') : L('השלמה', 'Complete')}
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

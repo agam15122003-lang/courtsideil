@@ -37,14 +37,17 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
     if (!membership) { setPending(null); return }
     const today = new Date().toISOString().slice(0, 10)
     const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
-    const [{ data: slots }, { data: gm }, { data: gl }, { data: prevMarks }] = await Promise.all([
+    const [{ data: slots }, { data: gm }, { data: gl }, { data: prevMarks }, { data: pr }] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
       supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['session', 'week', 'month']),
       supabase.from('session_goal_marks').select('goal_id').eq('player_id', me),
+      // 1.8 — גם אימונים חד-פעמיים מהלו"ז הם מועמדים לסיכום, לא רק הקבועים
+      supabase.from('schedule_entries').select('id, date').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
     ])
     const cands = [
       ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון קבוצתי', 'Team practice') })),
+      ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, title: L('אימון קבוצתי', 'Team practice') })),
       ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
     ].filter((c) => c.session_date).sort((a, b) => b.session_date.localeCompare(a.session_date))
     const p = cands[0] || null
