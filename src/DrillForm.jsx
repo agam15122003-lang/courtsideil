@@ -358,6 +358,12 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
           {L('פרטי (רק אני)', 'Private (only me)')}
         </button>
       </div>
+      {/* 1.9 — כיבוי השיתוף אומר בפירוש מה קורה */}
+      <p className="muted small" style={{ margin: '6px 2px 0' }}>
+        {isPublic
+          ? L('התרגיל יופיע לקהילת המאמנים — עם הקרדיט שלך.', 'The drill appears to the coaching community — with your credit.')
+          : L('נשמר רק אצלך. זמין לתוכניות ולמשימות שלך, ואף מאמן אחר לא רואה אותו.', 'Saved only for you. Available in your plans and tasks — no other coach sees it.')}
+      </p>
     </div>
   )
 
