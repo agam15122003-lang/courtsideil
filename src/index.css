@@ -21883,3 +21883,59 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
 .pg-target-row { margin-top: 8px; }
 .pg-target-row .pg-target { max-width: 180px; }
 .pg-target-row .pg-unit { max-width: 200px; }
+
+/* ============================================================
+   2.8.2026 · שני כפתורי הכניסה בהירו של דף הנחיתה
+   התחברות (כתום מלא) ואחריה הרשמה (לבן מלא) — שניהם בולטים,
+   עם היררכיה ברורה. «גלה את הכלים» ירד לקישור עדין מתחת.
+   ============================================================ */
+.land-cta-auth { align-items: center; margin-bottom: var(--space-4); }
+.land-cta-auth .btn-lg { min-width: 168px; justify-content: center; }
+
+/* הרשמה — לבן מלא על הנייבי: ניגודיות גבוהה בלי להתחרות בכתום */
+.land-cta .land-cta-signup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: var(--navy-1, #17264A);
+  border: 2px solid #fff;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 17px;
+  padding: 13px 28px;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(8, 16, 34, 0.34);
+  transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+}
+.land-cta .land-cta-signup:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(8, 16, 34, 0.42);
+}
+.land-cta .land-cta-signup svg { flex-shrink: 0; }
+
+/* קישור «גלה את הכלים» — עדין, לא כפתור */
+.land-cta-explore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-8);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+  font-size: 14.5px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  padding-bottom: 2px;
+}
+.land-cta-explore:hover { color: #fff; border-bottom-color: #fff; }
+
+@media (max-width: 520px) {
+  .land-cta-auth { width: 100%; }
+  .land-cta-auth .btn-lg,
+  .land-cta .land-cta-signup { flex: 1 1 100%; min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .land-cta .land-cta-signup:hover { transform: none; }
+}
+html.a11y-motion .land-cta .land-cta-signup:hover { transform: none; }

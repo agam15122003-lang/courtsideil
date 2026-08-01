@@ -438,6 +438,13 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin' })
         <div className="auth-hero-content csa-banner-body">
           {mode === 'signin' && (
             <>
+              {/* מסך ההתחברות נפתח עכשיו ישירות מדף הנחיתה, ולכן הוא חייב
+                  דרך חזרה משלו — בלעדיה הנכנס בטעות נתקע בלי ניווט. */}
+              {onBack && (
+                <button type="button" className="csa-back csa-back--push" onClick={onBack}>
+                  <ChevronBack size={17} /> {L('חזרה לדף הבית', 'Back to home')}
+                </button>
+              )}
               <div className="csa-brand" style={{ marginTop: 6 }}>
                 <Logo size={30} />
                 <span>CourtSide</span>

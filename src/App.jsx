@@ -77,12 +77,11 @@ export default function App() {
     }
   }
 
-  // בחירת תפקיד: מאמן ממשיך ישר למסך הכניסה, שחקן עובר קודם דרך קוד הקבוצה.
-  // בקשת הבעלים (2.8): נוחתים על **התחברות**, ומשם יש מעבר להרשמה —
-  // רוב הנכנסים הם משתמשים חוזרים, ומי שחדש עובר בלחיצה אחת.
+  // בחירת תפקיד שייכת למסלול ההרשמה בלבד (מי שמתחבר לא צריך לבחור תפקיד —
+  // הוא כבר קיים במסד). המצב נקבע בכניסה למסלול ולכן לא נדרס כאן.
   const pickRole = (id) => {
     setRole(id)
-    goAuth(id === 'player' ? 'join' : 'auth', 'signin')
+    goAuth(id === 'player' ? 'join' : 'auth')
   }
 
   // הגעה מלינק הצטרפות: הקוד כבר נשמר, והמשתמש כבר הוכיח לאיזה צינור הוא שייך —
@@ -219,7 +218,14 @@ export default function App() {
   // כל מסך מקבל "חזרה" משלו, והשרשרת נגמרת תמיד בדף הנחיתה.
   return (
     <div className="app">
-      {authStep === null && <Landing onEnter={() => goAuth('role')} />}
+      {/* שני מסלולים נפרדים מדף הנחיתה (בקשת הבעלים):
+          «התחברות» → ישר למסך הכניסה · «הרשמה» → בחירת תפקיד ← הרשמה */}
+      {authStep === null && (
+        <Landing
+          onLogin={() => goAuth('auth', 'signin')}
+          onSignup={() => goAuth('role', 'signup')}
+        />
+      )}
 
       {authStep === 'role' && (
         <RolePicker onPick={pickRole} onBack={backAuth} onSignIn={() => goAuth('auth', 'signin')} />

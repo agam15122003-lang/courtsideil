@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Send,
   Eye,
+  LogIn,
+  UserPlus,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
@@ -86,9 +88,14 @@ function CourtArt() {
   )
 }
 
-// דף נחיתה ציבורי — נראה למי שעדיין לא מחובר. onEnter פותח את מסך ההתחברות.
-export default function Landing({ onEnter }) {
+// דף נחיתה ציבורי — נראה למי שעדיין לא מחובר.
+// onLogin  — ישר למסך ההתחברות (אין צורך בבחירת תפקיד כדי להתחבר)
+// onSignup — מסלול ההרשמה (בחירת תפקיד ← הרשמה)
+// onEnter  — תאימות לאחור: אם לא הועברו השניים, שניהם נופלים לכאן
+export default function Landing({ onEnter, onLogin, onSignup }) {
   useReveal()
+  const goLogin = onLogin || onEnter
+  const goSignup = onSignup || onEnter
   const FEATURES = [
     { Icon: Target, title: L('הצבת יעדים', 'Goal Setting'), desc: L('מציבים יעדים מוגדרים בזמן, שנשמרים וניתן לעקוב אחריהם.', 'Set time-bound goals that are saved and easy to track.') },
     { Icon: ClipboardList, title: L('משימות אישיות', 'Personal Tasks'), desc: L('מתאימים לכל שחקן משימות אישיות שמתאימות בדיוק לו — כי לכל אחד מגיע יחס אישי.', 'Tailor personal tasks that fit each player exactly — because everyone deserves personal attention.') },
@@ -152,8 +159,8 @@ export default function Landing({ onEnter }) {
         </div>
         <div className="land-nav-actions">
           <ThemeToggle />
-          <button className="btn-primary land-login" onClick={onEnter}>
-            {L('התחברות / הרשמה', 'Log In / Sign Up')}
+          <button className="btn-primary land-login" onClick={goLogin}>
+            {L('התחברות', 'Log in')}
           </button>
         </div>
       </header>
@@ -172,16 +179,23 @@ export default function Landing({ onEnter }) {
             <strong>{L('כל מה שמאמן ושחקן צריכים במקום אחד.', 'Everything a coach and a player need in one place.')}</strong><br />
             {L("שיתוף תרגילים, יעדים, משוב על אימונים ומשחקים, לו\"ז שבועי — ועוד מגוון רחב של פיצ'רים.", 'Drill sharing, goals, feedback on practices and games, a weekly schedule — and a wide range of extra features.')}
           </p>
-          <div className="land-cta">
-            <button className="btn-primary btn-lg" onClick={onEnter}>
-              {L('מתחילים בחינם', 'Start free')}
+          {/* שני כפתורים בולטים — התחברות ראשונה, הרשמה אחריה (בקשת הבעלים).
+              «גלה את הכלים» ירד לקישור עדין מתחתם כדי לא להתחרות בהם. */}
+          <div className="land-cta land-cta-auth">
+            <button className="btn-primary btn-lg land-cta-login" onClick={goLogin}>
+              <LogIn size={18} />
+              {L('התחברות', 'Log in')}
+            </button>
+            <button className="btn-lg land-cta-signup" onClick={goSignup}>
+              <UserPlus size={18} />
+              {L('הרשמה', 'Sign up')}
               <ArrowFwd size={18} />
             </button>
-            <a className="btn-soft btn-lg" href="#features">
-              <PlayCircle size={18} />
-              {L('גלה את הכלים', 'Explore the tools')}
-            </a>
           </div>
+          <a className="land-cta-explore" href="#features">
+            <PlayCircle size={16} />
+            {L('או גלו קודם את הכלים', 'Or explore the tools first')}
+          </a>
           <div className="land-stats">
             {STATS.map((s) => (
               <div key={s.label} className="land-stat">
@@ -326,7 +340,7 @@ export default function Landing({ onEnter }) {
       <section className="land-band reveal">
         <h2 className="land-band-title">{L('יאללה, מתחילים.', 'Let’s get started.')}</h2>
         <p className="land-band-sub">{L('בעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'In Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')}</p>
-        <button className="btn-hero btn-lg" onClick={onEnter}>
+        <button className="btn-hero btn-lg" onClick={goSignup}>
           {L('מתחילים בחינם', 'Start free')}
           <ArrowFwd size={18} />
         </button>
@@ -360,7 +374,7 @@ export default function Landing({ onEnter }) {
           </nav>
           <nav className="land-footer-col" aria-label={L('הצטרפות', 'Get started')}>
             <h3>{L('הצטרפות', 'Get started')}</h3>
-            <button type="button" className="land-footer-cta" onClick={onEnter}>{L('מתחילים בחינם', 'Start free')}</button>
+            <button type="button" className="land-footer-cta" onClick={goSignup}>{L('מתחילים בחינם', 'Start free')}</button>
             <a href="#features">{L('סיור בכלים', 'Tour the tools')}</a>
           </nav>
         </div>
