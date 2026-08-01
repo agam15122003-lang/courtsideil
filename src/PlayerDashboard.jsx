@@ -32,7 +32,7 @@ import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
 import { expandSlots, expandSlotsRange } from './sessionId'
-import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
+import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES, PODCASTS } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
 import { SkeletonCards, SkeletonMedia } from './Skeleton'
@@ -875,6 +875,7 @@ function PlayerVideos() {
   const [playing, setPlaying] = useState(null) // {id(yt), title}
   const [limit, setLimit] = useState(PAGE) // הצגה מדורגת — 40 סרטונים בבת אחת זה קיר
   const [allOpen, setAllOpen] = useState(false) // false = מדף המומלצים (אם יש)
+  const [mediaMode, setMediaMode] = useState('videos') // 1.11 — מתג סרטונים/פודקאסטים
 
   useEffect(() => {
     ;(async () => {
@@ -914,9 +915,35 @@ function PlayerVideos() {
   return (
     <div className="pl-screen pl-narrow">
       <PlHead Icon={MonitorPlay} tone="blue"
-        title={L('סרטוני תרגול', 'Training videos')}
-        subtitle={L('סרטונים שהמאמן בחר בשבילך', 'Videos your coach picked for you')} />
-      {videos.length === 0 ? (
+        title={L('מדיה', 'Media')}
+        subtitle={L('סרטונים ופודקאסטים שנבחרו בשבילך', 'Videos and podcasts picked for you')} />
+      {/* 1.11 — מתג סרטונים/פודקאסטים, אותה פריסה כמו אצל המאמן */}
+      <div className="tabs md-tabs">
+        <button type="button" className={mediaMode === 'videos' ? 'tab active' : 'tab'}
+          aria-pressed={mediaMode === 'videos'} onClick={() => setMediaMode('videos')}>
+          <Play size={15} aria-hidden="true" /> {L('סרטונים', 'Videos')}
+        </button>
+        <button type="button" className={mediaMode === 'podcasts' ? 'tab active' : 'tab'}
+          aria-pressed={mediaMode === 'podcasts'} onClick={() => setMediaMode('podcasts')}>
+          {L('פודקאסטים', 'Podcasts')}
+        </button>
+      </div>
+      {mediaMode === 'podcasts' ? (
+        <div className="podcast-grid podcast-grid-full" style={{ marginTop: 12 }}>
+          {PODCASTS.map((p) => (
+            <a key={p.title} className="podcast-card" href={p.url} target="_blank" rel="noreferrer">
+              <div className="podcast-body">
+                <div className="podcast-top">
+                  <span className="podcast-title">{p.title}</span>
+                  <span className="podcast-lang">{p.lang}</span>
+                </div>
+                <span className="podcast-desc">{p.desc}</span>
+                <span className="podcast-open">{L('פתח בספוטיפיי', 'Open in Spotify')}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : videos.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><MonitorPlay size={26} /></span>
           <div className="empty-title">{L('אין סרטונים כרגע', 'No videos yet')}</div>
@@ -1822,7 +1849,7 @@ const PLAYER_NAV = [
   { id: 'teamchat', label: ['צ׳אט הקבוצה', 'Team chat'], Icon: MessagesSquare, team: true },
   { id: 'coach', label: ['המאמן שלי', 'My coach'], Icon: MessageSquare, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
-  { id: 'videos', label: ['סרטונים', 'Videos'], Icon: MonitorPlay },
+  { id: 'videos', label: ['מדיה', 'Media'], Icon: MonitorPlay },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
 // חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·

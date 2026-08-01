@@ -21784,3 +21784,6 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
 .pb-add-part { width: 100%; justify-content: center; margin-top: 4px; }
 .pb-mini-court { max-width: 260px; margin-top: 12px; border: 1px solid var(--ln); border-radius: 10px; overflow: hidden; }
 .pb-mini-court svg { display: block; width: 100%; height: auto; }
+
+/* ===== מדיה (מסמך ההשקה 1.11) · 1.8.2026 — ערוץ על הכרטיס ===== */
+.vco-channel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }

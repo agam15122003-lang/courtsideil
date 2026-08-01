@@ -258,6 +258,8 @@ export default function Videos({ session, profile }) {
                     <span className="pl-vid-title" dir="auto">{cleanVideoTitle(v.title)}</span>
                     <span className="vco-meta">
                       {v.category && <span className="cat-badge" data-cat={v.category}>{tr(v.category)}</span>}
+                      {/* 1.11 — הערוץ (נשמר ב-note בייבוא) מוצג על הכרטיס */}
+                      {v.note && <span className="vco-channel muted small" dir="auto">{v.note}</span>}
                       {r.count > 0 && <span className="vco-avg"><Star size={11} fill="currentColor" /> {r.avg.toFixed(1)} · {r.count}</span>}
                       {v.approved === false && <span className="video-pending">{L('ממתין לאישור', 'Pending approval')}</span>}
                     </span>
