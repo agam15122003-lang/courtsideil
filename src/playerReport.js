@@ -2,13 +2,13 @@ import { supabase } from './supabaseClient'
 import { L, trTeam } from './i18n'
 
 // א-6 — דוח התקדמות אישי לשחקן: דף אחד להדפסה / שמירה כ-PDF.
-// נבנה מנתונים שכבר נאספים — נוכחות, משימות, מטרות, משוב — בלי backend חדש.
+// נבנה מנתונים שכבר נאספים — נוכחות, משימות, יעדים, משוב — בלי backend חדש.
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 export async function printPlayerReport({ player, team, att }) {
-  // המשוב, המשימות והמטרות — רק לשחקן מחובר (player_id = profiles.id)
+  // המשוב, המשימות והיעדים — רק לשחקן מחובר (player_id = profiles.id)
   const pid = player.player_id
   const [fb, goals, asg, compl] = await Promise.all([
     pid
@@ -73,8 +73,8 @@ export async function printPlayerReport({ player, team, att }) {
   <div class="stat"><b dir="ltr">${doneCount}</b><span>${L('משימות שבוצעו', 'Tasks completed')}</span></div>
   <div class="stat"><b dir="ltr">${sentCount}</b><span>${L('משימות שנשלחו', 'Tasks assigned')}</span></div>
 </div>
-<h2>${L('מטרות', 'Goals')}</h2>
-${goalRows ? `<table>${goalRows}</table>` : `<p class="empty">${L('אין מטרות רשומות.', 'No goals on record.')}</p>`}
+<h2>${L('יעדים', 'Goals')}</h2>
+${goalRows ? `<table>${goalRows}</table>` : `<p class="empty">${L('אין יעדים רשומים.', 'No goals on record.')}</p>`}
 <h2>${L('המשוב האחרון מהמאמן', 'Latest coach feedback')}</h2>
 ${fbRows || `<p class="empty">${L('אין עדיין משוב.', 'No feedback yet.')}</p>`}
 <p class="foot">CourtSide · ${esc(today)}</p>

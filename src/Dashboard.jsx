@@ -115,7 +115,7 @@ const PAGE_META = {
   teams: () => ({
     eyebrow: L('הקבוצות שלי', 'My teams'), eyebrowIcon: Shield,
     title: L('ניהול קבוצה', 'Team management'),
-    subtitle: L('סגל, נוכחות, מטרות, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, attendance, goals, games and the league table — for every team you coach.'),
+    subtitle: L('סגל, נוכחות, יעדים, משחקים וטבלת הליגה — לכל קבוצה שאתה מאמן.', 'Roster, attendance, goals, games and the league table — for every team you coach.'),
     size: 'lg',
   }),
   admin: () => ({

@@ -512,14 +512,14 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
 
                 <label className="nb-slot nb-goal">
                   <Target size={15} aria-hidden="true" />
-                  <span className="nb-slot-k">{L('מטרה', 'Goal')}</span>
+                  <span className="nb-slot-k">{L('יעד', 'Goal')}</span>
                   <input
                     className="nb-write nb-slot-in nb-grow"
                     type="text"
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder={L('מה רוצים להשיג בתרגיל...', 'What the drill should achieve...')}
-                    aria-label={L('מטרת התרגיל', 'Drill goal')}
+                    aria-label={L('יעד התרגיל', 'Drill goal')}
                   />
                 </label>
 
@@ -672,7 +672,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
                   />
                 </label>
                 <label>
-                  {L('מטרת התרגיל', 'Drill goal')}
+                  {L('יעד התרגיל', 'Drill goal')}
                   <input
                     type="text"
                     value={goal}

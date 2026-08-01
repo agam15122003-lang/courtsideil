@@ -457,7 +457,7 @@ function MyAssignments({ session }) {
     <div className="pl-screen pl-narrow">
       <PlHead Icon={Dumbbell} tone="green"
         title={L('המשימות שלי', 'My tasks')}
-        subtitle={L('מה שהמאמן שלח לך · תרגילים, סרטונים ומטרות', 'What your coach sent you · drills, videos and goals')} />
+        subtitle={L('מה שהמאמן שלח לך · תרגילים, סרטונים ויעדים', 'What your coach sent you · drills, videos and goals')} />
       {items.length > 0 && (
         <div className="pla-progress">
           <div className="pla-progress-top">
@@ -987,7 +987,7 @@ function PlayerVideos() {
   )
 }
 
-// ---------- המטרות לאימון הקרוב — מופיעות בבית לפני האימון ----------
+// ---------- היעדים לאימון הקרוב — מופיעות בבית לפני האימון ----------
 function PrePracticeGoals({ session, membership }) {
   const [goals, setGoals] = useState([])
   useEffect(() => {
@@ -1008,7 +1008,7 @@ function PrePracticeGoals({ session, membership }) {
       <div className="pl-pregoals">
         <span className="pl-pregoals-ic"><Target size={18} /></span>
         <div className="pl-pregoals-body">
-          <strong>{L('המטרות שלך לאימון הקרוב', 'Your goals for the next practice')}</strong>
+          <strong>{L('היעדים שלך לאימון הקרוב', 'Your goals for the next practice')}</strong>
           <span className="muted small">{L('תגיע לאימון כשאתה יודע על מה אתה עובד. בסוף האימון תסמן אם עמדת בהן.', 'Arrive knowing what you’re working on. Mark them at wrap-up.')}</span>
           <div className="pl-pregoals-chips">
             {goals.map((g) => <span key={g.id} className="pl-pregoal">{g.title}</span>)}
@@ -1433,7 +1433,7 @@ function LastTeamReview({ membership, me }) {
 
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 // §7 — «המשימות שלי» בבית: עד שלוש משימות פתוחות אמיתיות מהמאמן, עם פס
-// התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק מטרות.
+// התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק יעדים.
 function HomeTasks({ session, setView }) {
   const me = session.user.id
   const [rows, setRows] = useState(null)
@@ -1566,7 +1566,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
           <span>
             {L('הסיכום שלך', 'Your summary')}{dateStr && <> · <bdi dir="ltr">{dateStr}</bdi></>}: <b>{eff.effort}/10</b>
             {mood && <span style={{ color: mood.col }}> · {L(mood.label[0], mood.label[1])}</span>}
-            {marks.length > 0 && <> · {marks.filter((m) => m.met).length}/{marks.length} {L('מטרות', 'goals')}</>}
+            {marks.length > 0 && <> · {marks.filter((m) => m.met).length}/{marks.length} {L('יעדים', 'goals')}</>}
           </span>
           {eff.coach_ack && <span className="plfb2-ack"><Eye size={13} aria-hidden="true" /> {L('המאמן ראה', 'Seen')}</span>}
         </div>
@@ -1614,7 +1614,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   }, [session.user.id])
   useEffect(() => { loadStats() }, [loadStats])
 
-  // סדר הבית לפי הבעלים: טיימר → מטרות בגדול → המשוב האחרון → סיכום המאמן
+  // סדר הבית לפי הבעלים: טיימר → יעדים בגדול → המשוב האחרון → סיכום המאמן
   // → הודעות מהמאמן → סטטיסטיקות → כתבות. הציטוט מגיע מה-shell לכל המסכים.
   return (
     <div className="pl-screen pl-home-rich">
@@ -1807,7 +1807,7 @@ const PLAYER_NAV = [
 ]
 // חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·
 // האימונים שלי · הקבוצה · פרופיל. עד היום ישבו כאן שני יעדי צ׳אט
-// (coach + teamchat) שתפסו 40% מהסרגל, בעוד המטרות והלו״ז היו במגירה בלבד.
+// (coach + teamchat) שתפסו 40% מהסרגל, בעוד היעדים והלו״ז היו במגירה בלבד.
 const PLAYER_BOTTOM = ['home', 'drills', 'feedback', 'schedule', 'profile']
 
 export default function PlayerDashboard({ session, profile, onProfileReload }) {
@@ -1871,13 +1871,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
           ? <PlayerTimeline session={session} membership={membership} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('האימונים שלי', 'My sessions')}
-              desc={L('ההיסטוריה שלך — משוב, עומס ומטרות לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
+              desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
       case 'goals':
         return hasTeam
           ? <MyGoals session={session} membership={membership} />
           : <LockedFeature session={session} onJoined={loadMemberships}
-              title={L('המטרות שלי', 'My goals')}
-              desc={L('המאמן יגדיר לך מטרות ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
+              title={L('היעדים שלי', 'My goals')}
+              desc={L('המאמן יגדיר לך יעדים ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
       case 'schedule':
         return hasTeam
           ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="schedule"

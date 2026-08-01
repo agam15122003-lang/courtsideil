@@ -180,7 +180,7 @@ export default function PlanNotebook({ session, onDone, onCancel }) {
               type="text"
               value={focus}
               onChange={(e) => setFocus(e.target.value)}
-              placeholder={L('מה המטרה המרכזית של האימון...', 'The main goal of this practice...')}
+              placeholder={L('מה היעד המרכזי של האימון...', 'The main goal of this practice...')}
               aria-label={L('מיקוד האימון', 'Practice focus')}
             />
           </label>

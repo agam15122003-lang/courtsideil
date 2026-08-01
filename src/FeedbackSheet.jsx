@@ -20,7 +20,7 @@ export const MOOD_BY_KEY = Object.fromEntries(MOODS.map((m) => [m.key, m]))
 export const FOCUS_OPTS = ['הגנה', 'כדרור', 'קליעה', 'מסירות', 'כושר', 'עונשין']
 
 // גיליון סיכום אימון — נפתח מכפתור "מלא סיכום אימון".
-// מזהה את האימון האחרון שטרם סוכם (או האחרון שסוכם — לעריכה), אוסף עומס+מצב רוח+פוקוס+מטרות+הערה,
+// מזהה את האימון האחרון שטרם סוכם (או האחרון שסוכם — לעריכה), אוסף עומס+מצב רוח+פוקוס+יעדים+הערה,
 // ושומר ל-session_effort + session_goal_marks. נראה למאמן.
 export default function FeedbackSheet({ session, membership, open, onClose, onSent }) {
   const [pending, setPending] = useState(undefined) // undefined=טוען, null=אין
@@ -123,7 +123,7 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
           <div className="fbs-empty">
             <span className="fbs-empty-ic"><Flame size={22} /></span>
             <strong>{L('אין אימון פתוח לסיכום', 'No session to summarize yet')}</strong>
-            <p className="muted small">{L('אחרי האימון הקרוב תוכל למלא כאן סיכום — עומס, מטרות והרגשה.', 'After your next practice you can fill a summary here — load, goals and how you felt.')}</p>
+            <p className="muted small">{L('אחרי האימון הקרוב תוכל למלא כאן סיכום — עומס, יעדים והרגשה.', 'After your next practice you can fill a summary here — load, goals and how you felt.')}</p>
           </div>
         ) : pending ? (
           <>
@@ -152,7 +152,7 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
 
             {goals.length > 0 && (
               <>
-                <div className="fbs-q">{L('עמדת במטרות היום?', 'Did you meet your goals?')}</div>
+                <div className="fbs-q">{L('עמדת ביעדים היום?', 'Did you meet your goals?')}</div>
                 <div className="fbs-checks">
                   {goals.map((g) => (
                     <button key={g.id} className="fbs-check" onClick={() => setMarks((m) => ({ ...m, [g.id]: !m[g.id] }))} aria-pressed={!!marks[g.id]}>

@@ -86,7 +86,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       if (ackSupported) ak[rid] = { auth: r.player_id, acked: r.coach_ack === true }
     }
     setEfforts(ef); setPlayerNotes(pn); setMoods(md); setFocuses(fc); setAcks(ak)
-    const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('מטרה', 'Goal'), met: r.met }) }
+    const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('יעד', 'Goal'), met: r.met }) }
     setGoalMarks(gm)
     setHadReview(!!rev)
     if (rev) {

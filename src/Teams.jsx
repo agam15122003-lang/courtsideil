@@ -77,7 +77,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const me = session.user.id
   const teams = profile?.age_groups || []
   const [team, setTeam] = useState(teams[0] || '')
-  // הטאב «שיגורים» התמזג לתוך «מטרות ומשימות», ולכן יעד ישן מנותב אליו
+  // הטאב «שיגורים» התמזג לתוך «יעדים ומשימות», ולכן יעד ישן מנותב אליו
   const [tab, setTab] = useState(initialTab === 'tasks' ? 'goals' : (initialTab || 'roster'))
   const [sub, setSub] = useState(null) // null | 'games' — מסך המשחקים והטבלה
   const [players, setPlayers] = useState([])
@@ -93,7 +93,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const [pName, setPName] = useState('')
   const [pNum, setPNum] = useState('')
   const [reviewPractice, setReviewPractice] = useState(null)
-  const [gpEdit, setGpEdit] = useState(null) // עריכת מטרות מהירה לשחקן {player_id, name, team}
+  const [gpEdit, setGpEdit] = useState(null) // עריכת יעדים מהירה לשחקן {player_id, name, team}
   const [sForm, setSForm] = useState({ name: '', role: 'assistant', phone: '' })
 
   // עריכה (מודאלים)
@@ -131,7 +131,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     toast.success(L('המשוב נשלח לשחקן', 'Feedback sent to the player'))
   }
 
-  // מטרות — בורר שבוע/חודש
+  // יעדים — בורר שבוע/חודש
   const [gWeek, setGWeek] = useState(sundayOf(new Date()))
   const [gMonth, setGMonth] = useState(addMonths(new Date(), 0))
   const [wText, setWText] = useState('')
@@ -204,7 +204,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   useEffect(() => { load() /* eslint-disable-next-line */ }, [team])
   useEffect(() => () => { loadTokenRef.current++ }, []) // ביטול טעינה תלויה בעת יציאה
 
-  // סנכרון תיבות המטרות — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
+  // סנכרון תיבות היעדים — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
   // טעינה מהמסד). תלות בערך הספציפי ולא באובייקט כולו — כדי ששמירת תיבה אחת
   // לא תדרוס טקסט שטרם נשמר בתיבות האחרות.
   const wKey = `week|${ymd(gWeek)}`
@@ -285,7 +285,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     await supabase.from('team_staff').delete().eq('id', id); setSEdit(null); load()
   }
 
-  // ---------- מטרות ----------
+  // ---------- יעדים ----------
   const saveGoal = async (period, key, content) => {
     const { error } = await supabase.from('team_goals').upsert(
       { coach_id: me, team, period, period_key: key, content, updated_at: new Date().toISOString() },
@@ -293,7 +293,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     )
     if (error) { console.error('teams save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     setGoalsMap((m) => ({ ...m, [`${period}|${key}`]: content }))
-    toast.success(L('המטרות נשמרו', 'Goals saved'))
+    toast.success(L('היעדים נשמרו', 'Goals saved'))
   }
 
   if (teams.length === 0) {
@@ -350,7 +350,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       )}
 
       {/* שלושה טאבים, בדיוק כמו במסך 4a במסמך המסירה: סגל · לו״ז ונוכחות ·
-          מטרות ומשימות. עד היום היו כאן שבעה — ב-384px הם נחתכו בתוך מכל
+          יעדים ומשימות. עד היום היו כאן שבעה — ב-384px הם נחתכו בתוך מכל
           של 350px ו"שיגורים", "צ׳אט" ו"טבלה" היו בלתי נגישים בטלפון.
           הצ׳אט עבר למסך ההודעות (מסך 7a), והמשחקים והטבלה למסך משלהם. */}
       <div className="tabs team-tabs" style={{ marginTop: 14 }}>
@@ -436,7 +436,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                     {statusLabel(p.status)}
                   </button>
                   {p.player_id && (
-                    <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, name: p.name, team }) }} aria-label={L('מטרות', 'Goals')} title={L('מטרות אישיות', 'Personal goals')}><Target size={15} /></button>
+                    <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, name: p.name, team }) }} aria-label={L('יעדים', 'Goals')} title={L('יעדים אישיים', 'Personal goals')}><Target size={15} /></button>
                   )}
                   <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
                 </li>
@@ -538,19 +538,19 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
         </aside>
         </div>
       ) : tab === 'goals' ? (
-        /* ===================== מטרות =====================
-           החלטת הבעלים 25.7: מטרות שבוע/חודש/עונה נשארות ובולטות (לא במגירה).
+        /* ===================== יעדים =====================
+           החלטת הבעלים 25.7: יעדי שבוע/חודש/עונה נשארות ובולטות (לא במגירה).
            היררכיה: המיקוד (מה שהשחקנים רואים) → שלושת כרטיסי התכנון של המאמן
-           → מטרות אישיות לשחקנים. */
+           → יעדים אישיים לשחקנים. */
         <div className="team-section">
           <p className="tg-lede">
-            {L('המיקוד מגיע לכל השחקנים ונמדד בסוף כל אימון · מטרות שבוע/חודש/עונה הן התכנון שלך · מטרה אישית מגיעה לשחקן אחד.',
+            {L('המיקוד מגיע לכל השחקנים ונמדד בסוף כל אימון · יעדי שבוע/חודש/עונה הן התכנון שלך · יעד אישי מגיע לשחקן אחד.',
                'The focus reaches every player and is measured after each practice · week/month/season goals are your planning · a personal goal reaches one player.')}
           </p>
 
           <TeamFocus coachId={me} team={team} />
 
-          <h3 className="tg-section-title"><Target size={17} /> {L('מטרות הקבוצה', 'Team goals')}</h3>
+          <h3 className="tg-section-title"><Target size={17} /> {L('יעדי הקבוצה', 'Team goals')}</h3>
           <div className="goals-grid2 tg-cards">
             {/* שבוע */}
             <div className="goal-card-v2 gc-week">
@@ -594,7 +594,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
           <TeamGoalsBoard coachId={me} team={team} />
 
           {/* «שיגורים» היה טאב נפרד — אבל שליחת משימה היא הדרך שבה מטרה
-              הופכת לעבודה, ולכן היא יושבת כאן, מתחת למטרות. */}
+              הופכת לעבודה, ולכן היא יושבת כאן, מתחת ליעדים. */}
           <h3 className="tg-section-title"><SendIcon size={17} /> {L('משימות לשחקנים', 'Player tasks')}</h3>
           <SendToPlayers session={session} embedded initialTeam={team} key={team} />
           <TeamAssignments coachId={me} team={team} />
@@ -645,7 +645,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </label>
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, מטרות ומשוב */}
+              {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, יעדים ומשוב */}
               <button className="btn-soft" onClick={() => printPlayerReport({ player: pEdit, team, att: attByPlayer[pEdit.id] })}>
                 <Printer size={15} /> {L('דוח התקדמות', 'Progress report')}
               </button>
@@ -692,8 +692,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               <div className="tm-connect-hint">
                 <span className="tm-connect-hint-ic"><Target size={16} /></span>
                 <div>
-                  <strong>{L('מטרות ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
-                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בתחתית טאב «סגל»). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו מטרות שבועיות/חודשיות/עונתיות ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player (bottom of the roster tab). Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
+                  <strong>{L('יעדים ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
+                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בתחתית טאב «סגל»). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו יעדים שבועיים/חודשיים/עונתיים ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player (bottom of the roster tab). Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
                 </div>
               </div>
             )}
@@ -739,12 +739,12 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
         />
       )}
 
-      {/* מטרות מהירות לשחקן — נגיש מהסגל, לא קבור בעריכה */}
+      {/* יעדים מהירות לשחקן — נגיש מהסגל, לא קבור בעריכה */}
       {gpEdit && (
         <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setGpEdit(null)}>
           <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
-              <strong><Target size={16} /> {L('מטרות', 'Goals')} · {gpEdit.name}</strong>
+              <strong><Target size={16} /> {L('יעדים', 'Goals')} · {gpEdit.name}</strong>
               <button className="icon-btn" onClick={() => setGpEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
             <div className="tm-modal-body">

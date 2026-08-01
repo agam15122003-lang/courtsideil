@@ -52,7 +52,7 @@ function DrillBlock({ drill }) {
       )}
       {drill.goal && (
         <p className="nb-field">
-          <span className="nb-field-k">{L('מטרה:', 'Goal:')}</span> {drill.goal}
+          <span className="nb-field-k">{L('יעד:', 'Goal:')}</span> {drill.goal}
         </p>
       )}
       {drill.description && (

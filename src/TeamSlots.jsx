@@ -10,7 +10,7 @@ import { SkeletonRoster } from './Skeleton'
 import { ErrorState } from './states'
 
 // לו"ז קבוע לקבוצה (מאמן) — ימי אימון + שעות. מופיע אוטומטית לשחקנים.
-// כשאימון עבר, כאן נפתחת ה"סקירה" (רשימת שחקנים: עומס, הערת שחקן, הערת מאמן, מטרות).
+// כשאימון עבר, כאן נפתחת ה"סקירה" (רשימת שחקנים: עומס, הערת שחקן, הערת מאמן, יעדים).
 // props: coachId, team, onReview(entry)
 export default function TeamSlots({ coachId, team, onReview }) {
   const [slots, setSlots] = useState(null)

@@ -74,7 +74,7 @@ export function FbReact({ fb, coachId, me }) {
 // ============================================================
 // "האימונים שלי" — CTA לסיכום, שלישיית סטטיסטיקה, גרף מגמת עומס,
 // וציר זמן: כל אימון/משחק שעבר הוא כרטיס אחד שמרכז נוכחות, עומס,
-// מטרות ✓✗, משוב המאמן, סיכום, MVP.
+// יעדים ✓✗, משוב המאמן, סיכום, MVP.
 // ============================================================
 export default function PlayerTimeline({ session, membership }) {
   // §12 — «אימונים שהיו» כסטאק: כרטיס אחד פתוח, השאר שורות מקופלות
@@ -113,7 +113,7 @@ export default function PlayerTimeline({ session, membership }) {
     const fbBy = {}; const general = []
     for (const f of fbQ.data || []) (f.session_id ? (fbBy[f.session_id] = f) : general.push(f))
     const revBy = {}; for (const r of revQ.data || []) revBy[r.session_id] = r
-    const marksBy = {}; for (const m of marksQ.data || []) (marksBy[m.session_id] = marksBy[m.session_id] || []).push({ title: m.goal?.title || L('מטרה', 'Goal'), met: m.met })
+    const marksBy = {}; for (const m of marksQ.data || []) (marksBy[m.session_id] = marksBy[m.session_id] || []).push({ title: m.goal?.title || L('יעד', 'Goal'), met: m.met })
     const attBy = {}; for (const a of attQ.data || []) attBy[a.session_date] = a.status
     const gattBy = {}; for (const a of gattQ.data || []) gattBy[a.game_id] = a.status
 
@@ -175,7 +175,7 @@ export default function PlayerTimeline({ session, membership }) {
         <span className="pl-head-ic"><History size={22} /></span>
         <div className="pl-head-txt">
           <h2>{L('האימונים שלי', 'My sessions')}</h2>
-          <p>{L('המשוב, העומס והמטרות שלך במקום אחד', 'Your feedback, effort and goals in one place')}</p>
+          <p>{L('המשוב, העומס והיעדים שלך במקום אחד', 'Your feedback, effort and goals in one place')}</p>
         </div>
       </header>
 
@@ -231,7 +231,7 @@ export default function PlayerTimeline({ session, membership }) {
         <div className="empty-state">
           <span className="empty-ic"><History size={26} /></span>
           <div className="empty-title">{L('ההיסטוריה שלך תתחיל כאן', 'Your history starts here')}</div>
-          <p className="muted small">{L('אחרי כל אימון — הדירוג שלך, המטרות והמשוב מהמאמן יישמרו כאן, אימון אחרי אימון.', 'After each practice — your rating, goals and coach feedback are saved here, session by session.')}</p>
+          <p className="muted small">{L('אחרי כל אימון — הדירוג שלך, היעדים והמשוב מהמאמן יישמרו כאן, אימון אחרי אימון.', 'After each practice — your rating, goals and coach feedback are saved here, session by session.')}</p>
         </div>
       ) : (
         <>

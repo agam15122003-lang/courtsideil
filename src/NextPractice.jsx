@@ -12,7 +12,7 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const hm = (t) => (t ? String(t).slice(0, 5) : '')
 
 // הכרטיס החכם של המאמן — הזרימה מגיעה אליך:
-// לפני אימון → ספירה לאחור + "מטרות לשחקנים"; אחרי אימון → דוח מצב (כמה מילאו, עומס ממוצע).
+// לפני אימון → ספירה לאחור + "יעדים לשחקנים"; אחרי אימון → דוח מצב (כמה מילאו, עומס ממוצע).
 // props: session, onNavigate(viewId), onEntry(entry|null)
 //
 // onEntry מדווח את האימון הקרוב כלפי מעלה, כדי שרצועת אישורי ההגעה בבית
@@ -213,7 +213,7 @@ export default function NextPractice({ session, onNavigate, onEntry }) {
       <div className="np-actions">
         {entry.team && !entry.is_personal && (
           <button className="btn-primary" onClick={() => onNavigate('teams')}>
-            <Target size={16} /> {L('מטרות לשחקנים', 'Player goals')}
+            <Target size={16} /> {L('יעדים לשחקנים', 'Player goals')}
           </button>
         )}
         <button className={entry.team && !entry.is_personal ? 'btn-soft' : 'btn-primary'} onClick={() => onNavigate(entry.plan ? `plans:${entry.plan.id}` : 'schedule')}>

@@ -1030,7 +1030,7 @@ function PlanBuilder({ planId, plan, onBack }) {
             const detailMeta = [
               [L('רמת קושי', 'Difficulty'), tr(d.difficulty)],
               [L('משך מקורי', 'Original duration'), d.duration_minutes ? L(`${d.duration_minutes} דקות`, `${d.duration_minutes} min`) : null],
-              [L('מטרה', 'Goal'), d.goal],
+              [L('יעד', 'Goal'), d.goal],
               [L('ציוד', 'Equipment'), d.equipment],
               [L('שחקנים', 'Players'), d.players],
               [L('חזרות/סטים', 'Reps/sets'), d.reps],

@@ -73,13 +73,13 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
     const next = Math.max(0, (g.progress_value || 0) + delta)
     const done = g.target_value ? next >= g.target_value : g.status === 'done'
     await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
-    if (done && g.status !== 'done') sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת מטרה! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (done && g.status !== 'done') sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
   const toggleDone = async (g) => {
     const done = g.status !== 'done'
     await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
-    if (done) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת מטרה! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (done) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
   const del = async (id) => { await supabase.from('player_goals').delete().eq('id', id); load() }
@@ -197,7 +197,7 @@ function AddGoalSheet({ open, onClose, onAdd }) {
 }
 
 // גרף התקדמות למטרה ספציפית — קו+שטח של ההתקדמות לאורך זמן, עם קו יעד מקווקו
-// (מיוצא — דף הבית של השחקן מציג אותו בכרטיסי המטרות)
+// (מיוצא — דף הבית של השחקן מציג אותו בכרטיסי היעדים)
 export function GoalChart({ logs, target, goalId }) {
   const series = logs.map((l) => Number(l.value))
   if (series.length < 2) return null
@@ -222,7 +222,7 @@ export function GoalChart({ logs, target, goalId }) {
   )
 }
 
-// ---------- מסך המטרות של השחקן — עם תיעוד עצמי ----------
+// ---------- מסך היעדים של השחקן — עם תיעוד עצמי ----------
 export function MyGoals({ session, membership }) {
   const [goals, setGoals] = useState(null)
   const [logsBy, setLogsBy] = useState({})
@@ -257,7 +257,7 @@ export function MyGoals({ session, membership }) {
     setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
     await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     await recordLog(g.id, next)
-    if (done && g.status !== 'done') { toast.success(L('הושלמה מטרה! 🎉', 'Goal completed! 🎉')); burstConfetti() }
+    if (done && g.status !== 'done') { toast.success(L('הושלם יעד! 🎉', 'Goal completed! 🎉')); burstConfetti() }
   }
 
   const bump = async (g, dir) => {

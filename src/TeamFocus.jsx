@@ -11,9 +11,9 @@ import { L } from './i18n'
 //
 // למה בלי שינוי סכמה: שורה ב-player_goals עם player_id = null ו-team מוגדר היא
 // כבר "מטרה קבוצתית" — ה-RLS מתיר לשחקני הקבוצה לקרוא אותה
-// (supabase_player_goals.sql: pg_player_read), מסך המטרות של השחקן מסמן אותה
+// (supabase_player_goals.sql: pg_player_read), מסך היעדים של השחקן מסמן אותה
 // בתג "קבוצתי", וגיליון סיכום האימון שולף אותה בלי סינון שחקן ולכן היא נכנסת
-// לשאלה "עמדת במטרות היום?" ונרשמת ל-session_goal_marks.
+// לשאלה "עמדת ביעדים היום?" ונרשמת ל-session_goal_marks.
 // period='week' חובה: FeedbackSheet שולף רק period בתוך session/week/month.
 
 const MAX = 3
