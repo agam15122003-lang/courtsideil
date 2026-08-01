@@ -21768,3 +21768,19 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
   border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow-sm);
 }
 .plt-lastfb-card p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; }
+
+/* ============================================================
+   בניית תוכנית בחלקים (מסמך ההשקה 1.10) · 1.8.2026
+   ============================================================ */
+.pb-part { margin-bottom: 18px; }
+.pb-part-hd {
+  display: flex; align-items: baseline; gap: 10px;
+  border-block-end: 2px solid var(--ln); padding-bottom: 6px; margin-bottom: 10px;
+}
+.pb-part-hd b { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--tx); }
+.pb-part-del { margin-inline-start: auto; }
+.link-button.danger { color: var(--danger); }
+.pb-part-empty { margin: 0 0 8px; }
+.pb-add-part { width: 100%; justify-content: center; margin-top: 4px; }
+.pb-mini-court { max-width: 260px; margin-top: 12px; border: 1px solid var(--ln); border-radius: 10px; overflow: hidden; }
+.pb-mini-court svg { display: block; width: 100%; height: auto; }

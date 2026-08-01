@@ -6,6 +6,7 @@ import PlanRunner from './PlanRunner'
 import SmartBuilder from './SmartBuilder'
 import PlanNotebook from './PlanNotebook'
 import NotebookPage from './NotebookPage'
+import CourtDiagram from './CourtDiagram'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
 import { ErrorState } from './states'
@@ -478,12 +479,16 @@ function PlanBuilder({ planId, plan, onBack }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [picking, setPicking] = useState(false)
+  const [pickQuery, setPickQuery] = useState('') // 1.10 — חיפוש בבורר שבתוך הדף
   const [allDrills, setAllDrills] = useState([])
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const [running, setRunning] = useState(false) // מצב הרצת אימון (טיימר)
   const [creatingDrill, setCreatingDrill] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  // 1.10 — התוכנית בנויה מחלקים: נפתחת עם «חלק 1» בלבד, ואפשר להוסיף/למחוק
+  const [partCount, setPartCount] = useState(1)
+  const [targetPart, setTargetPart] = useState(1) // לאיזה חלק הבורר מוסיף
   const [notebookView, setNotebookView] = useState(false) // תצוגת מערך-אימון כדף מחברת
   const [coach, setCoach] = useState({ club: '', name: '' })
   useEffect(() => {
@@ -514,7 +519,10 @@ function PlanBuilder({ planId, plan, onBack }) {
     if (error) {
       setError(L('שגיאה בטעינת התוכנית: ', 'Failed to load plan: ') + error.message)
     } else {
-      setItems(data || [])
+      // 1.10 — מיון לפי חלק ואז מיקום; לפני המיגרציה part חסר → הכול חלק 1
+      const rows = (data || []).slice().sort((a, b) => ((a.part || 1) - (b.part || 1)) || (a.position - b.position))
+      setItems(rows)
+      setPartCount((c) => Math.max(c, 1, ...rows.map((r) => r.part || 1)))
       setError(null)
     }
     setLoading(false)
@@ -534,8 +542,10 @@ function PlanBuilder({ planId, plan, onBack }) {
     })
   }
 
-  const openPicker = async () => {
+  const openPicker = async (part) => {
+    setTargetPart(part || 1)
     setPicking(true)
+    setPickQuery('')
     if (allDrills.length === 0) {
       const { data } = await supabase
         .from('drills')
@@ -545,16 +555,24 @@ function PlanBuilder({ planId, plan, onBack }) {
     }
   }
 
+  // הוספה עם fallback: אם עמודת part (supabase_plan_parts.sql) טרם נוספה —
+  // שומרים בלי חלק, והתוכנית ממשיכה לעבוד כחלק אחד.
+  const insertItem = async (row, part) => {
+    let { error } = await supabase.from('plan_items').insert({ ...row, part: part || 1 })
+    if (error) ({ error } = await supabase.from('plan_items').insert(row))
+    return error
+  }
+
   const addDrill = async (drill) => {
     const nextPos =
       items.length > 0 ? Math.max(...items.map((i) => i.position)) + 1 : 0
-    const { error } = await supabase.from('plan_items').insert({
+    const error = await insertItem({
       plan_id: planId,
       drill_id: drill.id,
       position: nextPos,
       duration_minutes: drill.duration_minutes || null,
       note: null,
-    })
+    }, targetPart)
     if (error) {
       toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + error.message)
       return
@@ -562,17 +580,17 @@ function PlanBuilder({ planId, plan, onBack }) {
     loadItems()
   }
 
-  // יצירת תרגיל חדש ישירות בתוך האימון (פריט עם תוכן משלו, בלי drill_id)
+  // שורת טקסט חופשי בתוך חלק (פריט עם תוכן משלו, בלי drill_id)
   const addCustomItem = async () => {
     if (!newTitle.trim()) return
     const nextPos =
       items.length > 0 ? Math.max(...items.map((i) => i.position)) + 1 : 0
-    const { error } = await supabase.from('plan_items').insert({
+    const error = await insertItem({
       plan_id: planId,
       position: nextPos,
       title: newTitle.trim(),
       description: newDesc.trim() || null,
-    })
+    }, targetPart)
     if (error) {
       toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + error.message)
       return
@@ -580,6 +598,29 @@ function PlanBuilder({ planId, plan, onBack }) {
     setNewTitle('')
     setNewDesc('')
     setCreatingDrill(false)
+    loadItems()
+  }
+
+  // 1.10 — מחיקת חלק: מוחקת את הפריטים שבו ומזיזה את החלקים שאחריו
+  const deletePart = async (pn) => {
+    const inPart = items.filter((it) => (it.part || 1) === pn)
+    const ok = await confirmDialog({
+      message: inPart.length > 0
+        ? L(`למחוק את חלק ${pn} כולל ${inPart.length} הפריטים שבו?`, `Delete part ${pn} with its ${inPart.length} items?`)
+        : L(`למחוק את חלק ${pn}?`, `Delete part ${pn}?`),
+      danger: true,
+    })
+    if (!ok) return
+    if (inPart.length > 0) {
+      const { error } = await supabase.from('plan_items').delete().in('id', inPart.map((i) => i.id))
+      if (error) { toast.error(L('המחיקה נכשלה', 'Delete failed')); return }
+    }
+    // הזזת החלקים הבאים מקום אחד אחורה (סובלני אם אין עמודת part)
+    const after = items.filter((it) => (it.part || 1) > pn)
+    for (const it of after) {
+      await supabase.from('plan_items').update({ part: (it.part || 1) - 1 }).eq('id', it.id)
+    }
+    setPartCount((c) => Math.max(1, c - 1))
     loadItems()
   }
 
@@ -611,14 +652,15 @@ function PlanBuilder({ planId, plan, onBack }) {
     if (error) toast.error(L('השמירה נכשלה — בדוק חיבור ונסה שוב', 'Save failed — check your connection and try again'))
   }
 
-  // הזזת פריט מעלה/מטה (החלפת position עם השכן)
-  const move = async (index, dir) => {
+  // הזזת פריט מעלה/מטה בתוך החלק שלו (החלפת position עם השכן)
+  const move = async (it, dir) => {
+    const arr = items.filter((x) => (x.part || 1) === (it.part || 1))
+    const index = arr.findIndex((x) => x.id === it.id)
     const target = index + dir
-    if (target < 0 || target >= items.length) return
-    const a = items[index]
-    const b = items[target]
-    await supabase.from('plan_items').update({ position: b.position }).eq('id', a.id)
-    await supabase.from('plan_items').update({ position: a.position }).eq('id', b.id)
+    if (target < 0 || target >= arr.length) return
+    const b = arr[target]
+    await supabase.from('plan_items').update({ position: b.position }).eq('id', it.id)
+    await supabase.from('plan_items').update({ position: it.position }).eq('id', b.id)
     loadItems()
   }
 
@@ -705,7 +747,9 @@ function PlanBuilder({ planId, plan, onBack }) {
       setCompleting(false)
       return
     }
-    const { error } = await supabase.from('plan_items').insert(rows)
+    // ההשלמה נכנסת לחלק האחרון (fallback בלי part אם המיגרציה טרם רצה)
+    let { error } = await supabase.from('plan_items').insert(rows.map((r) => ({ ...r, part: partCount })))
+    if (error) ({ error } = await supabase.from('plan_items').insert(rows))
     setCompleting(false)
     if (error) { toast.error(L('ההשלמה נכשלה: ', 'Auto-complete failed: ') + error.message); return }
     toast.success(L(`נוספו ${rows.length} תרגילים מהספרייה`, `Added ${rows.length} drills from the library`))
@@ -876,11 +920,11 @@ function PlanBuilder({ planId, plan, onBack }) {
         </ol>
       </div>
 
-      {/* יצירת תרגיל חדש בתוך האימון */}
+      {/* שורת טקסט חופשי בתוך חלק */}
       {creatingDrill && (
         <div className="picker">
           <div className="picker-head">
-            <span className="field-label">{L('תרגיל חדש לאימון', 'New drill for this practice')}</span>
+            <span className="field-label">{L(`שורה חופשית — חלק ${targetPart}`, `Free-text row — part ${targetPart}`)}</span>
             <button className="link-button" onClick={() => setCreatingDrill(false)}>
               {L('סגור', 'Close')}
             </button>
@@ -915,50 +959,72 @@ function PlanBuilder({ planId, plan, onBack }) {
         </div>
       )}
 
-      {/* בורר תרגילים מהספרייה */}
+      {/* 1.10 — בורר תרגילים בתוך הדף: חיפוש, בחירה, נכנס לחלק שנבחר */}
       {picking && (
         <div className="picker">
           <div className="picker-head">
-            <span className="field-label">{L('בחר תרגיל להוספה', 'Pick a drill to add')}</span>
+            <span className="field-label">{L(`בחר תרגיל לחלק ${targetPart}`, `Pick a drill for part ${targetPart}`)}</span>
             <button className="link-button" onClick={() => setPicking(false)}>
               {L('סגור', 'Close')}
             </button>
           </div>
+          <input
+            className="finder-input"
+            style={{ marginBottom: 8 }}
+            value={pickQuery}
+            onChange={(e) => setPickQuery(e.target.value)}
+            placeholder={L('חיפוש תרגיל…', 'Search drills…')}
+          />
           {allDrills.length === 0 ? (
             <p className="muted small">{L('אין תרגילים בספרייה עדיין.', 'No drills in the library yet.')}</p>
           ) : (
             <div className="picker-list">
-              {allDrills.map((d) => (
-                <button
-                  key={d.id}
-                  className="picker-item"
-                  onClick={() => addDrill(d)}
-                >
-                  <span>{d.title}</span>
-                  {d.category && <span className="cat-badge">{tr(d.category)}</span>}
-                </button>
-              ))}
+              {allDrills
+                .filter((d) => !pickQuery || (d.title || '').includes(pickQuery))
+                .slice(0, 60)
+                .map((d) => (
+                  <button
+                    key={d.id}
+                    className="picker-item"
+                    onClick={() => addDrill(d)}
+                  >
+                    <span>{d.title}</span>
+                    {d.duration_minutes && <span className="muted small" dir="ltr">{d.duration_minutes} {L('דק׳', 'min')}</span>}
+                    {d.category && <span className="cat-badge">{tr(d.category)}</span>}
+                  </button>
+                ))}
             </div>
           )}
         </div>
       )}
 
-      {/* רצף התרגילים בתוכנית */}
+      {/* 1.10 — התוכנית בחלקים: כל חלק עם הפריטים שלו וכפתורי הוספה משלו */}
       <div className="finder-results">
         {loading ? (
           <SkeletonCards count={4} lines={2} />
         ) : error ? (
           <ErrorState message={error} onRetry={loadItems} />
-        ) : items.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <ClipboardList size={26} />
-            </span>
-            <div className="empty-title">{L('התוכנית ריקה', 'This plan is empty')}</div>
-            <p className="muted small">{L('לחץ "הוסף תרגיל" כדי להתחיל לבנות את האימון.', 'Click "Add drill" to start building the practice.')}</p>
-          </div>
         ) : (
-          items.map((it, idx) => {
+          Array.from({ length: partCount }, (_, i) => i + 1).map((pn) => {
+            const partItems = items.filter((x) => (x.part || 1) === pn)
+            const partMin = partItems.reduce((s, x) => s + (Number(x.duration_minutes) || 0), 0)
+            return (
+              <section key={pn} className="pb-part">
+                <div className="pb-part-hd">
+                  <b>{L(`חלק ${pn}`, `Part ${pn}`)}</b>
+                  {partMin > 0 && <span className="muted small" dir="ltr">{partMin} {L('דק׳', 'min')}</span>}
+                  {partCount > 1 && (
+                    <button type="button" className="link-button danger pb-part-del" onClick={() => deletePart(pn)}>
+                      {L('מחיקת חלק', 'Delete part')}
+                    </button>
+                  )}
+                </div>
+                {partItems.length === 0 && (
+                  <p className="muted small pb-part-empty">
+                    {L('חלק ריק — הוסיפו תרגיל מהספרייה או שורה חופשית.', 'Empty part — add a drill from the library or a free-text row.')}
+                  </p>
+                )}
+                {partItems.map((it, idx) => {
             const d = it.drill || {}
             const expanded = expandedIds.has(it.id)
             const detailMeta = [
@@ -976,7 +1042,7 @@ function PlanBuilder({ planId, plan, onBack }) {
                   <div className="plan-item-order">
                     <button
                       className="ord-btn"
-                      onClick={() => move(idx, -1)}
+                      onClick={() => move(it, -1)}
                       disabled={idx === 0}
                       aria-label={L('הזז מעלה', 'Move up')}
                     >
@@ -985,8 +1051,8 @@ function PlanBuilder({ planId, plan, onBack }) {
                     <span className="ord-num">{idx + 1}</span>
                     <button
                       className="ord-btn"
-                      onClick={() => move(idx, 1)}
-                      disabled={idx === items.length - 1}
+                      onClick={() => move(it, 1)}
+                      disabled={idx === partItems.length - 1}
                       aria-label={L('הזז מטה', 'Move down')}
                     >
                       <ChevronDown size={16} />
@@ -1091,6 +1157,13 @@ function PlanBuilder({ planId, plan, onBack }) {
                       </div>
                     )}
 
+                    {/* 1.10 — מגרש מוקטן בכרטיס המשולב */}
+                    {d.board?.steps?.length > 0 && (
+                      <div className="pb-mini-court" aria-hidden="true">
+                        <CourtDiagram step={d.board.steps[0]} full={!!d.board.full} />
+                      </div>
+                    )}
+
                     {safeUrl(d.video_url) && (
                       <a
                         className="btn-ghost"
@@ -1106,17 +1179,23 @@ function PlanBuilder({ planId, plan, onBack }) {
                 )}
               </div>
             )
+          })}
+                <div className="pb-add-row">
+                  <button className="pb-add-dashed" onClick={() => openPicker(pn)}>
+                    <Plus size={17} /> {L('הוסף תרגיל מהספרייה', 'Add drill from library')}
+                  </button>
+                  <button className="btn-ghost" onClick={() => { setTargetPart(pn); setCreatingDrill(true) }}>
+                    {L('שורה חופשית', 'Free-text row')}
+                  </button>
+                </div>
+              </section>
+            )
           })
         )}
         {!loading && !error && (
-          <div className="pb-add-row">
-            <button className="pb-add-dashed" onClick={openPicker}>
-              <Plus size={17} /> {L('הוסף תרגיל מהספרייה', 'Add drill from library')}
-            </button>
-            <button className="btn-ghost" onClick={() => setCreatingDrill(true)}>
-              {L('תרגיל חדש', 'New drill')}
-            </button>
-          </div>
+          <button type="button" className="btn-soft pb-add-part" onClick={() => setPartCount((c) => Math.min(20, c + 1))}>
+            <Plus size={16} /> {L('הוסף חלק', 'Add part')}
+          </button>
         )}
       </div>
       </div>
