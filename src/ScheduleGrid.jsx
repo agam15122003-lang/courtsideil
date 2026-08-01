@@ -7,7 +7,7 @@ const hhmm = (t) => (t ? String(t).slice(0, 5) : '')
 
 // צבע עקבי לקבוצה — כדי שמאמן עם כמה קבוצות יבחין ביניהן במבט
 const TEAM_TONES = 4
-const teamTone = (team) => {
+export const teamTone = (team) => {
   let h = 0
   for (const ch of String(team || '')) h = (h * 31 + ch.charCodeAt(0)) % 997
   return `t${h % TEAM_TONES}`

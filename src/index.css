@@ -21547,3 +21547,83 @@ button.cal-weeksep .cal-weeksep-t { color: var(--brand-text, var(--muted)); }
 /* א-2 — חזרה שבועית בשליחת משימה */
 .sp-repeat { margin-top: 8px; align-items: center; }
 .sp-repeat-hint { flex-basis: 100%; margin-top: 4px; }
+
+/* ============================================================
+   רכיב לו"ז — רשימה שבועית משותפת (מסמך ההשקה 1.2) · 1.8.2026
+   מאמן: כרטיס אירוע + צ'יפים (תוכנית / נוכחות / X-Y אישרו).
+   שחקן: אותם כרטיסים בלי צ'יפים, עם ניווט שבועי.
+   ============================================================ */
+.wl { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+.wl-day-hd {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 8px; color: var(--tx);
+}
+.wl-day-hd b { font-family: var(--font-display); font-weight: 800; font-size: 15px; }
+.wl-day-hd b bdi { font-variant-numeric: tabular-nums; }
+.wl-today {
+  font-style: normal; background: var(--brand-soft); color: var(--brand-text);
+  border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700;
+}
+.wl-day-n { margin-inline-start: auto; color: var(--mut); font-size: 12.5px; font-weight: 600; }
+.wl-card {
+  background: var(--sf); border: 1px solid var(--ln); border-radius: 14px;
+  margin-bottom: 8px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.wl-card.game { border-inline-start: 3px solid var(--info); }
+.wl-card.meeting { border-inline-start: 3px dashed var(--info); }
+.wl-head {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; background: none; border: 0; cursor: pointer;
+  text-align: start; color: inherit; font: inherit;
+}
+.wl-head:disabled { cursor: default; }
+.wl-head:not(:disabled):hover { background: var(--sf2); }
+.wl-time {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 52px; flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
+.wl-time b { font-family: var(--font-display); font-weight: 900; font-size: 17px; color: var(--tx); line-height: 1.15; }
+.wl-time span { font-size: 12px; color: var(--mut); font-weight: 600; }
+.wl-dot { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; background: var(--brand); }
+.wl-dot.t0 { background: var(--brand); }
+.wl-dot.t1 { background: var(--ok); }
+.wl-dot.t2 { background: var(--info); }
+.wl-dot.t3 { background: var(--warn); }
+.wl-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.wl-title {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-weight: 800; font-size: 14.5px; color: var(--tx);
+}
+.wl-tag {
+  background: var(--info-soft); color: var(--info);
+  border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 700;
+}
+.wl-rec { color: var(--mut); flex-shrink: 0; }
+.wl-sub {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--mut); font-size: 12.5px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.wl-sub svg { flex-shrink: 0; }
+.wl-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 12px; }
+.wl-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--ln); border-radius: 999px; background: var(--sf);
+  color: var(--mut); padding: 5px 11px; font-size: 12.5px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.wl-chip svg { flex-shrink: 0; }
+.wl-chip.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.wl-chip.warn { background: var(--brand-soft); border-color: transparent; color: var(--brand-text); }
+.wl-chip.build { background: var(--accent-fill, var(--brand-strong)); border-color: transparent; color: #fff; }
+.wl-chip.soft { cursor: default; }
+.wl-chip bdi { font-variant-numeric: tabular-nums; }
+.wl-extra { padding: 0 14px 12px; }
+.wl-extra:empty { display: none; }
+/* ניווט שבועי (צד השחקן — למאמן יש את סרגל הלו"ז הקיים) */
+.wl-nav { display: flex; align-items: center; gap: 6px; }
+.wl-nav-label { margin-inline-start: auto; color: var(--mut); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (pointer: coarse) {
+  .wl-chip { min-height: 44px; }
+  .wl-head { min-height: 56px; }
+}

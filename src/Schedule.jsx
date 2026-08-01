@@ -11,6 +11,7 @@ import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
 import { useNetworkSmall } from './network'
+import WeekList from './WeekList'
 
 // טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
 const START_HOUR = 6
@@ -44,26 +45,15 @@ const ilDate = (str) => {
   return d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-// אותיות הימים ברצועת הימים (מסך 16a) — א׳ עד ש׳
-const DAY_LETTERS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
-const DAY_LETTERS_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-// "יום שלישי · 29.7" — הכותרת של סדר היום
-const dayHeading = (d) =>
-  L(
-    `יום ${d.toLocaleDateString('he-IL', { weekday: 'long' }).replace(/^יום /, '')} · `,
-    d.toLocaleDateString('en-GB', { weekday: 'long' }) + ' · ',
-  )
 
 // לו"ז שבועי בסגנון Outlook — ימים בעמודות, שעות בשורות, אימונים כבלוקים.
 // props: session
 export default function Schedule({ session, onNavigate }) {
   const me = session.user.id
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()))
-  // 16a — הלו״ז נפתח על תצוגת יום: רצועת ימים + סדר היום, ומתחתיהם הגריד השבועי
-  const [selectedDay, setSelectedDay] = useState(() => ymd(new Date()))
   const [teamFilter, setTeamFilter] = useState('')
-  // ב-6 — במובייל תצוגת היום מספיקה; הגריד השבועי נפתח לפי דרישה
-  const [showGrid, setShowGrid] = useState(() => window.innerWidth > 640)
+  // 1.2 — ברירת המחדל היא הרשימה השבועית; גריד השעות נפתח לפי דרישה
+  const [showGrid, setShowGrid] = useState(false)
   const [entries, setEntries] = useState([])
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -71,6 +61,10 @@ export default function Schedule({ session, onNavigate }) {
   const [selected, setSelected] = useState(null)
   const [reviewEntry, setReviewEntry] = useState(null)
   const [slots, setSlots] = useState([])
+  const [games, setGames] = useState([])
+  const [attRows, setAttRows] = useState([])   // נוכחות שסומנה השבוע — לצ'יפ "נוכחות סומנה"
+  const [rsvpRows, setRsvpRows] = useState([]) // אישורי הגעה השבוע — לצ'יפ "X/Y אישרו"
+  const [rosterCounts, setRosterCounts] = useState({}) // קבוצה → מספר שחקנים מחוברים
   const [allHours, setAllHours] = useState(false) // ברירת מחדל: רק השעות שיש בהן משהו
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
 
@@ -101,10 +95,14 @@ export default function Schedule({ session, onNavigate }) {
     ;(async () => {
       const [{ data: prof }, { data: rp }] = await Promise.all([
         supabase.from('profiles').select('age_groups').eq('id', me).maybeSingle(),
-        supabase.from('team_players').select('team').eq('coach_id', me),
+        supabase.from('team_players').select('team, player_id').eq('coach_id', me),
       ])
       const set = new Set([...(prof?.age_groups || []), ...((rp || []).map((r) => r.team))])
       setMyTeams([...set].filter(Boolean))
+      // מונה שחקנים מחוברים לכל קבוצה — המכנה של "X/Y אישרו"
+      const counts = {}
+      for (const r of rp || []) if (r.player_id) counts[r.team] = (counts[r.team] || 0) + 1
+      setRosterCounts(counts)
     })()
   }, [me])
 
@@ -134,6 +132,56 @@ export default function Schedule({ session, onNavigate }) {
   const inTeam = (t, personal) => !teamFilter || personal || t === teamFilter
   const fEntries = teamFilter ? entries.filter((e) => inTeam(e.team, e.is_personal)) : entries
   const weekSlotOccs = teamFilter ? allSlotOccs.filter((o) => o.team === teamFilter) : allSlotOccs
+  const fGames = teamFilter ? games.filter((g) => g.team === teamFilter) : games
+
+  // 1.2 — נתוני הצ'יפים של הרשימה השבועית
+  const attMarked = new Set(attRows.map((r) => `${r.team}|${r.session_date}`))
+  const rsvpYes = {}
+  for (const r of rsvpRows) if (r.response === 'yes') rsvpYes[r.session_id] = (rsvpYes[r.session_id] || 0) + 1
+
+  // 1.2 — כל אירועי השבוע, מנורמלים לרכיב הרשימה
+  const weekDays = days.map((d) => {
+    const ds = ymd(d)
+    return {
+      date: ds,
+      items: [
+        ...fEntries.filter((e) => e.date === ds).map((e) => ({
+          key: 'e' + e.id, session_id: e.id, kind: e.is_personal ? 'personal' : 'practice', date: ds,
+          start_time: e.start_time, end_time: e.end_time, team: e.team, location: e.location, plan: e.plan,
+          raw: e,
+        })),
+        ...weekSlotOccs.filter((o) => o.date === ds).map((o) => ({
+          key: 's' + o.session_id, session_id: o.session_id, kind: 'practice', date: ds,
+          start_time: o.start_time, end_time: o.end_time, team: o.team, location: o.location, plan: null,
+          recurring: true,
+          raw: {
+            id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time,
+            team: o.team, location: o.location, is_personal: false, plan: null, _recurring: true,
+          },
+        })),
+        ...fGames.filter((g) => g.game_date === ds).map((g) => ({
+          key: 'g' + g.id, session_id: g.id, kind: 'game', date: ds,
+          start_time: g.game_time, end_time: null, team: g.team, location: g.location, plan: null,
+          opponent: g.opponent, raw: g,
+        })),
+        ...(meetings || []).filter((m) => m.date === ds).map((m) => ({
+          key: 'm' + m.id, session_id: m.id, kind: 'meeting', date: ds,
+          start_time: m.start_time, end_time: m.end_time, team: null, location: null, plan: null,
+          topic: m.topic, raw: m,
+        })),
+      ],
+    }
+  })
+
+  // פתיחת אירוע מהרשימה — לפי הסוג
+  const openFromList = (ev) => {
+    if (ev.kind === 'meeting') setSelected({ ...ev.raw, _meeting: true })
+    else if (ev.kind === 'game') setReviewEntry({
+      id: ev.raw.id, team: ev.raw.team, date: ev.raw.game_date, start_time: ev.raw.game_time,
+      session_type: 'game', opponent: ev.raw.opponent,
+    })
+    else setSelected(ev.raw)
+  }
   // טווח השעות מותאם למה שבאמת יש בשבוע. קודם לכן הוצגו תמיד 06:00–23:00,
   // כלומר כמעט תמיד חצי לוח ריק מעל האימון הראשון. "כל השעות" פותח את הטווח המלא.
   const weekHours = []
@@ -160,8 +208,8 @@ export default function Schedule({ session, onNavigate }) {
 
   async function load() {
     setLoading(true)
-    // ארבע השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
-    const [entriesRes, plansRes, meetingsRes, coachesRes, slotsRes] = await Promise.all([
+    // השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
+    const [entriesRes, plansRes, meetingsRes, coachesRes, slotsRes, gamesRes, attRes, rsvpRes] = await Promise.all([
       supabase
         .from('schedule_entries')
         .select('*, plan:training_plans(id, name)')
@@ -187,6 +235,27 @@ export default function Schedule({ session, onNavigate }) {
         .from('team_practice_slots')
         .select('*')
         .eq('coach_id', me),
+      // משחקי השבוע — מוצגים ברשימה השבועית לצד האימונים
+      supabase
+        .from('team_games')
+        .select('*')
+        .eq('coach_id', me)
+        .gte('game_date', ymd(weekStart))
+        .lte('game_date', ymd(weekEnd)),
+      // נוכחות שסומנה השבוע — לצ'יפ "נוכחות סומנה" (סובלני אם הטבלה חסרה)
+      supabase
+        .from('practice_attendance')
+        .select('team, session_date')
+        .eq('coach_id', me)
+        .gte('session_date', ymd(weekStart))
+        .lte('session_date', ymd(weekEnd)),
+      // אישורי הגעה השבוע — לצ'יפ "X/Y אישרו" (סובלני אם הטבלה עוד לא רצה)
+      supabase
+        .from('practice_rsvp')
+        .select('session_id, response')
+        .eq('coach_id', me)
+        .gte('session_date', ymd(weekStart))
+        .lte('session_date', ymd(weekEnd)),
     ])
     if (entriesRes.error) {
       setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + entriesRes.error.message)
@@ -199,6 +268,9 @@ export default function Schedule({ session, onNavigate }) {
     setMeetings(meetingsRes.error ? [] : meetingsRes.data || [])
     setCoaches((coachesRes.data || []).filter((c) => c.first_name && c.last_name))
     setSlots(slotsRes && !slotsRes.error ? slotsRes.data || [] : [])
+    setGames(gamesRes && !gamesRes.error ? gamesRes.data || [] : [])
+    setAttRows(attRes && !attRes.error ? attRes.data || [] : [])
+    setRsvpRows(rsvpRes && !rsvpRes.error ? rsvpRes.data || [] : [])
     setLoading(false)
   }
 
@@ -390,15 +462,17 @@ export default function Schedule({ session, onNavigate }) {
           <button className="btn-ghost cal-today" onClick={() => setWeekStart(sundayOf(new Date()))}>
             {L('היום', 'Today')}
           </button>
-          <button
-            type="button"
-            className="btn-ghost cal-today"
-            onClick={() => setAllHours((v) => !v)}
-            aria-pressed={allHours}
-            title={L('הצגת כל שעות היום בלוח', 'Show every hour of the day')}
-          >
-            {allHours ? L('שעות האימונים', 'Practice hours') : L('כל השעות', 'All hours')}
-          </button>
+          {showGrid && (
+            <button
+              type="button"
+              className="btn-ghost cal-today"
+              onClick={() => setAllHours((v) => !v)}
+              aria-pressed={allHours}
+              title={L('הצגת כל שעות היום בלוח', 'Show every hour of the day')}
+            >
+              {allHours ? L('שעות האימונים', 'Practice hours') : L('כל השעות', 'All hours')}
+            </button>
+          )}
           <button
             className="icon-btn"
             onClick={() => setWeekStart(addDays(weekStart, 7))}
@@ -441,94 +515,26 @@ export default function Schedule({ session, onNavigate }) {
             ))}
           </div>
         )}
-        <div className="cal-daystrip" role="tablist" aria-label={L('ימי השבוע', 'Days of the week')}>
-          {days.map((d) => {
-            const ds = ymd(d)
-            const busy =
-              fEntries.some((e) => e.date === ds) ||
-              (weekSlotOccs || []).some((o) => o.date === ds) ||
-              (meetings || []).some((m) => m.date === ds)
-            return (
-              <button
-                key={ds}
-                type="button"
-                role="tab"
-                aria-selected={ds === selectedDay}
-                className={'cal-daychip' + (ds === selectedDay ? ' is-on' : '')}
-                onClick={() => setSelectedDay(ds)}
-              >
-                <b className="cal-daychip-d">{L(DAY_LETTERS[d.getDay()], DAY_LETTERS_EN[d.getDay()])}</b>
-                <b className="cal-daychip-n" dir="ltr">{d.getDate()}</b>
-                {busy && <i aria-hidden="true" />}
-              </button>
-            )
+        {/* 1.2 — הרשימה השבועית: כותרת יום + כרטיסי אירועים, עם צ'יפים למאמן */}
+        <WeekList
+          days={weekDays}
+          isCoach
+          attMarked={attMarked}
+          rsvpYes={rsvpYes}
+          rosterCount={rosterCounts}
+          onOpen={openFromList}
+          onOpenPlan={(ev) => openPlan(ev.plan)}
+          onBuildPlan={() => onNavigate && onNavigate('plans')}
+          onAttendance={(ev) => setReviewEntry({
+            id: ev.session_id, team: ev.team, date: ev.date, start_time: ev.start_time,
+            session_type: 'practice', location: ev.location,
           })}
-        </div>
-
-        {(() => {
-          const dayItems = [
-            ...fEntries.filter((e) => e.date === selectedDay),
-            ...(weekSlotOccs || []).filter((o) => o.date === selectedDay),
-          ].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
-          const sel = new Date(selectedDay + 'T00:00')
-          const n = dayItems.length
-          return (
-            <div className="cal-day">
-              <div className="cal-day-hd">
-                <b>
-                  {dayHeading(sel)}
-                  <bdi dir="ltr">{`${sel.getDate()}.${sel.getMonth() + 1}`}</bdi>
-                </b>
-                <span>
-                  {n === 0
-                    ? L('אין מועדים', 'No sessions')
-                    : n === 1
-                      ? L('מועד אחד', 'One session')
-                      : L(`${n} מועדים`, `${n} sessions`)}
-                </span>
-              </div>
-
-              {n === 0 ? (
-                <p className="cal-day-empty">
-                  {L('אין אימונים ביום הזה. לחיצה על משבצת ריקה בלוח מוסיפה אימון.', 'Nothing scheduled. Tap an empty slot in the grid to add a practice.')}
-                </p>
-              ) : (
-                dayItems.map((e) => (
-                  <div className="cal-day-item" key={e.id ?? `${e.date}-${e.start_time}`}>
-                    <div className="cal-day-row">
-                      <div className="cal-day-time">
-                        <b dir="ltr">{e.start_time}</b>
-                        {e.end_time && <span dir="ltr">{e.end_time}</span>}
-                      </div>
-                      <span className="cal-day-bar" aria-hidden="true" />
-                      <div className="cal-day-body">
-                        <b>{e.is_personal ? L('אימון אישי', 'Personal session') : trTeam(e.team)}</b>
-                        {e.plan?.name ? (
-                          <span>{L('תוכנית «', 'Plan “')}{e.plan.name}{L('» מצורפת', '” attached')}</span>
-                        ) : (
-                          <span>{L('אין תוכנית מצורפת', 'No plan attached')}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="cal-day-acts">
-                      <button type="button" className="btn-primary" onClick={() => setSelected(e)}>
-                        {e.plan?.name ? L('פתח את התוכנית', 'Open the plan') : L('פרטי האימון', 'Session details')}
-                      </button>
-                      <button type="button" className="btn-soft" onClick={() => setSelected(e)}>
-                        {L('נוכחות', 'Attendance')}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )
-        })()}
+        />
 
         <button type="button" className="cal-weeksep" onClick={() => setShowGrid((v) => !v)} aria-expanded={showGrid}>
           <span aria-hidden="true" />
           <span className="cal-weeksep-t">
-            {L('תצוגה שבועית', 'Weekly view')} {showGrid ? '▴' : '▾'}
+            {L('תצוגת רשת שעות', 'Hour grid')} {showGrid ? '▴' : '▾'}
           </span>
           <span aria-hidden="true" />
         </button>

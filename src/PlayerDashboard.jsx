@@ -11,7 +11,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
 import useNavMarker from './useNavMarker'
-import { ArrowFwd } from './DirIcon'
+import { ArrowFwd, ChevronFwd, ChevronBack } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
 import Avatar from './Avatar'
@@ -27,11 +27,11 @@ import TeamChat from './TeamChat'
 import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
-import ScheduleGrid from './ScheduleGrid'
+import WeekList from './WeekList'
 import { requestJoinByCode, myMemberships } from './players'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
-import { expandSlots } from './sessionId'
+import { expandSlots, expandSlotsRange } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
@@ -613,11 +613,33 @@ function dayLabel(dateStr) {
   return d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
 }
 
+// עזרי שבוע לרשימה השבועית (1.2) — מקומיים, בלי UTC כדי לא לזלוג יום
+const wkPad = (n) => String(n).padStart(2, '0')
+const wkYmd = (d) => `${d.getFullYear()}-${wkPad(d.getMonth() + 1)}-${wkPad(d.getDate())}`
+const wkSunday = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x }
+const wkAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
+
 function PlayerSchedule({ session, membership }) {
   const [items, setItems] = useState(null)
   const [past, setPast] = useState([])
   const [slotRows, setSlotRows] = useState([])
+  const [weekStart, setWeekStart] = useState(() => wkSunday(new Date()))
+  const [weekData, setWeekData] = useState({ entries: [], games: [] })
   const me = session.user.id
+
+  // אירועי השבוע המוצג — נטענים מחדש בניווט בין שבועות
+  useEffect(() => {
+    if (!membership) return
+    ;(async () => {
+      const from = wkYmd(weekStart)
+      const to = wkYmd(wkAdd(weekStart, 6))
+      const [{ data: pr }, { data: gm }] = await Promise.all([
+        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', to),
+        supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', to),
+      ])
+      setWeekData({ entries: pr || [], games: gm || [] })
+    })()
+  }, [membership, weekStart])
 
   const load = useCallback(async () => {
     if (!membership) return
@@ -661,18 +683,38 @@ function PlayerSchedule({ session, membership }) {
   if (items === null) return <SkeletonCards count={3} lines={1} />
 
   const next = items[0] || null
-  const todayStr = new Date().toISOString().slice(0, 10)
-  // הלו״ז השבועי הקבוע מוצג כטבלה; ברשימת התאריכים משאירים רק משחקים ואירועים חד-פעמיים
-  const extra = items.filter((it) => it.id[0] !== 's')
-  const dayMap = {}
-  for (const it of extra) (dayMap[it.date] = dayMap[it.date] || []).push(it)
-  const days = Object.keys(dayMap).sort()
+
+  // 1.2 — כל אירועי השבוע המוצג, מנורמלים לרכיב הרשימה המשותף
+  const weekOccs = expandSlotsRange(slotRows, weekStart, wkAdd(weekStart, 6))
+  const weekDays = Array.from({ length: 7 }, (_, i) => wkAdd(weekStart, i)).map((d) => {
+    const ds = wkYmd(d)
+    return {
+      date: ds,
+      items: [
+        ...weekOccs.filter((o) => o.date === ds).map((o) => ({
+          key: 's' + o.session_id, session_id: o.session_id, kind: 'practice', date: ds,
+          start_time: o.start_time, end_time: o.end_time, team: o.team, location: o.location, plan: null, recurring: true,
+        })),
+        ...weekData.entries.filter((e) => e.date === ds).map((e) => ({
+          key: 'e' + e.id, session_id: e.id, kind: 'practice', date: ds,
+          start_time: e.start_time, end_time: e.end_time, team: e.team, location: e.location, plan: e.plan,
+        })),
+        ...weekData.games.filter((g) => g.game_date === ds).map((g) => ({
+          key: 'g' + g.id, session_id: g.id, kind: 'game', date: ds,
+          start_time: g.game_time, end_time: null, team: g.team, location: g.location, opponent: g.opponent,
+        })),
+      ],
+    }
+  })
+  const wkA = weekStart
+  const wkB = wkAdd(weekStart, 6)
+  const weekLabel = `${wkA.getDate()}.${wkA.getMonth() + 1} – ${wkB.getDate()}.${wkB.getMonth() + 1}.${wkB.getFullYear()}`
 
   return (
     <div className="pl-screen pl-narrow">
       <PlHead Icon={CalendarDays} tone="blue"
         title={L('הלו״ז שלי', 'My schedule')}
-        subtitle={L('אימונים ומשחקים · החודש הקרוב', 'Practices and games · the month ahead')} />
+        subtitle={L('אימונים ומשחקים · שבוע אחרי שבוע', 'Practices and games · week by week')} />
 
       {items.length === 0 && past.length === 0 ? (
         <div className="empty-state">
@@ -696,31 +738,22 @@ function PlayerSchedule({ session, membership }) {
             </div>
           )}
 
-          {slotRows.length > 0 && (
-            <section className="pls-grid-sec">
-              <p className="pl-section-label"><CalendarDays size={15} /> {L('הלו״ז השבועי הקבוע', 'Weekly schedule')}</p>
-              <ScheduleGrid slots={slotRows} showTeam />
-            </section>
-          )}
-
-          {days.length > 0 && <p className="pl-section-label" style={{ marginTop: 18 }}>{L('משחקים ואירועים קרובים', 'Upcoming games & events')}</p>}
-          {days.map((d) => (
-            <section className="pls-day" key={d}>
-              <p className="pls-day-head">
-                {new Date(d + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long' })} · {new Date(d + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}
-                {d === todayStr && <em className="pls-today">{L('היום', 'Today')}</em>}
-              </p>
-              {dayMap[d].map((it) => (
-                <div key={it.id} className={`pls-ev ${it.kind}`}>
-                  <div className="pls-ev-body">
-                    <strong>{it.title}{it.kind === 'game' && <span className="pls-ev-tag">{L('משחק', 'Game')}</span>}</strong>
-                    {it.location && <span className="muted small"><MapPin size={12} /> {it.location}</span>}
-                  </div>
-                  <span className="pls-ev-time" dir="ltr">{it.time ? String(it.time).slice(0, 5) : '—'}</span>
-                </div>
-              ))}
-            </section>
-          ))}
+          {/* 1.2 — הרשימה השבועית המשותפת, עם ניווט בין שבועות */}
+          <section className="pls-grid-sec">
+            <div className="wl-nav">
+              <button type="button" className="icon-btn" onClick={() => setWeekStart(wkAdd(weekStart, -7))} aria-label={L('שבוע קודם', 'Previous week')}>
+                <ChevronBack size={18} />
+              </button>
+              <button type="button" className="btn-ghost wl-nav-today" onClick={() => setWeekStart(wkSunday(new Date()))}>
+                {L('היום', 'Today')}
+              </button>
+              <button type="button" className="icon-btn" onClick={() => setWeekStart(wkAdd(weekStart, 7))} aria-label={L('שבוע הבא', 'Next week')}>
+                <ChevronFwd size={18} />
+              </button>
+              <span className="wl-nav-label" dir="ltr">{weekLabel}</span>
+            </div>
+            <WeekList days={weekDays} isCoach={false} />
+          </section>
 
           {past.length > 0 && (
             <section className="pls-day" style={{ marginTop: 6 }}>
