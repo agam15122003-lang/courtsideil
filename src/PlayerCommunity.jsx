@@ -7,6 +7,8 @@ import ChatWindow from './ChatWindow'
 
 // צ'אט קהילת השחקנים — חדר אחד משותף לכל השחקנים.
 // משתמש בטבלת player_messages (RLS: שחקנים בלבד). נופל בעדינות אם הטבלה עוד לא קיימת.
+const MSG_LIMIT = 200 // ההודעות האחרונות בחדר
+
 export default function PlayerCommunity({ session, profile }) {
   const myId = session.user.id
   const [messages, setMessages] = useState([])
@@ -17,13 +19,29 @@ export default function PlayerCommunity({ session, profile }) {
   const [notReady, setNotReady] = useState(false)
   const namesRef = useRef({})
 
+  // השלמת שמות למשתמשים שעוד לא ראינו (משותף לטעינה ולצירוף מ-realtime)
+  const fillNames = useCallback(async (ids) => {
+    const missing = [...new Set(ids)].filter((id) => id && !namesRef.current[id])
+    if (!missing.length) return
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', missing)
+    const next = { ...namesRef.current }
+    for (const p of profs || []) next[p.id] = `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('שחקן', 'Player')
+    namesRef.current = next
+    setNames(next)
+  }, [])
+
   const load = useCallback(async ({ silent } = {}) => {
     if (!silent) setLoading(true)
+    // ascending:false + limit = ההודעות ה*אחרונות*. עם ascending:true ה-limit
+    // חתך את 500 הראשונות, וברגע שהחדר עבר אותן חדשות פשוט הפסיקו להופיע.
     const { data, error: err } = await supabase
       .from('player_messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(500)
+      .select('id, user_id, channel, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(MSG_LIMIT)
     if (err) {
       // 42P01 = הטבלה עוד לא נוצרה במסד
       if (err.code === '42P01') setNotReady(true)
@@ -31,37 +49,37 @@ export default function PlayerCommunity({ session, profile }) {
       setLoading(false)
       return
     }
-    const msgs = data || []
+    setError(null)
+    const msgs = (data || []).reverse() // חזרה לסדר כרונולוגי לתצוגה
     setMessages(msgs)
-    const missing = [...new Set(msgs.map((m) => m.user_id))].filter((id) => !namesRef.current[id])
-    if (missing.length) {
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', missing)
-      const next = { ...namesRef.current }
-      for (const p of profs || []) next[p.id] = `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('שחקן', 'Player')
-      namesRef.current = next
-      setNames(next)
-    }
+    await fillNames(msgs.map((m) => m.user_id))
     setLoading(false)
-  }, [])
+  }, [fillNames])
 
   useEffect(() => { load() }, [load])
 
-  // realtime + נפילה לפולינג כל 30 שנ'
+  // realtime + נפילה לפולינג כל 30 שנ' (רק כשהטאב גלוי)
   useEffect(() => {
     if (notReady) return
     let channel = null
     try {
       channel = supabase
         .channel('player-messages-live')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'player_messages' }, () => load({ silent: true }))
+        // מצרפים את השורה מה-payload במקום לשלוף את כל החדר מחדש
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'player_messages' }, (p) => {
+          const row = p.new
+          if (!row?.id) { load({ silent: true }); return }
+          setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row].slice(-MSG_LIMIT)))
+          fillNames([row.user_id])
+        })
         .subscribe()
     } catch { /* realtime לא זמין — הפולינג מכסה */ }
-    const t = setInterval(() => load({ silent: true }), 30000)
-    return () => { clearInterval(t); if (channel) supabase.removeChannel(channel) }
-  }, [load, notReady])
+    const poll = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    const t = setInterval(poll, 30000)
+    const onVis = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); if (channel) supabase.removeChannel(channel) }
+  }, [load, notReady, fillNames])
 
   const send = async (text) => {
     setSending(true)

@@ -15,6 +15,10 @@ import {
   Globe,
 } from 'lucide-react'
 import { useLang } from './i18n'
+import useFocusTrap from './useFocusTrap'
+// כתובת יצירת הקשר הרשמית — חייבת להיות זהה לזו שבמסמכים הציבוריים
+// (public/accessibility.html, privacy.html, terms.html) ולבקשת מחיקת החשבון.
+import { CONTACT_EMAIL } from './constants'
 
 const KEY = 'a11y_v1'
 const DEFAULTS = {
@@ -125,16 +129,12 @@ export default function AccessibilityWidget() {
     localStorage.setItem(KEY, JSON.stringify(settings))
   }, [settings])
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        setStatement(false)
-        setOpen(false)
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  // מלכודות פוקוס לשני הדיאלוגים של הווידג'ט. עד היום הפוקוס ברח מאחוריהם
+  // ו-Escape נסגר דרך מאזין גלובלי שסגר את שניהם יחד — דווקא בווידג'ט הנגישות.
+  // כשההצהרה פתוחה מעל הפאנל מלכודת הפאנל מושהית, אחרת Tab היה נשאב חזרה
+  // אל הפאנל שמאחור ו-Escape היה סוגר את שניהם במכה אחת.
+  const panelRef = useFocusTrap(open && !statement, () => { if (!statement) setOpen(false) })
+  const stRef = useFocusTrap(statement, () => setStatement(false))
 
   const set = (patch) => setSettings((s) => ({ ...s, ...patch }))
   const toggle = (k) => set({ [k]: !settings[k] })
@@ -167,7 +167,7 @@ export default function AccessibilityWidget() {
       </button>
 
       {open && (
-        <div className="a11y-panel" style={panelStyle} role="dialog" aria-label={t('a11y.title')}>
+        <div ref={panelRef} className="a11y-panel" style={panelStyle} role="dialog" aria-modal="true" aria-label={t('a11y.title')}>
           <div className="a11y-head">
             <span className="a11y-title">
               <Accessibility size={18} /> {t('a11y.title')}
@@ -266,8 +266,10 @@ export default function AccessibilityWidget() {
       {statement && (
         <div className="a11y-modal-overlay" onClick={() => setStatement(false)}>
           <div
+            ref={stRef}
             className="a11y-modal"
             role="dialog"
+            aria-modal="true"
             aria-label={t('a11y.st.title')}
             onClick={(e) => e.stopPropagation()}
           >
@@ -292,7 +294,7 @@ export default function AccessibilityWidget() {
               <ul>
                 <li>{t('a11y.st.namePlaceholder')}</li>
                 <li dir="ltr">
-                  <a href="mailto:coachadiriagam@gmail.com">coachadiriagam@gmail.com</a>
+                  <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
                 </li>
                 <li dir="ltr">
                   <a href="tel:+972526268252">{t('a11y.st.phonePlaceholder')}</a>

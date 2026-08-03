@@ -4,7 +4,9 @@ import { supabase } from './supabaseClient'
 import { L, trTeam , cnt } from './i18n'
 import DrillCard from './DrillCard'
 import Avatar from './Avatar'
-import { Dumbbell, ArrowRight } from 'lucide-react'
+import { Dumbbell } from 'lucide-react'
+// חץ "חזרה" כיווני דרך DirIcon — בעברית מצביע ימינה, באנגלית שמאלה
+import { ArrowBack } from './DirIcon'
 import { SkeletonCards } from './Skeleton'
 
 // פרופיל מאמן — מציג את פרטי המאמן, אפשרות לשלוח לו הודעה,
@@ -157,7 +159,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
       {onBack && (
         <>
           <button className="link-button" onClick={onBack}>
-            <ArrowRight size={15} className="back-ic" /> {L('חזרה למאתר המאמנים', 'Back to Coach Finder')}
+            <ArrowBack size={15} className="back-ic" /> {L('חזרה למאתר המאמנים', 'Back to Coach Finder')}
           </button>
 
           <div className="welcome-badge" style={{ marginTop: 14 }}>

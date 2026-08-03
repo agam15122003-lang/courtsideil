@@ -4,7 +4,7 @@ import { ChevronBack } from './DirIcon'
 import Logo from './Logo'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { COACHING_QUOTES, ISRAELI_CLUBS } from './constants'
+import { COACHING_QUOTES, ISRAELI_CLUBS, SITE_URL, TERMS_VERSION } from './constants'
 import { passwordStrength } from './ResetPassword'
 import { L } from './i18n'
 
@@ -77,6 +77,8 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
   }
   const [sentTo, setSentTo] = useState('')
   const [cooldown, setCooldown] = useState(0) // השהיה (שניות) לפני שליחה חוזרת
+  // המייל שהוזן בזרימת ה-OTP אינו רשום — מציגים דרך מפורשת להרשמה
+  const [otpNoAccount, setOtpNoAccount] = useState(false)
 
   // ספירה לאחור לכפתור "שלח שוב" — מונע היחסמות במגבלת הקצב
   useEffect(() => {
@@ -104,6 +106,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     setOtpStep('request')
     clearCode()
     setSentStep(false)
+    setOtpNoAccount(false)
   }
 
   const emailBad = emailTouched && email.trim() !== '' && !emailLooksWhole(email)
@@ -118,16 +121,36 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     setLoading(true)
 
     if (mode === 'signup') {
+      // ⚠️ TODO לבעלים — האכיפה הזו היא בקליינט בלבד, וכל מי שקורא ישירות
+      // ל-auth/v1/signup עוקף אותה ומקבל את מה שמוגדר בפרויקט Supabase
+      // (ברירת המחדל: 6 תווים, בלי מורכבות ובלי בדיקת סיסמאות שדלפו).
+      // באפליקציה שמחזיקה חשבונות של קטינים זו דלת פתוחה להשתלטות בניחוש.
+      // חובה להפעיל ידנית בדשבורד — אי אפשר לשנות את זה מהקוד:
+      //   Supabase → Authentication → Sign In / Providers → Password:
+      //     • Minimum password length = 8
+      //     • Password Requirements = "Lowercase, uppercase letters and digits"
+      //     • Leaked password protection (HaveIBeenPwned) = Enabled
+      //   ובנוסף Authentication → Attack Protection: CAPTCHA + הגבלת קצב על OTP.
       if (password.length < 8) {
         setError(L('הסיסמה חייבת להכיל לפחות 8 תווים.', 'Password must be at least 8 characters.'))
         setLoading(false)
         return
       }
+      const acceptedAt = new Date().toISOString()
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        // שם מלא ומועדון נכנסים ל-user_metadata — אין טבלה חדשה ואין שינוי סכימה
-        options: { data: { full_name: fullName.trim(), club: club.trim() || null } },
+        // שם מלא ומועדון נכנסים ל-user_metadata — אין טבלה חדשה ואין שינוי סכימה.
+        // גם ההסכמה לתנאים נכנסת לכאן: זו הרשומה היחידה שנשמרת תמיד, בלי תלות
+        // בסכימה ובלי צורך ב-session (ראו recordTermsAcceptance למטה).
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            club: club.trim() || null,
+            accepted_terms_at: acceptedAt,
+            terms_version: TERMS_VERSION,
+          },
+        },
       })
       if (error) {
         setError(translateError(error.message))
@@ -136,6 +159,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
         // מזהים לפי identities ריק ומכוונים להתחברות במקום להמתין למייל שלא יגיע.
         setError(L('המייל הזה כבר רשום. נסה להתחבר או לאפס סיסמה.', 'This email is already registered. Try logging in or resetting your password.'))
       } else {
+        await recordTermsAcceptance(data, acceptedAt)
         setMessage(L('נרשמת בהצלחה! בדוק את תיבת המייל לאישור החשבון, ואז התחבר.', 'Signed up successfully! Check your inbox to confirm your account, then log in.'))
       }
     } else if (mode === 'signin') {
@@ -143,7 +167,10 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
       if (error) setError(translateError(error.message))
     } else if (mode === 'forgot') {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '?reset=true',
+        // SITE_URL ולא window.location.origin: בתוך WebView נייטיב ה-origin הוא
+        // capacitor://localhost — כתובת ש-Supabase דוחה (אינה ברשימת ה-Redirect
+        // URLs) או שמייצרת לינק שלא נפתח בשום מקום, כלומר איפוס סיסמה מת לגמרי.
+        redirectTo: SITE_URL + '/?reset=true',
       })
       if (error) setError(translateError(error.message))
       else {
@@ -162,7 +189,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     clearAlerts()
     setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(sentTo, {
-      redirectTo: window.location.origin + '?reset=true',
+      redirectTo: SITE_URL + '/?reset=true', // ראו ההסבר בזרימת 'forgot' למעלה
     })
     setLoading(false)
     if (error) {
@@ -181,12 +208,30 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
       return
     }
     setLoading(true)
-    const res = await supabase.auth.signInWithOtp({ email })
+    setOtpNoAccount(false)
+    // shouldCreateUser:false — הזרימה הזו היא כניסה בלבד. ברירת המחדל של
+    // Supabase היא true, ולכן עד כה כל אחד יכול היה ליצור חשבון authenticated
+    // מלא בכתובת מייל חד-פעמית, בלי סיסמה ובלי שום שער — ולקבל מיד את כל מה
+    // שפתוח ל-authenticated. יצירת חשבון נשארת רק במסלול ההרשמה המפורש.
+    const res = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    })
     setSentTo(email)
     setLoading(false)
     if (res.error) {
       console.error('OTP send error:', res.error)
-      const msg = translateError(res.error.message)
+      // מייל בלי חשבון: מרגע ש-shouldCreateUser כבוי, Supabase מחזיר
+      // "Signups not allowed for otp" (code: otp_disabled) במקום ליצור משתמש.
+      const noAccount =
+        res.error.code === 'otp_disabled' || /signups?\s+not\s+allowed/i.test(res.error.message || '')
+      const msg = noAccount
+        ? L(
+            'אין עדיין חשבון עם המייל הזה. אפשר להירשם בחינם, או לבדוק שהכתובת נכונה.',
+            "There's no account with this email yet. You can sign up for free, or check the address.",
+          )
+        : translateError(res.error.message)
+      setOtpNoAccount(noAccount)
       setError(msg)
       toast.error(msg)
     } else {
@@ -717,6 +762,20 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
                     {busyLabel(L('שליחת קוד למייל', 'Send code to email'))}
                   </button>
                   {alerts}
+                  {/* אין חשבון למייל הזה — דרך אחת ברורה קדימה במקום מבוי סתום */}
+                  {otpNoAccount && (
+                    <div className="csa-card csa-card--push">
+                      <b>{L('עוד לא נרשמת?', 'Not registered yet?')}</b>
+                      <p>{L('כניסה עם קוד עובדת רק לחשבון קיים. ההרשמה לוקחת פחות מדקה.', 'Signing in with a code works only for an existing account. Signing up takes less than a minute.')}</p>
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => (onSignupFlow ? onSignupFlow() : goMode('signup'))}
+                      >
+                        {L('להרשמה', 'Sign up')}
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -797,6 +856,25 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
   )
 }
 
+
+// רישום ההסכמה לתנאי השימוש ולמדיניות הפרטיות בעת ההרשמה.
+// עד כה הצ'קבוקס רק חסם את הכפתור ולא נשמר בשום מקום — לא היה אפשר להוכיח
+// מי הסכים, לאיזו גרסה ומתי. הרישום נעשה בשתי שכבות משלימות:
+//   1) user_metadata (accepted_terms_at + terms_version) — נשלח יחד עם ה-signUp
+//      עצמו, ולכן נשמר תמיד, גם כשאישור מייל פעיל ואין עדיין session.
+//   2) עמודות על profiles — רק אם כבר קיים session (אישור מייל כבוי) וכשהעמודות
+//      קיימות. פרודקשן שעדיין לא הריץ את supabase_parent_consent.sql יחזיר
+//      "column does not exist" / 42703 ואז מדלגים בשקט: שכבה 1 עדיין תיעדה הכול.
+async function recordTermsAcceptance(data, acceptedAt) {
+  if (!data?.session || !data?.user?.id) return
+  const { error } = await supabase
+    .from('profiles')
+    .update({ accepted_terms_at: acceptedAt, terms_version: TERMS_VERSION })
+    .eq('id', data.user.id)
+  if (!error) return
+  const missing = error.code === '42703' || /column .* does not exist/i.test(error.message || '')
+  if (!missing) console.error('accepted_terms save:', error.message)
+}
 
 function translateError(msg) {
   msg = String(msg || '')

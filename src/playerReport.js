@@ -7,6 +7,31 @@ import { L, trTeam } from './i18n'
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
+// שיגורים שרלוונטיים לשחקן: אישיים אליו + כאלה שנשלחו לכל הקבוצה.
+// בעבר זה נעשה בפילטר אחד — .or(`player_id.eq.${pid},team.eq.${team}`) — ושם
+// הקבוצה שורשר ישירות לתוך תחביר PostgREST. שם עם פסיק או סוגריים (למשל
+// "נערים א' (בנים)") שובר את הפילטר או מרחיב אותו, וספירת "משימות שנשלחו"
+// יוצאת שגויה. שתי שאילתות eq נפרדות + איחוד לפי מזהה — בלי תחביר להישבר בו.
+async function loadAssignments(pid, team) {
+  const cols = 'id, team, player_id'
+  const [mine, byTeam] = await Promise.all([
+    supabase.from('player_assignments').select(cols).eq('player_id', pid),
+    team
+      ? supabase.from('player_assignments').select(cols).eq('team', team)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (mine.error) console.error('playerReport assignments (player):', mine.error.message)
+  if (byTeam.error) console.error('playerReport assignments (team):', byTeam.error.message)
+  const seen = new Set()
+  const rows = []
+  for (const r of [...(mine.data || []), ...(byTeam.data || [])]) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    rows.push(r)
+  }
+  return { data: rows }
+}
+
 export async function printPlayerReport({ player, team, att }) {
   // המשוב, המשימות והיעדים — רק לשחקן מחובר (player_id = profiles.id)
   const pid = player.player_id
@@ -17,9 +42,7 @@ export async function printPlayerReport({ player, team, att }) {
     pid
       ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('player_id', pid).limit(10)
       : Promise.resolve({ data: [] }),
-    pid
-      ? supabase.from('player_assignments').select('id, team, player_id').or(`player_id.eq.${pid},team.eq.${team}`)
-      : Promise.resolve({ data: [] }),
+    pid ? loadAssignments(pid, team) : Promise.resolve({ data: [] }),
     pid
       ? supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', pid).not('done_at', 'is', null)
       : Promise.resolve({ data: [] }),

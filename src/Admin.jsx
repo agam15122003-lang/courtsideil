@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   ShieldCheck, Flag, Users, BarChart3, Search, Check, Ban,
-  AlertTriangle, X, RefreshCw,
+  AlertTriangle, X, RefreshCw, UserCheck, Trash2, Clock, FileText,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -9,9 +9,51 @@ import { NEWS_CACHE_KEY } from './constants'
 import Avatar from './Avatar'
 import { L, trTeam } from './i18n'
 import { SkeletonStats, SkeletonRoster } from './Skeleton'
+import { confirmDialog } from './confirm'
+import {
+  adminPendingMinors, adminConsentLog, adminRevokeConsent,
+  adminDeletionRequests, adminMarkDeletionDone,
+  CONSENT_TYPES, consentLabel, consentValueLabel,
+} from './consent'
 
 const REASON_HE = {
   impersonation: 'התחזות', inappropriate: 'תוכן לא הולם', spam: 'ספאם', other: 'אחר',
+}
+
+// מצב אחיד לרשימות של הלשונית החדשה: טעינה · לא-מותקן · שגיאה · ריק
+function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, emptyText, onRetry }) {
+  if (loading) return <SkeletonRoster count={3} />
+  if (notDeployed) {
+    return (
+      <div className="empty-state">
+        <span className="empty-ic"><Clock size={26} /></span>
+        <div className="empty-title">{L('הפיצ׳ר עדיין לא הותקן במסד', 'Not deployed to the database yet')}</div>
+        <p className="muted small">
+          {L('צריך להריץ את מיגרציית ההסכמות (supabase_parent_consent.sql) ואז לרענן.',
+             'Run the consent migration (supabase_parent_consent.sql) and refresh.')}
+        </p>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="empty-state" role="alert">
+        <span className="empty-ic"><AlertTriangle size={26} /></span>
+        <div className="empty-title">{L('הטעינה נכשלה', 'Loading failed')}</div>
+        {onRetry && <button type="button" className="btn-primary" onClick={onRetry}>{L('נסה שוב', 'Try again')}</button>}
+      </div>
+    )
+  }
+  if (empty) {
+    return (
+      <div className="empty-state">
+        <span className="empty-ic">{icon}</span>
+        <div className="empty-title">{emptyTitle}</div>
+        {emptyText && <p className="muted small">{emptyText}</p>}
+      </div>
+    )
+  }
+  return null
 }
 
 // לוח ניהול — סקירה, מאמנים (אימות/חסימה + זיהוי התחזות), דיווחים.
@@ -44,6 +86,81 @@ export default function Admin({ session, profile }) {
     setLoading(false)
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
+
+  // ===== לשונית «הסכמות ומחיקות» =====
+  const [minors, setMinors] = useState({ loading: true, rows: [], notDeployed: false, error: false })
+  const [dels, setDels] = useState({ loading: true, rows: [], notDeployed: false, error: false })
+  const [openMinor, setOpenMinor] = useState(null) // id של הקטין שהלוג שלו פתוח
+  const [log, setLog] = useState({ loading: false, rows: [], notDeployed: false, error: false })
+
+  // ממיר את התשובה האחידה של consent.js למצב הרשימה
+  const toListState = (res) => ({
+    loading: false,
+    rows: res.ok ? (res.rows || []) : [],
+    notDeployed: !!res.notDeployed,
+    error: !res.ok && !res.notDeployed,
+  })
+
+  async function loadConsent() {
+    setMinors((s) => ({ ...s, loading: true }))
+    setDels((s) => ({ ...s, loading: true }))
+    const [m, d] = await Promise.all([adminPendingMinors(), adminDeletionRequests()])
+    setMinors(toListState(m))
+    setDels(toListState(d))
+  }
+  useEffect(() => {
+    if (tab === 'consent') loadConsent()
+    /* eslint-disable-next-line */
+  }, [tab])
+
+  const openLog = async (id) => {
+    if (openMinor === id) { setOpenMinor(null); return }
+    setOpenMinor(id)
+    setLog({ loading: true, rows: [], notDeployed: false, error: false })
+    setLog(toListState(await adminConsentLog(id)))
+  }
+
+  const revoke = async (minorId, type) => {
+    const ok = await confirmDialog({
+      title: L('לבטל את ההסכמה?', 'Revoke this consent?'),
+      message: type === 'basic'
+        ? L('ביטול ההסכמה הבסיסית משעה את חשבון השחקן לחלוטין.', 'Revoking the basic consent fully suspends the player account.')
+        : L('ההרשאה תבוטל. אפשר יהיה לאשר אותה מחדש רק דרך ההורה.', 'The permission will be revoked. Only the guardian can grant it again.'),
+      confirmText: L('בטלו', 'Revoke'),
+      danger: true,
+    })
+    if (!ok) return
+    const res = await adminRevokeConsent(minorId, type)
+    if (res.ok) {
+      toast.success(L('ההסכמה בוטלה', 'Consent revoked'))
+      setLog(toListState(await adminConsentLog(minorId)))
+      loadConsent()
+    } else {
+      toast.error(res.notDeployed
+        ? L('הפעולה עדיין לא קיימת במסד', 'This action is not deployed yet')
+        : L('הביטול נכשל', 'Revoke failed'))
+    }
+  }
+
+  const markDone = async (id) => {
+    const ok = await confirmDialog({
+      title: L('לסמן את בקשת המחיקה כטופלה?', 'Mark this deletion request as done?'),
+      message: L('סימון הבקשה מצהיר שהמחיקה בוצעה בפועל (חשבון, שורות סגל וקבצי מדיה).',
+                 'Marking it states that the deletion was actually carried out (account, roster rows and media files).'),
+      confirmText: L('סמן כטופל', 'Mark done'),
+      danger: false,
+    })
+    if (!ok) return
+    const res = await adminMarkDeletionDone(id)
+    if (res.ok) {
+      toast.success(L('סומן כטופל', 'Marked as done'))
+      setDels(toListState(await adminDeletionRequests()))
+    } else {
+      toast.error(res.notDeployed
+        ? L('הפעולה עדיין לא קיימת במסד', 'This action is not deployed yet')
+        : L('העדכון נכשל', 'Update failed'))
+    }
+  }
 
   const setFlag = async (id, patch) => {
     const extra = patch.verified !== undefined && patch.verified
@@ -102,7 +219,17 @@ export default function Admin({ session, profile }) {
         <button className={tab === 'reports' ? 'tab active' : 'tab'} onClick={() => setTab('reports')}>
           <Flag size={15} /> {L('דיווחים', 'Reports')}{stats.openReports > 0 ? ` (${stats.openReports})` : ''}
         </button>
-        <button className="icon-btn" style={{ marginInlineStart: 'auto' }} onClick={load} aria-label={L('רענון', 'Refresh')}><RefreshCw size={15} className={loading ? 'spin' : ''} /></button>
+        <button className={tab === 'consent' ? 'tab active' : 'tab'} onClick={() => setTab('consent')}>
+          <UserCheck size={15} /> {L('הסכמות ומחיקות', 'Consents & deletions')}
+        </button>
+        <button
+          className="icon-btn"
+          style={{ marginInlineStart: 'auto' }}
+          onClick={() => (tab === 'consent' ? loadConsent() : load())}
+          aria-label={L('רענון', 'Refresh')}
+        >
+          <RefreshCw size={15} className={loading ? 'spin' : ''} />
+        </button>
       </div>
 
       {loading ? (
@@ -185,6 +312,128 @@ export default function Admin({ session, profile }) {
             ))}
             {filtered.length === 0 && <p className="muted small">{L('לא נמצאו מאמנים.', 'No coaches found.')}</p>}
           </ul>
+        </div>
+      ) : tab === 'consent' ? (
+        <div className="team-section adm-consent">
+          {/* ----- קטינים שממתינים לאישור הורה ----- */}
+          <h3 className="form-section-title"><UserCheck size={16} /> {L('קטינים שממתינים לאישור הורה', 'Minors awaiting parental approval')}</h3>
+          <ListState
+            loading={minors.loading}
+            notDeployed={minors.notDeployed}
+            error={minors.error}
+            empty={minors.rows.length === 0}
+            icon={<UserCheck size={26} />}
+            emptyTitle={L('אין קטינים ממתינים', 'No minors are waiting')}
+            emptyText={L('כל חשבונות הקטינים אושרו על ידי הורה.', 'Every minor account has parental approval.')}
+            onRetry={loadConsent}
+          />
+          {!minors.loading && !minors.notDeployed && !minors.error && minors.rows.length > 0 && (
+            <ul className="admin-list">
+              {minors.rows.map((m) => (
+                <li key={m.id} className="adm-minor">
+                  <div className="adm-minor-main">
+                    <strong>{m.first_name} {m.last_name}</strong>
+                    <span className="muted small" dir="ltr">{m.guardian_email || '—'}</span>
+                    {m.guardian_name && <span className="muted small">{m.guardian_name}</span>}
+                    <span className="admin-report-meta">
+                      <span className={`status-pill admin-status st-${m.approval_status === 'suspended' ? 'open' : 'pending'}`}>
+                        {m.approval_status === 'suspended' ? L('מושעה', 'Suspended') : L('ממתין להורה', 'Awaiting parent')}
+                      </span>
+                      <span className="muted small" dir="ltr">{(m.created_at || '').split('T')[0]}</span>
+                    </span>
+                  </div>
+                  <div className="admin-coach-actions">
+                    <button type="button" className="chip" onClick={() => openLog(m.id)} aria-expanded={openMinor === m.id}>
+                      <FileText size={13} /> {openMinor === m.id ? L('סגירת הלוג', 'Hide log') : L('לוג הסכמות', 'Consent log')}
+                    </button>
+                  </div>
+
+                  {openMinor === m.id && (
+                    <div className="adm-log">
+                      <ListState
+                        loading={log.loading}
+                        notDeployed={log.notDeployed}
+                        error={log.error}
+                        empty={log.rows.length === 0}
+                        icon={<FileText size={26} />}
+                        emptyTitle={L('אין עדיין רשומות הסכמה', 'No consent records yet')}
+                        emptyText={L('ההורה טרם פתח את הקישור.', 'The guardian has not opened the link yet.')}
+                        onRetry={() => openLog(m.id)}
+                      />
+                      {!log.loading && !log.notDeployed && !log.error && log.rows.length > 0 && (
+                        <ul className="adm-log-list">
+                          {log.rows.map((row, i) => (
+                            <li key={row.id || i}>
+                              <span className="adm-log-type">{consentLabel(row.consent_type || row.type)}</span>
+                              <span className={`status-pill adm-cv cv-${row.value}`}>{consentValueLabel(row.value)}</span>
+                              <span className="muted small" dir="ltr">{(row.created_at || '').replace('T', ' ').slice(0, 16)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {!log.notDeployed && (
+                        <div className="adm-revoke">
+                          <span className="muted small">{L('ביטול הסכמה בשם ההורה (לתיעוד פנייה):', 'Revoke a consent on the guardian’s behalf (for a documented request):')}</span>
+                          <div className="admin-coach-actions">
+                            {CONSENT_TYPES.map((t) => (
+                              <button key={t} type="button" className="chip danger-on" onClick={() => revoke(m.id, t)}>
+                                <Ban size={13} /> {consentLabel(t)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* ----- בקשות מחיקת חשבון ----- */}
+          <h3 className="form-section-title" style={{ marginTop: 22 }}>
+            <Trash2 size={16} /> {L('בקשות מחיקת חשבון', 'Account deletion requests')}
+          </h3>
+          <p className="muted small">
+            {L('מדיניות הפרטיות מבטיחה מחיקה תוך 30 יום. סימון «טופל» מצהיר שהמחיקה בוצעה בפועל.',
+               'The privacy policy promises deletion within 30 days. Marking “done” states the deletion was actually carried out.')}
+          </p>
+          <ListState
+            loading={dels.loading}
+            notDeployed={dels.notDeployed}
+            error={dels.error}
+            empty={dels.rows.length === 0}
+            icon={<Trash2 size={26} />}
+            emptyTitle={L('אין בקשות מחיקה', 'No deletion requests')}
+            emptyText={L('כשמשתמש יבקש למחוק את החשבון, הבקשה תופיע כאן.', 'When a user asks to delete their account, the request shows up here.')}
+            onRetry={loadConsent}
+          />
+          {!dels.loading && !dels.notDeployed && !dels.error && dels.rows.length > 0 && (
+            <ul className="admin-list">
+              {dels.rows.map((d) => (
+                <li key={d.id} className={`admin-report status-${d.status}`}>
+                  <div className="admin-report-main">
+                    <strong>{d.first_name} {d.last_name}</strong>
+                    {d.email_hint && <span className="muted small" dir="ltr">{d.email_hint}</span>}
+                    {d.reason && <span className="muted small">{d.reason}</span>}
+                    <span className="admin-report-meta">
+                      <span className={`status-pill admin-status st-${d.status === 'done' ? 'resolved' : 'open'}`}>
+                        {d.status === 'done' ? L('טופל', 'Done') : L('ממתין', 'Pending')}
+                      </span>
+                      <span className="muted small" dir="ltr">{(d.created_at || '').split('T')[0]}</span>
+                    </span>
+                  </div>
+                  <div className="admin-report-actions">
+                    {d.status !== 'done' && (
+                      <button type="button" className="chip" onClick={() => markDone(d.id)}>
+                        <Check size={13} /> {L('סמן כטופל', 'Mark done')}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : (
         <div className="team-section">

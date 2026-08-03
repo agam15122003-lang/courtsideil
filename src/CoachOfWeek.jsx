@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Trophy, Star, ChevronLeft } from 'lucide-react'
+import { Trophy, Star } from 'lucide-react'
+// חץ כיווני דרך DirIcon — בעברית מצביע שמאלה, באנגלית ימינה (חוק RTL)
+import { ChevronFwd } from './DirIcon'
 import { supabase } from './supabaseClient'
 import Avatar from './Avatar'
 import { L } from './i18n'
@@ -120,7 +122,7 @@ export default function CoachOfWeek({ onOpenCoach }) {
           <span className="cow-stat"><strong>{winner.drills}</strong> {L('תרגילים', 'drills')}</span>
           <span className="cow-stat"><strong>{winner.count}</strong> {L('דירוגים', 'ratings')}</span>
         </div>
-        <span className="cow-cta">{L('צפה בפרופיל', 'View profile')} <ChevronLeft size={15} /></span>
+        <span className="cow-cta">{L('צפה בפרופיל', 'View profile')} <ChevronFwd size={15} /></span>
       </div>
     </button>
   )

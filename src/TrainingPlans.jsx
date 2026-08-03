@@ -1,6 +1,8 @@
 import { toast } from './toast'
-import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, PlayCircle, Plus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronUp, ChevronDown, ClipboardList, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, PlayCircle, Plus } from 'lucide-react'
+// חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
+import { ArrowBack } from './DirIcon'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
 import PlanNotebook from './PlanNotebook'
@@ -9,12 +11,25 @@ import CourtDiagram from './CourtDiagram'
 import { SkeletonCards } from './Skeleton'
 import { L, tr, trTeam } from './i18n'
 import { ErrorState } from './states'
-import { safeUrl } from './constants'
+import { safeUrl, SITE_URL } from './constants'
 import { waShare } from './share'
 import { confirmDialog } from './confirm'
 
 // יעד אורך אימון מלא. מוצג גם בעורך התוכנית וגם על כרטיס התוכנית ברשימה (13a).
 export const PLAN_TARGET_MIN = 90
+
+// עימוד רשימת התוכניות + רשימת עמודות מפורשת במקום select('*')
+const PLANS_PAGE = 24
+// הקטגוריה נדרשת לרצועת הזמן שבכרטיס (מסך 13a)
+const PLAN_ITEMS_COLS = 'plan_items(id, duration_minutes, drill:drills(category))'
+const PLAN_COLS = `id, name, created_by, created_at, is_public, ${PLAN_ITEMS_COLS}`
+// מסד שטרם הריץ את supabase_plans_community.sql — בלי עמודת is_public
+const PLAN_COLS_LEGACY = `id, name, created_by, created_at, ${PLAN_ITEMS_COLS}`
+
+// "עוד לא נפרס בפרודקשן" — עמודה/פונקציה/טבלה שחסרות במסד
+const notDeployed = (e) =>
+  ['42703', '42883', '42P01', 'PGRST202'].includes(e?.code) ||
+  /does not exist/i.test(e?.message || '')
 
 // ממיר פריטי תוכנית לפורמט "דף מחברת" (כותרת, פרטים, הערה, ולוח טקטיקה לאנימציה)
 export function planToNotebook(name, items) {
@@ -55,14 +70,28 @@ function escapeHtml(s) {
 // props:
 //   session - המשתמש המחובר
 export default function TrainingPlans({ session, initialPlanId, onConsumeInitialPlan }) {
-  const [plans, setPlans] = useState([])
+  // שתי רשימות נפרדות עם עימוד משלהן. עד היום נשלף עמוד אחד מאוחד (שלי +
+  // קהילה יחד, ממוין לפי created_at) והפיצול נעשה בלקוח — כך שדי ב-24
+  // תוכניות קהילה חדשות כדי שהתוכניות של המאמן עצמו ייעלמו מהמסך שלו.
+  const [minePlans, setMinePlans] = useState([])
+  const [comPlans, setComPlans] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMoreMine, setLoadingMoreMine] = useState(false)
+  const [loadingMoreCom, setLoadingMoreCom] = useState(false)
+  const [hasMoreMine, setHasMoreMine] = useState(false)
+  const [hasMoreCom, setHasMoreCom] = useState(false)
   const [error, setError] = useState(null)
+  const [comError, setComError] = useState(null) // כשל בשליפת הקהילה בלבד — לא מפיל את המסך
   const [activePlanId, setActivePlanId] = useState(null)
   const [source, setSource] = useState('') // מקור התוכניות: '' הכול | 'mine' | 'community'
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id
+  // מסד שטרם הריץ את supabase_plans_community.sql — אין בו עמודת is_public.
+  // נזכר פעם אחת כדי שלא ננסה שוב ושוב את השאילתה המודרנית.
+  const legacyDbRef = useRef(false)
+  // האם כבר נטענה רשימת הקהילה (כדי לא לשלוף אותה כשהבורר על «שלי»)
+  const comLoadedRef = useRef(false)
 
   // העתקת תוכנית ששותפה אל "התוכניות שלי"
   const copyPlan = async (plan) => {
@@ -98,25 +127,105 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     setActivePlanId(np.id)
   }
 
-  async function loadPlans() {
-    setLoading(true)
-    const { data, error } = await supabase
+  // עימוד: עד היום נשלפו *כל* התוכניות הנגישות (שלי + כל הקהילה) עם
+  // ה-items המקוננים בשליפה אחת בלי גבול. הרשימה גדלה עם הקהילה.
+  //
+  // «התוכניות שלי» — שאילתה נפרדת עם עימוד משלה. `.eq('created_by', me)` עובד
+  // גם על מסד ישן (העמודה קיימת מאז supabase_training_plans.sql), ולכן
+  // המקטע הזה לעולם לא יכול להיחתך בגלל תוכניות של הקהילה.
+  // ברענון (לא append) שומרים על מספר העמודות שכבר נטענו, כדי ש«מחיקה»/
+  // «שיתוף» אחרי «טען עוד» לא יקצצו את הרשימה חזרה לעמוד הראשון.
+  async function loadMine({ append = false } = {}) {
+    const from = append ? minePlans.length : 0
+    const size = append ? PLANS_PAGE : Math.max(PLANS_PAGE, minePlans.length)
+    if (append) setLoadingMoreMine(true)
+    else setLoading(true)
+
+    const page = (cols) => supabase
       .from('training_plans')
-      // הקטגוריה נדרשת לרצועת הזמן שבכרטיס (מסך 13a)
-      .select('*, plan_items(id, duration_minutes, drill:drills(category))')
+      .select(cols)
+      .eq('created_by', me)
       .order('created_at', { ascending: false })
+      .range(from, from + size - 1)
+
+    const wasLegacy = legacyDbRef.current
+    let { data, error } = await page(wasLegacy ? PLAN_COLS_LEGACY : PLAN_COLS)
+    // מסד שטרם הריץ את supabase_plans_community.sql — אין עמודת is_public
+    if (error && !wasLegacy && notDeployed(error)) {
+      legacyDbRef.current = true
+      ;({ data, error } = await page(PLAN_COLS_LEGACY))
+    }
+
     if (error) {
-      setError(L('שגיאה בטעינת התוכניות: ', 'Failed to load plans: ') + error.message)
+      if (!append) setError(L('שגיאה בטעינת התוכניות: ', 'Failed to load plans: ') + error.message)
+      else toast.error(L('טעינת התוכניות הנוספות נכשלה', 'Failed to load more plans'))
     } else {
-      setPlans(data || [])
+      const rows = data || []
+      setMinePlans((cur) => (append ? [...cur, ...rows] : rows))
+      setHasMoreMine(rows.length === size)
       setError(null)
     }
     setLoading(false)
+    setLoadingMoreMine(false)
+  }
+
+  // «תוכניות הקהילה» — שאילתה נפרדת, ובמכוון כוללת גם את התוכניות שלי
+  // שסימנתי «משותף» (כך המאמן רואה בדיוק מה מאמנים אחרים רואים; יש להן
+  // תג «שלך»). על מסד בלי is_public הפילטר יחזיר 42703 — שם פשוט אין
+  // שיתוף, ולכן המקטע נשאר ריק בלי הודעת שגיאה.
+  async function loadCom({ append = false } = {}) {
+    if (legacyDbRef.current) { setComPlans([]); setHasMoreCom(false); return }
+    const from = append ? comPlans.length : 0
+    const size = append ? PLANS_PAGE : Math.max(PLANS_PAGE, comPlans.length)
+    if (append) setLoadingMoreCom(true)
+
+    const { data, error } = await supabase
+      .from('training_plans')
+      .select(PLAN_COLS)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .range(from, from + size - 1)
+
+    if (error) {
+      if (notDeployed(error)) {
+        // המסד לא תומך בשיתוף — לא שגיאה מבחינת המשתמש
+        legacyDbRef.current = true
+        setComPlans([])
+        setHasMoreCom(false)
+        setComError(null)
+      } else if (append) {
+        toast.error(L('טעינת תוכניות הקהילה הנוספות נכשלה', 'Failed to load more community plans'))
+      } else {
+        setComError(L('שגיאה בטעינת תוכניות הקהילה: ', 'Failed to load community plans: ') + error.message)
+      }
+    } else {
+      const rows = data || []
+      comLoadedRef.current = true
+      setComPlans((cur) => (append ? [...cur, ...rows] : rows))
+      setHasMoreCom(rows.length === size)
+      setComError(null)
+    }
+    setLoadingMoreCom(false)
+  }
+
+  // רענון אחרי פעולה (מחיקה/שיתוף/העתקה/חזרה מהבונה): שתי הרשימות יחד,
+  // אבל רק אם רשימת הקהילה כבר נטענה — «שתף לקהילה» חייב להזיז גם אותה.
+  async function loadPlans() {
+    await loadMine()
+    if (comLoadedRef.current) await loadCom()
   }
 
   useEffect(() => {
-    loadPlans()
+    loadMine()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // רשימת הקהילה נשלפת רק כשהמקטע שלה באמת מוצג
+  useEffect(() => {
+    if (source === 'mine' || comLoadedRef.current || legacyDbRef.current) return
+    loadCom()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source])
 
   // תוכנית שהגיעה מדף הבית («למחברת המלאה» / «תוכנית האימון») נפתחת ישר,
   // ונצרכת פעם אחת כדי שכניסה רגילה למסך תציג את הרשימה.
@@ -223,7 +332,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     return (
       <PlanBuilder
         planId={activePlanId}
-        plan={plans.find((p) => p.id === activePlanId)}
+        plan={minePlans.find((p) => p.id === activePlanId) || comPlans.find((p) => p.id === activePlanId)}
         onBack={() => {
           setActivePlanId(null)
           loadPlans()
@@ -256,9 +365,10 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     )
   }
 
-  const myPlans = plans.filter((p) => p.created_by === me)
-  // כל התוכניות המשותפות (כולל שלך) — כך אתה רואה לאן השיתוף מגיע ומה מאמנים אחרים רואים
-  const communityPlans = plans.filter((p) => p.is_public)
+  // שתי הרשימות מגיעות עכשיו משתי שאילתות נפרדות — אין יותר סינון לקוח
+  // שיכול «לאבד» תוכניות שנשארו מחוץ לעמוד המאוחד.
+  const myPlans = minePlans
+  const communityPlans = comPlans
   // בורר המקור קובע אילו מקטעים מוצגים — שלי, של הקהילה, או שניהם
   const showMine = source !== 'community'
   const showCommunity = source !== 'mine'
@@ -311,8 +421,23 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                 <span className="empty-ic">
                   <ClipboardList size={26} />
                 </span>
-                <div className="empty-title">{L('עדיין אין תוכניות אימון', 'No training plans yet')}</div>
-                <p className="muted small">{L('צור את התוכנית הראשונה למעלה — כותבים אותה ישר על דף המחברת.', 'Create your first plan above — write it right on the notebook page.')}</p>
+                {/* «עדיין אין תוכניות» מוצג רק כשזו באמת האמת — כלומר כשאין
+                    עוד עמוד להביא. אחרת מציעים להמשיך לטעון במקום להצהיר. */}
+                <div className="empty-title">
+                  {hasMoreMine
+                    ? L('התוכניות שלך עדיין נטענות', 'Your plans are still loading')
+                    : L('עדיין אין תוכניות אימון', 'No training plans yet')}
+                </div>
+                <p className="muted small">
+                  {hasMoreMine
+                    ? L('יש עוד תוכניות שלך במסד — לחצו «טען עוד» כדי להביא אותן.', 'There are more of your plans in the database — tap “Load more” to fetch them.')
+                    : L('צור את התוכנית הראשונה למעלה — כותבים אותה ישר על דף המחברת.', 'Create your first plan above — write it right on the notebook page.')}
+                </p>
+                {hasMoreMine && (
+                  <button type="button" className="btn-soft empty-cta" onClick={() => loadMine({ append: true })} disabled={loadingMoreMine}>
+                    {loadingMoreMine ? L('טוען…', 'Loading…') : L('טען עוד תוכניות', 'Load more plans')}
+                  </button>
+                )}
               </div>
             ) : (
               myPlans.map((p) => {
@@ -404,8 +529,8 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                       <button
                         className="btn-ghost"
                         onClick={() => waShare(L(
-                          `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${window.location.origin}`,
-                          `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${window.location.origin}`
+                          `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${SITE_URL}`,
+                          `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${SITE_URL}`
                         ))}
                       >
                         {L('וואטסאפ', 'WhatsApp')}
@@ -419,10 +544,22 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
               })
             )}
           </div>
+          {/* «טען עוד» של המקטע הזה — מתחת לתוכניות שלי ולא בתחתית העמוד,
+              שם הוא נראה כאילו הוא שייך למקטע הקהילה */}
+          {hasMoreMine && myPlans.length > 0 && (
+            <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+              <button type="button" className="btn-soft" onClick={() => loadMine({ append: true })} disabled={loadingMoreMine}>
+                {loadingMoreMine ? L('טוען…', 'Loading…') : L('טען עוד מהתוכניות שלי', 'Load more of my plans')}
+              </button>
+            </div>
+          )}
         </>
       )}
 
       {/* תוכניות אימון שמאמנים אחרים שיתפו לקהילה */}
+      {!loading && !error && showCommunity && comError && (
+        <p className="alert alert-error" style={{ marginTop: 20 }}>{comError}</p>
+      )}
       {!loading && !error && showCommunity && communityPlans.length > 0 && (
         <>
           <h3 className="section-title" style={{ marginTop: 28 }}>
@@ -472,11 +609,19 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
               )
             })}
           </div>
+          {/* «טען עוד» של מקטע הקהילה בלבד — הרשימה הזו היא שגדלה בלי גבול */}
+          {hasMoreCom && (
+            <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+              <button type="button" className="btn-soft" onClick={() => loadCom({ append: true })} disabled={loadingMoreCom}>
+                {loadingMoreCom ? L('טוען…', 'Loading…') : L('טען עוד מהקהילה', 'Load more community plans')}
+              </button>
+            </div>
+          )}
         </>
       )}
 
       {/* סוננו במפורש תוכניות קהילה ואין כאלה — לא משאירים מסך ריק בלי הסבר */}
-      {!loading && !error && showCommunity && source === 'community' && communityPlans.length === 0 && (
+      {!loading && !error && !comError && showCommunity && source === 'community' && communityPlans.length === 0 && (
         <div className="empty-state">
           <span className="empty-ic">
             <Globe2 size={26} />
@@ -633,10 +778,30 @@ function PlanBuilder({ planId, plan, onBack }) {
       const { error } = await supabase.from('plan_items').delete().in('id', inPart.map((i) => i.id))
       if (error) { toast.error(L('המחיקה נכשלה', 'Delete failed')); return }
     }
-    // הזזת החלקים הבאים מקום אחד אחורה (סובלני אם אין עמודת part)
+    // הזזת החלקים הבאים מקום אחד אחורה. קודם רץ כאן UPDATE נפרד לכל פריט
+    // (N+1), וכשל באמצע השאיר מספרי חלקים לא עקביים בלי דרך לשחזר.
+    // עכשיו: עדכון אחד לכל ערך part (מספר קטן וקבוע של קריאות), במקביל,
+    // ובדיקת כשל אחת בסוף. סובלני אם עמודת part עוד לא נוספה במסד.
     const after = items.filter((it) => (it.part || 1) > pn)
-    for (const it of after) {
-      await supabase.from('plan_items').update({ part: (it.part || 1) - 1 }).eq('id', it.id)
+    if (after.length) {
+      const byPart = new Map()
+      for (const it of after) {
+        const p = it.part || 1
+        if (!byPart.has(p)) byPart.set(p, [])
+        byPart.get(p).push(it.id)
+      }
+      const results = await Promise.all(
+        [...byPart.entries()].map(([p, ids]) =>
+          supabase.from('plan_items').update({ part: p - 1 }).in('id', ids)
+        )
+      )
+      const failed = results.filter((r) => r.error)
+      if (failed.length && !notDeployed(failed[0].error)) {
+        // כשל חלקי — מרעננים כדי שהמסך יציג את המצב האמיתי במסד
+        toast.error(L('חלק מהחלקים לא עודכנו — רענן ובדוק את מספרי החלקים', 'Some parts were not renumbered — refresh and check the part numbers'))
+        loadItems()
+        return
+      }
     }
     setPartCount((c) => Math.max(1, c - 1))
     loadItems()
@@ -696,28 +861,39 @@ function PlanBuilder({ planId, plan, onBack }) {
         const dur = it.duration_minutes ? L(` — ${it.duration_minutes} דקות`, ` — ${it.duration_minutes} min`) : ''
         const cat = d.category ? ` (${escapeHtml(tr(d.category))})` : ''
         const note = it.note
-          ? `<div style="color:#333;font-size:14px;margin-top:3px">${L('הערה: ', 'Note: ')}${escapeHtml(it.note)}</div>`
+          ? `<div class="note">${L('הערה: ', 'Note: ')}${escapeHtml(it.note)}</div>`
           : ''
         const desc = descText
-          ? `<div style="color:#333;font-size:13px;margin-top:3px">${escapeHtml(descText)}</div>`
+          ? `<div class="desc">${escapeHtml(descText)}</div>`
           : ''
-        return `<li style="margin-bottom:14px"><strong>${escapeHtml(title)}</strong>${dur}${cat}${note}${desc}</li>`
+        return `<li><strong>${escapeHtml(title)}</strong>${dur}${cat}${note}${desc}</li>`
       })
       .join('')
 
+    // מסמך ההדפסה הוא מסמך נפרד ולכן אין בו משתני CSS — הצבעים כאן הם
+    // ערכי הטוקנים עצמם (--text, --text-muted, --navy) כדי שהפלט המודפס
+    // ייראה כמו המותג. Rubik נטען מ-fonts.googleapis.com, שמותר ב-CSP.
     const html =
       '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">' +
       '<title>' + name + '</title>' +
-      '<style>body{font-family:Arial,Helvetica,sans-serif;padding:28px;color:#111}' +
-      'h1{font-size:24px;margin:0 0 4px}.sub{color:#555;font-size:14px;margin-bottom:18px}' +
-      'ol{padding-right:22px}li{font-size:15px}</style></head><body>' +
+      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap">' +
+      '<style>' +
+      "body{font-family:'Rubik',Arial,Helvetica,sans-serif;padding:28px;color:#0F1F33}" + // --text
+      'h1{font-size:24px;font-weight:700;margin:0 0 4px;color:#152238}' + // --navy
+      '.sub{color:#55647A;font-size:14px;margin-bottom:18px}' + // --text-muted
+      'ol{padding-right:22px}li{font-size:15px;margin-bottom:14px}' +
+      '.note,.desc{color:#55647A;margin-top:3px}.note{font-size:14px}.desc{font-size:13px}' +
+      '</style></head><body>' +
       '<h1>' + name + '</h1>' +
       '<div class="sub">' + items.length + L(' תרגילים', ' drills') + durTotal + '</div>' +
       '<ol>' + rows + '</ol>' +
-      '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>' +
       '</body></html>'
 
-    // יוצרים קובץ HTML זמני ופותחים אותו ישירות — אמין יותר מ-document.write
+    // יוצרים קובץ HTML זמני ופותחים אותו ישירות — אמין יותר מ-document.write.
+    // ההדפסה מופעלת מהחלון *הפותח*: מסמך blob יורש את ה-CSP של הדף
+    // (script-src 'self' בלי unsafe-inline), ולכן הסקריפט המוטבע שהיה כאן
+    // נחסם בפרודקשן וההדפסה האוטומטית פשוט לא רצה.
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const w = window.open(url, '_blank')
@@ -726,6 +902,15 @@ function PlanBuilder({ planId, plan, onBack }) {
       URL.revokeObjectURL(url)
       return
     }
+    let printed = false
+    const doPrint = () => {
+      if (printed) return
+      printed = true
+      try { w.focus(); w.print() } catch { /* החלון נסגר / חסום — המשתמש ידפיס ידנית */ }
+    }
+    // blob: הוא same-origin, ולכן מותר להאזין ל-load של החלון הנפתח.
+    try { w.addEventListener('load', doPrint) } catch { /* נפילה לטיימר */ }
+    setTimeout(doPrint, 800) // רשת אטית / load שכבר קרה
     setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
@@ -789,7 +974,7 @@ function PlanBuilder({ planId, plan, onBack }) {
   return (
     <div className="welcome-card">
       <button className="link-button" onClick={onBack}>
-        <ArrowRight size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
+        <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
 
       <header className="pb-header">
@@ -1202,7 +1387,7 @@ function PlanViewer({ plan, onBack, onCopy }) {
   return (
     <div className="welcome-card">
       <button className="link-button" onClick={onBack}>
-        <ArrowRight size={15} className="back-ic" /> {L('חזרה לתוכניות', 'Back to plans')}
+        <ArrowBack size={15} className="back-ic" /> {L('חזרה לתוכניות', 'Back to plans')}
       </button>
       <div className="nb-actions" style={{ marginTop: 12 }}>
         <button className="btn-primary" style={{ marginTop: 0 }} onClick={onCopy}>

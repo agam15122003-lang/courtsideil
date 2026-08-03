@@ -5,7 +5,8 @@ import {
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
-import { uploadImage } from './storage'
+import { uploadImage, FEED_THUMB } from './storage'
+import SignedImg from './SignedImg'
 import { AGE_GROUPS, DRILL_CATEGORIES, DIFFICULTY_LEVELS } from './constants'
 import { L, tr, trTeam } from './i18n'
 import TacticsBoard from './TacticsBoard'
@@ -168,8 +169,9 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
     setUploadingImage(true)
     try {
       const { data } = await supabase.auth.getUser()
-      const url = await uploadImage(file, 'drills', data.user.id)
-      setImageUrl(url)
+      // uploadImage מחזירה נתיב ב-bucket; התצוגה המקדימה נחתמת מיד ב-SignedImg
+      const path = await uploadImage(file, 'drills', data.user.id)
+      setImageUrl(path)
       toast.success(L('התמונה הועלתה', 'Image uploaded'))
     } catch (err) {
       toast.error(L('העלאת התמונה נכשלה: ', 'Image upload failed: ') + err.message)
@@ -312,7 +314,11 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
       <span className="field-label">{L('תמונת התרגיל (לא חובה)', 'Drill image (optional)')}</span>
       {imageUrl ? (
         <div className="img-preview">
-          <img src={imageUrl} alt={L('תצוגה מקדימה של התרגיל', 'Drill preview')} />
+          <SignedImg
+            src={imageUrl}
+            transform={FEED_THUMB}
+            alt={L('תצוגה מקדימה של התרגיל', 'Drill preview')}
+          />
           <button
             type="button"
             className="img-remove"

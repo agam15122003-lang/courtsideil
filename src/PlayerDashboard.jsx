@@ -353,7 +353,7 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
               <span className="pla-quick-custom">
                 <input type="number" dir="ltr" min="1" autoFocus value={custom} onChange={(e) => setCustom(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') logCustom() }} placeholder="50" aria-label={L('כמה ביצעת?', 'How many did you do?')} />
-                <button className="on" onClick={logCustom}><Check size={14} /></button>
+                <button className="on" onClick={logCustom} aria-label={L('שמירת ערך', 'Save value')}><Check size={14} /></button>
               </span>
             ) : (
               <button onClick={() => setCustomOpen(true)}>{L('כמה עשיתי?', 'Log amount')}</button>
@@ -463,7 +463,8 @@ function MyAssignments({ session }) {
         <div className="pla-progress">
           <div className="pla-progress-top">
             <span>{L('ההתקדמות שלך', 'Your progress')}</span>
-            <b>{doneCount}/{items.length}</b>
+            {/* X/Y בתוך טקסט עברי — dir="ltr" כדי שהסלאש לא יתהפך (חוק RTL) */}
+            <b dir="ltr">{doneCount}/{items.length}</b>
           </div>
           <div className="pla-progress-bar"><span style={{ width: `${pct}%` }} /></div>
         </div>
@@ -1565,9 +1566,10 @@ function LastPracticeFeedback({ session, membership, setView }) {
         <div className="plfb2-mine">
           <Flame size={15} aria-hidden="true" />
           <span>
-            {L('הסיכום שלך', 'Your summary')}{dateStr && <> · <bdi dir="ltr">{dateStr}</bdi></>}: <b>{eff.effort}/10</b>
+            {L('הסיכום שלך', 'Your summary')}{dateStr && <> · <bdi dir="ltr">{dateStr}</bdi></>}: <b dir="ltr">{eff.effort}/10</b>
             {mood && <span style={{ color: mood.col }}> · {L(mood.label[0], mood.label[1])}</span>}
-            {marks.length > 0 && <> · {marks.filter((m) => m.met).length}/{marks.length} {L('יעדים', 'goals')}</>}
+            {/* X/Y בתוך טקסט עברי — עטוף ב-bdi כדי שלא יתהפך (חוק RTL) */}
+            {marks.length > 0 && <> · <bdi dir="ltr">{marks.filter((m) => m.met).length}/{marks.length}</bdi> {L('יעדים', 'goals')}</>}
           </span>
           {eff.coach_ack && <span className="plfb2-ack"><Eye size={13} aria-hidden="true" /> {L('המאמן ראה', 'Seen')}</span>}
         </div>
@@ -1941,7 +1943,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
             />
           )}
           {nav.map((item) => (
-            <button key={item.id} className={view === item.id && !editing ? 'nav-item active' : 'nav-item'} onClick={() => { setEditing(false); setView(item.id) }}>
+            <button key={item.id} className={view === item.id && !editing ? 'nav-item active' : 'nav-item'} aria-current={view === item.id && !editing ? 'page' : undefined} onClick={() => { setEditing(false); setView(item.id) }}>
               <item.Icon size={18} /> {label(item)}
               {item.team && !hasTeam && <Lock size={13} className="nav-lock" />}
             </button>

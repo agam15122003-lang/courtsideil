@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://courtsideil.netlify.app/sitemap.xml
+Sitemap: https://courtsideil.vercel.app/sitemap.xml

@@ -118,24 +118,25 @@ export function OpenSessionBanner({ session, onNavigate }) {
 // ---------------------------------------------------------------
 // 2. «תוכנית האימון · היום» — כרטיס בשפת המחברת
 // ---------------------------------------------------------------
-export function TodayPlanCard({ session, profile, onNavigate }) {
+// schedule — הלו"ז המשותף שנשלף פעם אחת ב-Home ({ ready, entries, slots, ... }).
+// עד היום כל מקטע שלף את schedule_entries ואת team_practice_slots בעצמו,
+// כך שאותה שאילתה בדיוק רצה שלוש פעמים בטעינה אחת של דף הבית.
+export function TodayPlanCard({ session, profile, schedule, onNavigate }) {
   const me = session?.user?.id
   const [plan, setPlan] = useState(null)
+  const ready = !!schedule?.ready
+  const entries = schedule?.entries
 
   useEffect(() => {
-    if (!me) return
+    if (!me || !ready) return
     let alive = true
     ;(async () => {
       const today = ymd(new Date())
-      const { data, error } = await supabase
-        .from('schedule_entries')
-        .select('id, team, date, start_time, plan_id, plan:training_plans(id, name)')
-        .eq('date', today)
-        .not('plan_id', 'is', null)
-        .order('start_time')
-        .limit(1)
-      if (!alive || error || !data?.length) return
-      const entry = data[0]
+      const todays = (entries || [])
+        .filter((e) => e.date === today && e.plan_id)
+        .sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+      if (!todays.length) return
+      const entry = todays[0]
 
       const items = await supabase
         .from('plan_items')
@@ -155,7 +156,7 @@ export function TodayPlanCard({ session, profile, onNavigate }) {
       })
     })()
     return () => { alive = false }
-  }, [me])
+  }, [me, ready, entries])
 
   if (!plan || !plan.items.length) return null
   const total = plan.items.reduce((s, i) => s + (i.min || 0), 0)
@@ -205,38 +206,40 @@ export function TodayPlanCard({ session, profile, onNavigate }) {
 // ---------------------------------------------------------------
 // 3. «השבוע · לו״ז»
 // ---------------------------------------------------------------
-export function WeekSchedule({ session, onNavigate }) {
+export function WeekSchedule({ session, schedule, onNavigate }) {
   const me = session?.user?.id
   const [rows, setRows] = useState(null)
+  const ready = !!schedule?.ready
+  const entries = schedule?.entries
+  const slots = schedule?.slots
 
   useEffect(() => {
-    if (!me) return
+    if (!me || !ready) return
     let alive = true
     ;(async () => {
       const today = new Date()
       const until = new Date(Date.now() + 7 * 86400000)
-      const [entries, slots, games] = await Promise.all([
-        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)')
-          .gte('date', ymd(today)).lte('date', ymd(until)).order('date').order('start_time'),
-        supabase.from('team_practice_slots').select('*').eq('coach_id', me),
-        supabase.from('team_games').select('id, team, game_date, game_time, opponent, location')
-          .eq('coach_id', me).gte('game_date', ymd(today)).lte('game_date', ymd(until)),
-      ])
-      if (!alive || (entries.error && slots.error && games.error)) return
+      const a = ymd(today), b = ymd(until)
+      // הלו"ז והמשבצות מגיעים מוכנים מ-Home; רק המשחקים נשלפים כאן
+      const games = await supabase.from('team_games').select('id, team, game_date, game_time, opponent, location')
+        .eq('coach_id', me).gte('game_date', a).lte('game_date', b)
+      if (!alive) return
+      if (schedule.entriesError && schedule.slotsError && games.error) return
 
-      const occs = expandSlotsRange(slots.error ? [] : slots.data || [], today, until)
+      const occs = expandSlotsRange(slots || [], today, until)
         .map((o) => ({ id: o.session_id, date: o.date, start_time: o.start_time, team: o.team, _slot: true }))
       const gs = (games.error ? [] : games.data || []).map((g) => ({
         id: g.id, date: g.game_date, start_time: g.game_time, team: g.team,
         _game: true, opponent: g.opponent, location: g.location,
       }))
-      const all = [...(entries.error ? [] : entries.data || []), ...occs, ...gs]
-        .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))
+      const all = [...(entries || []).filter((e) => e.date >= a && e.date <= b), ...occs, ...gs]
+        .sort((x, y) => (x.date + (x.start_time || '')).localeCompare(y.date + (y.start_time || '')))
         .slice(0, 3)
       setRows(all)
     })()
     return () => { alive = false }
-  }, [me])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, ready, entries, slots])
 
   // rows === null זה «עוד טוען», ולא «אין אימונים השבוע» — עד היום שניהם
   // נראו זהה, והסקשן פשוט קפץ פנימה כשהנתונים הגיעו.

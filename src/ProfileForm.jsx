@@ -1,5 +1,8 @@
 import { useState } from 'react'
-import { User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell, Eye, EyeOff, Check } from 'lucide-react'
+import {
+  User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell, Eye, EyeOff, Check,
+  ShieldCheck, MessageCircle, Copy,
+} from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
@@ -7,9 +10,32 @@ import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
 import { AGE_GROUPS, GENDERS, ISRAELI_CLUBS, teamLabel } from './constants'
 import { L, trTeam } from './i18n'
+import { createConsentRequest, consentShareText, consentRequestError } from './consent'
+import { waShare, copyText } from './share'
 
 // כל צירופי הקבוצות (שכבה × מגדר) כרשימה שטוחה לבחירה מרובה
 const TEAM_OPTIONS = AGE_GROUPS.flatMap((age) => GENDERS.map((g) => teamLabel(age, g)))
+
+// קרבת האפוטרופוס — הערכים חייבים להיות בדיוק אלה שה-RPC מקבל
+// ('parent' | 'guardian' | 'other'); כל ערך אחר מנורמל שם ל-'parent'.
+const RELATIONS = [
+  { value: 'parent', label: () => L('הורה', 'Parent') },
+  { value: 'guardian', label: () => L('אפוטרופוס/ית', 'Legal guardian') },
+  { value: 'other', label: () => L('אחר', 'Other') },
+]
+
+// גיל מדויק מתאריך לידה מלא. עד היום החישוב היה הפרש שנים קלנדרי בלבד,
+// ולכן מי שימלאו לו 18 בדצמבר נחשב בגיר כבר ב-1 בינואר (ממצא בדוח).
+function exactAge(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(`${dateStr}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return null
+  const now = new Date()
+  let a = now.getFullYear() - d.getFullYear()
+  const m = now.getMonth() - d.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a -= 1
+  return a
+}
 
 // טופס למילוי/עריכת פרטי הפרופיל.
 // props:
@@ -33,16 +59,34 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const isPlayer = role === 'player'
 
-  // הסכמת הורה לשחקן מתחת לגיל 18 (מסמך ההשקה 1.15; נאכף גם בטריגר ב-DB)
+  // פרטי האפוטרופוס. שים לב: הקטין כבר לא מסמן שום צ'קבוקס הסכמה בשמו —
+  // הוא רק מוסר למי לשלוח את הקישור, וההורה מאשר במסך נפרד (ParentConsent).
   const [guardianName, setGuardianName] = useState(profile?.guardian_name || '')
   const [guardianEmail, setGuardianEmail] = useState(profile?.guardian_email || '')
   const [guardianPhone, setGuardianPhone] = useState(profile?.guardian_phone || '')
-  const [consent, setConsent] = useState(!!profile?.guardian_consent_at)
-  const age = birthYear ? new Date().getFullYear() - Number(birthYear) : null
-  const isMinor = isPlayer && age !== null && age < 18
+  const [guardianRelation, setGuardianRelation] = useState('')
+
+  // תאריך לידה מלא — שער הגיל האמיתי. birth_year נשמר לצד זה כי כל הלוגיקה
+  // הקיימת (וגם הטריגר הישן במסד) עדיין עובדת מולו.
+  const [birthDate, setBirthDate] = useState(profile?.birth_date || '')
+  const playerAge = birthDate
+    ? exactAge(birthDate)
+    // בלי תאריך מלא (פרופיל ישן) — חישוב שמרני: קטין עד שבוודאות מלאו 18
+    : birthYear ? new Date().getFullYear() - Number(birthYear) - 1 : null
+  const isMinor = isPlayer && playerAge !== null && playerAge < 18
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // מסלול legacy: המסד עוד לא הריץ את מיגרציית ההסכמות והטריגר הישן דורש
+  // guardian_consent_at. נדלק רק כשהטריגר באמת נופל, לא מראש.
+  const [legacyMode, setLegacyMode] = useState(false)
+  const [legacyConsent, setLegacyConsent] = useState(false)
+  // שלב השיתוף עם ההורה אחרי שמירה מוצלחת של קטין.
+  // shareLink — הקישור נמסר לקטין לשיתוף ידני (החוזה הישן).
+  // sentTo    — הקישור נשלח בצד שרת למייל ההורה ומוחזרת רק כתובת ממוסכת;
+  //             במקרה הזה אין מה להעתיק ואין מה לשלוח בוואטסאפ.
+  const [shareLink, setShareLink] = useState('')
+  const [sentTo, setSentTo] = useState('')
 
   const onAvatarPick = async (e) => {
     const file = e.target.files && e.target.files[0]
@@ -65,17 +109,38 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     )
   }
 
+  // שינוי תאריך הלידה מעדכן גם את שנת הלידה (העמודה הישנה נשארת מקור אמת לטריגר)
+  const onBirthDate = (v) => {
+    setBirthDate(v)
+    const y = v ? v.slice(0, 4) : ''
+    if (/^\d{4}$/.test(y)) setBirthYear(y)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
-    // שער גיל: בלי שנת לידה אין דרך לדעת אם מדובר בקטין, ולקטין נדרשת הסכמת הורה
-    if (isPlayer && !birthYear) {
-      setError(L('צריך למלא שנת לידה.', 'Birth year is required.'))
+    // שער גיל: בלי תאריך/שנת לידה אין דרך לדעת אם מדובר בקטין
+    if (isPlayer && !birthDate && !birthYear) {
+      setError(L('צריך למלא תאריך לידה.', 'A birth date is required.'))
       return
     }
-    if (isMinor && (!guardianEmail.trim() || !consent)) {
-      setError(L('שחקן מתחת לגיל 18 — נדרש מייל של הורה ואישור ההורה.',
-        'Player under 18 — a parent email and parental approval are required.'))
+    if (isMinor && (!guardianEmail.trim() || !guardianName.trim())) {
+      setError(L('שחקן מתחת לגיל 18 — צריך למלא שם ומייל של הורה או אחראי, כדי שנוכל לשלוח לו קישור לאישור.',
+        'Player under 18 — a parent or guardian name and email are required so we can send them an approval link.'))
+      return
+    }
+    // מייל ההורה חייב להיות של ההורה. אותו מייל של הקטין פירושו שהקטין מאשר
+    // לעצמו — בדיוק מה שמסמך ההסכמה (סעיף 2) מצהיר שאינו אפשרי. חוסמים כאן
+    // כדי לתת הודעה ברורה; החסימה האמיתית היא בשרת ('guardian_email_is_self'),
+    // כי בדיקת לקוח לבדה אינה הגנה.
+    if (isMinor && guardianEmail.trim().toLowerCase() === (session?.user?.email || '').trim().toLowerCase()) {
+      setError(L('מייל ההורה חייב להיות שונה מהמייל שלך — ההורה הוא זה שמאשר את פתיחת החשבון, לא אתה.',
+        "The parent email must differ from your own — your parent approves the account, not you."))
+      return
+    }
+    // legacy בלבד: מסד ישן שהטריגר שלו דורש הסכמה שנכתבת מהלקוח
+    if (isMinor && legacyMode && !legacyConsent) {
+      setError(L('צריך לסמן את אישור ההורה כדי להמשיך.', 'Parental approval must be ticked to continue.'))
       return
     }
     setSaving(true)
@@ -108,35 +173,166 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     }
     if (isPlayer) {
       payload.birth_year = birthYear ? Number(birthYear) : null
+      payload.birth_date = birthDate || null
       payload.position = position.trim() || null
       payload.age_groups = [] // לשחקן אין "קבוצות שאני מאמן"
       payload.phone_public = false // טלפון של שחקן לא מוצג לאף אחד
       if (isMinor) {
+        // רק פרטי הקשר של האפוטרופוס. ההסכמה עצמה נכתבת אך ורק בשרת,
+        // אחרי שההורה אישר בטופס שלו — הקליינט לא נוגע בה יותר.
         payload.guardian_name = guardianName.trim() || null
         payload.guardian_email = guardianEmail.trim()
         payload.guardian_phone = guardianPhone.trim() || null
-        // רשומת הסכמה: מי (guardian_*), מתי (consent_at), גרסת נוסח (version)
-        payload.guardian_consent_at = profile?.guardian_consent_at || new Date().toISOString()
-        payload.guardian_consent_version = profile?.guardian_consent_version || 'v1 · 1.8.2026'
+        if (legacyMode) {
+          // --- legacy: מסד שטרם הריץ את מיגרציית ההסכמות. הטריגר הישן
+          // enforce_minor_consent דורש guardian_consent_at, ובלעדיו אי אפשר
+          // לשמור בכלל. נשמר כדי שפרודקשן לא-מעודכן לא ייתקע. ---
+          payload.guardian_consent_at = profile?.guardian_consent_at || new Date().toISOString()
+          payload.guardian_consent_version = profile?.guardian_consent_version || 'v1 · 1.8.2026'
+        }
       }
     } else {
       payload.age_groups = orderedTeams
     }
-    // גיבוי: אם עמודות התפקיד עוד לא קיימות במסד — שומרים בלי לחסום
+
+    // ---- שכבה א': עמודה שעדיין לא קיימת במסד ----
+    // מסירים בדיוק את העמודה שהמסד לא מכיר (PostgREST נוקב בשמה) ומנסים שוב,
+    // כדי לא לזרוק בדרך עמודות תקינות כמו birth_year — שהטריגר הישן דורש.
     let { error } = await supabase.from('profiles').upsert(payload)
+    const attempt = { ...payload }
+    for (let i = 0; error && i < 4; i++) {
+      const m = String(error.message || '').match(/'([a-z_]+)' column|column "?([a-z_]+)"? does not exist/i)
+      const col = m && (m[1] || m[2])
+      if (!col || !(col in attempt)) break
+      delete attempt[col]
+      ;({ error } = await supabase.from('profiles').upsert(attempt))
+    }
+    // גיבוי רחב אם ההודעה לא נקבה בשם עמודה — ההתנהגות ההיסטורית
     if (error && /column .* does not exist|could not find the .* column/i.test(error.message || '')) {
-      const { role: _r, birth_year: _b, position: _p, guardian_phone: _gp, guardian_consent_version: _gv, ...basic } = payload
+      const {
+        role: _r, birth_year: _b, birth_date: _bd, position: _p,
+        guardian_phone: _gp, guardian_consent_version: _gv, ...basic
+      } = payload
       ;({ error } = await supabase.from('profiles').upsert(basic))
     }
 
-    setSaving(false)
+    // ---- שכבה ב': הטריגר הישן של הסכמת הורה נפל — עוברים למסלול legacy ----
+    if (error && /הסכמת הורה/.test(error.message || '')) {
+      setSaving(false)
+      if (!legacyMode) {
+        setLegacyMode(true)
+        setError(L(
+          'המערכת עדיין בגרסה הקודמת: כדי לשמור צריך לסמן את אישור ההורה כאן, ואז לשמור שוב.',
+          'The system is still on the previous version: tick the parental approval below and save again.'
+        ))
+      } else {
+        setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
+      }
+      return
+    }
 
     if (error) {
+      setSaving(false)
       setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
-    } else {
-      toast.success(L('הפרופיל נשמר', 'Profile saved'))
-      onSaved()
+      return
     }
+
+    // ---- הצלחה ----
+    toast.success(L('הפרופיל נשמר', 'Profile saved'))
+
+    // קטין במסלול החדש: יוצרים בקשת הסכמה ומציגים שלב שיתוף עם ההורה —
+    // אבל רק כשעוד אין הסכמה בתוקף. עד היום הבלוק רץ אחרי *כל* שמירה, ולכן
+    // כל עריכת פרופיל של קטין מאושר יצרה בקשה חדשה, ביטלה (expires_at=now)
+    // קישור שההורה אולי מחזיק ביד, שרפה מהמכסה של 5 ליממה, וחטפה את המסך
+    // למסך «כמעט שם» על חשבון שכבר פתוח.
+    // לא בודקים approval_status לבדו: שורת פרופיל חדשה נולדת עם 'active'
+    // כברירת מחדל, וזה היה מונע את הבקשה הראשונה מקטין חדש לגמרי.
+    const alreadyConsented = profile?.approval_status === 'active' && !!profile?.guardian_consent_at
+    if (isMinor && !legacyMode && !alreadyConsented) {
+      const res = await createConsentRequest({
+        name: guardianName,
+        email: guardianEmail,
+        phone: guardianPhone,
+        relation: guardianRelation,
+        purpose: 'initial',
+      })
+      setSaving(false)
+      if (res.ok) {
+        // link = הקטין משתף ידנית · sent_to = השרת שלח למייל ההורה.
+        // ok בלי אף אחד משניהם: אין מה להציג, פשוט ממשיכים — ובלי טוסט
+        // אדום שמכריז על כישלון שלא קרה.
+        if (res.link || res.sent_to) {
+          setShareLink(res.link || '')
+          setSentTo(res.sent_to || '')
+          return
+        }
+        onSaved()
+        return
+      }
+      // ה-RPC עוד לא קיים בפרודקשן — לא חוסמים את המשתמש, ממשיכים כרגיל.
+      // 'already_consented' = השרת דחה בקשה מיותרת כי ההסכמה כבר בתוקף;
+      // זה no-op שקט ולא תקלה שצריך להציג למשתמש.
+      if (!res.notDeployed && res.reason !== 'already_consented') toast.error(consentRequestError(res.reason))
+      onSaved()
+      return
+    }
+
+    setSaving(false)
+    onSaved()
+  }
+
+  // ---- שלב השיתוף: הקישור צריך להגיע להורה לפני שממשיכים הלאה ----
+  // שני מסלולים: מסירה בצד שרת (sentTo — אין טוקן ביד הקטין, וזו הצורה
+  // הבטוחה), או קישור שהקטין משתף בעצמו (shareLink — החוזה הישן).
+  if (shareLink || sentTo) {
+    const done = () => { setShareLink(''); setSentTo(''); onSaved() }
+    return (
+      <div className="welcome-card profile-form pf-share">
+        <span className="pf-share-ic"><ShieldCheck size={26} /></span>
+        <h2>
+          {sentTo
+            ? L('שלחנו את בקשת האישור להורה', 'We sent the approval request to your parent')
+            : L('כמעט שם — נשאר לשלוח להורה', 'Almost there — send it to your parent')}
+        </h2>
+        <p className="muted small">
+          {sentTo
+            ? L('הקישור האישי נשלח ישירות למייל של ההורה או האחראי שלך — הוא לא עובר דרכך. ברגע שהוא מאשר, החשבון נפתח.',
+                "The personal link was sent straight to your parent or guardian's email — it does not pass through you. The moment they approve, your account opens.")
+            : L('יצרנו קישור אישי להורה או לאחראי שלך. שלחו לו אותו עכשיו — ברגע שהוא מאשר, החשבון נפתח.',
+                'We created a personal link for your parent or guardian. Send it now — the moment they approve, your account opens.')}
+        </p>
+        <code className="pf-share-link" dir="ltr">{sentTo || shareLink}</code>
+        <div className="form-actions pf-actions">
+          {!sentTo && (
+            <>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => waShare(consentShareText(`${firstName} ${lastName}`.trim(), shareLink))}
+              >
+                <MessageCircle size={16} /> {L('שליחה בוואטסאפ', 'Send on WhatsApp')}
+              </button>
+              <button
+                type="button"
+                className="btn-soft"
+                onClick={() => copyText(shareLink, L('הקישור הועתק', 'Link copied'))}
+              >
+                <Copy size={16} /> {L('העתקת הקישור', 'Copy link')}
+              </button>
+            </>
+          )}
+          <button type="button" className={sentTo ? 'btn-primary' : 'btn-ghost'} onClick={done}>
+            {L('סיימתי', 'Done')}
+          </button>
+        </div>
+        <p className="muted small">
+          {sentTo
+            ? L('לא הגיע? אפשר לשלוח שוב בכל רגע מהמסך הבא, וכדאי לבדוק גם בתיקיית הספאם.',
+                "Didn't arrive? You can send it again at any time from the next screen — check the spam folder too.")
+            : L('אפשר לשלוח את הקישור שוב בכל רגע מהמסך הבא.', 'You can re-send this link at any time from the next screen.')}
+        </p>
+      </div>
+    )
   }
 
   // שלב ראשון למשתמש חדש — בוחרים מי אתם (ברור ופשוט לילדים ולנוער)
@@ -311,17 +507,20 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             </h3>
             <div className="form-grid-2">
               <label className="pf-label">
-                {L('שנת לידה', 'Birth year')} <span className="pf-req">*</span>
+                {L('תאריך לידה', 'Date of birth')} <span className="pf-req">*</span>
                 <input
-                  type="number"
+                  type="date"
                   dir="ltr"
-                  min="1970"
-                  max={new Date().getFullYear()}
-                  required
-                  value={birthYear}
-                  onChange={(e) => setBirthYear(e.target.value)}
-                  placeholder={L('למשל 2010', 'e.g. 2010')}
+                  min="1940-01-01"
+                  max={new Date().toISOString().slice(0, 10)}
+                  required={!birthYear}
+                  value={birthDate}
+                  onChange={(e) => onBirthDate(e.target.value)}
                 />
+                <span className="muted small">
+                  {L('התאריך המלא נדרש רק כדי לדעת אם צריך אישור הורה. הוא לא מוצג לאף אחד.',
+                     'The full date is used only to know whether parental approval is needed. It is shown to nobody.')}
+                </span>
               </label>
               <label className="pf-label">
                 {L('עמדה', 'Position')}
@@ -335,15 +534,17 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             </div>
             {isMinor && (
               <div className="pf-guardian">
-                <h4 className="pf-guardian-title">{L('אישור הורה', 'Parental consent')}</h4>
+                <h4 className="pf-guardian-title">
+                  <ShieldCheck size={16} /> {L('אישור הורה או אחראי', 'Parent or guardian approval')}
+                </h4>
                 <p className="muted small">
-                  {L('כיוון שאתה מתחת לגיל 18, נדרש אישור של הורה או אחראי כדי להפעיל חשבון שחקן. ההורה יקבל עדכונים על החשבון.',
-                    'Because you are under 18, a parent or guardian must approve activating a player account. The parent will receive updates about the account.')}
+                  {L('כיוון שאתה מתחת לגיל 18, החוק דורש שההורה או האחראי יאשר את פתיחת החשבון — ולא אתה. מלא את הפרטים שלו, ואחרי השמירה נייצר קישור אישי שתשלח אליו בוואטסאפ. ההורה קורא את הטופס ומסמן בעצמו מה מאושר.',
+                    'Because you are under 18, the law requires your parent or guardian to approve opening the account — not you. Fill in their details, and after saving we will create a personal link for you to send them on WhatsApp. They read the form and tick what they approve themselves.')}
                 </p>
                 <div className="form-grid-2">
                   <label className="pf-label">
-                    {L('שם ההורה', 'Parent name')}
-                    <input type="text" value={guardianName} onChange={(e) => setGuardianName(e.target.value)}
+                    {L('שם ההורה או האחראי', 'Parent or guardian name')} <span className="pf-req">*</span>
+                    <input type="text" required value={guardianName} onChange={(e) => setGuardianName(e.target.value)}
                       placeholder={L('שם מלא', 'Full name')} />
                   </label>
                   <label className="pf-label">
@@ -356,15 +557,35 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                     <input type="tel" dir="ltr" value={guardianPhone}
                       onChange={(e) => setGuardianPhone(e.target.value)} placeholder="050-0000000" maxLength={20} />
                   </label>
+                  <label className="pf-label">
+                    {L('הקשר אליך', 'Relation to you')}
+                    <select value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)}>
+                      <option value="">{L('בחר/י...', 'Select...')}</option>
+                      {RELATIONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label()}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-                <label className="pf-consent">
-                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                  <span>
-                    {L('ההורה שלי קרא את ', 'My parent has read the ')}
-                    <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{L('מדיניות הפרטיות', 'privacy policy')}</a>
-                    {L(' ומאשר את פתיחת החשבון.', ' and approves opening this account.')}
-                  </span>
-                </label>
+                <p className="pf-guardian-note">
+                  {L('עד שההורה מאשר, החשבון ממתין: אי אפשר להצטרף לקבוצה או לתקשר עם המאמן.',
+                     'Until they approve, the account waits: you cannot join a team or talk to a coach.')}
+                </p>
+
+                {/* legacy — נראה רק אם המסד עוד לא הריץ את מיגרציית ההסכמות
+                    והטריגר הישן חסם את השמירה. במסלול הרגיל הצ'קבוקס הזה לא קיים. */}
+                {legacyMode && (
+                  <label className="pf-consent">
+                    <input type="checkbox" checked={legacyConsent} onChange={(e) => setLegacyConsent(e.target.checked)} />
+                    <span>
+                      {L('ההורה שלי קרא את ', 'My parent has read the ')}
+                      <a href="/terms.html" target="_blank" rel="noopener noreferrer">{L('תנאי השימוש', 'terms of use')}</a>
+                      {L(' ואת ', ' and the ')}
+                      <a href="/privacy.html" target="_blank" rel="noopener noreferrer">{L('מדיניות הפרטיות', 'privacy policy')}</a>
+                      {L(' ומאשר את פתיחת החשבון.', ' and approves opening this account.')}
+                    </span>
+                  </label>
+                )}
               </div>
             )}
             <p className="muted small">{L('אחרי השמירה מתחברים לקבוצה עם קוד מהמאמן.', 'After saving you’ll join your team with a code from your coach.')}</p>

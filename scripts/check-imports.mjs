@@ -5,11 +5,12 @@
 //
 // הבדיקה: כל ייבוא יחסי בלי סיומת שיש לו "אח" ששמו זהה עד כדי אות גדולה —
 // חייב סיומת מפורשת. בנוסף: אין שני קבצים בתיקייה ששמם נבדל רק באות גדולה.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, dirname, basename, extname, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, dirname, basename, extname, relative, resolve } from 'node:path'
 
 const SRC = resolve('src')
 const problems = []
+const warnings = []
 
 function walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -66,8 +67,103 @@ function checkCaseCollisions(dir) {
   }
 }
 
+// ===== קבצים מתים =====================================================
+// הבדיקה שלמעלה תופסת ייבוא עמום, אבל לא קובץ שלם שאף אחד לא מייבא.
+// כך שרדו בריפו Attendance.jsx, DrillSketch.jsx, clipStore.js ו-SmartImage.jsx
+// (סקירת 3.8.2026). כאן בונים את גרף הייבוא מנקודת הכניסה שב-index.html
+// ומדווחים על כל קובץ ב-src שלא נגעו בו.
+//
+// זו אזהרה בלבד ולא כישלון: הגרף לא יכול לראות ייבוא דינמי עם נתיב מחושב
+// (`import('./' + name)`), ולכן קובץ שנטען כך ידווח בטעות כמת. עדיף להתריע
+// מדי מהיר מאשר להפיל בנייה תקינה.
+
+const CODE_RE = /\.(jsx?|mjs)$/
+const RESOLVE_EXT = ['', '.js', '.jsx', '.mjs', '.json', '/index.js', '/index.jsx']
+
+function entryPoints() {
+  const found = []
+  try {
+    const html = readFileSync(resolve('index.html'), 'utf8')
+    const re = /<script[^>]*\ssrc=["']\/src\/([^"']+)["']/g
+    let m
+    while ((m = re.exec(html))) found.push(join(SRC, m[1]))
+  } catch { /* אין index.html — נופלים ל-main.jsx */ }
+  if (!found.length) found.push(join(SRC, 'main.jsx'))
+  return found.filter((f) => existsSync(f))
+}
+
+// כל המפרטים היחסיים בקובץ: import / export ... from / import() / new URL()
+function specsOf(src) {
+  const out = []
+  const patterns = [
+    /(?:import|export)\s[^'"]*from\s*['"](\.\.?\/[^'"]+)['"]/g,
+    /import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g,
+    /import\s*['"](\.\.?\/[^'"]+)['"]/g,          // import './index.css'
+    /new\s+URL\s*\(\s*['"](\.\.?\/[^'"]+)['"]/g,  // worker / asset
+  ]
+  for (const re of patterns) {
+    let m
+    while ((m = re.exec(src))) out.push(m[1])
+  }
+  return out
+}
+
+function resolveSpec(fromFile, spec) {
+  const base = resolve(dirname(fromFile), spec)
+  for (const ext of RESOLVE_EXT) {
+    const p = base + ext
+    try {
+      if (statSync(p).isFile()) return p
+    } catch { /* לא קיים — ממשיכים לסיומת הבאה */ }
+  }
+  return null
+}
+
+function collectSrcFiles(dir, acc) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) collectSrcFiles(p, acc)
+    else if (CODE_RE.test(name)) acc.push(p)
+  }
+  return acc
+}
+
+function checkUnreachable() {
+  const entries = entryPoints()
+  if (!entries.length) return // אין ממה להתחיל — לא מתריעים על סמך כלום
+  const reached = new Set()
+  const queue = [...entries]
+  while (queue.length) {
+    const file = queue.pop()
+    if (reached.has(file)) continue
+    reached.add(file)
+    if (!CODE_RE.test(file)) continue // CSS/JSON — לא ממשיכים לסרוק
+    let src
+    try {
+      src = readFileSync(file, 'utf8')
+    } catch { continue }
+    for (const spec of specsOf(src)) {
+      const target = resolveSpec(file, spec)
+      if (target && !reached.has(target)) queue.push(target)
+    }
+  }
+  for (const file of collectSrcFiles(SRC, [])) {
+    if (!reached.has(file)) warnings.push(relative(resolve('.'), file).replace(/\\/g, '/'))
+  }
+}
+
 walk(SRC)
 checkCaseCollisions(SRC)
+checkUnreachable()
+
+if (warnings.length) {
+  console.warn('\n⚠ קבצים ב-src שאף קובץ לא מייבא (אזהרה בלבד):\n')
+  for (const w of warnings) console.warn('  • ' + w)
+  console.warn(
+    '\nאם הקובץ באמת מת — למחוק. אם הוא נטען בייבוא דינמי מחושב —' +
+      ' להוסיף הערה בקובץ, האזהרה אינה מפילה את הבנייה.\n'
+  )
+}
 
 if (problems.length) {
   console.error('\n❌ בדיקת ייבוא נכשלה:\n')

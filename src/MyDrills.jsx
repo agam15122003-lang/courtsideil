@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Dumbbell, Star, Clock, Globe2, Lock, ChevronLeft } from 'lucide-react'
+import { Dumbbell, Star, Clock, Globe2, Lock } from 'lucide-react'
+// צ'יברון "המשך" כיווני דרך DirIcon (חוק RTL)
+import { ChevronFwd } from './DirIcon'
 import { supabase } from './supabaseClient'
 import { L, tr } from './i18n'
 import { SkeletonCards } from './Skeleton'
@@ -37,7 +39,7 @@ export default function MyDrills({ session, onNavigate }) {
         <h3 className="pr-card-title"><Dumbbell size={17} /> {L('התרגילים שלי', 'My drills')}</h3>
         {drills && drills.length > 0 && (
           <button type="button" className="link-button" onClick={() => onNavigate('drills')}>
-            {L('לספרייה', 'Open library')} <ChevronLeft size={14} />
+            {L('לספרייה', 'Open library')} <ChevronFwd size={14} />
           </button>
         )}
       </div>

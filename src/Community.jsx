@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import {
   Heart,
   MessageCircle,
@@ -19,7 +19,8 @@ import {
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
-import { uploadImage } from './storage'
+import { uploadImage, mediaPath, FEED_THUMB } from './storage'
+import SignedImg from './SignedImg'
 import { sendNotification } from './notify'
 import { waShare, copyText, inviteText } from './share'
 import Avatar from './Avatar'
@@ -29,10 +30,25 @@ import { ChevronBack, ChevronFwd } from './DirIcon'
 import { SkeletonConvos, SkeletonFeed } from './Skeleton'
 import { L , cnt } from './i18n'
 import { confirmDialog } from './confirm'
+import useFocusTrap from './useFocusTrap'
 import { safeUrl } from './constants'
 import CourtArt from './CourtArt'
 
 const MAX_IMAGES = 4
+// ההודעות האחרונות **בערוץ הפתוח**. עד היום נשלפו 300 הודעות מכל הערוצים
+// יחד ואז פוצלו בלקוח, כך שדי בערוץ אחד עמוס כדי שכל שאר הערוצים יוצגו
+// ריקים («עדיין שקט בערוץ…») למרות שיש בהם עשרות הודעות במסד.
+const CHAT_LIMIT = 300
+const CHAT_COLS = 'id, user_id, channel, content, created_at'
+
+// יחס גובה-רוחב לתאי התמונות בפיד. ב-CSS כבר מוגדר 4/3 לתאים הקטנים; כאן
+// משלימים את התאים שנשארו בלי יחס (תמונה בודדת, והתמונה הרחבה בפוסט של שלוש)
+// כדי שטעינת תמונה לא תזיז את הפיד (CLS).
+function cellRatio(total, i) {
+  if (total === 1) return { aspectRatio: '4 / 3' }
+  if (total === 3 && i === 0) return { aspectRatio: '16 / 9' }
+  return undefined
+}
 
 // ערוצי הצ'אט של הקהילה — לפי קטגוריה. המזהה נשמר במסד בעברית.
 const CHANNELS = [
@@ -253,19 +269,17 @@ function Poll({ post, myId, onChanged }) {
 }
 
 // ---------- פוסט בודד ----------
-function PostCard({ post, myId, onChanged, onDeleted }) {
+// ממומו: בלי memo כל רענון שקט של הפיד (וכל שינוי סינון/מיון) רינדר מחדש
+// את כל הכרטיסים — כולל התמונות, הסקרים והתגובות שבתוכם.
+const PostCard = memo(function PostCard({ post, myId, onChanged, onDeleted }) {
   const [showComments, setShowComments] = useState(false)
   const [lightbox, setLightbox] = useState(null) // URL של תמונה מוגדלת
-  const lightboxCloseRef = useRef(null)
+  // מלכודת פוקוס מלאה ללייטבוקס: Escape, Tab שנשאר בתוך הדיאלוג, והחזרת
+  // הפוקוס לתמונה שממנה נפתח. קודם היה כאן פוקוס ידני + Escape בלבד,
+  // כך ש-aria-modal="true" היה הצהרה לא נכונה (המקלדת המשיכה ברקע).
+  const lightboxRef = useFocusTrap(!!lightbox, () => setLightbox(null))
 
-  // [35] לייטבוקס נגיש: פוקוס על כפתור הסגירה, Escape סוגר
-  useEffect(() => {
-    if (!lightbox) return
-    lightboxCloseRef.current?.focus()
-    const onKey = (e) => { if (e.key === 'Escape') setLightbox(null) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [lightbox])
+  // [35] לייטבוקס נגיש — הפוקוס, Escape והלכידה מגיעים מ-useFocusTrap למעלה
   const likes = post.likes || []
   const iLiked = likes.some((l) => l.user_id === myId)
   const comments = post.comments || []
@@ -327,8 +341,11 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
     } catch { /* המשתמש ביטל — לא שגיאה */ }
   }
 
-  // רק כתובות http(s) מוצגות — הגנה מפני שורות שהוזרקו ישירות ל-API
-  const imgs = (post.image_urls || []).map((u) => safeUrl(u)).filter(Boolean)
+  // נתיב בתוך ה-bucket (חדש) או כתובת http(s) ישנה — הגנה מפני שורות
+  // שהוזרקו ישירות ל-API. ההגשה עצמה נעשית ב-SignedImg דרך signed URL.
+  const imgs = (post.image_urls || [])
+    .map((u) => mediaPath(u) || safeUrl(u))
+    .filter(Boolean)
 
   return (
     <article className="cm-post">
@@ -371,7 +388,13 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
               onClick={() => setLightbox(u)}
               aria-label={L('הגדלת תמונה', 'Enlarge photo')}
             >
-              <img src={u} alt={L('תמונה מהאימון', 'Practice photo')} loading="lazy" />
+              {/* יחס קבוע לתאים שאין להם יחס ב-CSS — התמונה לא מזיזה את הפיד בטעינה */}
+              <SignedImg
+                src={u}
+                transform={FEED_THUMB}
+                alt={L('תמונה מהאימון', 'Practice photo')}
+                style={cellRatio(imgs.length, i)}
+              />
             </button>
           ))}
         </div>
@@ -405,9 +428,8 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
       {showComments && <Comments post={post} myId={myId} onChanged={onChanged} />}
 
       {lightbox && (
-        <div className="cm-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label={L('תמונה מוגדלת', 'Enlarged photo')}>
+        <div ref={lightboxRef} className="cm-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label={L('תמונה מוגדלת', 'Enlarged photo')}>
           <button
-            ref={lightboxCloseRef}
             type="button"
             className="cm-lightbox-close"
             onClick={() => setLightbox(null)}
@@ -415,24 +437,22 @@ function PostCard({ post, myId, onChanged, onDeleted }) {
           >
             <X size={22} />
           </button>
-          <img src={lightbox} alt={L('תמונה מהאימון', 'Practice photo')} onClick={(e) => e.stopPropagation()} />
+          <SignedImg
+            src={lightbox}
+            alt={L('תמונה מהאימון', 'Practice photo')}
+            loading="eager"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </article>
   )
-}
+})
 
-// ---------- הפיד ----------
-function Feed({ session, profile, search, onCount }) {
-  const myId = session.user.id
-  const [posts, setPosts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [sqlMissing, setSqlMissing] = useState(false)
-  const [filter, setFilter] = useState('') // '' = הכול, אחרת סוג פוסט
-  const [sortBy, setSortBy] = useState('new') // 'new' | 'top' (לפי לייקים+תגובות)
-
-  // קומפוזר
+// ---------- קומפוזר — רכיב נפרד עם ה-state שלו ----------
+// היה חלק מ-Feed, ולכן כל תו שהוקלד בתיבת הפוסט רינדר מחדש את כל הפיד
+// (עד 100 כרטיסים עם תמונות, לייקים ותגובות). עכשיו ההקלדה נשארת כאן.
+const Composer = memo(function Composer({ myId, profile, onPosted }) {
   const [text, setText] = useState('')
   const [ptype, setPtype] = useState('') // סוג הפוסט הנבחר (לא חובה)
   const [pollOpts, setPollOpts] = useState(['', '']) // אפשרויות סקר (עד 4)
@@ -440,48 +460,6 @@ function Feed({ session, profile, search, onCount }) {
   const [posting, setPosting] = useState(false)
   const fileRef = useRef(null)
   const taRef = useRef(null)
-
-  async function load(opts = {}) {
-    if (!opts.silent) setLoading(true)
-    // profiles!user_id — מציין את עמודת הקשר במפורש, כדי למנוע שגיאת
-    // "more than one relationship" אם קיימים כמה מפתחות-זר בין הטבלאות
-    const baseSelect =
-      '*, author:profiles!user_id(first_name, last_name, club, avatar_url), likes:community_post_likes(user_id), comments:community_post_comments(id, user_id, content, created_at, author:profiles!user_id(first_name, last_name, avatar_url))'
-    let { data, error } = await supabase
-      .from('community_posts')
-      .select(baseSelect + ', poll_votes:community_poll_votes(user_id, option_idx)')
-      .order('created_at', { ascending: false })
-      .limit(100)
-
-    // טבלת הסקרים עוד לא נוצרה — הפיד ממשיך לעבוד בלעדיה
-    if (error && isMissingTable(error)) {
-      ;({ data, error } = await supabase
-        .from('community_posts')
-        .select(baseSelect)
-        .order('created_at', { ascending: false })
-        .limit(100))
-    }
-
-    if (error) {
-      if (isMissingTable(error)) {
-        setSqlMissing(true)
-      } else if (!opts.silent) {
-        setError(L('שגיאה בטעינת הקהילה: ', 'Failed to load the community: ') + error.message)
-      }
-      if (!opts.silent) setLoading(false)
-      return
-    }
-    setSqlMissing(false)
-    setError(null)
-    setPosts(data || [])
-    if (onCount) onCount((data || []).length)
-    if (!opts.silent) setLoading(false)
-  }
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const pickImages = (e) => {
     const files = Array.from(e.target.files || [])
@@ -544,7 +522,7 @@ function Feed({ session, profile, search, onCount }) {
       setPollOpts(['', ''])
       if (taRef.current) taRef.current.style.height = 'auto'
       toast.success(L('הפוסט פורסם לקהילה 🎉', 'Posted to the community 🎉'))
-      load({ silent: true })
+      onPosted()
     } catch (err) {
       toast.error(L('הפרסום נכשל: ', 'Failed to post: ') + (err.message || ''))
     } finally {
@@ -553,6 +531,174 @@ function Feed({ session, profile, search, onCount }) {
   }
 
   const firstName = profile?.first_name || L('מאמן', 'Coach')
+
+  return (
+    <div className="cm-composer">
+      <Avatar
+        name={`${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || L('מאמן', 'Coach')}
+        url={profile?.avatar_url}
+        size={42}
+      />
+      <div className="cm-composer-main">
+        <textarea
+          ref={taRef}
+          className="cm-composer-input"
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onInput={(e) => {
+            e.target.style.height = 'auto'
+            e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
+          }}
+          maxLength={2000}
+          placeholder={L(`מה קורה באימונים שלך, ${firstName}?`, `What's happening at practice, ${firstName}?`)}
+          aria-label={L('כתיבת פוסט', 'Write a post')}
+        />
+        {images.length > 0 && (
+          <div className="cm-composer-previews">
+            {images.map((img, i) => (
+              <div key={img.url} className="cm-preview">
+                {/* תצוגה מקדימה מקומית (blob) — נטענת עצלה ובמידות קבועות */}
+                <img src={img.url} alt="" loading="lazy" width={84} height={84} />
+                <button
+                  type="button"
+                  className="cm-preview-x"
+                  onClick={() => removeImage(i)}
+                  aria-label={L('הסרת תמונה', 'Remove photo')}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* אפשרויות סקר — מופיעות כשבוחרים סוג "סקר" */}
+        {isPoll && (
+          <div className="cm-poll-editor">
+            {pollOpts.map((opt, i) => (
+              <input
+                key={i}
+                className="finder-input"
+                value={opt}
+                onChange={(e) => setPollOpts((cur) => cur.map((o, x) => (x === i ? e.target.value : o)))}
+                placeholder={L(`אפשרות ${i + 1}${i < 2 ? '' : ' (לא חובה)'}`, `Option ${i + 1}${i < 2 ? '' : ' (optional)'}`)}
+                maxLength={80}
+              />
+            ))}
+            {pollOpts.length < 4 && (
+              <button type="button" className="link-button" onClick={() => setPollOpts((cur) => [...cur, ''])}>
+                + {L('הוספת אפשרות', 'Add option')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* סוג הפוסט — chips צבעוניים לפי הקטגוריה */}
+        <div className="cm-type-row">
+          {POST_TYPES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={ptype === t.id ? `cm-type-chip t-${t.cls} on` : 'cm-type-chip'}
+              onClick={() => setPtype((cur) => (cur === t.id ? '' : t.id))}
+            >
+              {L(t.id, t.en)}
+            </button>
+          ))}
+        </div>
+        <div className="cm-composer-bar">
+          <button
+            type="button"
+            className="cm-attach"
+            onClick={() => fileRef.current?.click()}
+            disabled={images.length >= MAX_IMAGES}
+          >
+            <ImagePlus size={18} />
+            {L('צילומים מהאימון', 'Practice photos')}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={pickImages}
+          />
+          <button
+            type="button"
+            className="btn-primary cm-publish"
+            onClick={publish}
+            disabled={posting || (!text.trim() && images.length === 0)}
+            aria-busy={posting}
+          >
+            {posting && <span className="btn-spinner" aria-hidden="true" />}
+            {posting ? L('מפרסם...', 'Posting...') : L('פרסום', 'Post')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// ---------- הפיד ----------
+function Feed({ session, profile, search, onCount }) {
+  const myId = session.user.id
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [sqlMissing, setSqlMissing] = useState(false)
+  const [filter, setFilter] = useState('') // '' = הכול, אחרת סוג פוסט
+  const [sortBy, setSortBy] = useState('new') // 'new' | 'top' (לפי לייקים+תגובות)
+
+  async function load(opts = {}) {
+    if (!opts.silent) setLoading(true)
+    // profiles!user_id — מציין את עמודת הקשר במפורש, כדי למנוע שגיאת
+    // "more than one relationship" אם קיימים כמה מפתחות-זר בין הטבלאות
+    const baseSelect =
+      '*, author:profiles!user_id(first_name, last_name, club, avatar_url), likes:community_post_likes(user_id), comments:community_post_comments(id, user_id, content, created_at, author:profiles!user_id(first_name, last_name, avatar_url))'
+    let { data, error } = await supabase
+      .from('community_posts')
+      .select(baseSelect + ', poll_votes:community_poll_votes(user_id, option_idx)')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    // טבלת הסקרים עוד לא נוצרה — הפיד ממשיך לעבוד בלעדיה
+    if (error && isMissingTable(error)) {
+      ;({ data, error } = await supabase
+        .from('community_posts')
+        .select(baseSelect)
+        .order('created_at', { ascending: false })
+        .limit(100))
+    }
+
+    if (error) {
+      if (isMissingTable(error)) {
+        setSqlMissing(true)
+      } else if (!opts.silent) {
+        setError(L('שגיאה בטעינת הקהילה: ', 'Failed to load the community: ') + error.message)
+      }
+      if (!opts.silent) setLoading(false)
+      return
+    }
+    setSqlMissing(false)
+    setError(null)
+    setPosts(data || [])
+    if (onCount) onCount((data || []).length)
+    if (!opts.silent) setLoading(false)
+  }
+
+  // ה-props של הרכיבים הממומואים חייבים להישאר יציבים, ולכן load מגיע
+  // אליהם דרך ref ולא ב-closure
+  const loadRef = useRef(load)
+  loadRef.current = load
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // רענון שקט יציב — יורד כ-prop לקומפוזר ולכרטיסי הפוסטים הממומואים
+  const refresh = useCallback(() => { loadRef.current({ silent: true }) }, [])
 
   if (sqlMissing) return <SetupCard file="supabase_community.sql" onRetry={() => load()} />
 
@@ -576,110 +722,8 @@ function Feed({ session, profile, search, onCount }) {
 
   return (
     <>
-      {/* קומפוזר — פרסום פוסט חדש */}
-      <div className="cm-composer">
-        <Avatar
-          name={`${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || L('מאמן', 'Coach')}
-          url={profile?.avatar_url}
-          size={42}
-        />
-        <div className="cm-composer-main">
-          <textarea
-            ref={taRef}
-            className="cm-composer-input"
-            rows={2}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onInput={(e) => {
-              e.target.style.height = 'auto'
-              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
-            }}
-            maxLength={2000}
-            placeholder={L(`מה קורה באימונים שלך, ${firstName}?`, `What's happening at practice, ${firstName}?`)}
-            aria-label={L('כתיבת פוסט', 'Write a post')}
-          />
-          {images.length > 0 && (
-            <div className="cm-composer-previews">
-              {images.map((img, i) => (
-                <div key={img.url} className="cm-preview">
-                  <img src={img.url} alt="" />
-                  <button
-                    type="button"
-                    className="cm-preview-x"
-                    onClick={() => removeImage(i)}
-                    aria-label={L('הסרת תמונה', 'Remove photo')}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* אפשרויות סקר — מופיעות כשבוחרים סוג "סקר" */}
-          {isPoll && (
-            <div className="cm-poll-editor">
-              {pollOpts.map((opt, i) => (
-                <input
-                  key={i}
-                  className="finder-input"
-                  value={opt}
-                  onChange={(e) => setPollOpts((cur) => cur.map((o, x) => (x === i ? e.target.value : o)))}
-                  placeholder={L(`אפשרות ${i + 1}${i < 2 ? '' : ' (לא חובה)'}`, `Option ${i + 1}${i < 2 ? '' : ' (optional)'}`)}
-                  maxLength={80}
-                />
-              ))}
-              {pollOpts.length < 4 && (
-                <button type="button" className="link-button" onClick={() => setPollOpts((cur) => [...cur, ''])}>
-                  + {L('הוספת אפשרות', 'Add option')}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* סוג הפוסט — chips צבעוניים לפי הקטגוריה */}
-          <div className="cm-type-row">
-            {POST_TYPES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={ptype === t.id ? `cm-type-chip t-${t.cls} on` : 'cm-type-chip'}
-                onClick={() => setPtype((cur) => (cur === t.id ? '' : t.id))}
-              >
-                {L(t.id, t.en)}
-              </button>
-            ))}
-          </div>
-          <div className="cm-composer-bar">
-            <button
-              type="button"
-              className="cm-attach"
-              onClick={() => fileRef.current?.click()}
-              disabled={images.length >= MAX_IMAGES}
-            >
-              <ImagePlus size={18} />
-              {L('צילומים מהאימון', 'Practice photos')}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={pickImages}
-            />
-            <button
-              type="button"
-              className="btn-primary cm-publish"
-              onClick={publish}
-              disabled={posting || (!text.trim() && images.length === 0)}
-              aria-busy={posting}
-            >
-              {posting && <span className="btn-spinner" aria-hidden="true" />}
-              {posting ? L('מפרסם...', 'Posting...') : L('פרסום', 'Post')}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* קומפוזר — פרסום פוסט חדש (רכיב נפרד: ההקלדה לא מרנדרת את הפיד) */}
+      <Composer myId={myId} profile={profile} onPosted={refresh} />
 
       {/* מיון + chips סינון לפי סוג */}
       {posts.length > 1 && (
@@ -755,8 +799,8 @@ function Feed({ session, profile, search, onCount }) {
               key={p.id}
               post={p}
               myId={myId}
-              onChanged={() => load({ silent: true })}
-              onDeleted={() => load({ silent: true })}
+              onChanged={refresh}
+              onDeleted={refresh}
             />
           ))
         )}
@@ -775,6 +819,11 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   const [needsSql, setNeedsSql] = useState(false) // עמודת channel חסרה
   const [active, setActive] = useState(initialChannel || null) // ערוץ פתוח (id)
   const [sending, setSending] = useState(false)
+  // תקציר לכל ערוץ לרשת הכרטיסים: { [channelId]: { last, fresh } }
+  const [summary, setSummary] = useState({})
+  // ה-handler של ה-Realtime נרשם פעם אחת ולכן אינו רואה state מתעדכן
+  const activeRef = useRef(active)
+  activeRef.current = active
 
   useEffect(() => {
     if (initialChannel) {
@@ -784,22 +833,32 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialChannel])
 
-  async function load(opts = {}) {
+  // מיפוי שגיאת מסד לכרטיס ה-setup המתאים (טבלה/עמודה חסרה → קובץ SQL להרצה)
+  function handleChatError(error, opts) {
+    if (isMissingTable(error)) setNeedsSql('supabase_community_chat.sql')
+    // רשימת עמודות מפורשת → עמודת channel חסרה מחזירה שגיאה במקום
+    // שורות בלי השדה. אותו יעד בדיוק: מפנים להרצת ה-SQL.
+    else if (isMissingColumn(error)) setNeedsSql('supabase_community2.sql')
+    else if (!opts.silent) setError(L("שגיאה בטעינת הצ'אטים: ", 'Failed to load chats: ') + error.message)
+    if (!opts.silent) setLoading(false)
+  }
+
+  // ---- ערוץ פתוח: שליפה מסוננת לערוץ הזה בלבד ----
+  // ascending:false + limit = ההודעות ה*אחרונות*. עם ascending:true ה-limit
+  // חתך את ההודעות הראשונות, וברגע שהטבלה עברה אותן הודעות חדשות פשוט
+  // הפסיקו להופיע. הסינון ל-channel נעשה במסד, אחרת ה-limit מתמלא בערוץ אחר.
+  async function loadChannel(ch, opts = {}) {
     if (!opts.silent) setLoading(true)
     const { data, error } = await supabase
       .from('community_messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(500)
+      .select(CHAT_COLS)
+      .eq('channel', ch)
+      .order('created_at', { ascending: false })
+      .limit(CHAT_LIMIT)
 
-    if (error) {
-      if (isMissingTable(error)) setNeedsSql('supabase_community_chat.sql')
-      else if (!opts.silent) setError(L("שגיאה בטעינת הצ'אטים: ", 'Failed to load chats: ') + error.message)
-      if (!opts.silent) setLoading(false)
-      return
-    }
+    if (error) { handleChatError(error, opts); return }
 
-    const msgs = data || []
+    const msgs = (data || []).reverse() // חזרה לסדר כרונולוגי לתצוגה
     // אם אין עמודת channel — ההודעות יגיעו בלעדיה; מפנים להרצת ה-SQL
     if (msgs.length > 0 && msgs[0].channel === undefined) {
       setNeedsSql('supabase_community2.sql')
@@ -809,26 +868,88 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     setNeedsSql(false)
     setMessages(msgs)
     setError(null)
-
-    const ids = [...new Set(msgs.map((m) => m.user_id))]
-    if (ids.length > 0) {
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', ids)
-      const map = {}
-      for (const p of profs || []) map[p.id] = p
-      setProfilesById(map)
-    }
+    await fillProfiles(msgs.map((m) => m.user_id))
     if (!opts.silent) setLoading(false)
   }
 
+  // ---- רשת הערוצים: הודעה אחרונה + מונה «חדש מאז הביקור» לכל ערוץ ----
+  // שתי שאילתות זעירות לכל ערוץ (שורה אחת + count עם head) במקום שליפה של
+  // 300 שורות עם תוכן. מספר הערוצים קבוע וקטן, ולכן זה זול יותר מהקודם.
+  async function loadSummary(opts = {}) {
+    if (!opts.silent) setLoading(true)
+    const seen = readSeen()
+    const results = await Promise.all(
+      CHANNELS.map(async (c) => {
+        const lastQ = supabase
+          .from('community_messages')
+          .select(CHAT_COLS)
+          .eq('channel', c.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        let countQ = supabase
+          .from('community_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel', c.id)
+        // בלי חותמת ביקור — «חדש» הוא כל מה שיש בערוץ
+        if (seen[c.id]) countQ = countQ.gt('created_at', seen[c.id])
+        const [lastRes, cntRes] = await Promise.all([lastQ, countQ])
+        return {
+          id: c.id,
+          last: lastRes.data?.[0] || null,
+          fresh: cntRes.count || 0,
+          error: lastRes.error || cntRes.error || null,
+        }
+      })
+    )
+
+    const failed = results.find((r) => r.error)
+    if (failed) { handleChatError(failed.error, opts); return }
+
+    const next = {}
+    for (const r of results) next[r.id] = { last: r.last, fresh: r.fresh }
+    setNeedsSql(false)
+    setSummary(next)
+    setError(null)
+    await fillProfiles(results.map((r) => r.last?.user_id).filter(Boolean))
+    if (!opts.silent) setLoading(false)
+  }
+
+  // נקודת כניסה אחת: מה שנטען תלוי במה שמוצג כרגע
+  async function load(opts = {}) {
+    if (activeRef.current) return loadChannel(activeRef.current, opts)
+    return loadSummary(opts)
+  }
+  // ה-polling וה-Realtime נרשמים פעם אחת — קוראים ל-load דרך ref כדי
+  // שהם תמיד יריצו את הגרסה שמתאימה לערוץ הפתוח הנוכחי.
+  const loadRef = useRef(load)
+  loadRef.current = load
+
+  // השלמת פרופילים רק למי שעוד לא ראינו — קודם נשלפו כל הפרופילים מחדש
+  // בכל poll ובכל הודעה חדשה של מישהו אחר.
+  const profilesRef = useRef({})
+  async function fillProfiles(ids) {
+    const missing = [...new Set(ids)].filter((id) => id && !profilesRef.current[id])
+    if (!missing.length) return
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', missing)
+    const next = { ...profilesRef.current }
+    for (const p of profs || []) next[p.id] = p
+    profilesRef.current = next
+    setProfilesById(next)
+  }
+
+  // כניסה לערוץ / חזרה לרשת = שליפה אחרת לגמרי, ולכן טוענים מחדש בכל שינוי
   useEffect(() => {
+    setMessages([]) // לא מציגים את ההודעות של הערוץ הקודם בזמן הטעינה
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [active])
 
-  // זמן-אמת: הודעה חדשה בערוץ מופיעה מיד (Realtime); polling איטי כגיבוי
+  // זמן-אמת: הודעה חדשה בערוץ מופיעה מיד (Realtime); polling איטי כגיבוי.
+  // ה-INSERT מצרף את השורה מה-payload במקום לטעון את כל הצ'אט מחדש,
+  // וה-polling עוצר כשהטאב ברקע (סוללה ו-egress).
   useEffect(() => {
     let channel = null
     try {
@@ -837,13 +958,28 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'community_messages' },
-          () => load({ silent: true })
+          (p) => {
+            const row = p.new
+            const open = activeRef.current
+            // ברשת הערוצים אין מה לצרף — מרעננים את התקצירים
+            if (!open) { loadRef.current({ silent: true }); return }
+            if (!row?.id) { loadRef.current({ silent: true }); return }
+            // חובה לסנן: ה-state מחזיק עכשיו את הערוץ הפתוח בלבד, והודעה
+            // מערוץ אחר הייתה נכנסת אליו ודוחפת ממנו הודעות אמיתיות.
+            if ((row.channel || 'כללי') !== open) return
+            setMessages((cur) => (cur.some((m) => m.id === row.id) ? cur : [...cur, row].slice(-CHAT_LIMIT)))
+            fillProfiles([row.user_id])
+          }
         )
         .subscribe()
     } catch { /* realtime לא זמין — ה-polling מכסה */ }
-    const t = setInterval(() => load({ silent: true }), 30000)
+    const poll = () => { if (document.visibilityState === 'visible') loadRef.current({ silent: true }) }
+    const t = setInterval(poll, 30000)
+    const onVis = () => { if (document.visibilityState === 'visible') loadRef.current({ silent: true }) }
+    document.addEventListener('visibilitychange', onVis)
     return () => {
       clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
       if (channel) supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -958,23 +1094,15 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   }
 
   // ---- רשימת הערוצים ----
-  const byChannel = {}
-  for (const m of messages) {
-    const k = m.channel || 'כללי'
-    ;(byChannel[k] = byChannel[k] || []).push(m)
-  }
-
-  const seenMap = readSeen()
+  // התקציר מגיע משאילתה לכל ערוץ (הודעה אחרונה + count מאז הביקור), ולא
+  // מפיצול של חלון הודעות משותף — ערוץ שקט כבר לא נדחק החוצה בידי ערוץ עמוס.
   return (
     <div className="ch-grid">
       {CHANNELS.map((c) => {
-        const list = byChannel[c.id] || []
-        const last = list[list.length - 1]
+        const s = summary[c.id] || {}
+        const last = s.last || null
         // [38] מונה = הודעות חדשות מאז הביקור האחרון בערוץ (לא סך הכול, שמטעה)
-        const seenAt = seenMap[c.id]
-        const fresh = seenAt
-          ? list.filter((m) => new Date(m.created_at) > new Date(seenAt)).length
-          : list.length
+        const fresh = s.fresh || 0
         return (
           <button key={c.id} type="button" className="ch-card" onClick={() => setActive(c.id)}>
             <span className="ch-ic"><c.Icon size={22} /></span>

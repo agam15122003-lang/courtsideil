@@ -1,5 +1,24 @@
 // ערכים קבועים שחוזרים בכל המערכת — מוגדרים פעם אחת כאן.
 
+// כתובת האתר הקנונית — הבסיס לכל לינק שנשלח החוצה (שיתוף, הזמנה, QR,
+// קישור איפוס סיסמה). אסור להשתמש כאן ב-window.location.origin: בתוך
+// WebView נייטיב (Capacitor) ה-origin הוא capacitor://localhost (iOS) או
+// https://localhost (אנדרואיד), וכל לינק שנבנה ממנו מגיע מת אצל הנמען.
+// ניתן לעקוף בסביבה עם VITE_SITE_URL (למשל תצוגה מקדימה בוורסל).
+export const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://courtsideil.vercel.app'
+
+// כתובת יצירת הקשר הרשמית — פרטיות, נגישות, בקשות מחיקה ופניות הורים.
+// נקודת אמת אחת: שלושת המסמכים הציבוריים (privacy/terms/accessibility),
+// ווידג'ט הנגישות ומסך מחיקת החשבון חייבים להצביע לכאן. עד הגל הזה היו
+// שתי כתובות שונות במקביל, וזה בלבל הורים ופנייה רגולטורית.
+export const CONTACT_EMAIL = 'agam15122003@gmail.com'
+
+// גרסת המסמכים המשפטיים שנרשמת יחד עם ההסכמה בהרשמה.
+// חייבת להיות זהה למחרוזת ב-consent_documents (supabase_parent_consent.sql
+// זורע 'v1 · 3.8.2026') ולמזהה הגרסה בראש privacy.html / terms.html /
+// accessibility.html — אחרת אי אפשר לקשור רשומת הסכמה לנוסח שאושר.
+export const TERMS_VERSION = 'v1 · 3.8.2026'
+
 // שכבות הגיל, בסדר המדויק (מהצעיר למבוגר).
 export const AGE_GROUPS = [
   'בית ספר לכדורסל',

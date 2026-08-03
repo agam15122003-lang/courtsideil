@@ -7,9 +7,11 @@ import { supabase } from './supabaseClient'
 import { L, tr, trTeam , cnt } from './i18n'
 import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
+import { useSignedMediaUrl } from './SignedImg'
 import TacticsBoard from './TacticsBoard'
 import CourtDiagram from './CourtDiagram'
 import NotebookPage from './NotebookPage'
+import useFocusTrap from './useFocusTrap'
 
 // כרטיס תרגיל לשימוש חוזר — מציג תרגיל אחד עם דירוג, שמירה, מחיקה ותגובות.
 // בשימוש גם ב-DrillLibrary וגם ב-CoachProfile.
@@ -40,13 +42,20 @@ export default function DrillCard({
   const [newComment, setNewComment] = useState('')
   const [sendingC, setSendingC] = useState(false)
 
-  // הפאנל הצף: Escape סוגר ונועל את גלילת הרקע (הרשימה נשארת שלמה מאחור)
+  // תמונת התרגיל מוגשת דרך signed URL, ורק כשהפאנל פתוח (אין טעם לחתום
+  // תמונה שלא מוצגת). כשהחתימה נכשלת — התמונה פשוט לא מוצגת.
+  const { url: imageSrc, onError: onImageError } = useSignedMediaUrl(
+    expanded ? drill.image_url : null
+  )
+
+  // הפאנל הצף: Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap (הפוקוס נשאר
+  // בתוך הפאנל וחוזר לכפתור בסגירה), וכאן רק נעילת גלילת הרקע.
+  const overlayRef = useFocusTrap(expanded, () => setExpanded(false))
+
   useEffect(() => {
     if (!expanded) return
-    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false) }
-    window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+    return () => { document.body.style.overflow = '' }
   }, [expanded])
 
   const loadComments = async () => {
@@ -233,7 +242,7 @@ export default function DrillCard({
     {/* תצוגה מלאה — פאנל צף מעל הרשימה (מחברת + מגרש מונפש), במקום לנפח את הכרטיס */}
     {expanded && createPortal(
       <div className="drill-overlay" onClick={() => setExpanded(false)}>
-        <div className="drill-overlay-panel drill-card is-expanded" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={drill.title}>
+        <div ref={overlayRef} className="drill-overlay-panel drill-card is-expanded" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={drill.title}>
           <button className="drill-overlay-x" onClick={() => setExpanded(false)} aria-label={L('סגור', 'Close')}>
             <X size={18} />
           </button>
@@ -251,9 +260,9 @@ export default function DrillCard({
               </div>
             )}
           </div>
-          {safeUrl(drill.image_url) && (
-            <a className="drill-image" href={safeUrl(drill.image_url)} target="_blank" rel="noopener noreferrer">
-              <img src={safeUrl(drill.image_url)} alt={drill.title} loading="lazy" />
+          {imageSrc && (
+            <a className="drill-image" href={imageSrc} target="_blank" rel="noopener noreferrer">
+              <img src={imageSrc} alt={drill.title} loading="lazy" onError={onImageError} />
             </a>
           )}
       {/* דירוג: ממוצע + הדירוג האישי שלי */}

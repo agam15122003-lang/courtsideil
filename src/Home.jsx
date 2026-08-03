@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dumbbell,
   ClipboardList,
@@ -20,6 +20,7 @@ import {
   NEWS_FALLBACK_IMAGES,
   CONTENT_LINKS, COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
+import { signedThumbUrls } from './storage'
 import { L } from './i18n'
 import { ChevronFwd } from './DirIcon'
 import CourtArt from './CourtArt'
@@ -66,36 +67,72 @@ function StatNum({ value, decimals = 0 }) {
   return Number(v).toFixed(decimals)
 }
 
+// חלון הלו"ז המשותף לכל דף הבית — מכיל את כל מה שכל אחד מהמקטעים צריך:
+// היום (תוכנית היום) · השבוע הקלנדרי (מונה האימונים) · +7 (השבוע) · +14 (האימון הבא)
+// ו-10 ימים אחורה (האימון האחרון שנגמר, בדוח של NextPractice).
+const HOME_PAST_DAYS = 10
+const HOME_FUTURE_DAYS = 14
+// חלון הנוכחות לחישוב האחוז. בלי תיחום נשלפה כל היסטוריית הנוכחות
+// מאז ומעולם בכל טעינה של דף הבית — אלפי שורות אחרי שתי עונות.
+const ATT_WINDOW_DAYS = 90
+
+// שליפה אחת של הלו"ז והמשבצות הקבועות לכל דף הבית.
+// עד היום team_practice_slots נשלפה שלוש פעמים ו-schedule_entries שלוש
+// פעמים באותו רינדור — אותם נתונים בדיוק, שישה round-trips מיותרים.
+// התוצאה יורדת כ-prop אל NextPractice ואל מקטעי HomeSections.
+function useHomeSchedule(userId) {
+  const [sched, setSched] = useState({ ready: false, entries: [], slots: [], entriesError: null, slotsError: null })
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const from = new Date(Date.now() - HOME_PAST_DAYS * 86400000)
+      const until = new Date(Date.now() + HOME_FUTURE_DAYS * 86400000)
+      const [entries, slots] = await Promise.all([
+        // schedule_entries מסונן ב-RLS ולכן אין כאן eq על המאמן (כפי שהיה)
+        supabase.from('schedule_entries')
+          .select('*, plan:training_plans(id, name)')
+          .gte('date', ymdLocal(from)).lte('date', ymdLocal(until))
+          .order('date').order('start_time'),
+        // אימונים מלוח קבוע אינם שורות ב-schedule_entries. בלעדיהם מאמן
+        // שעובד בימים קבועים ראה "0 אימונים השבוע" בזמן שהלו"ז מלא.
+        userId
+          ? supabase.from('team_practice_slots').select('*').eq('coach_id', userId)
+          : Promise.resolve({ data: [], error: null }),
+      ])
+      if (!alive) return
+      setSched({
+        ready: true,
+        entries: entries.error ? [] : (entries.data || []),
+        slots: slots.error ? [] : (slots.data || []),
+        entriesError: entries.error || null,
+        slotsError: slots.error || null,
+      })
+    })()
+    return () => { alive = false }
+  }, [userId])
+  return sched
+}
+
 // סטטיסטיקות דף הבית — נשלפות פעם אחת, עם ברירת מחדל 0 אם אין נתונים.
-function useHomeStats(userId) {
+// הלו"ז מגיע מ-useHomeSchedule ולא נשלף כאן שוב.
+function useHomeStats(userId, sched) {
   // null = עדיין נטען / לא זמין (מוצג כ-"—"), מספר = ערך אמיתי.
   // כך שגיאת רשת חולפת לא מציגה אפסים מזויפים כאילו אין נתונים.
-  const [s, setS] = useState({ attendance: null, week: null, plans: null, saved: null })
+  const [s, setS] = useState({ attendance: null, plans: null, saved: null })
   useEffect(() => {
     if (!userId) return
     let alive = true
     ;(async () => {
-      const now = new Date()
-      const day = now.getDay() // 0=ראשון
-      const weekStart = new Date(now); weekStart.setDate(now.getDate() - day)
-      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6)
-      const [saved, plans, entries, slots, att] = await Promise.all([
+      const attFrom = new Date(Date.now() - ATT_WINDOW_DAYS * 86400000)
+      const [saved, plans, att] = await Promise.all([
         supabase.from('saved_drills').select('drill_id', { count: 'exact', head: true }).eq('user_id', userId),
         supabase.from('training_plans').select('id', { count: 'exact', head: true }).eq('created_by', userId),
-        supabase.from('schedule_entries').select('id', { count: 'exact', head: true }).gte('date', ymdLocal(weekStart)).lte('date', ymdLocal(weekEnd)),
-        // אימונים מלוח קבוע אינם שורות ב-schedule_entries. בלעדיהם מאמן
-        // שעובד בימים קבועים ראה "0 אימונים השבוע" בזמן שהלו"ז מלא.
-        supabase.from('team_practice_slots').select('*').eq('coach_id', userId),
         // אחוז הנוכחות הקבוצתי — אותה נוסחה כמו ב-Attendance.jsx:
-        // כל מה שאינו 'absent' נספר כנוכחות.
-        supabase.from('practice_attendance').select('status').eq('coach_id', userId),
+        // כל מה שאינו 'absent' נספר כנוכחות. מתוחם לחלון האחרון.
+        supabase.from('practice_attendance').select('status')
+          .eq('coach_id', userId).gte('session_date', ymdLocal(attFrom)),
       ])
       if (!alive) return
-
-      const recurring = slots.error ? [] : expandSlotsRange(slots.data || [], weekStart, weekEnd)
-      const weekCount = entries.error && slots.error
-        ? null
-        : (entries.error ? 0 : (entries.count || 0)) + recurring.length
 
       const rows = att.error ? null : (att.data || [])
       const attendance = rows && rows.length
@@ -105,14 +142,26 @@ function useHomeStats(userId) {
       setS({
         attendance,
         // בשגיאה משאירים null (—) במקום 0 מזויף
-        week: weekCount,
         plans: plans.error ? null : (plans.count || 0),
         saved: saved.error ? null : (saved.count || 0),
       })
     })()
     return () => { alive = false }
   }, [userId])
-  return s
+
+  // מונה האימונים בשבוע הקלנדרי — נגזר מהלו"ז המשותף, בלי שליפה נוספת
+  const week = useMemo(() => {
+    if (!sched.ready) return null
+    if (sched.entriesError && sched.slotsError) return null
+    const now = new Date()
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()) // 0=ראשון
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6)
+    const a = ymdLocal(weekStart), b = ymdLocal(weekEnd)
+    const inWeek = sched.entries.filter((e) => e.date >= a && e.date <= b).length
+    return inWeek + expandSlotsRange(sched.slots, weekStart, weekEnd).length
+  }, [sched])
+
+  return { ...s, week }
 }
 
 // שלושת הפוסטים האחרונים מהקהילה — לטיזר בדף הבית.
@@ -127,7 +176,15 @@ function useCommunityTeaser() {
         .select('id, content, image_urls, created_at, author:profiles!user_id(first_name, last_name, club, avatar_url)')
         .order('created_at', { ascending: false })
         .limit(3)
-      if (alive && !error && data) setPosts(data)
+      if (!alive || error || !data) return
+      // התמונות מוגשות דרך signed URL — כאן בגודל תמונונת ולא ב-JPEG המלא.
+      // אם החתימה נכשלת הכרטיס פשוט יוצג בלי תמונה.
+      let thumbs = []
+      try {
+        thumbs = await signedThumbUrls(data.map((p) => p.image_urls?.[0] || null))
+      } catch { /* בלי תמונה */ }
+      if (!alive) return
+      setPosts(data.map((p, i) => ({ ...p, thumbUrl: thumbs[i] || null })))
     })()
     return () => { alive = false }
   }, [])
@@ -313,7 +370,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   const narrow = useNarrow()
-  const stats = useHomeStats(profile?.id)
+  // הלו"ז נשלף פעם אחת כאן ויורד כ-prop לכל מי שצריך אותו
+  const sched = useHomeSchedule(profile?.id)
+  const stats = useHomeStats(profile?.id, sched)
   const communityPosts = useCommunityTeaser()
 
   // פעימת הציטוט בהירו. קודם היא הגיעה מ-onTick של מחליף התמונות; מאז
@@ -413,7 +472,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </div>
         {!narrow && (
           <div className="home-hero-card">
-            <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
+            <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
           </div>
         )}
         {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
@@ -447,7 +506,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           האימון הקרוב. בדסקטופ הכרטיס יושב בתוך הבאנר, לצד הברכה. */}
       {narrow && (
         <div className="home-next-mobile">
-          <NextPractice session={session} onNavigate={onNavigate} onEntry={setNextEntry} />
+          <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
         </div>
       )}
 
@@ -487,8 +546,8 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           עם היררכיה — זה מה שקורה כאן. */}
       {/* 1.4 — «דברים לביצוע»: מחליף את באנר «האימון עוד פתוח» ומרחיב אותו לשש בדיקות */}
       <CoachTodo session={session} onNavigate={onNavigate} />
-      <TodayPlanCard session={session} profile={profile} onNavigate={onNavigate} />
-      <WeekSchedule session={session} onNavigate={onNavigate} />
+      <TodayPlanCard session={session} profile={profile} schedule={sched} onNavigate={onNavigate} />
+      <WeekSchedule session={session} schedule={sched} onNavigate={onNavigate} />
       <NeedsAttention session={session} onNavigate={onNavigate} />
 
       {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
@@ -506,7 +565,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
               const author = p.author
                 ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
                 : L('מאמן', 'Coach')
-              const img = safeUrl(p.image_urls?.[0])
+              const img = safeUrl(p.thumbUrl)
               return (
                 <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
                   {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}

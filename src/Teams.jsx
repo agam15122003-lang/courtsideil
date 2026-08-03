@@ -213,8 +213,21 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   useEffect(() => { setMText(goalsMap[mKey] || '') }, [goalsMap[mKey], mKey])
   useEffect(() => { setSText(goalsMap['season|'] || '') }, [goalsMap['season|']])
 
-  // ייצוא הסגל לקובץ CSV (נפתח באקסל, כולל BOM לעברית תקינה)
-  const exportRosterCsv = () => {
+  // ייצוא הסגל לקובץ CSV (נפתח באקסל, כולל BOM לעברית תקינה).
+  // הקובץ יוצא מהאפליקציה אל מחשב פרטי ומכיל פרטי קטינים — ולכן שני שינויים:
+  //   1) אזהרת אחריות מפורשת לפני ההורדה (הייצוא היה שקט לגמרי).
+  //   2) העמודות הרגישות ביותר — הערות חופשיות (notes) והערת פציעה
+  //      (injury_note, שהיא מידע בריאותי) — אינן נכללות בקובץ כלל.
+  const exportRosterCsv = async () => {
+    const ok = await confirmDialog({
+      title: L('ייצוא פרטי הסגל לקובץ?', 'Export roster details to a file?'),
+      message: L(
+        'הקובץ מכיל פרטים אישיים של שחקנים, לרוב קטינים — שם, שנת לידה וטלפון. מרגע ההורדה הוא יוצא מהאפליקציה ואינו מוגן: האחריות לשמירתו, לאי-הפצתו ולמחיקתו כשאינו נחוץ היא עליך. הערות חופשיות והערות פציעה לא ייכללו בקובץ.',
+        'The file contains personal details of players, most of them minors — name, birth year and phone. Once downloaded it leaves the app unprotected: keeping it safe, not sharing it, and deleting it when no longer needed are your responsibility. Free-text notes and injury notes are not included.',
+      ),
+      confirmText: L('הורדת הקובץ', 'Download the file'),
+    })
+    if (!ok) return
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const header = [
       L('שם', 'Name'), L('מספר', 'Number'), L('עמדה', 'Position'),

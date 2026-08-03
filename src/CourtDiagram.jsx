@@ -12,37 +12,58 @@ import {
   buildArrowDraw,
 } from './anim'
 
+// ===== הפרימיטיבים המשותפים של המגרש =====
+// עד היום CourtDiagram ו-TacticsBoard החזיקו שני עותקים זהים של ציור
+// המגרש, השחקנים והחצים (אותם עיגולים r=14, אותם צבעים) — תיקון באחד לא
+// הגיע לשני. כאן נמצא העותק היחיד, ו-TacticsBoard מייבא אותו.
+// הערה על ה-hex: אלו צבעי ציור בתוך SVG (לא צבעי ממשק) — מכוונים לשני
+// הרקעים הקבועים של המגרש (דף מחברת לבן / מגרש נייבי) ולכן אינם מגיבים
+// למצב כהה בכוונה, כפי שהיה כאן מאז ומעולם.
 const FULL = { w: 940, h: 500 }
 const HALF = { w: 500, h: 470 }
 const LINE = '#1b2a4a'
 
-function CourtLines({ full }) {
+// variant='notebook' — קווים דקים כהים על דף לבן (ברירת מחדל, מחברת האימונים)
+// variant='board'    — קווים לבנים עבים על מגרש נייבי (לוח הטקטיקה), כולל סלים
+export function CourtLines({ full, variant = 'notebook' }) {
+  const board = variant === 'board'
+  const g = board
+    ? { stroke: '#ffffff', strokeWidth: '3', fill: 'none' }
+    : { 'data-nb': 'court', stroke: LINE, strokeWidth: '2', fill: 'none' }
+  const key = board ? 'rgba(27,42,74,0.12)' : undefined // מילוי הרחבה (הצבע) בלוח בלבד
   if (full) {
     return (
-      <g data-nb="court" stroke={LINE} strokeWidth="2" fill="none">
+      <g {...g}>
         <rect x="10" y="10" width="920" height="480" rx="6" />
         <line x1="470" y1="10" x2="470" y2="490" />
         <circle cx="470" cy="250" r="55" />
-        <rect x="10" y="170" width="170" height="160" />
+        <rect x="10" y="170" width="170" height="160" fill={key} />
         <circle cx="180" cy="250" r="46" />
+        {board && <line x1="28" y1="210" x2="28" y2="290" />}
+        {board && <circle cx="44" cy="250" r="9" />}
         <path d="M10 64 L150 64 Q 330 250 150 436 L10 436" />
-        <rect x="760" y="170" width="170" height="160" />
+        <rect x="760" y="170" width="170" height="160" fill={key} />
         <circle cx="760" cy="250" r="46" />
+        {board && <line x1="912" y1="210" x2="912" y2="290" />}
+        {board && <circle cx="896" cy="250" r="9" />}
         <path d="M930 64 L790 64 Q 610 250 790 436 L930 436" />
       </g>
     )
   }
   return (
-    <g data-nb="court" stroke={LINE} strokeWidth="2" fill="none">
+    <g {...g}>
       <rect x="10" y="10" width="480" height="450" rx="6" />
-      <rect x="190" y="10" width="120" height="170" />
+      <rect x="190" y="10" width="120" height="170" fill={key} />
       <circle cx="250" cy="180" r="48" />
+      {board && <line x1="210" y1="28" x2="290" y2="28" />}
+      {board && <circle cx="250" cy="42" r="9" />}
       <path d="M60 10 L60 150 Q 250 330 440 150 L440 10" />
     </g>
   )
 }
 
-function ObjectShape({ o }) {
+// שחקן / מגן / קונוס / כדור — צורה אחת לשני המסכים
+export function ObjectShape({ o }) {
   if (o.type === 'cone')
     return (
       <polygon
@@ -73,8 +94,9 @@ function ObjectShape({ o }) {
   )
 }
 
-const arcLift = (x1, y1, x2, y2) => Math.min(90, Math.hypot(x2 - x1, y2 - y1) * 0.5)
-const arcPath = (x1, y1, x2, y2) =>
+// גובה הקשת של "זריקה לסל" לפי אורך החץ, ומסלול הפרבולה עצמו
+export const arcLift = (x1, y1, x2, y2) => Math.min(90, Math.hypot(x2 - x1, y2 - y1) * 0.5)
+export const arcPath = (x1, y1, x2, y2) =>
   `M${x1},${y1} Q${(x1 + x2) / 2},${(y1 + y2) / 2 - arcLift(x1, y1, x2, y2)} ${x2},${y2}`
 
 function Arrow({ a }) {

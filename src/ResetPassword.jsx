@@ -24,18 +24,26 @@ export function passwordStrength(pw) {
   return { level: 'fair', pct: 52, label: L('בסדר', 'Fair') }
 }
 
-// קורא שגיאה מקישור איפוס פגום/מנוצל: Supabase מחזיר
-// "...#error=access_denied&error_code=otp_expired&error_description=..."
+// קורא שגיאה מקישור איפוס פגום/מנוצל. בזרימת implicit השגיאה חוזרת ב-hash
+// ("...#error=access_denied&error_code=otp_expired&..."), ובזרימת PKCE (שהופעלה
+// ב-supabaseClient) היא חוזרת ב-query string. בודקים את שניהם, אחרת מסך
+// "הקישור פג תוקף" פשוט לא היה מוצג יותר.
 function readLinkError() {
-  try {
-    const h = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
-    if (h.get('error')) return h.get('error_description') || h.get('error_code') || h.get('error')
-  } catch { /* ללא hash */ }
+  for (const raw of [(window.location.hash || '').replace(/^#/, ''), (window.location.search || '').replace(/^\?/, '')]) {
+    try {
+      const p = new URLSearchParams(raw)
+      if (p.get('error')) return p.get('error_description') || p.get('error_code') || p.get('error')
+    } catch { /* פרמטרים לא תקינים — ממשיכים */ }
+  }
   return null
 }
 
 // מסך זה מוצג כשהמשתמש מגיע מקישור איפוס הסיסמה במייל.
-export default function ResetPassword() {
+// onDone (אופציונלי) — חזרה הביתה דרך state של React במקום ניווט מלא.
+// ב-WebView נייטיב טעינה מחדש מלאה גורמת להבזק ולאיבוד state ומרגישה זרה;
+// כש-App.jsx יעביר את ה-prop (איפוס isRecoveryMode) המעבר יהיה חלק.
+// עד אז נשארת הנפילה לאחור לניווט — שעובדת, אבל מרעננת את הכול.
+export default function ResetPassword({ onDone }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [show, setShow] = useState(false)
@@ -46,6 +54,7 @@ export default function ResetPassword() {
   const [linkError] = useState(readLinkError)
 
   const goHome = () => {
+    if (onDone) { onDone(); return }
     window.location.href = window.location.origin
   }
 
@@ -102,11 +111,14 @@ export default function ResetPassword() {
             <span className="csa-hero-ic rp-hero-ic--warn" aria-hidden="true">
               <AlertTriangle size={34} />
             </span>
-            <h1>{L('קישור האיפוס פג תוקף', 'The reset link has expired')}</h1>
+            <h1>{L('קישור האיפוס לא תקף', "The reset link isn't valid")}</h1>
+            {/* מאז המעבר ל-PKCE (supabaseClient) הקישור נפדה מול "מאמת" שנשמר
+                בדפדפן שממנו ביקשת אותו — ולכן פתיחה בדפדפן או במכשיר אחר נכשלת
+                בדיוק כמו קישור שפג. מזכירים את שתי הסיבות כדי שלא ייראה כתקלה. */}
             <p>
               {L(
-                'קישורי איפוס תקפים לשעה אחת ולשימוש חד-פעמי. חוזרים לדף ההתחברות, לוחצים "שכחת סיסמה?" ומקבלים קישור חדש.',
-                'Reset links are valid for one hour and for a single use. Go back to the login page, tap "Forgot password?" and get a fresh link.',
+                'קישורי איפוס תקפים לשעה אחת, לשימוש חד-פעמי, ורק באותו דפדפן שממנו ביקשת אותם. אם פתחת את המייל במכשיר אחר — חוזרים לדף ההתחברות באותו מכשיר, לוחצים "שכחת סיסמה?" ומקבלים קישור חדש.',
+                'Reset links are valid for one hour, for a single use, and only in the same browser you requested them from. If you opened the email on another device, go back to the login page on that device, tap "Forgot password?" and get a fresh link.',
               )}
             </p>
             <button type="button" className="btn-primary" onClick={goHome}>

@@ -9,6 +9,8 @@ import ChatWindow from './ChatWindow'
 
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
 
+const MSG_LIMIT = 200 // ההודעות האחרונות בשיחה
+
 // צ'אט אישי בין השחקן למאמן שלו (טבלת messages הקיימת — DM).
 // props: session, coach {id, first_name, last_name, avatar_url, club}
 export default function CoachChat({ session, coach }) {
@@ -22,15 +24,19 @@ export default function CoachChat({ session, coach }) {
   const load = useCallback(async ({ silent } = {}) => {
     if (!coachId) { setLoading(false); return }
     if (!silent) setLoading(true)
+    // ascending:false + limit מחזיר את ההודעות ה*אחרונות* — עם ascending:true
+    // ה-limit חתך את 500 הראשונות, וכל הודעה חדשה פשוט לא הופיעה יותר.
+    // הסינון לשיחה נעשה כבר במסד, אחרת ה-limit היה מתמלא בשיחות אחרות.
     const { data } = await supabase
       .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(500)
+      .select('id, sender_id, recipient_id, content, read_at, created_at')
+      .or(`and(sender_id.eq.${myId},recipient_id.eq.${coachId}),and(sender_id.eq.${coachId},recipient_id.eq.${myId})`)
+      .order('created_at', { ascending: false })
+      .limit(MSG_LIMIT)
     const thread = (data || []).filter(
       (m) => (m.sender_id === myId && m.recipient_id === coachId) ||
              (m.sender_id === coachId && m.recipient_id === myId)
-    )
+    ).reverse() // חזרה לסדר כרונולוגי לתצוגה
     setMsgs(thread)
     setLoading(false)
     // סימון הודעות המאמן כנקראו
@@ -45,14 +51,31 @@ export default function CoachChat({ session, coach }) {
   useEffect(() => {
     if (!coachId) return
     let ch = null
+    // INSERT מצרף את השורה מה-payload במקום לשלוף את כל השיחה מחדש;
+    // שאר האירועים (מחיקה/סימון נקרא) נדירים ולכן טעינה שקטה מספיקה.
+    const onInsert = (row) => {
+      if (!row) return false
+      const mine = (row.sender_id === myId && row.recipient_id === coachId) ||
+                   (row.sender_id === coachId && row.recipient_id === myId)
+      if (!mine) return true // שיחה של מישהו אחר — מתעלמים לגמרי
+      setMsgs((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row].slice(-MSG_LIMIT)))
+      return true
+    }
     try {
       ch = supabase.channel('coach-chat-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => load({ silent: true }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (p) => {
+          if (p.eventType === 'INSERT' && onInsert(p.new)) return
+          load({ silent: true })
+        })
         .subscribe()
     } catch { /* polling covers */ }
-    const t = setInterval(() => load({ silent: true }), 30000)
-    return () => { clearInterval(t); if (ch) supabase.removeChannel(ch) }
-  }, [load, coachId])
+    // פולינג רק כשהטאב גלוי — אין טעם לשרוף סוללה ו-egress ברקע
+    const poll = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    const t = setInterval(poll, 30000)
+    const onVis = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); if (ch) supabase.removeChannel(ch) }
+  }, [load, coachId, myId])
 
   const send = async (text) => {
     setSending(true)

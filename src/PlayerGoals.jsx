@@ -7,6 +7,11 @@ import { sendNotification } from './notify'
 import { L } from './i18n'
 import { burstConfetti } from './confetti'
 import { SkeletonCards } from './Skeleton'
+import useFocusTrap from './useFocusTrap'
+
+// מסך שמופנה לקטינים — כישלון שליפה חייב להיראות כשגיאה עם «נסה שוב»,
+// לא כ«אין יעדים». העוזר הזה מרכז את הבדיקה לכל קריאות ה-update/delete.
+const failToast = () => toast.error(L('העדכון נכשל — נסה שוב', 'Update failed — try again'))
 
 // ארבעת הטווחים של מסמך ההשקה (1.5), בסדר הקבוע. 'week' נשאר לתצוגת
 // יעדים ישנים בלבד (legacy) — לא מוצע ביצירת יעד חדש.
@@ -36,9 +41,13 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
   // גרף ההתקדמות שהשחקן רואה — עכשיו גם אצל המאמן (pgl_coach_read קיימת)
   const [chartId, setChartId] = useState(null)
   const [logsBy, setLogsBy] = useState({})
+  const [loadErr, setLoadErr] = useState(null)
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('player_goals').select('*').eq('coach_id', coachId).eq('player_id', playerId).order('created_at', { ascending: false })
+    // בלי בדיקת error כישלון שליפה נראה כמו «אין יעדים» — בדיוק ההיפוך המסוכן
+    const { data, error } = await supabase.from('player_goals').select('*').eq('coach_id', coachId).eq('player_id', playerId).order('created_at', { ascending: false })
+    if (error) { setLoadErr(error); setGoals([]); setLogsBy({}); return }
+    setLoadErr(null)
     setGoals(data || [])
     const ids = (data || []).filter((g) => g.target_value).map((g) => g.id)
     if (ids.length) {
@@ -76,20 +85,28 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
     if (ok) { setTitle(''); setDueDate(''); setTarget(''); setUnit('') }
   }
 
+  // כל העדכונים בודקים error — קודם כישלון (RLS/רשת) חזר בשקט והכפתור «עבד»
+  // למראית עין עד הטעינה הבאה.
   const bump = async (g, delta) => {
     const next = Math.max(0, (g.progress_value || 0) + delta)
     const done = g.target_value ? next >= g.target_value : g.status === 'done'
-    await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    const { error } = await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    if (error) { failToast(); return }
     if (done && g.status !== 'done') sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
   const toggleDone = async (g) => {
     const done = g.status !== 'done'
-    await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    const { error } = await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    if (error) { failToast(); return }
     if (done) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
-  const del = async (id) => { await supabase.from('player_goals').delete().eq('id', id); load() }
+  const del = async (id) => {
+    const { error } = await supabase.from('player_goals').delete().eq('id', id)
+    if (error) { toast.error(L('המחיקה נכשלה — נסה שוב', 'Failed to delete — try again')); return }
+    load()
+  }
 
   return (
     <div className="pg-editor">
@@ -124,6 +141,18 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
         </p>
       </div>
 
+      {/* שלושת המצבים: טעינה · שגיאה עם «נסה שוב» · רשימה */}
+      {goals === null && !loadErr && <SkeletonCards count={2} lines={1} />}
+      {loadErr && (
+        <div className="empty-state" role="alert">
+          <span className="empty-ic"><Target size={26} /></span>
+          <div className="empty-title">{L('לא הצלחנו לטעון את היעדים', 'Could not load the goals')}</div>
+          <p className="muted small">{L('היעדים לא נמחקו — זו תקלת טעינה.', 'No goals were deleted — this is a loading error.')}</p>
+          <button type="button" className="btn-soft empty-cta" onClick={() => { setGoals(null); setLoadErr(null); load() }}>
+            {L('נסה שוב', 'Try again')}
+          </button>
+        </div>
+      )}
       {goals && goals.length > 0 && (
         <ul className="pg-list">
           {goals.map((g) => (
@@ -170,14 +199,15 @@ function AddGoalSheet({ open, onClose, onAdd }) {
   const [target, setTarget] = useState('')
   const [period, setPeriod] = useState('month')
   const [busy, setBusy] = useState(false)
+  // מלכודת פוקוס: Escape, Tab שנשאר בתוך הגיליון, והחזרת הפוקוס לכפתור הפותח.
+  // בלי זה aria-modal הייתה הצהרה לא נכונה — המקלדת המשיכה לטייל ברקע.
+  const sheetRef = useFocusTrap(!!open, () => onClose?.())
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
-  }, [open, onClose])
+    return () => { document.body.style.overflow = '' }
+  }, [open])
 
   const submit = async () => {
     if (!title.trim() || busy) return
@@ -190,7 +220,7 @@ function AddGoalSheet({ open, onClose, onAdd }) {
   if (!open) return null
   return createPortal(
     <div className="fbs-scrim" onClick={onClose}>
-      <div className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={L('יעד חדש', 'New goal')}>
+      <div ref={sheetRef} className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={L('יעד חדש', 'New goal')}>
         <span className="fbs-grip" />
         <button className="fbs-x" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
         <div className="fbs-title">{L('יעד חדש', 'New goal')}</div>
@@ -251,10 +281,14 @@ export function MyGoals({ session, membership }) {
   const [openId, setOpenId] = useState(null)
   const [amtInput, setAmtInput] = useState({})
   const [addOpen, setAddOpen] = useState(false)
+  const [loadErr, setLoadErr] = useState(null)
   const me = session.user.id
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
+    // בלי בדיקת error שגיאת שליפה הוצגה לשחקן (לרוב קטין) כ«עוד אין יעדים»
+    const { data, error } = await supabase.from('player_goals').select('*').order('created_at', { ascending: false })
+    if (error) { setLoadErr(error); setGoals([]); setLogsBy({}); return }
+    setLoadErr(null)
     setGoals(data || [])
     const ids = (data || []).map((g) => g.id)
     if (ids.length) {
@@ -276,8 +310,15 @@ export function MyGoals({ session, membership }) {
 
   const applyProgress = async (g, next) => {
     const done = next >= g.target_value
+    const prev = { progress_value: g.progress_value, status: g.status }
     setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, progress_value: next, status: done ? 'done' : 'active' } : x))
-    await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    const { error } = await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    // כישלון החזיר עד עכשיו 204 בשקט — הכפתור «עבד» וההתקדמות נעלמה בטעינה הבאה
+    if (error) {
+      setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, ...prev } : x))
+      failToast()
+      return
+    }
     await recordLog(g.id, next)
     if (done && g.status !== 'done') { toast.success(L('הושלם יעד! 🎉', 'Goal completed! 🎉')); burstConfetti() }
   }
@@ -299,8 +340,14 @@ export function MyGoals({ session, membership }) {
 
   const toggleDone = async (g) => {
     const done = g.status !== 'done'
+    const prevStatus = g.status
     setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, status: done ? 'done' : 'active' } : x))
-    await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    const { error } = await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
+    if (error) {
+      setGoals((cur) => cur.map((x) => x.id === g.id ? { ...x, status: prevStatus } : x))
+      failToast()
+      return
+    }
     if (done) toast.success(L('כל הכבוד! 💪', 'Nice! 💪'))
   }
 
@@ -319,6 +366,22 @@ export function MyGoals({ session, membership }) {
   }
 
   if (goals === null) return <SkeletonCards count={3} lines={2} />
+
+  // מצב שגיאה — לא «אין יעדים». הסבר מרגיע + «נסה שוב».
+  if (loadErr) {
+    return (
+      <div className="pl-screen pl-narrow">
+        <div className="empty-state" role="alert">
+          <span className="empty-ic"><Target size={26} /></span>
+          <div className="empty-title">{L('לא הצלחנו לטעון את היעדים', 'Could not load your goals')}</div>
+          <p className="muted small">{L('היעדים שלך לא נמחקו — זו תקלת טעינה. בדקו את החיבור ונסו שוב.', 'Your goals were not deleted — this is a loading error. Check your connection and try again.')}</p>
+          <button type="button" className="btn-primary empty-cta" onClick={() => { setGoals(null); setLoadErr(null); load() }}>
+            {L('נסה שוב', 'Try again')}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const total = goals.length
   const inProg = goals.filter((g) => goalFrac(g) < 1).length

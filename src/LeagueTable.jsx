@@ -3,6 +3,7 @@ import { RefreshCw, Trophy, Share2 } from 'lucide-react'
 import { leagueStandings, clubCore } from './iba'
 import { waShare } from './share'
 import { L } from './i18n'
+import { SITE_URL } from './constants'
 
 // טבלת ליגה חיה מהאיגוד — נבנית מנתונים אמיתיים ומתעדכנת בכל טעינה.
 // props: leagueId, leagueName, highlight (שם/ליבת-שם הקבוצה של המאמן להדגשה)
@@ -45,9 +46,10 @@ export default function LeagueTable({ leagueId, leagueName, highlight }) {
             return (
               <button className="icon-btn" aria-label={L('שיתוף מצב בליגה', 'Share league standing')}
                 title={L('שיתוף בוואטסאפ', 'Share on WhatsApp')}
+                /* SITE_URL ולא origin — באפליקציה נייטיבית ה-origin הוא capacitor://localhost */
                 onClick={() => waShare(L(
-                  `🏀 ${myRow.name} — מקום ${myRow.pos} ב${leagueName || 'ליגה'}!\n${myRow.w} ניצחונות · ${myRow.l} הפסדים · ${myRow.pts} נק׳\n${window.location.origin}`,
-                  `🏀 ${myRow.name} — #${myRow.pos} in ${leagueName || 'the league'}!\n${myRow.w}W · ${myRow.l}L · ${myRow.pts} pts\n${window.location.origin}`
+                  `🏀 ${myRow.name} — מקום ${myRow.pos} ב${leagueName || 'ליגה'}!\n${myRow.w} ניצחונות · ${myRow.l} הפסדים · ${myRow.pts} נק׳\n${SITE_URL}`,
+                  `🏀 ${myRow.name} — #${myRow.pos} in ${leagueName || 'the league'}!\n${myRow.w}W · ${myRow.l}L · ${myRow.pts} pts\n${SITE_URL}`
                 ))}>
                 <Share2 size={15} />
               </button>

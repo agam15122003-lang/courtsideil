@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X } from 'lucide-react'
 import { L } from './i18n'
 import { motionOff, dur, loadGsap, resetArrowDraw, clearArrowDraw, buildArrowDraw } from './anim'
+import { CourtLines, ObjectShape, arcLift, arcPath } from './CourtDiagram'
 
 const HALF = { w: 500, h: 470 }
 const FULL = { w: 940, h: 500 }
@@ -18,81 +19,9 @@ const palette = () => [
   { type: 'ball', label: L('כדור', 'Ball') },
 ]
 
-function CourtLines({ full }) {
-  if (full) {
-    return (
-      <g stroke="#ffffff" strokeWidth="3" fill="none">
-        <rect x="10" y="10" width="920" height="480" rx="6" />
-        <line x1="470" y1="10" x2="470" y2="490" />
-        <circle cx="470" cy="250" r="55" />
-        <rect x="10" y="170" width="170" height="160" fill="rgba(27,42,74,0.12)" />
-        <circle cx="180" cy="250" r="46" />
-        <line x1="28" y1="210" x2="28" y2="290" />
-        <circle cx="44" cy="250" r="9" />
-        <path d="M10 64 L150 64 Q 330 250 150 436 L10 436" />
-        <rect x="760" y="170" width="170" height="160" fill="rgba(27,42,74,0.12)" />
-        <circle cx="760" cy="250" r="46" />
-        <line x1="912" y1="210" x2="912" y2="290" />
-        <circle cx="896" cy="250" r="9" />
-        <path d="M930 64 L790 64 Q 610 250 790 436 L930 436" />
-      </g>
-    )
-  }
-  return (
-    <g stroke="#ffffff" strokeWidth="3" fill="none">
-      <rect x="10" y="10" width="480" height="450" rx="6" />
-      <rect x="190" y="10" width="120" height="170" fill="rgba(27,42,74,0.12)" />
-      <circle cx="250" cy="180" r="48" />
-      <line x1="210" y1="28" x2="290" y2="28" />
-      <circle cx="250" cy="42" r="9" />
-      <path d="M60 10 L60 150 Q 250 330 440 150 L440 10" />
-    </g>
-  )
-}
-
-function ObjectShape({ o }) {
-  if (o.type === 'cone') {
-    return (
-      <polygon
-        points={`${o.x},${o.y - 12} ${o.x - 11},${o.y + 10} ${o.x + 11},${o.y + 10}`}
-        fill="#E8763A"
-        stroke="#A8491A"
-        strokeWidth="1.5"
-      />
-    )
-  }
-  if (o.type === 'ball') {
-    return <circle cx={o.x} cy={o.y} r="9" fill="#E8763A" stroke="#A8491A" strokeWidth="1.5" />
-  }
-  if (o.type === 'defender') {
-    return (
-      <>
-        <circle cx={o.x} cy={o.y} r="14" fill="#fff" stroke="#D64545" strokeWidth="2.5" />
-        <text x={o.x} y={o.y + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill="#D64545">
-          {o.label || 'X'}
-        </text>
-      </>
-    )
-  }
-  return (
-    <>
-      <circle cx={o.x} cy={o.y} r="14" fill="#1B2A4A" />
-      <text x={o.x} y={o.y + 5} textAnchor="middle" fontSize="15" fontWeight="700" fill="#fff">
-        {o.label}
-      </text>
-    </>
-  )
-}
-
-// גובה הקשת של "זריקה לסל" לפי אורך החץ
-const arcLift = (x1, y1, x2, y2) => Math.min(90, Math.hypot(x2 - x1, y2 - y1) * 0.5)
-
-// מסלול קשת (פרבולה) לזריקה לסל
-const arcPath = (x1, y1, x2, y2) => {
-  const mx = (x1 + x2) / 2
-  const my = (y1 + y2) / 2
-  return `M${x1},${y1} Q${mx},${my - arcLift(x1, y1, x2, y2)} ${x2},${y2}`
-}
+// ציור המגרש, השחקנים והחצים מגיע מ-CourtDiagram — עותק אחד לשני המסכים
+// (עד היום היו כאן שני עותקים זהים והתיקון באחד לא הגיע לשני).
+// כאן משתמשים בווריאנט 'board': קווים לבנים עבים על מגרש הנייבי.
 
 // לחיצה ארוכה למחיקה (מפרט המסמך). דאבל-קליק פשוט לא קיים במגע —
 // עד היום אי אפשר היה למחוק אובייקט או חץ מהטלפון בכלל.
@@ -402,7 +331,7 @@ function Board({
           </marker>
         </defs>
         <rect x="0" y="0" width={dim.w} height={dim.h} fill="#E3B877" />
-        <CourtLines full={full} />
+        <CourtLines full={full} variant="board" />
         <g ref={arrowsRef}>
           {arrows.map((a) => (
             <Arrow

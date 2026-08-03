@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense, Component } from 'react'
 import { supabase } from './supabaseClient'
 import ProfileForm from './ProfileForm'
 import MyStats from './MyStats'
@@ -9,23 +9,100 @@ import Home from './Home'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
 import Notifications from './Notifications'
-import PlayerDashboard from './PlayerDashboard'
+import PendingApproval from './PendingApproval'
+import AdultConfirm from './AdultConfirm'
 import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
 import { useLang, L } from './i18n'
+// isAdultPlayer עבר ל-consent.js: גם מסך ההמתנה צריך אותו כדי לזהות שחקן
+// שהגיע ל-18 בזמן שחיכה לאישור הורה.
+import { isAdultPlayer } from './consent'
 
-// מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה
-const CoachFinder = lazy(() => import('./CoachFinder'))
-const DrillLibrary = lazy(() => import('./DrillLibrary'))
-const TrainingPlans = lazy(() => import('./TrainingPlans'))
-const Messages = lazy(() => import('./Messages'))
-const Community = lazy(() => import('./Community'))
-const Schedule = lazy(() => import('./Schedule'))
-const Teams = lazy(() => import('./Teams'))
-const Admin = lazy(() => import('./Admin'))
+// ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
+// אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
+// מחזיר 404. React מטמין את הדחייה בתוך lazy(): מרגע שה-thenable נדחה, כל
+// רינדור חוזר זורק את אותה שגיאה — ולכן «נסה שוב» של ErrorBoundary הוא no-op.
+// המסקנה: הניסיון החוזר חייב לקרות כאן, בתוך ה-factory, לפני ש-React בכלל
+// רואה דחייה.
+const CHUNK_FLAG = 'cs-chunk-reload'
+// גישה ל-sessionStorage זורקת בגלישה פרטית/עוגיות חסומות — כל נגיעה עטופה
+const chunkFlag = {
+  read() {
+    try { if (sessionStorage.getItem(CHUNK_FLAG) === '1') return true } catch { /* מצב פרטיות */ }
+    // גיבוי כשאין sessionStorage בכלל: אם הטעינה הנוכחית היא כבר רענון, רענון
+    // נוסף לא יביא נכסים חדשים יותר — הוא רק ייצור לולאת רענונים.
+    try { return performance.getEntriesByType('navigation')[0]?.type === 'reload' } catch { return false }
+  },
+  mark() { try { sessionStorage.setItem(CHUNK_FLAG, '1') } catch { /* מצב פרטיות */ } },
+  clear() { try { sessionStorage.removeItem(CHUNK_FLAG) } catch { /* מצב פרטיות */ } },
+}
+
+function lazyRetry(factory) {
+  // טעינה מוצלחת מנקה את הדגל, כדי שדפלוי נוסף באותו טאב עדיין יזכה לרענון
+  const ok = (mod) => { chunkFlag.clear(); return mod }
+  return () => factory().then(ok).catch(() => new Promise((resolve, reject) => {
+    // נפילת רשת רגעית (סלולרי) — ניסיון שני שקט לפני שמקפיצים את המשתמש
+    setTimeout(() => {
+      factory().then((mod) => resolve(ok(mod))).catch((err) => {
+        // נכשל גם בשנייה: כמעט תמיד דפלוי חדש. רענון אחד מביא index.html
+        // עדכני עם ה-hash הנוכחי; הדגל מונע לולאת רענונים אינסופית.
+        if (!chunkFlag.read()) { chunkFlag.mark(); window.location.reload(); return }
+        reject(err)
+      })
+    }, 800)
+  }))
+}
+
+// כשל טעינה של chunk, על פני הדפדפנים (הודעת השגיאה אינה מתוקננת)
+const isChunkError = (e) =>
+  /dynamically imported module|module script failed|loading chunk|chunkloaderror|failed to fetch/i
+    .test(String(e?.message || e))
+
+// גדר ייעודית לכשל טעינה במסלול השחקן: שם אין תפריט ואין מסך אחר לעבור אליו,
+// והטקסט של ErrorBoundary («אפשר לעבור למסך אחר בתפריט») מבטיח מוצא שלא קיים.
+// כל שגיאה שאינה כשל טעינה נזרקת הלאה, כדי ש-ErrorBoundary החיצוני יתפוס
+// וידווח עליה כרגיל.
+class ChunkGate extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    const { error } = this.state
+    if (!error) return this.props.children
+    if (!isChunkError(error)) throw error
+    return (
+      <div className="empty-state" role="alert">
+        <span className="empty-ic"><AlertTriangle size={26} /></span>
+        <div className="empty-title">{L('צריך לרענן את הדף', 'The page needs a refresh')}</div>
+        <p className="muted small" style={{ maxWidth: 460 }}>
+          {L('יצאה גרסה חדשה של CourtSide בזמן שהאפליקציה הייתה פתוחה, ולכן המסך לא נטען. רענון אחד פותר את זה — שום דבר לא נמחק.',
+             'A new version of CourtSide shipped while the app was open, so the screen could not load. One refresh fixes it — nothing is lost.')}
+        </p>
+        <div className="form-actions" style={{ justifyContent: 'center' }}>
+          <button type="button" className="btn-primary" onClick={() => { chunkFlag.clear(); window.location.reload() }}>
+            <RotateCcw size={16} /> {L('רענון הדף', 'Refresh the page')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+}
+
+// מסכים כבדים נטענים רק בכניסה אליהם (code-splitting) — טעינה ראשונית מהירה.
+// PlayerDashboard גורר איתו את כל עולם השחקן (~2000 שורות + מסכי המשנה שלו);
+// כשהוא היה import רגיל כל מאמן הוריד מסכים שלעולם לא יראה. חשוב: אסור
+// לייבא אף אחד מהם גם באופן רגיל — ייבוא כפול מבטל בשקט את כל הפיצול.
+const PlayerDashboard = lazy(lazyRetry(() => import('./PlayerDashboard')))
+const CoachFinder = lazy(lazyRetry(() => import('./CoachFinder')))
+const DrillLibrary = lazy(lazyRetry(() => import('./DrillLibrary')))
+const TrainingPlans = lazy(lazyRetry(() => import('./TrainingPlans')))
+const Messages = lazy(lazyRetry(() => import('./Messages')))
+const Community = lazy(lazyRetry(() => import('./Community')))
+const Schedule = lazy(lazyRetry(() => import('./Schedule')))
+const Teams = lazy(lazyRetry(() => import('./Teams')))
+const Admin = lazy(lazyRetry(() => import('./Admin')))
 // 10a — הצד הציבורי של הפרופיל הוא בדיוק המסך שמאמן אחר רואה
-const CoachProfile = lazy(() => import('./CoachProfile'))
-const Media = lazy(() => import('./Media'))
+const CoachProfile = lazy(lazyRetry(() => import('./CoachProfile')))
+const Media = lazy(lazyRetry(() => import('./Media')))
 import {
   Home as HomeIcon,
   User,
@@ -36,7 +113,6 @@ import {
   MessagesSquare,
   CalendarDays,
   MonitorPlay,
-  Send,
   Shield,
   ShieldCheck,
   Menu,
@@ -48,6 +124,8 @@ import {
   Smartphone,
   Plus,
   Eye,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
@@ -171,6 +249,8 @@ export default function Dashboard({ session }) {
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
 
   const [loadError, setLoadError] = useState(false)
+  // המודל של אישור הבגירות נסגר לסשן הזה (אישור או «אחר כך»)
+  const [adultDone, setAdultDone] = useState(false)
 
   // ניווט עם יעדי-עומק: 'community-chats' פותח את הקהילה על טאב הצ'אטים,
   // 'finder-games' פותח את המאתר על לוח משחקי האימון
@@ -268,6 +348,33 @@ export default function Dashboard({ session }) {
     return () => { mq.removeEventListener('change', apply); el.inert = false }
   }, [drawerOpen])
 
+  // ===== שומר ה-Back של אנדרואיד =====
+  // עד היום כפתור ה-Back החומרתי סגר את האפליקציה מכל מסך פנימי ומכל מגירה
+  // פתוחה. כאן דוחפים רשומת היסטוריה אחת כשיש "משהו לסגור", ו-popstate סוגר
+  // אותו במקום לצאת. בחזרה לבית הרשומה נצרכת, כך שההיסטוריה לא מתנפחת.
+  const backGuardRef = useRef(0)
+  useEffect(() => {
+    const needGuard = drawerOpen || view !== 'home'
+    if (needGuard && backGuardRef.current === 0) {
+      try { window.history.pushState({ csGuard: 'screen' }, '') } catch { /* ignore */ }
+      backGuardRef.current = 1
+    } else if (!needGuard && backGuardRef.current === 1) {
+      backGuardRef.current = 0
+      try { window.history.back() } catch { /* ignore */ }
+    }
+  }, [drawerOpen, view])
+
+  useEffect(() => {
+    const onPop = () => {
+      if (backGuardRef.current === 0) return // הרשומה שלנו כבר נצרכה
+      backGuardRef.current = 0
+      if (drawerOpen) { setDrawerOpen(false); return }
+      if (view !== 'home') setView('home')
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [drawerOpen, view])
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
@@ -292,9 +399,102 @@ export default function Dashboard({ session }) {
     profile && profile.first_name && profile.last_name && (isPlayer || profile.club)
   const showForm = editing || (!loading && !isComplete)
 
+  // אנימציית כניסת מסך בלי remount: במקום key על .main-inner (שפירק את כל
+  // עץ המסך בכל ניווט) מפעילים מחדש את אנימציית ה-CSS הקיימת — ניקוי
+  // ה-animation, reflow אחד, והחזרה לערך מהגיליון. prefers-reduced-motion
+  // ממשיך לכבות אותה בגיליון עצמו, ולכן אין כאן שום התנהגות שצריך לשכפל.
+  const mainInnerRef = useRef(null)
+  const viewKey = showForm ? 'profile-form' : view
+  const firstViewRef = useRef(true)
+  useEffect(() => {
+    if (firstViewRef.current) { firstViewRef.current = false; return } // המסך הראשון כבר מונפש מעצמו
+    const el = mainInnerRef.current
+    if (!el) return
+    el.style.animation = 'none'
+    void el.offsetWidth // reflow — בלעדיו הדפדפן מאחד את שני השינויים ולא מפעיל מחדש
+    el.style.animation = ''
+  }, [viewKey])
+
+  // ===== שער אישור ההורה =====
+  // approval_status שלא קיים בשורה (מסד שטרם הריץ את המיגרציה) נחשב 'active' —
+  // בשום מצב לא נועלים משתמש קיים בגלל עמודה חסרה.
+  const approvalStatus = profile?.approval_status || 'active'
+  const awaitingGuardian =
+    isPlayer && (approvalStatus === 'pending_parent' || approvalStatus === 'suspended')
+
+  // שחקן שהגיע ל-18 בזמן ההמתנה נשאר 'pending_parent' לנצח: הסטטוס מחושב
+  // מחדש רק ב-UPDATE על profiles, ולכן «בדיקת סטטוס» לבדה לא תשחרר אותו לעולם.
+  // confirm_adult() קיימת בדיוק בשביל זה — כאן נותנים לה קורא.
+  // רק 'pending_parent': ב-'suspended' (אדמין השעה, או ההורה ביטל הסכמה)
+  // אסור שהמשתמש ישחרר את עצמו — confirm_adult קובעת 'active' ללא תנאי.
+  const canSelfConfirm = isPlayer && approvalStatus === 'pending_parent' && isAdultPlayer(profile)
+
+  // בלי תלות ב-loading: «בדיקת סטטוס» מפעילה loading=true לרגע, ובלעדי זה
+  // המסך היה מהבהב אל מעטפת המאמן בכל לחיצה. הפרופיל הישן נשאר ב-state
+  // עד שהטעינה מסתיימת, ולכן השער עדיין מחושב על נתונים אמיתיים.
+  if (!loadError && isComplete && awaitingGuardian) {
+    // «שינוי הפרטים של ההורה» — טופס הפרופיל לבדו, בלי המעטפת של המאמן
+    if (editing) {
+      return (
+        <div className="center-screen">
+          <ProfileForm
+            session={session}
+            profile={profile}
+            onSaved={() => { setEditing(false); loadProfile() }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      )
+    }
+    return (
+      <PendingApproval
+        profile={profile}
+        status={approvalStatus}
+        canSelfConfirm={canSelfConfirm}
+        onEditProfile={() => setEditing(true)}
+        onRecheck={loadProfile}
+      />
+    )
+  }
+
+  // בגיר שעדיין לא אישר בעצמו: המודל מוצג רק כשהעמודה קיימת בשורה (אחרת
+  // המסד טרם עודכן), רק כשיש פרטי הורה לנקות, ורק פעם אחת בסשן.
+  const adultNeedsConfirm =
+    isPlayer &&
+    !adultDone &&
+    !!profile &&
+    Object.prototype.hasOwnProperty.call(profile, 'adult_confirmed_at') &&
+    !profile.adult_confirmed_at &&
+    isAdultPlayer(profile) &&
+    !!(profile.guardian_email || profile.guardian_name || profile.guardian_consent_at)
+
   // שחקן מלא → האפליקציה של השחקן (מעטפת נפרדת)
   if (!loading && !showForm && isPlayer) {
-    return <PlayerDashboard session={session} profile={profile} onProfileReload={loadProfile} />
+    return (
+      <>
+        {/* נטען עצלנית — ולכן חייב Suspense + גדר בטיחות משלו כאן.
+            ChunkGate יושב בפנים ומטפל רק בכשל טעינת ה-chunk (שם «נסה שוב»
+            חסר משמעות); כל שאר השגיאות ממשיכות ל-ErrorBoundary ומדווחות. */}
+        <ErrorBoundary screen="player:root">
+          <ChunkGate>
+            <Suspense
+              fallback={(
+                <div className="app-loading" style={{ padding: '48px 0' }}>
+                  <div className="loader" />
+                </div>
+              )}
+            >
+              <PlayerDashboard session={session} profile={profile} onProfileReload={loadProfile} />
+            </Suspense>
+          </ChunkGate>
+        </ErrorBoundary>
+        <AdultConfirm
+          open={adultNeedsConfirm}
+          onDone={() => { setAdultDone(true); loadProfile() }}
+          onClose={() => setAdultDone(true)}
+        />
+      </>
+    )
   }
 
   return (
@@ -408,8 +608,10 @@ export default function Dashboard({ session }) {
       </aside>
 
       <main className="main-content" id="main">
-        {/* key={view} — מרנדר מחדש בכל החלפת מסך כדי שאנימציית הכניסה תתנגן */}
-        <div className="main-inner" key={showForm ? 'profile-form' : view}>
+        {/* היה כאן key={view}: כל החלפת מסך פירקה ובנתה מחדש את כל המכולה
+            (כולל QuoteStrip) רק כדי שאנימציית הכניסה תתנגן שוב. עכשיו
+            האנימציה מופעלת מחדש ב-JS (viewAnimRef למטה) והמכולה יציבה. */}
+        <div className="main-inner" ref={mainInnerRef}>
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2).
               חוץ מדף הבית: שם הציטוט יושב בתוך ההירו ומסונכרן להחלפת התמונה,
               והצגתו פעמיים באותו מסך נראית כמו תקלה. */}
@@ -417,8 +619,9 @@ export default function Dashboard({ session }) {
               והציטוט חוזר לפס העליון (index.css: .home-hero-quote מוסתר). */}
           {!loading && !showForm && (view !== 'home' || isNarrow) && <QuoteStrip />}
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
-              ה-key על .main-inner גורם ל-boundary להתאפס בכל מעבר מסך. */}
-          <ErrorBoundary screen={showForm ? 'coach:profile-form' : `coach:${view}`}>
+              ה-key ירד מ-.main-inner ולכן הוא יושב כאן — בלעדיו מסך שקרס
+              היה משאיר את הודעת השגיאה גם אחרי מעבר למסך אחר. */}
+          <ErrorBoundary key={viewKey} screen={showForm ? 'coach:profile-form' : `coach:${view}`}>
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>

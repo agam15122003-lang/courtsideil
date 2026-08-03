@@ -1,5 +1,5 @@
 import { toast } from './toast'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
@@ -14,6 +14,39 @@ import MultiSelect from './MultiSelect'
 import { SkeletonCards } from './Skeleton'
 import CourtArt from './CourtArt'
 
+// עימוד הספרייה + רשימת עמודות מפורשת במקום select('*').
+// ספריית תרגילים קהילתית גדלה בלי גבול — שליפה אחת של כל הטבלה עם שלושה
+// joins (מחבר, כל הדירוגים, כל השמירות) הייתה מאטה את המסך ומנפחת egress.
+const DRILLS_PAGE = 30
+const DRILL_JOINS = 'author:profiles(first_name, last_name, club), drill_ratings(rating, user_id), saved_drills(user_id)'
+const DRILL_BASE = 'id, title, description, category, age_groups, duration_minutes, equipment, video_url, players, difficulty, goal, reps, coach_notes, created_by, created_at'
+const DRILL_COLS = `${DRILL_BASE}, tags, is_public, board, image_url, ${DRILL_JOINS}`
+// מסד שטרם הריץ את supabase_launch_migration.sql — בלי tags/is_public/board/image_url
+const DRILL_COLS_LEGACY = `${DRILL_BASE}, ${DRILL_JOINS}`
+
+// "עוד לא נפרס בפרודקשן" — עמודה/פונקציה/טבלה שחסרות במסד
+const notDeployed = (e) =>
+  ['42703', '42883', '42P01', 'PGRST202'].includes(e?.code) ||
+  /does not exist/i.test(e?.message || '')
+
+// חיטוי מחרוזת חיפוש לפני הרכבת פילטר `or` של PostgREST. הפרסר מפרק את
+// המחרוזת לפי פסיקים/סוגריים/נקודות, ו-% ו-_ הם תווי ג׳וקר של ilike — מאמן
+// שיקליד «3 על 2 (חצי מגרש)» היה מקבל 400 ומסך שגיאה במקום תוצאות.
+const safeSearch = (s) =>
+  String(s || '')
+    .trim()
+    .replace(/[,()."'%_*\\:{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+// כרטיס תרגיל ממומו: בלי memo כל הקלדה בשדה החיפוש רינדרה מחדש את כל
+// הכרטיסים ברשת. ה-closure של המחיקה נוצר כאן ולא אצל ההורה, כך
+// שכל ה-props שיורדים מלמעלה יציבים בין רינדורים.
+const DrillCardRow = memo(function DrillCardRow({ drill, userId, onDelete, ...rest }) {
+  const del = useCallback(() => onDelete(drill.id), [onDelete, drill.id])
+  return <DrillCard drill={drill} userId={userId} onDelete={del} {...rest} />
+})
+
 // מסך "ספריית תרגילים" — מציג את כל התרגילים, עם חיפוש, סינון,
 // הוספה, דירוג בכוכבים, שמירה למועדפים, ומחיקת תרגיל שלי.
 // props:
@@ -22,6 +55,8 @@ export default function DrillLibrary({ session, profile, embedded }) {
   // מלכודת פוקוס לבוררי "הוסף לתוכנית" / "שלח לשחקנים"
   const [drills, setDrills] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState(null)
   const [adding, setAdding] = useState(false) // האם מציגים את טופס ההוספה
   const [editingDrill, setEditingDrill] = useState(null) // תרגיל שנבחר לעריכה
@@ -43,12 +78,19 @@ export default function DrillLibrary({ session, profile, embedded }) {
 
   // בורר "שליחה לשחקנים" — קבוצות + שחקנים מחוברים
   const [sendPicker, setSendPicker] = useState(null) // התרגיל שנבחר לשליחה
-  const isCoach = (profile?.role || 'coach') !== 'player'
+  // fail-closed: כל עוד הפרופיל לא נטען אין הרשאות מאמן. קודם ברירת המחדל
+  // הייתה 'coach', כך שכפתורי המאמן הבהבו לשחקן בכל טעינה (ה-RLS אמנם חוסם
+  // בפועל, אבל כיוון ברירת המחדל היה הפוך מעקרון fail-safe).
+  const isCoach = !!profile && profile.role !== 'player'
 
   // מלכודת פוקוס לבוררי "הוספה לתוכנית" / "שליחה לשחקנים" (רק אחד פתוח בכל רגע)
   const dlgRef = useFocusTrap(!!planPicker, () => setPlanPicker(null))
 
-  const openPlanPicker = async (drill) => {
+  // מזהה בקשה — עם debounce על החיפוש תגובה איטית של «קליע» עלולה לחזור
+  // אחרי זו של «קליעה» ולדרוס אותה. רק התשובה של הבקשה האחרונה נכנסת ל-state.
+  const reqRef = useRef(0)
+
+  const openPlanPicker = useCallback(async (drill) => {
     setPlanPicker(drill)
     setNewPlanName('')
     const { data } = await supabase
@@ -57,7 +99,7 @@ export default function DrillLibrary({ session, profile, embedded }) {
       .eq('created_by', session.user.id)
       .order('created_at', { ascending: false })
     setMyPlans(data || [])
-  }
+  }, [session.user.id])
 
   const insertItem = async (planId, drill) => {
     const { data: last } = await supabase
@@ -105,30 +147,93 @@ export default function DrillLibrary({ session, profile, embedded }) {
   // טוען את כל התרגילים, יחד עם: שם המאמן, הדירוגים, והאם שמרתי אותם.
   // opts.silent — רענון אחרי דירוג/שמירה/מחיקה: לא מציגים שלד (כדי לא לקרוס
   // כרטיס מורחב), ולא מאבדים את הרשימה על שגיאה חולפת.
+  // opts.append — «טען עוד»: מוסיף את העמוד הבא במקום להחליף את הרשימה.
+  // ברענון שקט נשמר מספר העמודים שכבר נטענו, כדי שדירוג/שמירה לא יקצצו
+  // את הרשימה חזרה לעמוד הראשון.
+  //
+  // הסינון עבר למסד: קודם הוא רץ רק על העמוד שנטען, ולכן חיפוש של תרגיל
+  // אמיתי שנמצא בעמוד 7 החזיר «אין תוצאות לסינון» — האפליקציה הצהירה שאין
+  // דבר שקיים. פילטרים שקיימים רק אחרי supabase_launch_migration.sql
+  // (tags/is_public) מוחלים רק בענף המודרני; בענף ה-legacy הם נשארים
+  // לסינון הלקוח שלמטה, שנשאר כרשת ביטחון על מה שחזר.
   async function loadDrills(opts = {}) {
-    if (!opts.silent) setLoading(true)
-    const { data, error } = await supabase
-      .from('drills')
-      .select(
-        '*, author:profiles(first_name, last_name, club), drill_ratings(rating, user_id), saved_drills(user_id)'
-      )
-      .order('created_at', { ascending: false })
+    const append = !!opts.append
+    const from = append ? drills.length : 0
+    const size = append ? DRILLS_PAGE : Math.max(DRILLS_PAGE, opts.silent ? drills.length : 0)
+    const reqId = ++reqRef.current
+    if (append) setLoadingMore(true)
+    else if (!opts.silent) setLoading(true)
 
-    if (error) {
-      if (!opts.silent) setError(L('שגיאה בטעינת התרגילים: ', 'Error loading drills: ') + error.message)
-    } else {
-      setDrills(data || [])
-      setError(null) // רענון מוצלח מנקה שגיאה קודמת שנתקעה
+    // החיפוש עובר למסד רק אם החיטוי לא שינה את המחרוזת. אחרת נשארים עם
+    // סינון הלקוח בלבד — כך שאילתה מחוטאת לעולם לא תחזיר שורה שרשת
+    // הביטחון בלקוח (שמשווה למחרוזת המקורית) תזרוק מיד אחר כך.
+    const rawQ = String(search || '').trim()
+    const clean = safeSearch(search)
+    const q = clean && clean === rawQ ? clean : ''
+    const uid = session.user.id
+    const page = (cols, modern) => {
+      // onlySaved: !inner מצמצם לתרגילים שיש להם שורת saved_drills. ה-RLS על
+      // saved_drills מחזיר רק את השורות שלי, ולכן זה בדיוק «המועדפים שלי».
+      let sel = supabase
+        .from('drills')
+        .select(onlySaved ? cols.replace('saved_drills(', 'saved_drills!inner(') : cols)
+      if (catFilter) sel = sel.eq('category', catFilter)
+      if (ageFilter.length) sel = sel.overlaps('age_groups', ageFilter)
+      if (source === 'mine') sel = sel.eq('created_by', uid)
+      else if (source === 'community') {
+        sel = sel.neq('created_by', uid)
+        // is_public חסר (שורות ותיקות) נחשב משותף — כמו בסינון הלקוח
+        if (modern) sel = sel.not('is_public', 'is', false)
+      }
+      // תגית עם פסיק/סוגריים תשבור את ליטרל המערך של PostgREST — כזו נשארת
+      // לסינון הלקוח בלבד
+      if (modern && tagFilter && !/[,{}"\\]/.test(tagFilter)) sel = sel.contains('tags', [tagFilter])
+      if (q) {
+        // חיפוש טקסט על שם/תיאור, ובענף המודרני גם על תגית מלאה
+        const parts = [`title.ilike.%${q}%`, `description.ilike.%${q}%`]
+        if (modern) parts.push(`tags.cs.{${q}}`)
+        sel = sel.or(parts.join(','))
+      }
+      return sel.order('created_at', { ascending: false }).range(from, from + size - 1)
     }
-    if (!opts.silent) setLoading(false)
+
+    let { data, error } = await page(DRILL_COLS, true)
+    // מסד שטרם הריץ את supabase_launch_migration.sql — חסרות עמודות
+    if (error && notDeployed(error)) ({ data, error } = await page(DRILL_COLS_LEGACY, false))
+
+    // תגובה של חיפוש קודם שהגיעה מאוחר — אסור לה לדרוס תוצאה עדכנית.
+    // דגלי הטעינה כן מתאפסים גם אז, אחרת שלד הטעינה היה יכול להיתקע לנצח.
+    const stale = reqId !== reqRef.current
+    if (!stale) {
+      if (error) {
+        if (append) toast.error(L('טעינת התרגילים הנוספים נכשלה', 'Failed to load more drills'))
+        else if (!opts.silent) setError(L('שגיאה בטעינת התרגילים: ', 'Error loading drills: ') + error.message)
+      } else {
+        const rows = data || []
+        setDrills((cur) => (append ? [...cur, ...rows] : rows))
+        setHasMore(rows.length === size)
+        setError(null) // רענון מוצלח מנקה שגיאה קודמת שנתקעה
+      }
+    }
+    if (append) setLoadingMore(false)
+    else if (!opts.silent) setLoading(false)
   }
 
+  // ה-handlers למטה חייבים להישאר יציבים (memo על כרטיס התרגיל), ולכן
+  // הם קוראים ל-loadDrills דרך ref במקום לתפוס אותו ב-closure.
+  const loadRef = useRef(loadDrills)
+  loadRef.current = loadDrills
+
+  // כל שינוי סינון מריץ שליפה חדשה מהעמוד הראשון (כולל הטעינה הראשונה).
+  // על החיפוש יש debounce קצר כדי לא לשלוח בקשה בכל הקלדה.
   useEffect(() => {
-    loadDrills()
-  }, [])
+    const t = setTimeout(() => loadRef.current(), search ? 300 : 0)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, catFilter, ageFilter, tagFilter, onlySaved, source])
 
   // דירוג תרגיל (1–5). upsert = מוסיף דירוג חדש, או מעדכן אם כבר דירגתי.
-  const handleRate = async (drillId, rating) => {
+  const handleRate = useCallback(async (drillId, rating) => {
     const { error } = await supabase
       .from('drill_ratings')
       .upsert(
@@ -138,12 +243,12 @@ export default function DrillLibrary({ session, profile, embedded }) {
     if (error) {
       toast.error(L('הדירוג נכשל: ', 'Rating failed: ') + error.message)
     } else {
-      loadDrills({ silent: true }) // מרענן ברקע — בלי לקרוס את הכרטיס המורחב
+      loadRef.current({ silent: true }) // מרענן ברקע — בלי לקרוס את הכרטיס המורחב
     }
-  }
+  }, [session.user.id])
 
   // שמירה/הסרה ממועדפים (טוגל)
-  const handleToggleSave = async (drillId, currentlySaved) => {
+  const handleToggleSave = useCallback(async (drillId, currentlySaved) => {
     if (currentlySaved) {
       const { error } = await supabase
         .from('saved_drills')
@@ -163,11 +268,11 @@ export default function DrillLibrary({ session, profile, embedded }) {
         return
       }
     }
-    loadDrills({ silent: true })
-  }
+    loadRef.current({ silent: true })
+  }, [session.user.id])
 
   // מחיקת תרגיל (רק תרגיל של המשתמש עצמו — מאובטח גם במסד)
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     const ok = await confirmDialog({
       title: L('למחוק את התרגיל?', 'Delete this drill?'),
       message: L('הפעולה אינה הפיכה — התרגיל יימחק לצמיתות.', 'This cannot be undone — the drill will be permanently deleted.'),
@@ -179,9 +284,9 @@ export default function DrillLibrary({ session, profile, embedded }) {
       toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message)
     } else {
       toast.success(L('התרגיל נמחק', 'Drill deleted'))
-      loadDrills({ silent: true })
+      loadRef.current({ silent: true })
     }
-  }
+  }, [])
 
   const toggleAge = (group) => {
     setAgeFilter((current) =>
@@ -404,35 +509,46 @@ export default function DrillLibrary({ session, profile, embedded }) {
             <span className="empty-ic">
               <Dumbbell size={26} />
             </span>
+            {/* הצהרה מוחלטת («עדיין לא שמרת תרגילים») מותרת רק כשאין עוד מה
+                להביא. כשיש עוד עמוד — הניסוח מדויק: לא נמצא *במה שנטען*,
+                ופעולת ההמשך היא «טען עוד» ולא «נקה סינון». */}
             <div className="empty-title">
-              {onlySaved
+              {hasMore
+                ? L('לא נמצאו תוצאות בין התרגילים שנטענו', 'No matches among the drills loaded so far')
+                : onlySaved
                 ? L('עדיין לא שמרת תרגילים', "You haven't saved any drills yet")
                 : source === 'community'
                 ? L('אין עדיין תרגילים מהקהילה', 'No community drills yet')
                 : source === 'mine'
                 ? L('עוד לא יצרת תרגילים', "You haven't created any drills yet")
-                : drills.length === 0
+                : drills.length === 0 && !hasFilters
                 ? L('הספרייה עדיין ריקה', 'The library is still empty')
                 : L('אין תוצאות לסינון', 'No results for this filter')}
             </div>
             <p className="muted small">
-              {onlySaved
+              {hasMore
+                ? L(`נבדקו ${drills.length} תרגילים — יש עוד בספרייה. «טען עוד תרגילים» ימשיך לחפש.`, `${drills.length} drills checked — there are more in the library. “Load more” keeps searching.`)
+                : onlySaved
                 ? L('לחצו על אייקון הסימנייה בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap the bookmark icon on a drill card to keep it here.')
                 : source === 'community'
                 ? L('כשמאמנים אחרים ישתפו תרגילים הם יופיעו כאן. בינתיים אפשר לעבור ל"כל התרגילים".', 'Drills other coaches share will show up here. Meanwhile, switch back to "All drills".')
                 : source === 'mine'
                 ? L('לחץ "הוסף תרגיל" כדי ליצור את התרגיל הראשון שלך.', 'Tap "Add drill" to create your first one.')
-                : drills.length === 0
+                : drills.length === 0 && !hasFilters
                 ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
                 : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}
             </p>
-            {drills.length === 0 ? (
-              <button type="button" className="btn-primary empty-cta" onClick={() => setAdding(true)}>
-                <Plus size={18} aria-hidden="true" /> {L('הוספת תרגיל', 'Add drill')}
+            {hasMore ? (
+              <button type="button" className="btn-primary empty-cta" onClick={() => loadDrills({ append: true })} disabled={loadingMore}>
+                {loadingMore ? L('טוען…', 'Loading…') : L('טען עוד תרגילים', 'Load more drills')}
               </button>
-            ) : (
+            ) : hasFilters ? (
               <button type="button" className="btn-soft empty-cta" onClick={clearFilters}>
                 {L('נקה סינון', 'Clear filters')}
+              </button>
+            ) : (
+              <button type="button" className="btn-primary empty-cta" onClick={() => setAdding(true)}>
+                <Plus size={18} aria-hidden="true" /> {L('הוספת תרגיל', 'Add drill')}
               </button>
             )}
           </div>
@@ -442,14 +558,14 @@ export default function DrillLibrary({ session, profile, embedded }) {
               {results.length === 1 ? L('תרגיל אחד', '1 drill') : L(`${results.length} תרגילים`, `${results.length} drills`)}
             </p>
             {results.map((drill) => (
-              <DrillCard
+              <DrillCardRow
                 key={drill.id}
                 drill={drill}
                 userId={session.user.id}
                 isMine={drill.created_by === session.user.id}
                 onRate={handleRate}
                 onToggleSave={handleToggleSave}
-                onDelete={() => handleDelete(drill.id)}
+                onDelete={handleDelete}
                 onTagClick={setTagFilter}
                 onAddToPlan={openPlanPicker}
                 onSend={isCoach ? setSendPicker : undefined}
@@ -457,6 +573,23 @@ export default function DrillLibrary({ session, profile, embedded }) {
               />
             ))}
           </div>
+        )}
+
+        {/* «טען עוד» — הספרייה נטענת בעמודים. בזמן סינון פעיל מסבירים
+            שהסינון חל על מה שכבר נטען. */}
+        {!loading && !error && hasMore && (
+          <div className="form-actions" style={{ justifyContent: 'center', marginTop: 16 }}>
+            <button type="button" className="btn-soft" onClick={() => loadDrills({ append: true })} disabled={loadingMore}>
+              {loadingMore ? L('טוען…', 'Loading…') : L('טען עוד תרגילים', 'Load more drills')}
+            </button>
+          </div>
+        )}
+        {/* המיון «דירוג גבוה» עדיין מחושב מהדירוגים של מה שנטען בלבד — אין
+            avg(rating) במסד. אומרים זאת במקום להציג «הכי מדורג בספרייה». */}
+        {!loading && !error && hasMore && sortBy === 'rating' && results.length > 0 && (
+          <p className="muted small" style={{ textAlign: 'center', marginTop: 6 }}>
+            {L('הסדר לפי דירוג מחושב על התרגילים שנטענו — «טען עוד» ידייק אותו.', 'The rating order is computed over the drills loaded so far — “Load more” refines it.')}
+          </p>
         )}
       </div>
 

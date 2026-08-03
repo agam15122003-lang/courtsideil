@@ -1,6 +1,8 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronRight, ChevronLeft, X, ArrowRight, Check, CalendarPlus, ClipboardCheck, RotateCw } from 'lucide-react'
+import { Plus, Trash2, X, Check, CalendarPlus, ClipboardCheck, RotateCw } from 'lucide-react'
+// אייקוני כיוון דרך DirIcon — מתהפכים אוטומטית במעבר לאנגלית (חוק RTL)
+import { ArrowBack, ChevronFwd, ChevronBack } from './DirIcon'
 import { downloadIcs } from './ics'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
@@ -436,7 +438,7 @@ export default function Schedule({ session, onNavigate }) {
     return (
       <div className="welcome-card">
         <button className="link-button" onClick={() => setPlanView(null)}>
-          <ArrowRight size={15} className="back-ic" /> {L('חזרה ללו"ז', 'Back to schedule')}
+          <ArrowBack size={15} className="back-ic" /> {L('חזרה ללו"ז', 'Back to schedule')}
         </button>
         <NotebookPage
           kind="plan"
@@ -458,7 +460,7 @@ export default function Schedule({ session, onNavigate }) {
             onClick={() => setWeekStart(addDays(weekStart, -7))}
             aria-label={L('שבוע קודם', 'Previous week')}
           >
-            <ChevronRight size={18} />
+            <ChevronBack size={18} />
           </button>
           <button className="btn-ghost cal-today" onClick={() => setWeekStart(sundayOf(new Date()))}>
             {L('היום', 'Today')}
@@ -479,7 +481,7 @@ export default function Schedule({ session, onNavigate }) {
             onClick={() => setWeekStart(addDays(weekStart, 7))}
             aria-label={L('שבוע הבא', 'Next week')}
           >
-            <ChevronLeft size={18} />
+            <ChevronFwd size={18} />
           </button>
           <span className="cal-weeklabel" dir="ltr">{weekLabel}</span>
         </div>

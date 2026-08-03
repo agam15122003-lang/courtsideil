@@ -254,12 +254,16 @@ export default function JoinWithCode({ onJoin, onBack, onSkip }) {
               {L('אין לי קוד — להירשם ולחפש קבוצה אחר כך', "I don't have a code — sign up and find a team later")}
             </button>
 
+            {/* הטקסט כאן חייב לתאר בדיוק את מה שקורה בפועל. הנוסח הקודם הבטיח
+                לקטינים סף גיל 16 ומייל אוטומטי להורה שנשלח ומסתיר פרטים מהמאמן —
+                שלושתם לא היו נכונים (הסף בדין ובאפליקציה הוא 18, אין תשתית דיוור,
+                ולא הוסתר דבר). מצג שווא כלפי קטינים על הגנה שלא קיימת. */}
             <div className="csa-note cjc-note">
               <Info size={18} aria-hidden="true" />
               <span>
                 {L(
-                  'מתחת לגיל 16? נשלח אישור הורה למייל שתזין בשלב הבא — עד שההורה מאשר, המאמן לא רואה את הפרטים.',
-                  'Under 16? We will email a parental consent request to the address you enter next — until a parent approves, the coach cannot see your details.',
+                  'מתחת לגיל 18? החשבון ייפתח במצב "ממתין לאישור הורה". בשלב הבא תקבל קישור אישי לשלוח להורה (למשל בוואטסאפ), וההורה מאשר דרכו. עד האישור החשבון מוגבל.',
+                  'Under 18? Your account opens in a "waiting for parental approval" state. In the next step you will get a personal link to send to your parent (via WhatsApp, for example) for them to approve. Until then the account is limited.',
                 )}
               </span>
             </div>

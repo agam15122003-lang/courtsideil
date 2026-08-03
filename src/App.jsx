@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { supabase, supabaseConfigured } from './supabaseClient'
 import Auth from './Auth'
 import RolePicker from './RolePicker'
@@ -10,9 +10,19 @@ import PublicDrill from './PublicDrill'
 import { ConfirmHost } from './confirm'
 import { useLang } from './i18n'
 
+// מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
+const ParentConsent = lazy(() => import('./ParentConsent'))
+
 // קישור ציבורי לתרגיל: #/drill/<id> — נפתח גם בלי חשבון
 function publicDrillId() {
   const m = window.location.hash.match(/^#\/drill\/([0-9a-f-]{10,})/i)
+  return m ? m[1] : null
+}
+
+// קישור אישור הורה: #/consent/<TOKEN> — ההורה מגיע מוואטסאפ, בלי חשבון
+// ובלי התחברות, ולכן המסך הזה מרונדר לפני כל בדיקת session.
+function consentTokenFromHash() {
+  const m = window.location.hash.match(/^#\/consent\/([A-Za-z0-9_.-]{8,})/)
   return m ? m[1] : null
 }
 
@@ -47,6 +57,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [isRecoveryMode, setRecoveryMode] = useState(false)
   const [sharedDrill, setSharedDrill] = useState(publicDrillId)
+  const [consentToken, setConsentToken] = useState(consentTokenFromHash)
 
   // מסכי הדלת (לפני session): null = דף נחיתה · 'role' = בחירת תפקיד ·
   // 'join' = קוד קבוצה לשחקן · 'auth' = הרשמה/כניסה
@@ -98,10 +109,42 @@ export default function App() {
 
   // מעקב אחרי שינויי hash (ניווט קדימה/אחורה)
   useEffect(() => {
-    const onHash = () => setSharedDrill(publicDrillId())
+    const onHash = () => {
+      setSharedDrill(publicDrillId())
+      setConsentToken(consentTokenFromHash())
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // ===== שומר ה-Back של אנדרואיד =====
+  // הניווט לפני ההתחברות מבוסס state בלבד, ולכן כפתור ה-Back החומרתי סגר את
+  // האפליקציה מכל מסך פנימי. הפתרון: כשנפתח מסך פנימי דוחפים רשומת היסטוריה
+  // אחת, ו-popstate סוגר את המסך במקום לצאת. הרשומה נצרכת בחזרה למסך הבית,
+  // כך שההיסטוריה לא מתנפחת. אין כאן שום נגיעה ב-hash — #/join ו-#/drill
+  // ממשיכים לעבוד בדיוק כמו קודם.
+  const backGuardRef = useRef(0)
+  useEffect(() => {
+    if (authStep !== null && backGuardRef.current === 0) {
+      try { window.history.pushState({ csGuard: 'auth' }, '') } catch { /* ignore */ }
+      backGuardRef.current = 1
+    } else if (authStep === null && backGuardRef.current === 1) {
+      backGuardRef.current = 0
+      try { window.history.back() } catch { /* ignore */ }
+    }
+  }, [authStep])
+
+  useEffect(() => {
+    const onPop = () => {
+      // אין לנו רשומה פתוחה — לא מתערבים בניווט של הדפדפן
+      if (backGuardRef.current === 0) return
+      backGuardRef.current = 0
+      setAuthStep(authTrail.length ? authTrail[authTrail.length - 1] : null)
+      setAuthTrail((trail) => trail.slice(0, -1))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [authTrail])
 
   useEffect(() => {
     // החלת מצב תצוגה שמור (כהה/בהיר) — גם לפני התחברות
@@ -184,6 +227,26 @@ export default function App() {
     return (
       <div className="app">
         <ResetPassword />
+      </div>
+    )
+  }
+
+  // קישור אישור ההורה — לפני בדיקת ה-session: להורה אין חשבון, ומי שכן
+  // מחובר (למשל הקטין עצמו במכשיר) עדיין צריך לראות את מסך ההורה ולא את שלו.
+  if (consentToken) {
+    return (
+      <div className="app">
+        <Suspense
+          fallback={
+            <div className="center-screen" role="status" aria-label="טוען / Loading">
+              <div className="app-loading"><div className="loader" /></div>
+            </div>
+          }
+        >
+          <ParentConsent token={consentToken} />
+        </Suspense>
+        {/* דיאלוג האישור נדרש כאן: ביטול הסכמה במצב פיקוח עובר דרכו */}
+        <ConfirmHost />
       </div>
     )
   }

@@ -3,6 +3,7 @@ import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Che
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import { SkeletonConvos } from './Skeleton'
+import useFocusTrap from './useFocusTrap'
 
 const TYPE_ICON = {
   like: Heart,
@@ -52,7 +53,8 @@ export default function Notifications({ session, onNavigate }) {
   const [available, setAvailable] = useState(true) // false = הטבלה עוד לא נוצרה
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false) // תקלת רשת — להבדיל מטבלה חסרה
-  const panelRef = useRef(null)
+  // ה-ref של מלכודת הפוקוס משמש גם לזיהוי לחיצה מחוץ לפאנל
+  const panelRef = useFocusTrap(open, () => setOpen(false))
   const btnRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -98,20 +100,16 @@ export default function Notifications({ session, onNavigate }) {
     }
   }, [load, myId])
 
-  // סגירה בלחיצה בחוץ / Escape
+  // סגירה בלחיצה בחוץ. Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap שלמטה,
+  // שמחזיר את הפוקוס לפעמון בסגירה — קודם הפוקוס ברח אל מאחורי הפאנל.
   useEffect(() => {
     if (!open) return
     const onDown = (e) => {
       if (panelRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return
       setOpen(false)
     }
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
   const unread = items.filter((n) => !n.read_at).length
@@ -155,7 +153,7 @@ export default function Notifications({ session, onNavigate }) {
       </button>
 
       {open && (
-        <div className="ntf-panel" ref={panelRef} role="dialog" aria-label={L('התראות', 'Notifications')}>
+        <div className="ntf-panel" ref={panelRef} role="dialog" aria-modal="true" aria-label={L('התראות', 'Notifications')}>
           <div className="ntf-head">
             <span>{L('התראות', 'Notifications')}</span>
             {items.length > 0 && (

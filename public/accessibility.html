@@ -4,39 +4,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>הצהרת נגישות · CourtSide</title>
+<!-- מזהה גרסה קריא-מכונה, באותו פורמט של privacy.html ו-terms.html.
+     הצהרת הנגישות אינה נרשמת ביומן ההסכמות, אך חייבת להיות ניתנת לזיהוי
+     לפי גרסה כמו שאר המסמכים הציבוריים.
+     ⚠ הנוסח כאן חייב להישאר תואם לטקסט שבווידג'ט הנגישות באפליקציה
+     (src/i18n.js, מפתחות a11y.st.*, שמוצגים ב-src/AccessibilityWidget.jsx):
+     אותו רכז נגישות, אותו טלפון, אותה כתובת מייל (CONTACT_EMAIL) ואותו
+     תקן. שינוי כאן מחייב שינוי מקביל שם. -->
+<meta name="document-id" content="accessibility">
+<meta name="document-version" content="v1 · 3.8.2026">
+<meta name="document-date" content="2026-08-03">
 <style>
   body{font-family:"Rubik","Heebo",Arial,sans-serif;line-height:1.8;color:#1d2330;background:#f6f9fc;margin:0;padding:32px 16px}
   .wrap{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e6edf5;border-radius:16px;padding:32px 28px}
-  h1{font-size:26px;margin:0 0 4px}.sub{color:#5b6b82;margin:0 0 24px;font-size:14px}
+  h1{font-size:26px;margin:0 0 4px}.sub{color:#5b6b82;margin:0 0 8px;font-size:14px}
   h2{font-size:18px;margin:26px 0 8px;color:#1b2a4a}
   a{color:#a8491a}.back{display:inline-block;margin-top:28px;font-weight:600}
   ul{padding-inline-start:22px}
+  .ver{display:inline-block;margin:0 0 24px;padding:4px 10px;border:1px solid #e6edf5;border-radius:999px;background:#f6f9fc;color:#5b6b82;font-size:13px}
+  .ver code{font-family:inherit}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>הצהרת נגישות</h1>
-  <p class="sub">CourtSide — הבית של מאמני ושחקני הכדורסל הישראלי · עודכן לאחרונה: אוגוסט 2026</p>
+  <p class="sub">CourtSide — הבית של מאמני ושחקני הכדורסל הישראלי</p>
+  <p class="ver">גרסת מסמך: <code dir="ltr">v1 · 3.8.2026</code> · בתוקף מיום <time datetime="2026-08-03">3 באוגוסט 2026</time></p>
 
-  <p>אנו ב-CourtSide רואים חשיבות רבה בהנגשת השירות לכלל המשתמשים, כולל אנשים עם מוגבלות, ופועלים ברוח תקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג–2013, ותקן WCAG 2.1 ברמה AA.</p>
+  <p>אנו ב-CourtSide רואים חשיבות רבה במתן שירות שוויוני לכלל המשתמשים, כולל אנשים עם מוגבלות, ופועלים ברוח תקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג–2013.</p>
+
+  <h2>רמת הנגישות באתר</h2>
+  <p>האתר שואף לעמוד בדרישות התקן הישראלי ת"י 5568 ברמת AA, המבוסס על הנחיות <span dir="ltr">WCAG 2.0</span>, ובחלק מהרכיבים אף בהנחיות <span dir="ltr">WCAG 2.1</span> ברמה AA.</p>
 
   <h2>מה הונגש באתר</h2>
   <ul>
-    <li>ווידג'ט נגישות זמין בכל מסך: הגדלת טקסט, ניגודיות מוגברת, עצירת אנימציות והדגשת קישורים.</li>
+    <li>ווידג'ט נגישות זמין בכל מסך: הגדלת טקסט, ניגודיות גבוהה, גווני אפור, הדגשת קישורים, עצירת אנימציות, גופן קריא, ריווח טקסט ומעבר שפה.</li>
     <li>ניווט מלא במקלדת, כולל מלכודות פוקוס בחלונות קופצים ומקש Escape לסגירה.</li>
     <li>ניגודיות צבעים העומדת ביחס AA, כולל במצב תצוגה כהה.</li>
     <li>תמיכה בקוראי מסך: כותרות היררכיות, תוויות לכפתורי אייקון, ותיאורי תמונות.</li>
     <li>יעדי מגע בגודל 44 פיקסלים לפחות במסכי מגע.</li>
-    <li>כיבוד העדפת המערכת לצמצום תנועה (prefers-reduced-motion) — אנימציות וקונפטי מבוטלים.</li>
+    <li>כיבוד העדפת המערכת לצמצום תנועה (<span dir="ltr">prefers-reduced-motion</span>) — אנימציות וקונפטי מבוטלים.</li>
     <li>האתר מותאם לשימוש בטלפון נייד, בטאבלט ובמחשב.</li>
   </ul>
 
   <h2>מגבלות ידועות</h2>
-  <p>האתר בפיתוח מתמיד וייתכנו רכיבים שטרם הונגשו במלואם — בהם תרשימי לוח הטקטיקה וסרטונים המוטמעים מיוטיוב (הכפופים לנגן של YouTube). אנו פועלים לשיפור מתמשך.</p>
+  <p>האתר בפיתוח מתמיד וייתכנו דפים או רכיבים שטרם הונגשו במלואם — בהם תרשימי לוח הטקטיקה וסרטונים המוטמעים מיוטיוב (הכפופים לנגן של YouTube). אנו ממשיכים לשפר את הנגישות באופן שוטף.</p>
 
-  <h2>נתקלתם בבעיה?</h2>
-  <p>אם נתקלתם בקושי נגישות באתר, נשמח שתכתבו לנו ונטפל בהקדם:
-  <a href="mailto:agam15122003@gmail.com">agam15122003@gmail.com</a></p>
+  <h2>רכז הנגישות</h2>
+  <p>נתקלתם בקושי בגלישה או בבעיית נגישות באתר? נשמח לסייע ולטפל בהקדם. ניתן לפנות לרכז הנגישות:</p>
+  <ul>
+    <li>אגם אדירי</li>
+    <li dir="ltr"><a href="mailto:agam15122003@gmail.com">agam15122003@gmail.com</a></li>
+    <li dir="ltr"><a href="tel:+972526268252">052-626-8252</a></li>
+  </ul>
+  <p>אותם פרטים מוצגים גם בהצהרת הנגישות שבתוך האפליקציה (כפתור הנגישות בכל מסך), והנוסחים מתוחזקים יחד.</p>
 
   <p><a href="/privacy.html">מדיניות פרטיות</a> · <a href="/terms.html">תנאי שימוש</a></p>
   <a class="back" href="/">← חזרה לאתר</a>

@@ -21917,3 +21917,515 @@ button.cs-rsvp-toggle { background: none; border: 0; padding: 0; cursor: pointer
   .land-cta .land-cta-signup:hover { transform: none; }
 }
 html.a11y-motion .land-cta .land-cta-signup:hover { transform: none; }
+
+/* ============================================================
+   3.8.2026 · זרימת הסכמת הורים — מסך ההורה (pc-*), מסך ההמתנה
+   של הקטין (pend-*), מודל אישור הבגירות (adc-*), שלב השיתוף
+   בטופס הפרופיל (pf-share-*) ולשונית ההסכמות באדמין (adm-*).
+   טוקנים בלבד, תכונות לוגיות בלבד, מצב כהה נגרר מהטוקנים.
+   ============================================================ */
+
+/* ===== מסך ההורה — עמוד עצמאי, בלי מעטפת האפליקציה ===== */
+.pc-page {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-5) var(--space-4) var(--space-10);
+  padding-block-start: max(var(--space-5), env(safe-area-inset-top));
+}
+.pc-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-5);
+}
+.pc-brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-snug);
+}
+.pc-card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+.pc-foot {
+  margin-block-start: var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.pc-foot a { color: var(--accent-strong); }
+
+.pc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.pc-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-snug);
+  margin: var(--space-3) 0 var(--space-2);
+}
+.pc-lead { color: var(--text); margin: 0 0 var(--space-3); line-height: 1.6; }
+.pc-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin: var(--space-5) 0 var(--space-2);
+}
+.pc-sub svg { color: var(--accent-strong); flex-shrink: 0; }
+
+/* המסמך המשפטי — נגלל בתוך עצמו, לא דוחף את הטופס למטה */
+.pc-doc-body {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.pc-doc-body h2 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-2); }
+.pc-doc-body h2:first-child { margin-block-start: 0; }
+.pc-doc-body h3 { font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-1); }
+.pc-doc-body p { margin: 0 0 var(--space-2); }
+.pc-doc-body ul,
+.pc-doc-body ol { margin: 0 0 var(--space-2); padding-inline-start: var(--space-5); }
+.pc-doc-body li { margin-block-end: 4px; }
+
+/* ארבעת סעיפי ההסכמה — כל אחד כרטיס לחיץ בפני עצמו */
+.pc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-block-end: var(--space-2);
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.pc-check:hover { border-color: var(--border-hover); }
+.pc-check.on { border-color: var(--accent); background: var(--accent-soft); }
+.pc-check input[type="checkbox"] {
+  inline-size: 20px;
+  block-size: 20px;
+  margin-block-start: 2px;
+  accent-color: var(--accent-fill);
+  flex-shrink: 0;
+}
+.pc-check-body { display: flex; flex-direction: column; gap: 3px; }
+.pc-check-body strong { font-size: var(--text-sm); }
+.pc-req { color: var(--accent-strong); font-weight: 700; }
+.pc-cur { font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; }
+
+.pc-legal { margin-block-start: var(--space-4); }
+.pc-legal a { color: var(--accent-strong); }
+.pc-hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.pc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+}
+.pc-actions .btn-primary,
+.pc-actions .btn-soft { justify-content: center; }
+
+/* מצבי כשל וסיום */
+.pc-state, .pc-done { text-align: center; }
+.pc-state-ic, .pc-done-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  margin-block-end: var(--space-3);
+}
+.pc-state-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-2);
+}
+.pc-state-text { color: var(--text-muted); line-height: 1.6; margin: 0; }
+.pc-state .pc-actions { justify-content: center; }
+.pc-summary { list-style: none; margin: var(--space-4) 0; padding: 0; text-align: start; }
+.pc-summary li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-block-end: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.pc-summary li.on svg { color: var(--success); }
+.pc-summary li.off { color: var(--text-muted); }
+.pc-manage { text-align: start; margin-block-start: var(--space-5); }
+.pc-link, .pend-link, .pf-share-link {
+  display: block;
+  overflow-wrap: anywhere;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  margin-block-start: var(--space-2);
+}
+.pc-skel { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* ===== מסך ההמתנה של הקטין ===== */
+.pend-page {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-5) var(--space-4) var(--space-10);
+  padding-block-start: max(var(--space-5), env(safe-area-inset-top));
+}
+.pend-head { display: flex; align-items: center; gap: var(--space-2); margin-block-end: var(--space-5); }
+.pend-brand { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
+.pend-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+  text-align: center;
+}
+.pend-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 60px;
+  block-size: 60px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  margin-block-end: var(--space-3);
+}
+.pend-ic.danger { background: var(--danger-soft); color: var(--danger); }
+.pend-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-snug);
+  margin: 0 0 var(--space-2);
+}
+.pend-lead { color: var(--text-muted); line-height: 1.65; margin: 0 0 var(--space-5); }
+.pend-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  text-align: start;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+.pend-row > svg { margin-block-start: 3px; color: var(--accent-strong); flex-shrink: 0; }
+.pend-row-body { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.pend-steps {
+  text-align: start;
+  margin: var(--space-4) 0 0;
+  padding-inline-start: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.8;
+}
+.pend-link-box { text-align: start; margin-block-start: var(--space-4); }
+.pend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-5);
+}
+.pend-actions.secondary { margin-block-start: var(--space-3); }
+.pend-actions .btn-primary,
+.pend-actions .btn-soft,
+.pend-actions .btn-ghost { justify-content: center; }
+.pend-foot { margin-block-start: var(--space-5); }
+.pend-foot a { color: var(--accent-strong); }
+
+/* ===== מודל אישור הבגירות ===== */
+.adc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(10, 14, 24, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: adc-fade var(--dur-fast) var(--ease-out);
+}
+.adc-modal {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+  text-align: center;
+  animation: adc-rise var(--dur-base) var(--ease-out);
+}
+.adc-x {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-end: var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+.adc-x:hover { background: var(--surface-alt); color: var(--text); }
+.adc-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 52px;
+  block-size: 52px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  margin-block-end: var(--space-3);
+}
+.adc-title { font-family: var(--font-display); font-size: var(--text-lg); margin: 0 0 var(--space-2); }
+.adc-text { color: var(--text-muted); line-height: 1.6; margin: 0 0 var(--space-4); font-size: var(--text-sm); }
+.adc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  text-align: start;
+  font-size: var(--text-sm);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+.adc-check input[type="checkbox"] {
+  inline-size: 18px;
+  block-size: 18px;
+  margin-block-start: 2px;
+  accent-color: var(--accent-fill);
+  flex-shrink: 0;
+}
+.adc-check a { color: var(--accent-strong); }
+.adc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+}
+@keyframes adc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes adc-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* ===== טופס הפרופיל — הערת האפוטרופוס ושלב השיתוף ===== */
+.pf-guardian-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.pf-share { text-align: center; }
+.pf-share-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  margin-block-end: var(--space-3);
+}
+.pf-share .pf-actions { justify-content: center; flex-wrap: wrap; }
+
+/* ===== אדמין — לשונית הסכמות ומחיקות ===== */
+.adm-consent .form-section-title { margin-block-start: var(--space-4); }
+.adm-minor { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; }
+.adm-minor-main { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.adm-log {
+  flex: 1 1 100%;
+  margin-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+  padding-block-start: var(--space-3);
+}
+.adm-log-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.adm-log-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 0;
+  border-block-end: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.adm-log-type { font-weight: 600; }
+.adm-cv.cv-granted { background: var(--c-green-bg); color: var(--c-green); }
+.adm-cv.cv-denied { background: var(--c-navy-bg); color: var(--c-navy); }
+.adm-cv.cv-revoked { background: var(--c-red-bg); color: var(--c-red); }
+.adm-revoke { display: flex; flex-direction: column; gap: var(--space-2); }
+
+@media (max-width: 520px) {
+  .pc-card, .pend-card { padding: var(--space-4); border-radius: var(--radius-md); }
+  .pc-actions .btn-primary,
+  .pc-actions .btn-soft,
+  .pend-actions .btn-primary,
+  .pend-actions .btn-soft,
+  .pend-actions .btn-ghost,
+  .pf-share .pf-actions > button { flex: 1 1 100%; }
+  .pc-title, .pend-title { font-size: var(--text-lg); }
+  .adc-actions { flex-direction: column-reverse; }
+  .adc-actions > button { width: 100%; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adc-overlay, .adc-modal { animation: none; }
+  .pc-check { transition: none; }
+}
+html.a11y-motion .adc-overlay,
+html.a11y-motion .adc-modal { animation: none; }
+html.a11y-motion .pc-check { transition: none; }
+
+/* ============================================================
+   3.8.2026 · סבב נגישות ומערכת-עיצוב (AUDIT_3.8) — בלוק תוספת
+   בלבד. index.css הוא append-only, ולכן כל תיקון כאן הוא דריסה
+   בסוף הקובץ ולא עריכה של הבלוק המקורי; ליד כל קבוצה מצוין מה
+   נדרס ולמה.
+   ============================================================ */
+
+/* ===== [8] טוקנים חסרים =====
+   --c-gold מעולם לא הוגדר: כל שימוש נפל ל-fallback עם hex גולמי
+   (#DFA23C / #b8862f) שלא הגיב למצב כהה. הערך תואם ל---warn כדי
+   שיהיה בטוח כטקסט על רקע בהיר (AA) וגם כרקע עם טקסט הפוך.
+   --on-color = צבע הטקסט מעל צ'יפ בצבע מלא. במצב בהיר הצבעים
+   כהים ולכן לבן; במצב כהה הטוקנים הם פסטלים בהירים ולכן דיו כהה.
+   --on-dark = טקסט מעל משטח שהוא כהה בשני המצבים (כרטיסי זכוכית
+   על ה-hero) — לבן תמיד, ולכן אין לו גרסת מצב-כהה. */
+:root {
+  --c-gold: #A85B00;
+  --on-color: #FFFFFF;
+  --on-dark: #FFFFFF;
+}
+[data-theme='dark'] {
+  --c-gold: #F5B04D;
+  --on-color: #0E1B2E;
+}
+
+/* ===== [1] ניגודיות AA — כתום כטקסט על רקע בהיר =====
+   ~3.0:1 ל---accent אינו עומד ב-AA. את השורות המקוריות אי אפשר
+   לערוך (append-only), ולכן דריסה כאן. נדרסים רק מקרים שהם טקסט
+   על משטח בהיר — לא מילויי אייקון, לא גבולות, ולא טקסט על נייבי.
+   .phone-link / .news-src / .nav-item.active הם המקרים שהדוח מנה;
+   .phone-link, .nav-item.active, .land-kicker, .eyebrow,
+   .podcast-open ו-.rating-avg כבר תוקנו קודם בקובץ — כאן נשארו
+   .news-src, .otp-opt.active ו-.btn-soft:hover. */
+.news-meta .news-src { color: var(--accent-strong); }
+.otp-opt.active { color: var(--accent-strong); }
+.btn-soft:hover { color: var(--accent-strong); }
+/* כפתורי btn-soft שיושבים על משטח כהה — הטקסט הלבן נשמר גם ב-hover
+   (הדריסה למעלה חלה עליהם אחרת, ושם accent-strong בלתי-קריא) */
+.np-actions .btn-soft:hover,
+.next-game-card .btn-soft:hover,
+.ve-export-shield .btn-soft:hover { color: var(--on-dark); }
+
+/* ===== [5] גרדיאנטים — חזרה לשתי המשפחות המותרות =====
+   DESIGN.md מתיר שתי משפחות בלבד: hero נייבי ומילוי התקדמות כתום.
+   כאן ממופים רק החריגים שהדוח מנה, ורק סלקטורים שאומתו בקובץ. */
+/* פס ה-XP של השחקן — היה hex גולמי (#FFC978); עכשיו משפחת ההתקדמות */
+.pl-xp-bar > span { background: linear-gradient(90deg, var(--brand), var(--orange-300)); }
+/* הסייד-בר — היה נייבי עם hex גולמי (#101B33); עכשיו משפחת ה-hero */
+.sidebar { background: linear-gradient(180deg, var(--hero-navy), var(--hero-navy-2)); }
+/* אירוע "פגישה" בלוח במצב כהה — היה hex גולמי (#101A2E) */
+[data-theme='dark'] .cal-event.meeting {
+  background: linear-gradient(160deg, var(--hero-navy), var(--hero-navy-2));
+}
+/* משפחת גרדיאנט כתומה שלישית בדף הנחיתה (orange-600 → brand-strong,
+   ובריחוף hex גולמי #F97316) — מוחלפת בצבע אחיד, כמו כל כפתור אחר */
+.land-band .btn-hero,
+.land-cta .btn-primary.btn-lg { background: var(--brand-strong); }
+.land-cta .btn-primary.btn-lg:hover,
+.land-band .btn-hero:hover { background: var(--accent-press); }
+/* אריחי האייקון בסקשן הלולאה — היו שלושה גרדיאנטים עם hex גולמי
+   (#F97316/#22C55E/#35486F...); לפי המסמך טיילים הם צבע מלא */
+.lls-ic.orange { background: var(--brand-strong); }
+.lls-ic.green { background: var(--ok); }
+.lls-ic.navy { background: var(--hero-navy); }
+
+/* ===== [6] RTL — תכונות פיזיות בבלוקים החדשים =====
+   .land-loop-step השתמש ב-text-align: right פיזי, כך שבמעבר
+   לאנגלית הטקסט היה נשאר מיושר ימינה. סריקה מ-15000 ומטה העלתה
+   את המקרה הזה ואת ה-left הפיזי של חץ המעבר בין הצעדים. */
+.land-loop-step { text-align: start; }
+@media (min-width: 860px) {
+  .land-loop-step:not(:last-child)::after {
+    left: auto;
+    inset-inline-end: -29px; /* ב-RTL זהה ל-left:-29px המקורי, וב-LTR מתהפך נכון */
+  }
+  [dir='ltr'] .land-loop-step:not(:last-child)::after { content: '\2192'; }
+}
+
+/* ===== [7] יעדי מגע 44px =====
+   DESIGN.md דורש 44px; ord-btn/star/msg-del/toast-x/img-remove היו
+   36px וצ'יפים ~40px. פקדים שיושבים בשורה צפופה (כוכבים, צ'יפים,
+   חיצי סדר) מוגדלים באמת כדי שאזורי המגע לא יחפפו; פקדים בודדים
+   מקבלים אזור מגע בפסאודו-אלמנט כדי לא לשנות את המראה. */
+.ord-btn,
+.star {
+  min-width: 44px;
+  min-height: 44px;
+}
+.chip { min-height: 44px; }
+.msg-del,
+.toast-x { position: relative; }
+.msg-del::after,
+.toast-x::after,
+.img-remove::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  min-width: 100%;
+  min-height: 100%;
+  border-radius: inherit;
+}

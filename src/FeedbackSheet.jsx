@@ -5,14 +5,18 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L } from './i18n'
 import { expandSlots } from './sessionId'
+import useFocusTrap from './useFocusTrap'
 
-// מצב הרוח בסוף האימון — כל אחד בצבע משלו
+// מצב הרוח בסוף האימון — כל אחד בצבע משלו.
+// כל הערכים טוקנים בלבד (בלי hex גולמי): הצבע משמש גם כטקסט על רקע בהיר
+// (PlayerDashboard, SessionDetail) וגם כרקע לצ'יפ הנבחר, ולכן חייב להיות
+// טוקן שמתאים את עצמו למצב כהה. --c-gold ו---on-color מוגדרים ב-index.css.
 export const MOODS = [
   { key: 'great', label: ['מצוין', 'Great'], col: 'var(--c-green)' },
-  { key: 'good', label: ['טוב', 'Good'], col: 'var(--accent)' },
-  { key: 'ok', label: ['בסדר', 'OK'], col: 'var(--c-gold, #DFA23C)' },
+  { key: 'good', label: ['טוב', 'Good'], col: 'var(--accent-strong)' },
+  { key: 'ok', label: ['בסדר', 'OK'], col: 'var(--c-gold)' },
   { key: 'tired', label: ['עייף', 'Tired'], col: 'var(--c-purple)' },
-  { key: 'hard', label: ['קשה', 'Tough'], col: '#C85A4E' },
+  { key: 'hard', label: ['קשה', 'Tough'], col: 'var(--c-red)' },
 ]
 export const MOOD_BY_KEY = Object.fromEntries(MOODS.map((m) => [m.key, m]))
 
@@ -74,13 +78,15 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
 
   useEffect(() => { if (open) load() }, [open, load])
 
+  // Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap על הגיליון עצמו —
+  // כאן נשאר רק נעילת הגלילה של הרקע.
+  const sheetRef = useFocusTrap(open, onClose)
+
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
-  }, [open, onClose])
+    return () => { document.body.style.overflow = '' }
+  }, [open])
 
   const toggleFocus = (f) => setFocus((cur) => cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f])
 
@@ -109,7 +115,7 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
 
   return createPortal(
     <div className="fbs-scrim" onClick={onClose}>
-      <div className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={L('סיכום האימון', 'Session summary')}>
+      <div ref={sheetRef} className="fbs-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={L('סיכום האימון', 'Session summary')}>
         <span className="fbs-grip" />
         <button className="fbs-x" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
         <div className="fbs-title">{L('סיכום האימון', 'Session summary')}</div>
@@ -130,7 +136,8 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
             <div className="fbs-q">{L('כמה קשה היה האימון היום?', 'How hard was practice today?')} <b className="fbs-q-val">{effort}/10</b></div>
             <div className="fbs-effort">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                <button key={n} className={effort === n ? 'fbs-eff on' : 'fbs-eff'} onClick={() => setEffort(n)} aria-pressed={effort === n}>{n}</button>
+                <button key={n} className={effort === n ? 'fbs-eff on' : 'fbs-eff'} onClick={() => setEffort(n)}
+                  aria-pressed={effort === n} aria-label={L(`עומס ${n} מתוך 10`, `Load ${n} out of 10`)}>{n}</button>
               ))}
             </div>
 
@@ -138,7 +145,7 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
             <div className="fbs-moods">
               {MOODS.map((m) => (
                 <button key={m.key} className={mood === m.key ? 'fbs-mood on' : 'fbs-mood'}
-                  style={mood === m.key ? { background: m.col, borderColor: 'transparent', color: '#fff' } : undefined}
+                  style={mood === m.key ? { background: m.col, borderColor: 'transparent', color: 'var(--on-color)' } : undefined}
                   onClick={() => setMood((cur) => cur === m.key ? null : m.key)} aria-pressed={mood === m.key}>{L(m.label[0], m.label[1])}</button>
               ))}
             </div>

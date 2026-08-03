@@ -17,8 +17,15 @@ const hm = (t) => (t ? String(t).slice(0, 5) : '')
 //
 // onEntry מדווח את האימון הקרוב כלפי מעלה, כדי שרצועת אישורי ההגעה בבית
 // המאמן תשתמש באותו מופע בדיוק — בלי לשכפל את מיזוג שלושת המקורות שכאן.
-export default function NextPractice({ session, onNavigate, onEntry }) {
+//
+// schedule — הלו"ז המשותף שנשלף פעם אחת ב-Home ({ ready, entries, slots }).
+// עד היום schedule_entries ו-team_practice_slots נשלפו כאן שוב, למרות
+// שאותן שתי שאילתות בדיוק כבר רצו במקטעים האחרים של אותו מסך.
+export default function NextPractice({ session, schedule, onNavigate, onEntry }) {
   const me = session?.user?.id
+  const schedReady = !!schedule?.ready
+  const schedEntries = schedule?.entries
+  const schedSlots = schedule?.slots
   const [entry, setEntry] = useState(null)
   const [recent, setRecent] = useState(null) // {id, team, date, start_time, avg, rated, total}
   const [loading, setLoading] = useState(true)
@@ -33,16 +40,17 @@ export default function NextPractice({ session, onNavigate, onEntry }) {
   useEffect(() => { onEntryRef.current?.(entry) }, [entry])
 
   useEffect(() => {
+    if (!schedReady) return
     let alive = true
     ;(async () => {
       const today = new Date()
       const from = new Date(Date.now() - 2 * 86400000)
       const until = new Date(Date.now() + 14 * 86400000)
-      const [{ data: entries }, { data: slots }, { data: upGames }] = await Promise.all([
-        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').gte('date', ymd(from)).lte('date', ymd(until)).order('date').order('start_time'),
-        me ? supabase.from('team_practice_slots').select('*').eq('coach_id', me) : Promise.resolve({ data: [] }),
-        me ? supabase.from('team_games').select('id, team, game_date, game_time, opponent, location').eq('coach_id', me).gte('game_date', ymd(today)).lte('game_date', ymd(until)).order('game_date') : Promise.resolve({ data: [] }),
-      ])
+      const entries = schedEntries || []
+      const slots = schedSlots || []
+      const { data: upGames } = me
+        ? await supabase.from('team_games').select('id, team, game_date, game_time, opponent, location').eq('coach_id', me).gte('game_date', ymd(today)).lte('game_date', ymd(until)).order('game_date')
+        : { data: [] }
       if (!alive) return
       const occs = expandSlotsRange(slots || [], from, until).map((o) => ({
         id: o.session_id, date: o.date, start_time: o.start_time, end_time: o.end_time,
@@ -103,12 +111,28 @@ export default function NextPractice({ session, onNavigate, onEntry }) {
       setLoading(false)
     })()
     return () => { alive = false }
-  }, [me])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, schedReady, schedEntries, schedSlots])
 
+  // טיקר מסתגל: כשנשארה יותר משעה הכרטיס מציג רק «בעוד X שעות/ימים»,
+  // ולכן פעימה בדקה מספיקה. ספירת שניות נדלקת רק בשעה האחרונה — שם
+  // באמת מוצגות שניות (np-count-label). קודם זה היה setInterval של שנייה
+  // כל עוד דף הבית פתוח, גם כשהאימון בעוד שבוע.
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
+    if (!entry) return
+    const startTs = new Date(`${entry.date}T${entry.start_time || '00:00'}`).getTime()
+    const periodFor = (t) => {
+      if (Number.isNaN(startTs)) return 60000
+      const left = startTs - t
+      return left <= 3600000 && left > -60000 ? 1000 : 60000
+    }
+    let id = setTimeout(function tick() {
+      const t = Date.now()
+      setNow(t)
+      id = setTimeout(tick, periodFor(t))
+    }, periodFor(Date.now()))
+    return () => clearTimeout(id)
+  }, [entry])
 
   if (loading) {
     return <div className="np-card np-skeleton" aria-hidden="true" />

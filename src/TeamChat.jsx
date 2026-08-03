@@ -5,6 +5,8 @@ import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import ChatWindow from './ChatWindow'
 
+const MSG_LIMIT = 200 // ההודעות האחרונות בחדר
+
 // צ'אט קבוצתי — חדר אחד לכל קבוצה (מאמן + שחקנים מאושרים).
 // props: session, coachId, team, isCoach
 export default function TeamChat({ session, coachId, team, isCoach }) {
@@ -23,14 +25,26 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
     setAnnounceOnly(!!data?.chat_announce_only)
   }, [coachId, team])
 
+  // השלמת שמות למשתמשים שעוד לא ראינו (משותף לטעינה ולצירוף מ-realtime)
+  const fillNames = useCallback(async (ids) => {
+    const missing = [...new Set(ids)].filter((id) => id && !namesRef.current[id])
+    if (!missing.length) return
+    const { data: profs } = await supabase.from('profiles').select('id, first_name, last_name, role').in('id', missing)
+    const next = { ...namesRef.current }
+    for (const p of profs || []) next[p.id] = { name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('חבר', 'Member'), role: p.role }
+    namesRef.current = next; setNames(next)
+  }, [])
+
   const load = useCallback(async ({ silent } = {}) => {
     if (!silent) setLoading(true)
+    // ascending:false + limit = ההודעות ה*אחרונות*. עם ascending:true ה-limit
+    // חתך את 500 הראשונות, וברגע שהחדר עבר אותן חדשות פשוט הפסיקו להופיע.
     const { data, error } = await supabase
       .from('team_messages')
-      .select('*')
+      .select('id, coach_id, team, user_id, content, kind, created_at')
       .eq('coach_id', coachId).eq('team', team)
-      .order('created_at', { ascending: true })
-      .limit(500)
+      .order('created_at', { ascending: false })
+      .limit(MSG_LIMIT)
     if (error) {
       if (error.code === '42P01') setNotReady(true)
       // תקלת רשת החזירה עד עכשיו צ׳אט ריק בשקט — נראה כאילו כל ההודעות נעלמו
@@ -38,17 +52,11 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
       setLoading(false); return
     }
     setLoadFailed(false)
-    const msgs = data || []
+    const msgs = (data || []).reverse() // חזרה לסדר כרונולוגי לתצוגה
     setMessages(msgs)
-    const missing = [...new Set(msgs.map((m) => m.user_id))].filter((id) => !namesRef.current[id])
-    if (missing.length) {
-      const { data: profs } = await supabase.from('profiles').select('id, first_name, last_name, role').in('id', missing)
-      const next = { ...namesRef.current }
-      for (const p of profs || []) next[p.id] = { name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('חבר', 'Member'), role: p.role }
-      namesRef.current = next; setNames(next)
-    }
+    await fillNames(msgs.map((m) => m.user_id))
     setLoading(false)
-  }, [coachId, team])
+  }, [coachId, team, fillNames])
 
   useEffect(() => { load(); loadAnnounce() }, [load, loadAnnounce])
   useEffect(() => {
@@ -56,12 +64,26 @@ export default function TeamChat({ session, coachId, team, isCoach }) {
     let ch = null
     try {
       ch = supabase.channel(`team-messages-${coachId}-${team}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages' }, () => load({ silent: true }))
+        // INSERT מצרף את השורה מה-payload; מחיקה/עדכון נדירים ולכן טעינה שקטה
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages' }, (p) => {
+          const row = p.new
+          if (p.eventType === 'INSERT' && row?.id) {
+            if (row.coach_id !== coachId || row.team !== team) return // חדר של קבוצה אחרת
+            setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row].slice(-MSG_LIMIT)))
+            fillNames([row.user_id])
+            return
+          }
+          load({ silent: true })
+        })
         .subscribe()
     } catch { /* polling covers */ }
-    const t = setInterval(() => load({ silent: true }), 30000)
-    return () => { clearInterval(t); if (ch) supabase.removeChannel(ch) }
-  }, [load, notReady, coachId, team])
+    // פולינג רק כשהטאב גלוי — אין טעם לשרוף סוללה ו-egress ברקע
+    const poll = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    const t = setInterval(poll, 30000)
+    const onVis = () => { if (document.visibilityState === 'visible') load({ silent: true }) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); if (ch) supabase.removeChannel(ch) }
+  }, [load, notReady, coachId, team, fillNames])
 
   const send = async (text) => {
     setSending(true)

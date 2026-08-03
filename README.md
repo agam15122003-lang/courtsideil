@@ -70,12 +70,23 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 29 | `supabase_legal_launch.sql` | **חובה** — משפטי 1.15: הסכמת הורה עד גיל 18, טלפון הורה, גרסת נוסח, בקשות מחיקה |
 | 30 | `supabase_stage2_launch.sql` | שלב 2 — משחקי אימון (אזור/טווח/סטטוס) + מחיקת סרטון לאדמין |
 | 31 | `supabase_plans_community.sql` | שיתוף תוכניות לקהילה — `training_plans.is_public` + קריאת תוכניות ופריטים משותפים |
+| 32 | `supabase_rls_hardening_3_8.sql` | **חובה** — הקשחת RLS 3.8: סוף ל-`using(true)` על `profiles`, DM רק בין מכרים, נעילת `role`, אכיפת `banned`, קהילת מאמנים סגורה לשחקנים, מדיניות Storage לפי בעלים |
+| 33 | `supabase_parent_consent.sql` | **חובה** — הסכמת הורה אמיתית: `consent_documents`/`guardians`/`consent_requests`/`consents`, קישור חד-פעמי להורה, ארבע קטגוריות הסכמה, `approval_status`, אישור עצמאי בגיל 18 |
+| 34 | `supabase_consent_enforcement.sql` | **חובה** — אכיפה בשרת: מדיניות RESTRICTIVE על כתיבה לכל טבלת תוכן — חשבון חסום או קטין שממתין להסכמת הורה אינו כותב. דורש 32 ו-33 |
+| 35 | `supabase_private_media.sql` | **חובה** — מדיניות SELECT על `storage.objects` והכנת המעבר ל-bucket פרטי + Signed URLs. **שורת ההיפוך שבסוף הקובץ מורצת ידנית רק אחרי פריסת פרונט שמייצר Signed URLs** |
+| 36 | `supabase_hardening_medium_3_8.sql` | הקשחות בינוניות: `join_with_code()` (הצטרפות בקוד בלי INSERT ישיר), תצוגת `public_drills` בלי `created_by`, תפוגת קודי הצטרפות ומונה ניסיונות, אינדקסים לעמודות RLS. דורש 32 ו-33; שני סעיפים נעולים מאחורי `v_frontend_ready` |
+
+> **סדר קריטי בגל 32–36:** 32 → 33 → 34 (34 דורש `is_active_user()` מ-33 ו-`is_banned()` מ-32, ואם אחת חסרה הוא לא יוצר כלום). 35 עצמאי. 36 אחרי 32 ו-33.
+>
+> **שני מתגים שדורשים פריסת פרונט לפני הפעלה:**
+> 1. `supabase_private_media.sql` — הפיכת ה-bucket לפרטי רק אחרי שהפרונט עובד ב-Signed URLs.
+> 2. `supabase_hardening_medium_3_8.sql` — סעיפים 9ב ו-11ב (`v_frontend_ready`) מנתקים גישה ישירה שהפרונט ישן עדיין משתמש בה. הפרונט בגרסה הזו כבר קורא ל-`join_with_code` ול-`public_drills` עם נפילה לאחור, אז אפשר להפעיל אותם אחרי הפריסה הבאה.
 
 > **סביבת ייצור קיימת?** שלבים 1–15 כבר רצים אצלך (ודא ש-`supabase_goal_logs.sql` מ-15 אכן רץ); **16–20 חדשים מ-24–25.7.2026 וחייבים לרוץ** —
 > בלי 18 כל משתמש מחובר יכול לקרוא טלפון ומייל של כל שחקן. אחרי ההרצה:
 > `select * from public.schema_migrations order by ran_at;`
 > `supabase_cleanup_drills.sql` — אופציונלי, מוחק תרגילי דוגמה.
-> נדרש גם bucket ציבורי בשם `media` ב-Storage (עם מדיניות העלאה ל-authenticated).
+> נדרש גם bucket בשם `media` ב-Storage; מ-35 ואילך הוא נעשה פרטי, והגישה אליו רק ב-Signed URLs.
 
 ## פריסה
 

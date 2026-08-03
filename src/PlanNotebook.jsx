@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, X, Clock, Target, Users, Check, ArrowRight, GripVertical } from 'lucide-react'
+import { Plus, X, Clock, Target, Users, Check, GripVertical } from 'lucide-react'
+// חץ "חזרה" כיווני דרך DirIcon (חוק RTL)
+import { ArrowBack } from './DirIcon'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
@@ -118,7 +120,7 @@ export default function PlanNotebook({ session, onDone, onCancel }) {
   return (
     <div className="welcome-card">
       <button className="link-button" onClick={onCancel}>
-        <ArrowRight size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
+        <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
 
       <div className="drillform-head" style={{ marginTop: 6 }}>

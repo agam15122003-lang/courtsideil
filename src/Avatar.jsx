@@ -1,6 +1,7 @@
 // אווטאר עם ראשי תיבות על רקע גרדיאנט — צבע דטרמיניסטי לפי השם.
 // נותן זהות ויזואלית בכל מקום בלי תלות בתמונות חיצוניות.
-import { L } from './i18n'
+import { useSignedMediaUrl } from './SignedImg'
+import { AVATAR_THUMB } from './storage'
 
 const GRADIENTS = [
   ['#E8763A', '#A8491A'], // כתום מותג
@@ -29,15 +30,20 @@ function initialsOf(name) {
 }
 
 export default function Avatar({ name, size = 44, className = '', url = null }) {
-  // אם הועלתה תמונת פרופיל — מציגים אותה; אחרת ראשי תיבות על גרדיאנט
-  if (url) {
+  // התמונה נחתמת (signed URL) — ה-bucket פרטי. כשהחתימה נכשלת (למשל קטין
+  // שאין לו הסכמת מדיה) חוזרים לראשי תיבות, וזו בדיוק ההתנהגות הרצויה.
+  const { url: signed, onError } = useSignedMediaUrl(url, AVATAR_THUMB)
+  if (signed) {
     return (
       <img
-        src={url}
+        src={signed}
         alt={name || ''}
         className={`avatar avatar-img ${className}`.trim()}
         style={{ width: size, height: size }}
+        width={size}
+        height={size}
         loading="lazy"
+        onError={onError}
       />
     )
   }

@@ -12,7 +12,9 @@ import { L } from './i18n'
 // 2. טאב הסרטונים לא מציג יותר כרטיס-צד של פודקאסטים. במוקאפ הפודקאסטים
 //    הם טאב עצמאי, וכרטיס הצד רק שכפל אותו וגזל רוחב מרשת הסרטונים.
 //
-// props: session, profile
+// props: session, profile — מועברים הלאה ל-Videos (הוא זה שצריך אותם),
+// ולכן הם כן חלק מהחוזה של המסך ולא שריד. הערת הביקורת על props מיותרים
+// כבר לא רלוונטית מאז ש-Videos קיבל אותם.
 export default function Media({ session, profile }) {
   const [mode, setMode] = useState('videos') // 'videos' | 'podcasts'
 
