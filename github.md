@@ -116,7 +116,7 @@ availability_since, part, region/status, reason, coach_notes, team_roster).
 | פרופיל המאמן | 10a · 10b | `CoachProfile.jsx` · `MyStats.jsx` · `Dashboard.jsx` |
 | קהילת המאמנים | 11a · 11b | `Community.jsx` · `PlayerCommunity.jsx` |
 | המשימות שלי | 12a · 12b | `PlayerDashboard.jsx` (MyAssignments) · `PlayerGoals.jsx` · `TeamAssignments.jsx` |
-| תוכניות · בניית תרגיל | 13a · 13b | `TrainingPlans.jsx` · `DrillForm.jsx` · `SmartBuilder.jsx` |
+| תוכניות · בניית תרגיל | 13a · 13b | `TrainingPlans.jsx` · `DrillForm.jsx` · `PlanNotebook.jsx` |
 | מדיה | 14a · 14b | `Media.jsx` · `Videos.jsx` |
 | לוח הטקטיקה | 15a · 15b | `TacticsBoard.jsx` · `CourtDiagram.jsx` |
 | לו״ז | 16a · 16b | `Schedule.jsx` · `NextPractice.jsx` · `TeamSlots.jsx` |

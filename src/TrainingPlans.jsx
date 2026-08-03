@@ -1,9 +1,8 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
-import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, Zap, PlayCircle, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, ClipboardList, ArrowRight, BookOpen, Printer, Pencil, ListChecks, Clock, Globe2, PlayCircle, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import PlanRunner from './PlanRunner'
-import SmartBuilder from './SmartBuilder'
 import PlanNotebook from './PlanNotebook'
 import NotebookPage from './NotebookPage'
 import CourtDiagram from './CourtDiagram'
@@ -60,7 +59,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activePlanId, setActivePlanId] = useState(null)
-  const [smartOpen, setSmartOpen] = useState(false) // בנאי אימון חכם
+  const [source, setSource] = useState('') // מקור התוכניות: '' הכול | 'mine' | 'community'
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id
@@ -247,20 +246,6 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     )
   }
 
-  if (smartOpen) {
-    return (
-      <SmartBuilder
-        session={session}
-        onCreated={async (id) => {
-          setSmartOpen(false)
-          await loadPlans()
-          setActivePlanId(id)
-        }}
-        onCancel={() => setSmartOpen(false)}
-      />
-    )
-  }
-
   if (viewingPlan) {
     return (
       <PlanViewer
@@ -274,151 +259,171 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const myPlans = plans.filter((p) => p.created_by === me)
   // כל התוכניות המשותפות (כולל שלך) — כך אתה רואה לאן השיתוף מגיע ומה מאמנים אחרים רואים
   const communityPlans = plans.filter((p) => p.is_public)
+  // בורר המקור קובע אילו מקטעים מוצגים — שלי, של הקהילה, או שניהם
+  const showMine = source !== 'community'
+  const showCommunity = source !== 'mine'
 
   return (
     <div className="welcome-card">
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
-      {/* שתי דלתות בלבד לאותו חדר (עמוד 22 במסמך): «בנה לי» ו«אני אבנה».
-          «צור ריקה» נמחקה — היא הייתה זהה ל«אני אבנה» עם שם בלבד. */}
-      <div className="pn-doors">
-        <button className="pn-door" onClick={() => setSmartOpen(true)}>
-          <span className="pn-door-ic"><Zap size={22} /></span>
-          <span className="pn-door-body">
-            <strong>{L('בנה לי', 'Build it for me')}</strong>
-            <span>{L('בוחרים נושא ואורך — והתוכנית נבנית מהתרגילים שלך', 'Pick a topic and a length — the plan builds itself from your drills')}</span>
-          </span>
-        </button>
+      {/* דלת אחת לחדר: כותבים את האימון על דף המחברת. «בנה לי» (הבנאי
+          האוטומטי) הוסר לבקשת הבעלים, ואיתו ההשלמה האוטומטית שבעורך. */}
+      <div className="pn-doors single">
         <button className="pn-door" onClick={() => setNotebookNew(true)}>
           <span className="pn-door-ic"><BookOpen size={22} /></span>
           <span className="pn-door-body">
-            <strong>{L('אני אבנה', "I'll build it")}</strong>
+            <strong>{L('תוכנית חדשה', 'New plan')}</strong>
             <span>{L('כותבים את מבנה האימון ישר על דף המחברת', 'Write the practice outline right on the notebook page')}</span>
           </span>
         </button>
       </div>
 
-      <div className="finder-results">
-        {loading ? (
-          <SkeletonCards count={3} />
-        ) : error ? (
-          <ErrorState message={error} onRetry={loadPlans} />
-        ) : myPlans.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-ic">
-              <ClipboardList size={26} />
-            </span>
-            <div className="empty-title">{L('עדיין אין תוכניות אימון', 'No training plans yet')}</div>
-            <p className="muted small">{L('צור את התוכנית הראשונה למעלה, או נסה את השלמה אוטומטית.', 'Create your first plan above, or try the smart builder.')}</p>
-          </div>
-        ) : (
-          myPlans.map((p) => {
-            const items = p.plan_items || []
-            const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
-            return (
-              <div key={p.id} className="coach-card">
-                <div className="drill-card-top">
-                  <h3 className="coach-name">{p.name}</h3>
-                  {p.is_public && (
-                    <span className="plan-shared-badge">
-                      <Globe2 size={12} /> {L('משותף', 'Shared')}
-                    </span>
-                  )}
-                </div>
-                <div className="plan-meta">
-                  <span className="meta-item">
-                    <ListChecks size={14} />
-                    <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
-                  </span>
-                  {p.updated_at && (
-                    <span className="meta-item">
-                      <Clock size={14} />
-                      {L('עודכן ', 'updated ')}
-                      <bdi dir="ltr">
-                        {new Date(p.updated_at).getDate()}.{new Date(p.updated_at).getMonth() + 1}
-                      </bdi>
-                    </span>
-                  )}
-                </div>
-
-                {/* מסך 13a — פס היעד ורצועת הזמן לפי קטגוריה, על הכרטיס עצמו.
-                    עד עכשיו הם היו רק בתוך עורך התוכנית. */}
-                {total > 0 && (
-                  <div className="plan-target">
-                    <div className="plan-target-row">
-                      <span className="plan-target-num" dir="ltr">
-                        <b>{total}</b> / {PLAN_TARGET_MIN} {L('דק׳', 'min')}
-                      </span>
-                      <span className={total >= PLAN_TARGET_MIN ? 'pb-target-hint done' : 'pb-target-hint'}>
-                        {total >= PLAN_TARGET_MIN
-                          ? L('מוכן לאימון', 'Ready to run')
-                          : L(`עוד ${PLAN_TARGET_MIN - total} דק׳ ליעד`, `${PLAN_TARGET_MIN - total} min to target`)}
-                      </span>
-                    </div>
-                    <span
-                      className={total >= PLAN_TARGET_MIN ? 'pb-target-bar done' : 'pb-target-bar'}
-                      aria-hidden="true"
-                    >
-                      <span style={{ width: `${Math.min(100, Math.round((total / PLAN_TARGET_MIN) * 100))}%` }} />
-                    </span>
-                    {(() => {
-                      // רצועת זמן: מקטע לכל קטגוריה, ברוחב יחסי לדקות שלה
-                      const byCat = new Map()
-                      for (const it of items) {
-                        const m = Number(it.duration_minutes) || 0
-                        if (!m) continue
-                        const c = it.drill?.category || L('אחר', 'Other')
-                        byCat.set(c, (byCat.get(c) || 0) + m)
-                      }
-                      if (byCat.size === 0) return null
-                      return (
-                        <span className="plan-cats" aria-hidden="true">
-                          {[...byCat.entries()].map(([c, m]) => (
-                            <span key={c} style={{ flex: m }}>
-                              <b>{tr(c)}</b>
-                              <i dir="ltr">{m}׳</i>
-                            </span>
-                          ))}
-                        </span>
-                      )
-                    })()}
-                  </div>
-                )}
-                <div className="coach-card-actions">
-                  <button
-                    className="btn-primary"
-                    style={{ marginTop: 0 }}
-                    onClick={() => setActivePlanId(p.id)}
-                  >
-                    {L('פתח', 'Open')}
-                  </button>
-                  <button className="btn-ghost" onClick={() => toggleShare(p)}>
-                    {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
-                  </button>
-                  <button className="btn-ghost" onClick={() => copyPlan(p)}>
-                    {L('שכפל', 'Duplicate')}
-                  </button>
-                  <button
-                    className="btn-ghost"
-                    onClick={() => waShare(L(
-                      `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${window.location.origin}`,
-                      `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${window.location.origin}`
-                    ))}
-                  >
-                    {L('וואטסאפ', 'WhatsApp')}
-                  </button>
-                  <button className="btn-ghost danger" onClick={() => deletePlan(p.id)}>
-                    {L('מחק', 'Delete')}
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
+      {/* בורר מקור — לראות את התוכניות שלי, את אלה שהקהילה שיתפה, או הכול */}
+      <div className="filter-bar">
+        <select
+          className="finder-input filter-select"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label={L('סינון לפי מקור', 'Filter by source')}
+        >
+          <option value="">{L('כל התוכניות', 'All plans')}</option>
+          <option value="mine">{L('התוכניות שלי', 'My plans')}</option>
+          <option value="community">{L('תוכניות מהקהילה', 'Community plans')}</option>
+        </select>
       </div>
 
+      {loading && (
+        <div className="finder-results">
+          <SkeletonCards count={3} />
+        </div>
+      )}
+      {!loading && error && <ErrorState message={error} onRetry={loadPlans} />}
+
+      {!loading && !error && showMine && (
+        <>
+          <h3 className="section-title" style={{ marginTop: 24 }}>
+            {L('התוכניות שלי', 'My plans')}
+          </h3>
+          <div className="finder-results">
+            {myPlans.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-ic">
+                  <ClipboardList size={26} />
+                </span>
+                <div className="empty-title">{L('עדיין אין תוכניות אימון', 'No training plans yet')}</div>
+                <p className="muted small">{L('צור את התוכנית הראשונה למעלה — כותבים אותה ישר על דף המחברת.', 'Create your first plan above — write it right on the notebook page.')}</p>
+              </div>
+            ) : (
+              myPlans.map((p) => {
+                const items = p.plan_items || []
+                const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
+                return (
+                  <div key={p.id} className="coach-card">
+                    <div className="drill-card-top">
+                      <h3 className="coach-name">{p.name}</h3>
+                      {p.is_public && (
+                        <span className="plan-shared-badge">
+                          <Globe2 size={12} /> {L('משותף', 'Shared')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="plan-meta">
+                      <span className="meta-item">
+                        <ListChecks size={14} />
+                        <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
+                      </span>
+                      {p.updated_at && (
+                        <span className="meta-item">
+                          <Clock size={14} />
+                          {L('עודכן ', 'updated ')}
+                          <bdi dir="ltr">
+                            {new Date(p.updated_at).getDate()}.{new Date(p.updated_at).getMonth() + 1}
+                          </bdi>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* מסך 13a — פס היעד ורצועת הזמן לפי קטגוריה, על הכרטיס עצמו.
+                        עד עכשיו הם היו רק בתוך עורך התוכנית. */}
+                    {total > 0 && (
+                      <div className="plan-target">
+                        <div className="plan-target-row">
+                          <span className="plan-target-num" dir="ltr">
+                            <b>{total}</b> / {PLAN_TARGET_MIN} {L('דק׳', 'min')}
+                          </span>
+                          <span className={total >= PLAN_TARGET_MIN ? 'pb-target-hint done' : 'pb-target-hint'}>
+                            {total >= PLAN_TARGET_MIN
+                              ? L('מוכן לאימון', 'Ready to run')
+                              : L(`עוד ${PLAN_TARGET_MIN - total} דק׳ ליעד`, `${PLAN_TARGET_MIN - total} min to target`)}
+                          </span>
+                        </div>
+                        <span
+                          className={total >= PLAN_TARGET_MIN ? 'pb-target-bar done' : 'pb-target-bar'}
+                          aria-hidden="true"
+                        >
+                          <span style={{ width: `${Math.min(100, Math.round((total / PLAN_TARGET_MIN) * 100))}%` }} />
+                        </span>
+                        {(() => {
+                          // רצועת זמן: מקטע לכל קטגוריה, ברוחב יחסי לדקות שלה
+                          const byCat = new Map()
+                          for (const it of items) {
+                            const m = Number(it.duration_minutes) || 0
+                            if (!m) continue
+                            const c = it.drill?.category || L('אחר', 'Other')
+                            byCat.set(c, (byCat.get(c) || 0) + m)
+                          }
+                          if (byCat.size === 0) return null
+                          return (
+                            <span className="plan-cats" aria-hidden="true">
+                              {[...byCat.entries()].map(([c, m]) => (
+                                <span key={c} style={{ flex: m }}>
+                                  <b>{tr(c)}</b>
+                                  <i dir="ltr">{m}׳</i>
+                                </span>
+                              ))}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    )}
+                    <div className="coach-card-actions">
+                      <button
+                        className="btn-primary"
+                        style={{ marginTop: 0 }}
+                        onClick={() => setActivePlanId(p.id)}
+                      >
+                        {L('פתח', 'Open')}
+                      </button>
+                      <button className="btn-ghost" onClick={() => toggleShare(p)}>
+                        {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
+                      </button>
+                      <button className="btn-ghost" onClick={() => copyPlan(p)}>
+                        {L('שכפל', 'Duplicate')}
+                      </button>
+                      <button
+                        className="btn-ghost"
+                        onClick={() => waShare(L(
+                          `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${window.location.origin}`,
+                          `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${window.location.origin}`
+                        ))}
+                      >
+                        {L('וואטסאפ', 'WhatsApp')}
+                      </button>
+                      <button className="btn-ghost danger" onClick={() => deletePlan(p.id)}>
+                        {L('מחק', 'Delete')}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </>
+      )}
+
       {/* תוכניות אימון שמאמנים אחרים שיתפו לקהילה */}
-      {communityPlans.length > 0 && (
+      {!loading && !error && showCommunity && communityPlans.length > 0 && (
         <>
           <h3 className="section-title" style={{ marginTop: 28 }}>
             {L('תוכניות הקהילה', 'Community plans')}
@@ -468,6 +473,19 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
             })}
           </div>
         </>
+      )}
+
+      {/* סוננו במפורש תוכניות קהילה ואין כאלה — לא משאירים מסך ריק בלי הסבר */}
+      {!loading && !error && showCommunity && source === 'community' && communityPlans.length === 0 && (
+        <div className="empty-state">
+          <span className="empty-ic">
+            <Globe2 size={26} />
+          </span>
+          <div className="empty-title">{L('אין עדיין תוכניות משותפות', 'No shared plans yet')}</div>
+          <p className="muted small">
+            {L('כשמאמנים ישתפו תוכניות לקהילה הן יופיעו כאן. אפשר להתחיל ולשתף תוכנית משלך בכפתור «שתף לקהילה».', 'When coaches share plans they will show up here. You can start by sharing one of yours with “Share”.')}
+          </p>
+        </div>
       )}
     </div>
   )
@@ -714,47 +732,6 @@ function PlanBuilder({ planId, plan, onBack }) {
   // Number() חשוב — קלט מהמשתמש נשמר כמחרוזת, ו-"15"+"20" היה משרשר ל-"1520"
   const total = items.reduce((s, it) => s + (Number(it.duration_minutes) || 0), 0)
   const TARGET_MIN = PLAN_TARGET_MIN
-  const missingMin = Math.max(0, TARGET_MIN - total)
-
-  // "השלמה אוטומטית" — משלים את האימון בתרגילים מהספרייה עד היעד
-  const [completing, setCompleting] = useState(false)
-  const autoComplete = async () => {
-    setCompleting(true)
-    let pool = allDrills
-    if (pool.length === 0) {
-      const { data } = await supabase
-        .from('drills')
-        .select('id, title, category, duration_minutes')
-        .order('title', { ascending: true })
-      pool = data || []
-      setAllDrills(pool)
-    }
-    const inPlan = new Set(items.map((i) => i.drill_id).filter(Boolean))
-    const candidates = pool.filter((d) => !inPlan.has(d.id) && d.duration_minutes && d.duration_minutes <= missingMin)
-    // ערבוב קל כדי לגוון בין הפעלות
-    candidates.sort(() => Math.random() - 0.5)
-    let remaining = missingMin
-    let pos = items.length > 0 ? Math.max(...items.map((i) => i.position)) + 1 : 0
-    const rows = []
-    for (const d of candidates) {
-      if (d.duration_minutes > remaining) continue
-      rows.push({ plan_id: planId, drill_id: d.id, position: pos++, duration_minutes: d.duration_minutes, note: null })
-      remaining -= d.duration_minutes
-      if (remaining < 8) break
-    }
-    if (rows.length === 0) {
-      toast.error(L('לא נמצאו תרגילים מתאימים בספרייה להשלמת הזמן.', 'No suitable drills found in the library to fill the time.'))
-      setCompleting(false)
-      return
-    }
-    // ההשלמה נכנסת לחלק האחרון (fallback בלי part אם המיגרציה טרם רצה)
-    let { error } = await supabase.from('plan_items').insert(rows.map((r) => ({ ...r, part: partCount })))
-    if (error) ({ error } = await supabase.from('plan_items').insert(rows))
-    setCompleting(false)
-    if (error) { toast.error(L('ההשלמה נכשלה: ', 'Auto-complete failed: ') + error.message); return }
-    toast.success(L(`נוספו ${rows.length} תרגילים מהספרייה`, `Added ${rows.length} drills from the library`))
-    loadItems()
-  }
 
   // פירוק זמן לפי קטגוריית התרגיל (למסך הסיכום, בסגנון מסך היעד)
   const catTotals = {}
@@ -869,19 +846,6 @@ function PlanBuilder({ planId, plan, onBack }) {
           </ul>
         )}
       </div>
-
-      {/* "השלמה אוטומטית" — כרטיס אנרגיה שמשלים את האימון עד היעד (מסך היעד 04) */}
-      {missingMin > 0 && (
-        <div className="pb-smart">
-          <span className="pb-smart-head"><Zap size={17} /> {L('השלמה אוטומטית', 'Smart builder')}</span>
-          <p className="pb-smart-text">
-            {L(`חסרות ${missingMin} דקות ליעד. תן לבנאי להשלים את האימון בתרגילים מהספרייה.`, `${missingMin} minutes missing to target. Let the builder fill the practice with library drills.`)}
-          </p>
-          <button className="pb-smart-btn" onClick={autoComplete} disabled={completing} aria-busy={completing}>
-            {completing ? L('משלים...', 'Completing...') : L('השלם לי את האימון', 'Complete my practice')}
-          </button>
-        </div>
-      )}
 
       {items.length > 0 && (
         <div className="pb-aside-actions">

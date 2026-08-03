@@ -369,7 +369,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const onboardSteps = [
     { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
     { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
-    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בנה אימון מלא — ידני או עם בנאי חכם','Build a full practice — manually or with the smart builder') },
+    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בנה אימון מלא על דף המחברת, חלק אחר חלק','Build a full practice on the notebook page, part by part') },
   ]
 
   // חשיפה בגלילה. התלויות הן מה שמוסיף מקטעים ל-DOM אחרי הרינדור הראשון —

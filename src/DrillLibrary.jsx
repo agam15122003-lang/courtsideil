@@ -32,7 +32,7 @@ export default function DrillLibrary({ session, profile, embedded }) {
   const [ageFilter, setAgeFilter] = useState([])
   const [tagFilter, setTagFilter] = useState('') // סינון לפי תגית
   const [onlySaved, setOnlySaved] = useState(false) // הצג רק מועדפים
-  const [onlyMine, setOnlyMine] = useState(false) // הצג רק תרגילים שיצרתי
+  const [source, setSource] = useState('') // מקור התרגיל: '' הכול | 'mine' | 'community'
   const [sortBy, setSortBy] = useState('new') // 'new' = חדשים, 'rating' = מדורגים
 
   // בורר "הוספה לתוכנית"
@@ -197,10 +197,10 @@ export default function DrillLibrary({ session, profile, embedded }) {
     setAgeFilter([])
     setTagFilter('')
     setOnlySaved(false)
-    setOnlyMine(false)
+    setSource('')
   }
 
-  const hasFilters = search || catFilter || ageFilter.length > 0 || tagFilter || onlySaved || onlyMine
+  const hasFilters = search || catFilter || ageFilter.length > 0 || tagFilter || onlySaved || source
 
   // ממוצע דירוג של תרגיל (לצורך מיון)
   const avgOf = (d) => {
@@ -225,8 +225,12 @@ export default function DrillLibrary({ session, profile, embedded }) {
       (d.age_groups || []).some((g) => ageFilter.includes(g))
     const tagOk = tagFilter === '' || (d.tags || []).includes(tagFilter)
     const savedOk = !onlySaved || (d.saved_drills || []).length > 0
-    const mineOk = !onlyMine || d.created_by === session.user.id
-    return searchOk && catOk && ageOk && tagOk && savedOk && mineOk
+    // מקור: שלי = מה שיצרתי; קהילה = תרגיל משותף של מאמן אחר.
+    // is_public חסר (שורות ותיקות) נחשב משותף — כמו ב"התרגילים שלי" בפרופיל.
+    const mine = d.created_by === session.user.id
+    const sourceOk =
+      source === '' || (source === 'mine' ? mine : !mine && d.is_public !== false)
+    return searchOk && catOk && ageOk && tagOk && savedOk && sourceOk
   })
 
   // ממיינים: לפי דירוג (גבוה→נמוך) או לפי החדשים ביותר (סדר ברירת המחדל)
@@ -321,6 +325,17 @@ export default function DrillLibrary({ session, profile, embedded }) {
             placeholder={L('כל הגילאים', 'All age groups')}
           />
         </div>
+        {/* בורר מקור — לראות רק את התרגילים שלי, רק את אלה שהקהילה שיתפה, או הכול */}
+        <select
+          className="finder-input filter-select"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label={L('סינון לפי מקור', 'Filter by source')}
+        >
+          <option value="">{L('כל התרגילים', 'All drills')}</option>
+          <option value="mine">{L('התרגילים שלי', 'My drills')}</option>
+          <option value="community">{L('תרגילים מהקהילה', 'Community drills')}</option>
+        </select>
       </div>
       {/* סינון ומיון היו באותה שורת צ׳יפים ובאותו עיצוב — אי אפשר היה לדעת
           מה מצמצם את הרשימה ומה רק משנה סדר. עכשיו שתי קבוצות מסומנות. */}
@@ -335,14 +350,8 @@ export default function DrillLibrary({ session, profile, embedded }) {
           >
             {L('המועדפים שלי', 'My favorites')}
           </button>
-          <button
-            type="button"
-            className={onlyMine ? 'chip selected' : 'chip'}
-            onClick={() => setOnlyMine(!onlyMine)}
-            aria-pressed={onlyMine}
-          >
-            {L('התרגילים שלי', 'My drills')}
-          </button>
+          {/* «התרגילים שלי» עבר לבורר המקור שבסרגל למעלה — שני פקדים
+              לאותו סינון היו יכולים לסתור זה את זה ולהחזיר רשימה ריקה. */}
         </span>
         <span className="filter-group" role="group" aria-label={L('סדר', 'Sort')}>
           <span className="filter-group-label">{L('סדר', 'Sort')}</span>
@@ -398,6 +407,10 @@ export default function DrillLibrary({ session, profile, embedded }) {
             <div className="empty-title">
               {onlySaved
                 ? L('עדיין לא שמרת תרגילים', "You haven't saved any drills yet")
+                : source === 'community'
+                ? L('אין עדיין תרגילים מהקהילה', 'No community drills yet')
+                : source === 'mine'
+                ? L('עוד לא יצרת תרגילים', "You haven't created any drills yet")
                 : drills.length === 0
                 ? L('הספרייה עדיין ריקה', 'The library is still empty')
                 : L('אין תוצאות לסינון', 'No results for this filter')}
@@ -405,6 +418,10 @@ export default function DrillLibrary({ session, profile, embedded }) {
             <p className="muted small">
               {onlySaved
                 ? L('לחצו על אייקון הסימנייה בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap the bookmark icon on a drill card to keep it here.')
+                : source === 'community'
+                ? L('כשמאמנים אחרים ישתפו תרגילים הם יופיעו כאן. בינתיים אפשר לעבור ל"כל התרגילים".', 'Drills other coaches share will show up here. Meanwhile, switch back to "All drills".')
+                : source === 'mine'
+                ? L('לחץ "הוסף תרגיל" כדי ליצור את התרגיל הראשון שלך.', 'Tap "Add drill" to create your first one.')
                 : drills.length === 0
                 ? L('לחץ "הוסף תרגיל" כדי להוסיף את התרגיל הראשון לספרייה.', 'Tap "Add drill" to add the first drill to the library.')
                 : L('נסה לשנות את מילות החיפוש או לנקות את הסינון.', 'Try changing your search terms or clearing the filters.')}

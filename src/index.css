@@ -10537,31 +10537,7 @@ button.pr-signout:hover .pr-label { color: var(--error); }
   transition: width var(--dur-slow) var(--ease-out);
 }
 [dir='ltr'] .pb-target-bar > span { background: linear-gradient(-90deg, var(--brand), var(--orange-600)); }
-.pb-smart {
-  margin-top: 14px;
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
-  background: linear-gradient(135deg, var(--brand), var(--orange-600));
-  color: #fff;
-  box-shadow: 6px 6px 0 rgba(232, 118, 58, 0.22);
-}
-.pb-smart-head { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; }
-.pb-smart-text { margin: 8px 0 12px; font-size: 13.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.94); }
-.pb-smart-btn {
-  appearance: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 11px 18px;
-  background: #141E36;
-  color: #fff;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 rgba(20, 30, 54, 0.4);
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-.pb-smart-btn:hover { transform: translateY(-1px); }
-.pb-smart-btn:disabled { opacity: 0.7; cursor: default; }
+/* .pb-smart* (כרטיס «השלמה אוטומטית») הוסר יחד עם הבנאי האוטומטי. */
 
 /* ---- הודעות (07): צ'אט + רשימה זו לצד זו ---- */
 .msg-split {
@@ -20555,6 +20531,8 @@ html.a11y-motion .runner-fs-timer.up { animation: none; }
   margin-bottom: 16px;
 }
 @media (min-width: 620px) { .pn-doors { grid-template-columns: 1fr 1fr; } }
+/* אחרי הסרת «בנה לי» נשארה דלת אחת — שלא תיתקע בחצי רוחב עם חור לצידה */
+.pn-doors.single { grid-template-columns: 1fr; }
 .pn-door {
   display: grid;
   grid-template-columns: 46px 1fr;
