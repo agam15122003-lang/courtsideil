@@ -7,6 +7,27 @@ import { ConfirmHost } from './confirm.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { applyDir } from './i18n'
 import { inject } from '@vercel/analytics'
+
+// גופנים מקומיים במקום Google Fonts. הסיבה היא פרטיות: כל עוד ה-<link> ישב
+// ב-index.html, כתובת ה-IP של כל מי שפתח את האפליקציה — כולל קטינים — נשלחה
+// לשרתי גוגל בכל טעינת דף, וזה גם צד-שלישי שחייבים לתעד במדיניות הפרטיות.
+// למה דווקא קבצי המשקל המאוחדים (400.css) ולא קבצי תת-הקבוצה (hebrew-400.css):
+// רק המאוחדים כוללים unicode-range לכל תת-קבוצה. בלעדיו שני @font-face לאותה
+// משפחה+משקל מתנגשים והאחרון גובר — כלומר האותיות העבריות היו נופלות לפונט
+// המערכת וכל האפליקציה הייתה משנה מראה. עם unicode-range הדפדפן מוריד בפועל
+// רק את הטווח העברי והלטיני; ערבית/קירילית נארזות ל-dist אך לעולם לא נמשכות.
+// המשקלים כאן זהים בדיוק למה ש-index.html ביקש קודם מגוגל (Rubik 400–800,
+// Heebo 700–900), כדי שלא ישתנה שום דבר ויזואלית.
+// @fontsource מגדיר font-display: swap בכל @font-face, ולכן בטלפון איטי הטקסט
+// מוצג מיד בפונט המערכת ומתחלף — ולא מהבהב ריק.
+import '@fontsource/rubik/400.css'
+import '@fontsource/rubik/500.css'
+import '@fontsource/rubik/600.css'
+import '@fontsource/rubik/700.css'
+import '@fontsource/rubik/800.css'
+import '@fontsource/heebo/700.css'
+import '@fontsource/heebo/800.css'
+import '@fontsource/heebo/900.css'
 import './index.css'
 
 applyDir() // קובע lang/dir על <html> לפי השפה השמורה

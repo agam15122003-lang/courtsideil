@@ -12,6 +12,8 @@
     "verify": "npm run check && npm run build"
   },
   "dependencies": {
+    "@fontsource/heebo": "^5.3.0",
+    "@fontsource/rubik": "^5.3.0",
     "@supabase/supabase-js": "^2.45.0",
     "@vercel/analytics": "^2.0.1",
     "gsap": "^3.15.0",

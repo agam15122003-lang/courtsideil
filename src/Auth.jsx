@@ -4,8 +4,8 @@ import { ChevronBack } from './DirIcon'
 import Logo from './Logo'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { COACHING_QUOTES, ISRAELI_CLUBS, SITE_URL, TERMS_VERSION } from './constants'
-import { passwordStrength } from './ResetPassword'
+import { COACHING_QUOTES, ISRAELI_CLUBS, SITE_URL, TERMS_VERSION, checkPassword, passwordServerError } from './constants'
+import { passwordStrength, PasswordRules } from './ResetPassword'
 import { L } from './i18n'
 
 // מייל בלי סיום דומיין — הודעת שדה ליד הקלט, לא באנר בתחתית המסך
@@ -111,8 +111,10 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
 
   const emailBad = emailTouched && email.trim() !== '' && !emailLooksWhole(email)
   const isSignup = mode === 'signup'
-  // מד החוזק הוא משוב בלבד — כלל הוואלידציה נשאר 8 תווים
+  // מד החוזק הוא משוב בלבד. כללי הוואלידציה מגיעים מ-checkPassword
+  // (constants.js) — אותם כללים בדיוק גם באיפוס וגם בשינוי סיסמה.
   const strength = passwordStrength(password)
+  const check = checkPassword(password)
 
   // ---------- סיסמה / איפוס ----------
   const handleSubmit = async (e) => {
@@ -121,18 +123,13 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     setLoading(true)
 
     if (mode === 'signup') {
-      // ⚠️ TODO לבעלים — האכיפה הזו היא בקליינט בלבד, וכל מי שקורא ישירות
-      // ל-auth/v1/signup עוקף אותה ומקבל את מה שמוגדר בפרויקט Supabase
-      // (ברירת המחדל: 6 תווים, בלי מורכבות ובלי בדיקת סיסמאות שדלפו).
-      // באפליקציה שמחזיקה חשבונות של קטינים זו דלת פתוחה להשתלטות בניחוש.
-      // חובה להפעיל ידנית בדשבורד — אי אפשר לשנות את זה מהקוד:
-      //   Supabase → Authentication → Sign In / Providers → Password:
-      //     • Minimum password length = 8
-      //     • Password Requirements = "Lowercase, uppercase letters and digits"
-      //     • Leaked password protection (HaveIBeenPwned) = Enabled
-      //   ובנוסף Authentication → Attack Protection: CAPTCHA + הגבלת קצב על OTP.
-      if (password.length < 8) {
-        setError(L('הסיסמה חייבת להכיל לפחות 8 תווים.', 'Password must be at least 8 characters.'))
+      // הבדיקה כאן היא UX בלבד — היא רצה בדפדפן וניתן לעקוף אותה בקריאה ישירה
+      // ל-auth/v1/signup. האכיפה האמיתית מוגדרת רק בדשבורד של Supabase
+      // (ההסבר המלא + מסלול ההגדרות יושב ליד checkPassword ב-constants.js).
+      // ההודעה נוקבת בכלל שנשבר, לא «סיסמה לא תקינה» — בני נוער מתקנים מהר
+      // יותר כשכתוב להם בדיוק מה חסר.
+      if (!check.valid) {
+        setError(L(check.errorHe, check.errorEn))
         setLoading(false)
         return
       }
@@ -419,9 +416,11 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
           type={showPw ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === 'signup' ? L('לפחות 8 תווים', 'At least 8 characters') : L('הסיסמה שלך', 'Your password')}
+          placeholder={mode === 'signup' ? L('לפחות 8 תווים ואות גדולה', 'At least 8 chars + a capital') : L('הסיסמה שלך', 'Your password')}
           required
-          minLength={mode === 'signup' ? 8 : 6}
+          /* בלי minLength: בהרשמה הוא היה חוסם עם הודעת דפדפן באנגלית במקום
+             ההודעה שלנו (checkPassword מטפל בזה), ובהתחברות הוא היה 6 — מספר
+             שלא קשור לשום כלל, שרק חוסם בעל חשבון ותיק עם סיסמה קצרה יותר. */
           autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
           /* dir רק כשיש תוכן — placeholder עברי ב-dir="ltr" הוא באג מתועד (DESIGN.md §4) */
           dir={password ? 'ltr' : undefined}
@@ -441,9 +440,9 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
           <span className="csa-meter" data-lvl={strength.level} aria-hidden="true">
             <i style={{ width: strength.pct + '%' }} />
           </span>
-          <span className="csa-hint">
-            {L('לפחות 8 תווים. אות גדולה או מספר עושים את ההבדל.', 'At least 8 characters. A capital letter or a number makes the difference.')}
-          </span>
+          {/* רשימת דרישות חיה במקום משפט הנחיה סטטי — רואים מה כבר עבר ומה
+              עוד חסר תוך כדי הקלדה, ולא רק אחרי שהשליחה נכשלת */}
+          <PasswordRules password={password} />
         </>
       )}
     </label>
@@ -891,9 +890,11 @@ function translateError(msg) {
   if (msg.includes('User already registered')) {
     return L('המייל הזה כבר רשום. נסה להתחבר במקום.', 'This email is already registered. Try logging in instead.')
   }
-  if (msg.includes('Password should be at least')) {
-    return L('הסיסמה חייבת להכיל לפחות 8 תווים.', 'Password must be at least 8 characters.')
-  }
+  // שגיאות הסיסמה של Supabase עצמו — אלה מגיעות רק כשההגדרות בדשבורד
+  // מופעלות (ראו ההערה ליד checkPassword ב-constants.js). מתורגמות במקום
+  // אחד משותף, כדי שההרשמה, האיפוס והשינוי יגידו בדיוק את אותו דבר.
+  const pwErr = passwordServerError(msg)
+  if (pwErr) return L(pwErr.he, pwErr.en)
   if (msg.includes('Email not confirmed')) {
     return L('המייל עדיין לא אושר. בדוק את תיבת הדואר ולחץ על קישור האישור.', 'Your email is not confirmed yet. Check your inbox and click the confirmation link.')
   }

@@ -19,6 +19,127 @@ export const CONTACT_EMAIL = 'agam15122003@gmail.com'
 // accessibility.html — אחרת אי אפשר לקשור רשומת הסכמה לנוסח שאושר.
 export const TERMS_VERSION = 'v1 · 3.8.2026'
 
+// ===== כללי הסיסמה — מקור אמת אחד =====
+//
+// ⚠️ זה UX בלבד, לא אכיפה. הבדיקה כאן רצה בדפדפן, וכל מי ששולח POST ישירות
+// ל-auth/v1/signup (או ל-auth/v1/user בעדכון סיסמה) עוקף אותה לגמרי ומקבל
+// בדיוק את מה שמוגדר בפרויקט Supabase. האפליקציה אינה אוכפת שום כלל סיסמה
+// ואינה יכולה לאכוף — הקוד רק מסביר למשתמש מה מצופה ממנו.
+//
+// האכיפה האמיתית היחידה היא בדשבורד של Supabase, ואי אפשר להגדיר אותה מהקוד:
+//   Supabase → Authentication → Sign In / Providers → Password
+//     • Minimum password length = 8
+//     • Password Requirements = "Lowercase, uppercase letters and digits"
+//       (האפשרות הזמינה הקרובה ביותר שמחייבת אות גדולה)
+//     • Leaked password protection (HaveIBeenPwned) = Enabled
+// כל עוד ההגדרות האלה כבויות, ברירת המחדל של Supabase היא 6 תווים בלי מורכבות
+// ובלי בדיקת סיסמאות שדלפו — באפליקציה שמחזיקה חשבונות של קטינים זו דלת פתוחה.
+//
+// החלטת הבעלים (4.8.2026): לפחות 8 תווים וגם אות גדולה אחת לפחות.
+export const PASSWORD_MIN_LENGTH = 8
+
+// הכללים עצמם — סדר התצוגה ברשימת הדרישות הוא הסדר כאן.
+// he/en ולא L(): i18n.js מייבא את הקובץ הזה, וייבוא הפוך היה יוצר מעגל.
+export const PASSWORD_RULES = [
+  {
+    id: 'length',
+    test: (pw) => pw.length >= PASSWORD_MIN_LENGTH,
+    he: `לפחות ${PASSWORD_MIN_LENGTH} תווים`,
+    en: `At least ${PASSWORD_MIN_LENGTH} characters`,
+    // ההודעה שמוצגת כשהכלל הזה נכשל — מנוסחת כמשפט שלם, כדי שמי שנכשל
+    // יידע איזה כלל בדיוק נשבר במקום «הסיסמה אינה תקינה».
+    errHe: `הסיסמה חייבת להכיל לפחות ${PASSWORD_MIN_LENGTH} תווים.`,
+    errEn: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+  },
+  {
+    id: 'upper',
+    // רק A-Z: בעברית אין אותיות גדולות, ולכן הכלל מתייחס לאנגלית בלבד —
+    // וזה מה שהטקסט אומר, כדי שנער שמקליד בעברית לא ייתקע בלי להבין למה.
+    test: (pw) => /[A-Z]/.test(pw),
+    he: 'אות גדולה באנגלית (A-Z)',
+    en: 'One uppercase English letter (A-Z)',
+    errHe: 'הסיסמה חייבת להכיל אות גדולה באנגלית אחת לפחות (A-Z).',
+    errEn: 'Password must contain at least one uppercase English letter (A-Z).',
+  },
+  // שני הכללים הבאים אינם גחמה — הם מיישרים את הבדיקה בצד הלקוח להגדרה
+  // שנבחרה בסופאבייס (Password requirements = "Lowercase, uppercase letters
+  // and digits", 4.8.2026). בלעדיהם המסך היה מאשר סיסמה כמו "PASSWORD"
+  // והשרת היה דוחה אותה בהודעה באנגלית בלי לומר איזה כלל נשבר.
+  // ⚠ אם ההגדרה בלוח הבקרה משתנה — יש לעדכן כאן, אחרת חוזרת אותה אי-התאמה.
+  {
+    id: 'lower',
+    test: (pw) => /[a-z]/.test(pw),
+    he: 'אות קטנה באנגלית (a-z)',
+    en: 'One lowercase English letter (a-z)',
+    errHe: 'הסיסמה חייבת להכיל אות קטנה באנגלית אחת לפחות (a-z).',
+    errEn: 'Password must contain at least one lowercase English letter (a-z).',
+  },
+  {
+    id: 'digit',
+    test: (pw) => /[0-9]/.test(pw),
+    he: 'ספרה אחת לפחות (0-9)',
+    en: 'At least one digit (0-9)',
+    errHe: 'הסיסמה חייבת להכיל ספרה אחת לפחות (0-9).',
+    errEn: 'Password must contain at least one digit (0-9).',
+  },
+]
+
+// הבודק המשותף. מחזיר מבנה אחד שכל שלושת המסכים (הרשמה, איפוס, שינוי) צורכים:
+//   valid   — האם כל הכללים עברו
+//   rules   — כל כלל עם met:true/false, לרשימת הדרישות החיה בזמן ההקלדה
+//   failed  — מזהי הכללים שנכשלו
+//   errorHe/errorEn — הודעה על הכלל הראשון שנכשל (null כשהכול תקין)
+export function checkPassword(pw) {
+  const v = String(pw || '')
+  const rules = PASSWORD_RULES.map((r) => ({
+    id: r.id,
+    he: r.he,
+    en: r.en,
+    met: r.test(v),
+  }))
+  const failed = PASSWORD_RULES.filter((r) => !r.test(v))
+  return {
+    valid: failed.length === 0,
+    rules,
+    failed: failed.map((r) => r.id),
+    errorHe: failed.length ? failed[0].errHe : null,
+    errorEn: failed.length ? failed[0].errEn : null,
+  }
+}
+
+// תרגום שגיאות הסיסמה שמגיעות מהשרת של Supabase לעברית שאומרת מה בדיוק נדחה.
+// השגיאות האלה מופיעות רק כשההגדרות בדשבורד מופעלות — כלומר זו האכיפה
+// האמיתית, וכשהיא תופסת, המשתמש חייב לקבל הסבר ולא טקסט אנגלי גולמי.
+// מחזיר {he,en} או null אם אין התאמה (ואז הקורא נופל להודעה הכללית שלו).
+export function passwordServerError(msg) {
+  const m = String(msg || '')
+  if (/Password should be at least/i.test(m)) {
+    return {
+      he: `הסיסמה חייבת להכיל לפחות ${PASSWORD_MIN_LENGTH} תווים.`,
+      en: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+    }
+  }
+  if (/Password should contain|characters? of each/i.test(m)) {
+    return {
+      he: 'הסיסמה חייבת להכיל אות גדולה באנגלית, אות קטנה וספרה.',
+      en: 'Password must contain an uppercase letter, a lowercase letter and a digit.',
+    }
+  }
+  if (/known to be weak|easy to guess|pwned/i.test(m)) {
+    return {
+      he: 'הסיסמה הזו הופיעה בדליפות מוכרות ואינה בטוחה. בחר סיסמה אחרת.',
+      en: 'This password appeared in known breaches and is not safe. Choose a different one.',
+    }
+  }
+  if (/should be different from the old|same.*old password/i.test(m)) {
+    return {
+      he: 'הסיסמה החדשה זהה לישנה. בחר סיסמה אחרת.',
+      en: 'The new password is the same as the old one. Choose a different one.',
+    }
+  }
+  return null
+}
+
 // שכבות הגיל, בסדר המדויק (מהצעיר למבוגר).
 export const AGE_GROUPS = [
   'בית ספר לכדורסל',

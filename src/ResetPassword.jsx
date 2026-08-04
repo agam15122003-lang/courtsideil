@@ -1,12 +1,61 @@
 import { useState } from 'react'
-import { Check, Eye, EyeOff, Lock, AlertTriangle } from 'lucide-react'
+import { Check, Circle, Eye, EyeOff, Lock, AlertTriangle } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Logo from './Logo'
+import { checkPassword, passwordServerError } from './constants'
 import { L } from './i18n'
 
-// מד חוזק סיסמה — משוב בלבד. חוק הוואלידציה נשאר 8 תווים (README §1c/§1h),
-// המד לא מוסיף כלל חדש. מיוצא כדי שמסך ההרשמה (1c) ייבא את אותה נוסחה
-// במקום לשכפל אותה.
+// ===== רשימת הדרישות החיה =====
+// מוצגת בשלושת מסכי הסיסמה (הרשמה, איפוס, שינוי) ומתעדכנת תוך כדי הקלדה,
+// כי המשתמשים כאן הם בני נוער: עדיף שיראו מיד מה עוד חסר מאשר לגלות אחרי
+// שליחה שהסיסמה נדחתה. הכללים עצמם מגיעים מ-constants.js — מקור אמת אחד.
+//
+// ⚠️ תזכורת: הרשימה הזו היא הסבר, לא אכיפה. האכיפה יושבת בדשבורד של Supabase
+// בלבד (ראו ההערה המלאה ליד checkPassword ב-constants.js).
+//
+// העיצוב באינליין ולא במחלקה חדשה: index.css הוא append-only ובבעלות סוכן אחר,
+// והרכיב הזה צריך לעבוד גם בתוך .csa (הרשמה/איפוס) וגם בתוך .cpw (הפרופיל).
+// רק טוקנים, בלי hex, ורק תכונות לוגיות.
+const rulesBoxStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  marginBlockStart: 2,
+}
+const ruleRowStyle = (met) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  fontSize: 11.5,
+  lineHeight: 1.5,
+  fontWeight: met ? 600 : 500,
+  color: met ? 'var(--ok)' : 'var(--mut)',
+})
+
+export function PasswordRules({ password }) {
+  const { rules } = checkPassword(password)
+  return (
+    // aria-live — קורא מסך שומע כשדרישה נסגרת, בלי שהמשתמש יצטרך לצאת מהשדה
+    <span style={rulesBoxStyle} aria-live="polite">
+      {rules.map((r) => (
+        <span key={r.id} style={ruleRowStyle(r.met)}>
+          {r.met ? (
+            <Check size={13} strokeWidth={3} aria-hidden="true" style={{ flex: 'none' }} />
+          ) : (
+            <Circle size={13} aria-hidden="true" style={{ flex: 'none' }} />
+          )}
+          <span>{L(r.he, r.en)}</span>
+          <span className="sr-only">{r.met ? L(' — תקין', ' — met') : L(' — עדיין חסר', ' — not met yet')}</span>
+        </span>
+      ))}
+    </span>
+  )
+}
+
+// מד חוזק סיסמה — משוב בלבד, לא כלל. הכללים המחייבים יושבים ב-checkPassword
+// (constants.js) ומוצגים ברשימת הדרישות שמתחת; המד רק מראה כמה הסיסמה חזקה
+// מעבר למינימום. מיוצא כדי שמסך ההרשמה (1c) ומסך שינוי הסיסמה ייבאו את אותה
+// נוסחה במקום לשכפל אותה.
 //   <8 תווים            → חלשה (אדום)
 //   8+                  → בסדר
 //   8+ עם אות גדולה/ספרה → טובה (72%)
@@ -58,6 +107,9 @@ export default function ResetPassword({ onDone }) {
     window.location.href = window.location.origin
   }
 
+  // כללי הסיסמה — אותו בודק בכל שלושת המסכים (constants.js)
+  const check = checkPassword(password)
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
@@ -67,8 +119,10 @@ export default function ResetPassword({ onDone }) {
       setError(L('הסיסמאות אינן תואמות. נסה שוב.', "The passwords don't match. Try again."))
       return
     }
-    if (password.length < 8) {
-      setError(L('הסיסמה חייבת להכיל לפחות 8 תווים.', 'Password must be at least 8 characters.'))
+    // אותו בודק כמו בהרשמה ובשינוי סיסמה — וההודעה אומרת איזה כלל נשבר,
+    // לא «הסיסמה אינה תקינה».
+    if (!check.valid) {
+      setError(L(check.errorHe, check.errorEn))
       return
     }
 
@@ -77,7 +131,9 @@ export default function ResetPassword({ onDone }) {
     setLoading(false)
 
     if (error) {
-      setError(L('משהו השתבש: ', 'Something went wrong: ') + error.message)
+      // אם השרת דחה את הסיסמה עצמה — אומרים למה בעברית, לא מדביקים אנגלית
+      const pwErr = passwordServerError(error.message)
+      setError(pwErr ? L(pwErr.he, pwErr.en) : L('משהו השתבש: ', 'Something went wrong: ') + error.message)
     } else {
       setDone(true)
       setMessage(L('הסיסמה עודכנה בהצלחה!', 'Password updated successfully!'))
@@ -165,9 +221,12 @@ export default function ResetPassword({ onDone }) {
                   type={show ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={L('לפחות 8 תווים', 'At least 8 characters')}
+                  placeholder={L('לפחות 8 תווים ואות גדולה', 'At least 8 chars + a capital')}
                   required
-                  minLength={8}
+                  /* בלי minLength: הדפדפן היה חוסם את השליחה עם הודעה משלו
+                     ("Please lengthen this text...") — לא בעברית ולא אומרת מה
+                     חסר. הבדיקה כולה עוברת ל-checkPassword כדי שההודעה תהיה
+                     שלנו ותנקוב בכלל שנשבר. */
                   autoComplete="new-password"
                   /* dir רק כשיש תוכן — placeholder עברי ב-dir="ltr" הוא באג מתועד (DESIGN.md §4) */
                   dir={password ? 'ltr' : undefined}
@@ -186,6 +245,9 @@ export default function ResetPassword({ onDone }) {
               <span className="csa-meter" data-lvl={strength.level} aria-hidden="true">
                 <i style={{ width: strength.pct + '%' }} />
               </span>
+              {/* הדרישות מוצגות תמיד, גם לפני ההקלדה — מי שרואה אותן מראש
+                  בוחר סיסמה תקינה בניסיון הראשון במקום להיכשל ולתקן */}
+              <PasswordRules password={password} />
             </label>
 
             {/* --- אישור סיסמה --- */}
@@ -203,7 +265,6 @@ export default function ResetPassword({ onDone }) {
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder={L('הקלד שוב את הסיסמה', 'Re-enter the password')}
                   required
-                  minLength={8}
                   autoComplete="new-password"
                   dir={confirm ? 'ltr' : undefined}
                   disabled={done}

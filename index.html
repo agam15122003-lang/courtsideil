@@ -24,13 +24,10 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- גופנים: preconnect + link (לא חוסם רינדור כמו @import) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@700;800;900&display=swap"
-      rel="stylesheet"
-    />
+    <!-- גופנים: אין כאן שום link לגוגל בכוונה. Rubik ו-Heebo מוגשים מהדומיין
+         שלנו דרך חבילות @fontsource ונטענים מ-src/main.jsx, כדי שכתובת ה-IP של
+         כל משתמש (ובכללם קטינים) לא תישלח ל-fonts.googleapis.com בכל טעינת דף.
+         אין להחזיר כאן preconnect/stylesheet — ה-CSP חוסם את שני הדומיינים. -->
 
     <title>CourtSide — הבית של מאמני ושחקני הכדורסל הישראלי</title>
 
