@@ -628,7 +628,16 @@ begin
   --    כדי שפריסה בלי supabase_player_card.sql לא תיפול על 42703.
   --    זהה ל-SET של purge_expired_data — שני המסלולים חייבים להשאיר
   --    את אותו שלד, אחרת יש שני סוגי «שחקן לשעבר» במערכת.
-  if to_regclass('public.team_players') is not null and v_roster > 0 then
+  --    ⚠ התנאי הוא קיום הטבלה בלבד, ובכוונה לא v_roster > 0: ספירה שנכשלה
+  --    מחזירה null שהופך ל-0, ואז דילוג "כי אין שורות" היה משאיר שם וטלפון
+  --    של קטין אצל המאמן. עדיף UPDATE שלא תופס כלום מאשר דילוג שקט.
+  --    player_id נוספה ב-supabase_players.sql; בלעדיה אין בכלל קישור בין
+  --    שורת סגל לחשבון, ואין מה לאנונימז.
+  if to_regclass('public.team_players') is not null
+     and exists (select 1 from pg_attribute a
+                  where a.attrelid = 'public.team_players'::regclass
+                    and a.attname = 'player_id'
+                    and a.attnum > 0 and not a.attisdropped) then
     select array_agg(tp.id) into v_ids
       from public.team_players tp where tp.player_id = p_user;
 
@@ -710,9 +719,12 @@ begin
                'at', to_jsonb(now()),
                -- שמות השדות נשמרים, הערכים לא: «מה סוג השינוי» שורד,
                -- «מה היה הערך» נעלם.
-               'fields', coalesce(
-                 (select jsonb_agg(t.k order by t.k)
-                    from jsonb_object_keys(a.details) as t(k)), '[]'::jsonb))
+               -- jsonb_typeof לפני jsonb_object_keys: שורה שבה details אינו
+               -- אובייקט הייתה מפילה את הפקודה ומבטלת את הטשטוש כולו.
+               'fields', case when jsonb_typeof(a.details) = 'object' then coalesce(
+                   (select jsonb_agg(t.k order by t.k)
+                      from jsonb_object_keys(a.details) as t(k)), '[]'::jsonb)
+                 else '[]'::jsonb end)
        where (a.subject = p_user
               -- שורות team_players נרשמות עם subject = player_id **החדש**,
               -- כלומר null אחרי הניתוק. נתפסות לפי הערך הישן שביומן.

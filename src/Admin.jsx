@@ -57,7 +57,34 @@ const DEL_REASON = {
 const delReason = (res) =>
   (DEL_REASON[res?.reason] ? DEL_REASON[res.reason]() : null) || res?.message || null
 
+// האזהרות ושלבי-הידני נכתבים בשרת בעברית בלבד (הם גם נכנסים ל-audit_log).
+// במקום לשכפל את הנוסח, העברית מגיעה מהשרת והאנגלית מכאן — כך אין שתי
+// גרסאות של אותה אזהרה שיכולות להיפרד זו מזו.
+const DEL_EN = {
+  no_request_on_file: 'No deletion request is on file for this account. Not a blocker — a deletion can follow a guardian request, a court order or a phone call — but make sure you hold documentation outside the system.',
+  request_cancelled: 'The most recent request on this account was cancelled (the guardian re-approved). Deleting now contradicts the last recorded wish.',
+  active_account: 'The account is active, not suspended. Make sure the request really came from its owner.',
+  blast_radius_coach: 'This is a coach account. The deletion cascades to their teams and with them the roster rows, sessions, attendance and games — including records of other players. Read the breakdown before confirming.',
+  auth_unreadable: 'auth.users cannot be read from this context — the email cannot be shown for identity checking, and deleting the login itself will probably fail and need a manual step.',
+  storage_unreadable: 'storage.objects cannot be read from this context. Files will not be counted and will not be deleted automatically.',
+  auth_user_manual: 'The login user was NOT deleted. All data was removed, but this account can still sign in and would create a fresh empty profile on the next login. Delete it now: Dashboard → Authentication → Users → search the email → Delete user.',
+  storage_manual: 'Deleting the files failed, or storage was unreachable. Check manually: Dashboard → Storage → media, and remove the folders holding this user id.',
+  audit_write_failed: 'The deletion was carried out but writing the audit entry failed. Record it manually.',
+}
+
+// עברית מהשרת, אנגלית מהמפה. אם קוד לא מוכר — מוצג מה שהשרת אמר.
+const delText = (item) => L(item?.message || '', DEL_EN[item?.code] || item?.message || '')
+
 const fmtNum = (n) => (typeof n === 'number' ? n.toLocaleString('en-US') : '—')
+
+// צבע הגלולה לפי מה שקורה לשורות. cv-* הן גלולות ההסכמות, והמיפוי כאן
+// סמנטי ולא מקרי: אדום = נמחק, כחול = שונה, ירוק = שורד.
+const DEL_PILL = { delete: 'cv-revoked', anonymise: 'cv-denied', blocker: 'cv-revoked', unlink: 'cv-granted' }
+
+// index.css הוא append-only ובבעלות סוכן אחר, ולכן היישור של אייקון
+// בתוך .alert נעשה כאן. flex ולא margin — הוא מתהפך לבד ב-RTL.
+const ALERT_ROW = { display: 'flex', gap: 8, alignItems: 'flex-start' }
+const ALERT_IC = { flexShrink: 0, marginBlockStart: 2 }
 
 // מצב אחיד לרשימות של הלשונית החדשה: טעינה · לא-מותקן · שגיאה · ריק
 function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, emptyText, onRetry, notDeployedText }) {
@@ -240,8 +267,10 @@ export default function Admin({ session, profile }) {
   // admin_execute_deletion במצב יבש מחזיר דוח (מי זה, מה יימחק, כמה
   // שורות), ורק אחרי שהוא על המסך נפתח כפתור המחיקה — ודיאלוג האישור
   // מצטט את המספרים שהדוח החזיר, כדי שהאישור יהיה על מה שנראה בעין.
-  // purge = { userId, loading, notDeployed, report, running, result }
+  // purge = { userId, loading, notDeployed, report, running }
   const [purge, setPurge] = useState(null)
+  // purgeDone = { name, res } — התוצאה של ההרצה האמיתית האחרונה
+  const [purgeDone, setPurgeDone] = useState(null)
 
   // supabase.rpc ישירות ולא דרך consent.js: callRpc שם אינו מיוצא, ו-
   // admin_execute_deletion מחזירה jsonb עם ok:false לגיטימי (סירוב מכוון),
@@ -299,10 +328,15 @@ export default function Admin({ session, profile }) {
 
     setPurge((s) => ({ ...s, running: true }))
     const res = await callDeletion(d.user_id, false)
-    setPurge((s) => ({ ...s, running: false, result: res }))
+
+    // התוצאה נשמרת **מחוץ** לפריט ברשימה. שורת הבקשה תלויה ב-profiles עם
+    // cascade, כלומר היא נמחקת יחד עם החשבון והפריט נעלם מהרשימה ברענון
+    // הבא — ואיתו היה נעלם גם הדיווח על שלב ידני שנשאר פתוח. זו בדיוק
+    // ההודעה שאסור לפספס.
+    setPurge(null)
+    setPurgeDone({ name, res })
 
     if (res.ok) {
-      // שלב ידני שנשאר פתוח הוא לא "הצלחה" — במיוחד משתמש הזדהות ששרד.
       const manual = (res.manual_steps || []).length
       if (manual > 0) toast.error(L('המחיקה בוצעה חלקית — יש שלב ידני', 'Partly deleted — a manual step is required'))
       else toast.success(L('החשבון נמחק', 'The account was deleted'))
@@ -864,14 +898,194 @@ export default function Admin({ session, profile }) {
                   </div>
                   <div className="admin-report-actions">
                     {d.status !== 'done' && (
+                      <button
+                        type="button" className="chip"
+                        onClick={() => previewDeletion(d)}
+                        aria-expanded={purge?.userId === d.user_id}
+                      >
+                        <Eye size={13} /> {purge?.userId === d.user_id && !purge.loading
+                          ? L('סגירת הדוח', 'Hide report')
+                          : L('מה יימחק?', 'What will be deleted?')}
+                      </button>
+                    )}
+                    {d.status !== 'done' && (
                       <button type="button" className="chip" onClick={() => markDone(d.id)}>
                         <Check size={13} /> {L('סמן כטופל', 'Mark done')}
                       </button>
                     )}
                   </div>
+
+                  {purge?.userId === d.user_id && (
+                    <div className="adm-log">
+                      <ListState
+                        loading={purge.loading}
+                        notDeployed={purge.notDeployed}
+                        error={false}
+                        empty={false}
+                        notDeployedText={L(
+                          'צריך להריץ את supabase_account_deletion.sql ואז לרענן. עד אז המחיקה בפועל לא קיימת במסד — «סמן כטופל» מעדכן סטטוס בלבד ואינו מוחק דבר.',
+                          'Run supabase_account_deletion.sql and refresh. Until then the real deletion does not exist in the database — “Mark done” only updates a status and deletes nothing.')}
+                      />
+
+                      {purge.report && (() => {
+                        const rep = purge.report
+                        const idn = rep.identity || {}
+                        const plan = rep.plan || []
+                        const blockers = rep.blockers || []
+                        return (
+                          <>
+                            {/* 1. מי זה. זה השלב שמונע מחיקה של האדם הלא נכון. */}
+                            <div className="adm-set">
+                              <span className="muted small">
+                                {L('ודאו שזה האדם הנכון לפני שממשיכים — המזהה מגיע מהבקשה, לא מהקלדה.',
+                                   'Confirm this is the right person before continuing — the id comes from the request, not from typing.')}
+                              </span>
+                            </div>
+                            <ul className="adm-log-list">
+                              <li>
+                                <span className="adm-log-type">{L('שם', 'Name')}</span>
+                                <strong>{`${idn.first_name || ''} ${idn.last_name || ''}`.trim() || '—'}</strong>
+                              </li>
+                              <li>
+                                <span className="adm-log-type">{L('מייל', 'Email')}</span>
+                                <span dir="ltr">{idn.email || L('לא נגיש', 'not available')}</span>
+                              </li>
+                              <li>
+                                <span className="adm-log-type">{L('תפקיד', 'Role')}</span>
+                                <span>{idn.role === 'coach' ? L('מאמן', 'Coach') : idn.role === 'player' ? L('שחקן', 'Player') : (idn.role || '—')}</span>
+                                <span className="muted small" dir="ltr">{(idn.created_at || '').split('T')[0]}</span>
+                              </li>
+                            </ul>
+
+                            {/* 2. אזהרות — לפני הפירוט, כדי שייקראו */}
+                            {(rep.warnings || []).map((w) => (
+                              <div key={w.code} className="alert alert-error" role="alert" style={ALERT_ROW}>
+                                <AlertTriangle size={15} style={ALERT_IC} /> <span>{delText(w)}</span>
+                              </div>
+                            ))}
+                            {blockers.length > 0 && (
+                              <div className="alert alert-error" role="alert" style={ALERT_ROW}>
+                                <ShieldAlert size={15} style={ALERT_IC} />
+                                <span>{L(
+                                  'יש מפתחות זרים שחוסמים את המחיקה. היא לא תרוץ עד שהשורות האלה יטופלו.',
+                                  'Foreign keys are blocking the deletion. It will not run until those rows are handled.')}</span>
+                              </div>
+                            )}
+
+                            {/* 3. הפירוט, טבלה-טבלה */}
+                            <div className="adm-set">
+                              <span className="muted small">
+                                {L(`יימחקו ${fmtNum(rep.rows_to_delete)} שורות · ${rep.storage?.readable ? fmtNum(rep.storage.objects) : '?'} קבצים · `
+                                   + `${fmtNum(rep.roster_to_anonymise)} שורות סגל יעברו אנונימיזציה`,
+                                   `${fmtNum(rep.rows_to_delete)} rows · ${rep.storage?.readable ? fmtNum(rep.storage.objects) : '?'} files will be deleted · `
+                                   + `${fmtNum(rep.roster_to_anonymise)} roster rows anonymised`)}
+                              </span>
+                            </div>
+                            <ul className="adm-log-list">
+                              {plan.map((p, i) => (
+                                <li key={`${p.table}-${p.column}-${i}`}>
+                                  <span className="adm-log-type" dir="ltr">{p.table}</span>
+                                  <span className="muted small" dir="ltr">{p.column}</span>
+                                  <span className={`status-pill adm-cv ${DEL_PILL[p.action] || 'cv-denied'}`}>
+                                    {DEL_ACTION[p.action] ? DEL_ACTION[p.action]() : p.action}
+                                  </span>
+                                  <span className="muted small" dir="ltr" style={{ marginInlineStart: 'auto' }}>
+                                    {fmtNum(p.rows)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+
+                            {/* 4. מה נשמר, ולמה. ההחלטה הזו חייבת להיות גלויה. */}
+                            <div className="adm-set">
+                              <span className="muted small">
+                                <FileText size={13} /> {L(
+                                  `יומן ההסכמות (${fmtNum(rep.preserved?.consents?.rows)} רשומות) לא נמחק — הוא הראיה שההורה אישר. `
+                                  + 'מחיקת הפרופיל מוחקת את פרטי ההורה ומשאירה את ההכרעה בלי זהות. '
+                                  + 'ביומן הביקורת יימחק תוכן הרשומות שבהן הוא נושא המידע, והשלד יישאר.',
+                                  `The consent log (${fmtNum(rep.preserved?.consents?.rows)} records) is not deleted — it is the evidence a guardian approved. `
+                                  + 'Deleting the profile removes the guardian’s details and leaves the decision without an identity. '
+                                  + 'In the audit log, the contents of rows where they are the subject are cleared and only the skeleton stays.')}
+                              </span>
+                            </div>
+
+                            {/* 5. ורק עכשיו — המחיקה */}
+                            <div className="admin-coach-actions">
+                              <button
+                                type="button" className="chip danger-on"
+                                disabled={purge.running || blockers.length > 0}
+                                onClick={() => runDeletion(d)}
+                              >
+                                <Trash2 size={13} /> {purge.running
+                                  ? L('מוחק...', 'Deleting...')
+                                  : L('מחק את החשבון לצמיתות', 'Delete the account permanently')}
+                              </button>
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* תוצאת המחיקה — מחוץ לרשימה בכוונה: שורת הבקשה נמחקת יחד עם
+              החשבון, ואיתה היה נעלם הדיווח על שלב ידני שנשאר פתוח. */}
+          {purgeDone && (
+            <div className="adm-log">
+              <div className={purgeDone.res?.ok && (purgeDone.res.manual_steps || []).length === 0
+                ? 'alert alert-success' : 'alert alert-error'} role="status">
+                {purgeDone.res?.ok
+                  ? L(`החשבון של ${purgeDone.name} נמחק.`, `${purgeDone.name}’s account was deleted.`)
+                  : L(`המחיקה של ${purgeDone.name} לא בוצעה: `, `Deleting ${purgeDone.name} did not run: `)
+                    + (delReason(purgeDone.res) || '')}
+              </div>
+
+              {(purgeDone.res?.manual_steps || []).map((m) => (
+                <div key={m.code} className="alert alert-error" role="alert" style={ALERT_ROW}>
+                  <AlertTriangle size={15} style={ALERT_IC} />
+                  <span>
+                    <strong>{L('נדרש שלב ידני', 'Manual step required')}</strong>
+                    {' — '}{delText(m)}
+                  </span>
+                </div>
+              ))}
+
+              {purgeDone.res?.result && (
+                <ul className="adm-log-list">
+                  {[
+                    ['rows_deleted', L('שורות שנמחקו', 'Rows deleted')],
+                    ['roster_anonymised', L('שורות סגל שעברו אנונימיזציה', 'Roster rows anonymised')],
+                    ['coach_notes_deleted', L('הערות מאמן שנמחקו', 'Coach notes deleted')],
+                    ['storage_objects_deleted', L('קבצים שנמחקו', 'Files deleted')],
+                    ['consents_preserved', L('רשומות הסכמה שנשמרו כראיה', 'Consent records kept as evidence')],
+                  ].map(([k, label]) => (
+                    <li key={k}>
+                      <span className="adm-log-type">{label}</span>
+                      <span className="muted small" dir="ltr" style={{ marginInlineStart: 'auto' }}>
+                        {fmtNum(purgeDone.res.result[k])}
+                      </span>
+                    </li>
+                  ))}
+                  <li>
+                    <span className="adm-log-type">{L('משתמש ההזדהות', 'Login user')}</span>
+                    <span className={`status-pill adm-cv ${purgeDone.res.result.auth_user_deleted ? 'cv-revoked' : 'cv-granted'}`}>
+                      {purgeDone.res.result.auth_user_deleted
+                        ? L('נמחק — אי אפשר להתחבר', 'Deleted — cannot sign in')
+                        : L('קיים — עדיין אפשר להתחבר', 'Still exists — can still sign in')}
+                    </span>
+                  </li>
+                </ul>
+              )}
+
+              <div className="admin-coach-actions">
+                <button type="button" className="chip" onClick={() => setPurgeDone(null)}>
+                  <X size={13} /> {L('סגירה', 'Close')}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ) : (
