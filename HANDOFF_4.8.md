@@ -142,10 +142,25 @@ select jobname, schedule, active from cron.job where jobname = 'courtside-retent
 **לוג הגישה מתעד שינויים, לא קריאות.** תיעוד קריאות דורש שכל קריאה תעבור
 RPC — שינוי גדול. כתוב במפורש ב-`supabase_audit_retention.sql`.
 
-### לא נבנה
+### נבנה חלקית — עטיפה לאנדרואיד (4.8.2026)
 
-**עטיפה ל-Capacitor** — היעד המקורי. התשתית מוכנה (safe-area, כפתור Back,
-SITE_URL, QR מקומי, SW מוגן), נשארה העטיפה, ההרשאות והחנויות.
+Capacitor 8.5 מותקן, `android/` בריפו. `il.courtside.app` · "Courtside.il" ·
+minSdk 24 · compileSdk 36 · AGP 8.13 / Gradle 8.14.3. אייקון ומסך פתיחה
+מיוצרים מהלוגו ע"י `scripts/make-app-assets.mjs` + `@capacitor/assets`.
+זרימת העבודה: `npm run app:sync` ואז `npm run app:open`.
+
+**אחסון הטוקן עבר ל-Preferences — אבל רק בנייטיב.** ב-WebView ה-localStorage
+מתפנה בלחץ אחסון ומנתק משתמשים באקראי. בדפדפן נשארת ברירת המחדל של
+supabase-js **במכוון**: Preferences מוסיף קידומת למפתח, ומעבר גורף היה
+מנתק בבת אחת כל משתמש מחובר באתר החי.
+
+**`android/.gitignore` — שורות ה-keystore הופעלו ידנית.** התבנית משאירה
+אותן כהערה; הריפו ציבורי, ומפתח חתימה שדולף אינו ניתן לביטול.
+
+**מה שנשאר:** אין JDK ואין Android SDK על מכונת הפיתוח — בלי Android Studio
+אי אפשר לייצר קובץ להתקנה. וכן: iOS (דורש macOS), הרשאות, וחשבונות החנויות.
+
+### לא נבנה
 
 **Push notifications** — דורש FCM + שרת ששולח.
 
