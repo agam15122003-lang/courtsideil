@@ -164,11 +164,29 @@ export default function App() {
       setRecoveryMode(true)
     }
 
-    // בודק אם המשתמש כבר מחובר כשהאתר נטען
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    // בודק אם המשתמש כבר מחובר כשהאתר נטען.
+    //
+    // ⚠ אין להחזיר את זה ל-.then() חשוף. setLoading(false) קיים רק כאן
+    // ובשורה 157, ולכן כל מסך האפליקציה תלוי בכך שההבטחה הזו תיפתר.
+    // בדפדפן היא תמיד נפתרת; באפליקציה הנייטיבית היא נתקעה על קריאה
+    // לאחסון של המערכת — שלא נכשלה, פשוט לא ענתה — והאפליקציה נתקעה על
+    // ספינר לנצח בלי שום דרך להתאושש (4.8.2026).
+    //
+    // settle-once: הראשון שמגיע קובע. הגרוע ביותר הוא מסך התחברות,
+    // ו-onAuthStateChange שלמטה מתקן את הסשן אם התשובה מגיעה באיחור.
+    let settled = false
+    const finish = (s) => {
+      if (settled) return
+      settled = true
+      setSession(s ?? null)
       setLoading(false)
-    })
+    }
+    const bail = setTimeout(() => finish(null), 8000)
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => finish(session))
+      .catch(() => finish(null))
+      .finally(() => clearTimeout(bail))
 
     // מאזין לשינויים בהתחברות/התנתקות
     const {
@@ -181,7 +199,10 @@ export default function App() {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(bail)
+      subscription.unsubscribe()
+    }
   }, [])
 
   // חסרים פרטי חיבור ל-Supabase — מסך הסבר במקום מסך ריק

@@ -51,18 +51,64 @@ const inCapacitor = typeof window !== 'undefined' && !!window.Capacitor
 let prefsPromise = null
 const prefs = () => (prefsPromise ||= import('@capacitor/preferences').then((m) => m.Preferences))
 
-// supabase-js מקבל storage אסינכרוני. שגיאה כאן חייבת להיבלע ולא להתפוצץ:
-// כישלון קריאה פירושו "אין סשן" (מסך התחברות), אבל חריגה שיוצאת החוצה
-// מפילה את אתחול הלקוח כולו — כלומר מסך לבן במקום טופס התחברות.
+// ⚠ הלקח מהבנייה הראשונה (4.8.2026): הגרסה הראשונה כאן עטפה את הקריאות
+// ב-try/catch בלבד, והאפליקציה נתקעה על מסך טעינה לנצח.
+//
+// קריאה לתוסף נייטיב יכולה **לא לחזור בכלל** — לא שגיאה, פשוט שקט.
+// try/catch תופס רק דחייה, ולכן לא הגן על כלום. ו-supabase-js ממתין
+// לקריאת האחסון לפני שהוא עונה על getSession, שכל מסך הטעינה תלוי בו.
+// לכן כל קריאה מוגבלת בזמן, ונפילה אחורה היא ל-localStorage ולא ל-null:
+// נפילה ל-null פירושה התנתקות המשתמש, וזה תיקון גרוע מהתקלה.
+const RACE_MS = 2500
+const SILENT = Symbol('silent')
+
+// מחזיר SILENT אם התוסף לא ענה בזמן. הטיימר מנוקה כדי לא להשאיר
+// טיימרים תלויים על כל קריאת אחסון.
+const withTimeout = (p) => {
+  let t
+  return Promise.race([
+    p.finally(() => clearTimeout(t)),
+    new Promise((res) => { t = setTimeout(() => res(SILENT), RACE_MS) }),
+  ])
+}
+
+const local = {
+  getItem: (k) => { try { return window.localStorage.getItem(k) } catch { return null } },
+  setItem: (k, v) => { try { window.localStorage.setItem(k, v) } catch { /* מלא או חסום */ } },
+  removeItem: (k) => { try { window.localStorage.removeItem(k) } catch { /* אין מה לעשות */ } },
+}
+
 const nativeStorage = {
   async getItem(key) {
-    try { return (await (await prefs()).get({ key })).value ?? null } catch { return null }
+    try {
+      const P = await withTimeout(prefs())
+      if (P === SILENT) return local.getItem(key)
+      const r = await withTimeout(P.get({ key }))
+      if (r === SILENT) return local.getItem(key)
+      // Preferences ריק ו-localStorage לא: זה מסלול המעבר של מי שהיה
+      // מחובר לפני שהתוסף נכנס. עדיף להמשיך את הסשן מלקרוא null.
+      return r?.value ?? local.getItem(key)
+    } catch { return local.getItem(key) }
   },
+
+  // נכתב לשניהם, ובמכוון. Preferences הוא המקור הקובע בקריאה, ולכן
+  // התועלת המקורית נשמרת: אם המערכת תפנה את localStorage בלחץ אחסון,
+  // הטוקן עדיין ב-Preferences והמשתמש נשאר מחובר. ו-localStorage הוא
+  // הרשת מתחת — אם התוסף שותק, יש מאיפה לקרוא.
   async setItem(key, value) {
-    try { await (await prefs()).set({ key, value }) } catch { /* נשארים מחוברים לסשן הנוכחי בזיכרון */ }
+    local.setItem(key, value)
+    try {
+      const P = await withTimeout(prefs())
+      if (P !== SILENT) await withTimeout(P.set({ key, value }))
+    } catch { /* localStorage כבר עודכן */ }
   },
+
   async removeItem(key) {
-    try { await (await prefs()).remove({ key }) } catch { /* ההתנתקות עצמה כבר קרתה בזיכרון */ }
+    local.removeItem(key)
+    try {
+      const P = await withTimeout(prefs())
+      if (P !== SILENT) await withTimeout(P.remove({ key }))
+    } catch { /* localStorage כבר עודכן */ }
   },
 }
 
