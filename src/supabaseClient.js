@@ -33,12 +33,39 @@ if (!supabaseConfigured) {
 //   מעבר ל-PKCE בעתיד מחייב קודם טיפול מפורש ב-?code= בכל נקודת נחיתה
 //   (App.jsx / ResetPassword.jsx), או מעבר לתבנית token_hash + verifyOtp
 //   בתבניות המייל של Supabase — שתיהן עובדות חוצה-מכשירים.
-// TODO (Capacitor): כשנעטוף לאפליקציה נייטיבית להוסיף כאן
-//   auth.storage — מתאם מעל @capacitor/preferences (או
-//   capacitor-secure-storage-plugin לטוקנים), עם נפילה לאחור ל-localStorage
-//   בדפדפן. ב-WKWebView ה-localStorage אינו מוצפן ועלול להימחק ע"י המערכת
-//   בלחץ אחסון, מה שמנתק משתמשים אקראית. לא ממומש עכשיו כי Capacitor עדיין
-//   לא מותקן בפרויקט (package.json).
+// אחסון הטוקן — מומש 4.8.2026, כשהותקן Capacitor (זה היה ה-TODO שחסם).
+//
+// ב-WebView נייטיב ה-localStorage אינו אחסון יציב: המערכת רשאית לפנות אותו
+// בלחץ אחסון, וה-WebView באנדרואיד מאבד אותו גם ב-"נקה נתוני אפליקציה"
+// חלקי. התוצאה היא ניתוק אקראי של משתמשים מחוברים. Preferences נשמר
+// ב-SharedPreferences (אנדרואיד) / UserDefaults (iOS) ואינו מתפנה ככה.
+//
+// **רק בנייטיב.** בדפדפן נשארת ברירת המחדל של supabase-js, במכוון:
+// Preferences מוסיף לכל מפתח קידומת משלו, ומעבר אליו באתר החי היה מחליף
+// את שם המפתח ומנתק בבת אחת כל משתמש מחובר. אין מה להסב במעבר לנייטיב —
+// התקנה טרייה מתחילה ממילא בלי סשן.
+const inCapacitor = typeof window !== 'undefined' && !!window.Capacitor
+
+// ייבוא דינמי ולא סטטי: כך התוסף אינו נכנס ל-bundle של הדפדפן, שבו הוא
+// לעולם לא ירוץ.
+let prefsPromise = null
+const prefs = () => (prefsPromise ||= import('@capacitor/preferences').then((m) => m.Preferences))
+
+// supabase-js מקבל storage אסינכרוני. שגיאה כאן חייבת להיבלע ולא להתפוצץ:
+// כישלון קריאה פירושו "אין סשן" (מסך התחברות), אבל חריגה שיוצאת החוצה
+// מפילה את אתחול הלקוח כולו — כלומר מסך לבן במקום טופס התחברות.
+const nativeStorage = {
+  async getItem(key) {
+    try { return (await (await prefs()).get({ key })).value ?? null } catch { return null }
+  },
+  async setItem(key, value) {
+    try { await (await prefs()).set({ key, value }) } catch { /* נשארים מחוברים לסשן הנוכחי בזיכרון */ }
+  },
+  async removeItem(key) {
+    try { await (await prefs()).remove({ key }) } catch { /* ההתנתקות עצמה כבר קרתה בזיכרון */ }
+  },
+}
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-anon-key',
@@ -48,6 +75,10 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'implicit',
+      // undefined = ברירת המחדל (localStorage). לא לכתוב כאן localStorage
+      // במפורש — supabase-js בודק את הסביבה בעצמו, וכתיבה מפורשת שוברת
+      // רינדור בצד שרת אם ייכנס אי־פעם.
+      storage: inCapacitor ? nativeStorage : undefined,
     },
   }
 )
