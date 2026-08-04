@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   ShieldCheck, Flag, Users, BarChart3, Search, Check, Ban,
   AlertTriangle, X, RefreshCw, UserCheck, Trash2, Clock, FileText,
-  Inbox, UserCog,
+  Inbox, UserCog, Eye, ShieldAlert,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -15,7 +15,7 @@ import {
   adminPendingMinors, adminConsentLog, adminRevokeConsent, adminSetConsent,
   adminDeletionRequests, adminMarkDeletionDone,
   adminRequests, adminMarkRequestDone, adminSetGuardian, adminRequestKindLabel,
-  CONSENT_TYPES, consentLabel, consentValueLabel,
+  CONSENT_TYPES, consentLabel, consentValueLabel, isNotDeployed,
 } from './consent'
 
 const REASON_HE = {
@@ -30,6 +30,34 @@ const RELATIONS = [
   { value: 'guardian', label: () => L('אפוטרופוס/ית', 'Legal guardian') },
   { value: 'other', label: () => L('אחר', 'Other') },
 ]
+
+// ===== מחיקת חשבון בפועל =====
+// מה הפונקציה עושה לכל טבלה. השמות בעברית/אנגלית כאן ולא בשרת, כי ה-RPC
+// מחזיר קודים ולא טקסט מתורגם.
+const DEL_ACTION = {
+  delete: () => L('נמחק', 'Deleted'),
+  anonymise: () => L('אנונימיזציה', 'Anonymised'),
+  unlink: () => L('הקישור מנותק', 'Link cleared'),
+  blocker: () => L('חוסם מחיקה', 'Blocks deletion'),
+}
+
+// סירובים מכוונים של הפונקציה. res.message מהשרת הוא עברית בלבד, ולכן
+// הניסוח הדו-לשוני נשמר כאן ונופל אליו רק כברירת מחדל.
+const DEL_REASON = {
+  user_not_found: () => L('לא נמצא חשבון עם המזהה הזה.', 'No account exists with that id.'),
+  refuse_self: () => L('זה החשבון שאיתם אתם מחוברים — אי אפשר למחוק אותו מהמסך הזה.',
+                       'That is the account you are signed in with — it cannot be deleted from here.'),
+  refuse_admin: () => L('זה חשבון מנהל. הסירו ממנו את הרשאת הניהול ורק אז מחקו.',
+                        'This is an admin account. Remove its admin flag first.'),
+  fk_blocker: () => L('יש קשרים במסד שחוסמים את המחיקה — הפירוט בדוח.',
+                      'Database constraints block the deletion — see the report.'),
+  no_user: () => L('חסר מזהה משתמש.', 'Missing user id.'),
+}
+
+const delReason = (res) =>
+  (DEL_REASON[res?.reason] ? DEL_REASON[res.reason]() : null) || res?.message || null
+
+const fmtNum = (n) => (typeof n === 'number' ? n.toLocaleString('en-US') : '—')
 
 // מצב אחיד לרשימות של הלשונית החדשה: טעינה · לא-מותקן · שגיאה · ריק
 function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, emptyText, onRetry, notDeployedText }) {
@@ -206,11 +234,91 @@ export default function Admin({ session, profile }) {
       : L('העדכון נכשל', 'Update failed'))
   }
 
+  // ----- מחיקת חשבון בפועל -----
+  //
+  // שני שלבים, ואי אפשר לדלג על הראשון: אין כאן כפתור אחד שמוחק. קודם
+  // admin_execute_deletion במצב יבש מחזיר דוח (מי זה, מה יימחק, כמה
+  // שורות), ורק אחרי שהוא על המסך נפתח כפתור המחיקה — ודיאלוג האישור
+  // מצטט את המספרים שהדוח החזיר, כדי שהאישור יהיה על מה שנראה בעין.
+  // purge = { userId, loading, notDeployed, report, running, result }
+  const [purge, setPurge] = useState(null)
+
+  // supabase.rpc ישירות ולא דרך consent.js: callRpc שם אינו מיוצא, ו-
+  // admin_execute_deletion מחזירה jsonb עם ok:false לגיטימי (סירוב מכוון),
+  // שאסור להתבלבל בינו לבין שגיאת רשת.
+  const callDeletion = async (userId, dryRun) => {
+    let res
+    try {
+      res = await supabase.rpc('admin_execute_deletion', { p_user: userId, p_dry_run: dryRun })
+    } catch (err) {
+      return { ok: false, message: err?.message || '' }
+    }
+    if (res.error) {
+      return { ok: false, notDeployed: isNotDeployed(res.error), message: res.error.message || '' }
+    }
+    return res.data && typeof res.data === 'object' ? res.data : { ok: false }
+  }
+
+  const previewDeletion = async (d) => {
+    if (purge?.userId === d.user_id && !purge.loading) { setPurge(null); return }
+    setPurge({ userId: d.user_id, loading: true })
+    const res = await callDeletion(d.user_id, true)
+    if (res.notDeployed) { setPurge({ userId: d.user_id, notDeployed: true }); return }
+    if (!res.ok) {
+      setPurge(null)
+      toast.error(delReason(res) || L('הפקת הדוח נכשלה', 'Generating the report failed'))
+      return
+    }
+    setPurge({ userId: d.user_id, report: res })
+  }
+
+  const runDeletion = async (d) => {
+    const rep = purge?.userId === d.user_id ? purge.report : null
+    if (!rep) return // הכפתור לא מרונדר בלי דוח; זו חגורה נוספת
+    const id = rep.identity || {}
+    const name = `${id.first_name || ''} ${id.last_name || ''}`.trim() || d.user_id
+    const rows = fmtNum(rep.rows_to_delete)
+    const files = rep.storage?.readable ? fmtNum(rep.storage.objects) : L('לא ידוע', 'unknown')
+    const roster = fmtNum(rep.roster_to_anonymise)
+
+    const ok = await confirmDialog({
+      title: L('למחוק את החשבון לצמיתות?', 'Permanently delete this account?'),
+      // הדיאלוג מצטט את הדוח במפורש — אישור על מספרים, לא על תחושה.
+      message:
+        `${name}${id.email ? ` · ${id.email}` : ''}. ` +
+        L(`יימחקו ${rows} שורות ו-${files} קבצים, ו-${roster} שורות סגל יעברו אנונימיזציה `
+          + '(השם והפרטים מוסרים, נתוני הנוכחות של המאמן נשארים). ',
+          `${rows} rows and ${files} files will be deleted, and ${roster} roster rows will be anonymised `
+          + '(name and details removed, the coach’s attendance data kept). ') +
+        L('יומן ההסכמות נשמר כראיה שההורה אישר. הפעולה אינה הפיכה ואין ממנה שחזור.',
+          'The consent log is kept as evidence that a guardian approved. This cannot be undone or restored.'),
+      confirmText: L('מחק לצמיתות', 'Delete permanently'),
+      danger: true,
+    })
+    if (!ok) return
+
+    setPurge((s) => ({ ...s, running: true }))
+    const res = await callDeletion(d.user_id, false)
+    setPurge((s) => ({ ...s, running: false, result: res }))
+
+    if (res.ok) {
+      // שלב ידני שנשאר פתוח הוא לא "הצלחה" — במיוחד משתמש הזדהות ששרד.
+      const manual = (res.manual_steps || []).length
+      if (manual > 0) toast.error(L('המחיקה בוצעה חלקית — יש שלב ידני', 'Partly deleted — a manual step is required'))
+      else toast.success(L('החשבון נמחק', 'The account was deleted'))
+      loadConsent()
+      return
+    }
+    toast.error(delReason(res) || L('המחיקה נכשלה', 'The deletion failed'))
+  }
+
   const markDone = async (id) => {
     const ok = await confirmDialog({
       title: L('לסמן את בקשת המחיקה כטופלה?', 'Mark this deletion request as done?'),
-      message: L('סימון הבקשה מצהיר שהמחיקה בוצעה בפועל (חשבון, שורות סגל וקבצי מדיה).',
-                 'Marking it states that the deletion was actually carried out (account, roster rows and media files).'),
+      message: L('סימון הבקשה מצהיר שהמחיקה בוצעה בפועל (חשבון, שורות סגל וקבצי מדיה). '
+                 + 'אם עוד לא מחקתם — השתמשו ב«מה יימחק?» ובמחיקה עצמה, ולא בסימון הזה.',
+                 'Marking it states that the deletion was actually carried out (account, roster rows and media files). '
+                 + 'If you have not deleted yet, use “What will be deleted?” and the deletion itself instead.'),
       confirmText: L('סמן כטופל', 'Mark done'),
       danger: false,
     })
@@ -724,8 +832,10 @@ export default function Admin({ session, profile }) {
             <Trash2 size={16} /> {L('בקשות מחיקת חשבון', 'Account deletion requests')}
           </h3>
           <p className="muted small">
-            {L('מדיניות הפרטיות מבטיחה מחיקה תוך 30 יום. סימון «טופל» מצהיר שהמחיקה בוצעה בפועל.',
-               'The privacy policy promises deletion within 30 days. Marking “done” states the deletion was actually carried out.')}
+            {L('מדיניות הפרטיות מבטיחה מחיקה תוך 30 יום. «מה יימחק?» מפיק דוח מלא בלי לגעת בכלום, '
+               + 'ורק אחריו נפתחת המחיקה עצמה.',
+               'The privacy policy promises deletion within 30 days. “What will be deleted?” produces a full report '
+               + 'without touching anything, and only then does the deletion itself unlock.')}
           </p>
           <ListState
             loading={dels.loading}
