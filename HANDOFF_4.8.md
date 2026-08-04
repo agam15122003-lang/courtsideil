@@ -157,8 +157,22 @@ supabase-js **במכוון**: Preferences מוסיף קידומת למפתח, ו
 **`android/.gitignore` — שורות ה-keystore הופעלו ידנית.** התבנית משאירה
 אותן כהערה; הריפו ציבורי, ומפתח חתימה שדולף אינו ניתן לביטול.
 
-**מה שנשאר:** אין JDK ואין Android SDK על מכונת הפיתוח — בלי Android Studio
-אי אפשר לייצר קובץ להתקנה. וכן: iOS (דורש macOS), הרשאות, וחשבונות החנויות.
+**נבנה בהצלחה ב-4.8.2026.** `npm run app:build` מסנכרן, בונה ומחזיר
+`android/app/build/outputs/apk/debug/app-debug.apk` (13MB). Android Studio
+מותקן, SDK בפנים.
+
+⚠ **מלכודת ה-Java — קראו לפני בנייה במחשב חדש.** Android Studio מגיע עם
+JDK 25, ו-Gradle 8.14.3 (הגרסה ש-Capacitor מקבע) אינו יודע לקרוא אותה:
+`Unsupported class file major version 69`. הותקנה **JDK 21 לצידה**
+(Temurin, ב-`~/.jdks`), ו-`org.gradle.java.home` מצביע עליה
+ב-`~/.gradle/gradle.properties` — **מחוץ לריפו**, כי הנתיב נכון למחשב אחד.
+`scripts/build-apk.mjs` קורא משם ומזריק `JAVA_HOME`, כי `gradlew` מרים את
+ה-JVM לפני ש-Gradle קורא את הקובץ ההוא בכלל. `gradlew --version` **עובד**
+גם על 25 ולכן אינו בדיקה — רק בנייה אמיתית חושפת את זה.
+
+**מה שנשאר:** הקובץ שנבנה הוא גרסת בדיקה (debug) — מספיק להתקנה ידנית על
+טלפון, לא לחנות. לחנות צריך build חתום, וקובץ החתימה חייב להישאר מחוץ לגיט.
+וכן: iOS (דורש macOS), הרשאות, וחשבונות החנויות.
 
 ### לא נבנה
 

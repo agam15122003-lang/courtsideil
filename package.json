@@ -11,7 +11,8 @@
     "images": "node scripts/fetch-images.mjs",
     "verify": "npm run check && npm run build",
     "app:sync": "npm run verify && npx cap sync android",
-    "app:open": "npx cap open android"
+    "app:open": "npx cap open android",
+    "app:build": "npm run app:sync && node scripts/build-apk.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
