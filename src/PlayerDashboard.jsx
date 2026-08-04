@@ -7,6 +7,7 @@ import {
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
   MapPin, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
+  Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -34,6 +35,9 @@ import { waShare, copyText } from './share'
 import {
   myConsentState, requestManageLink, isAdultPlayer, consentRequestError,
   consentManageShareText, CONSENT_TYPES, consentLabel, consentHelp, consentValueLabel,
+  myDataExport, groupDataSections, summaryOnlyItems, exportGeneratedAt,
+  dataSectionLabel, dataFieldLabel, dataValueText,
+  exportToJsonText, exportToCsvText, exportFileName, downloadTextFile,
 } from './consent'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
@@ -1991,6 +1995,260 @@ function ParentConsentCard({ profile }) {
   )
 }
 
+// ============================================================
+//  «המידע שלי» — זכות עיון
+// ============================================================
+// מדיניות הפרטיות כבר מבטיחה שאפשר לראות מה מוחזק על המשתמש, אבל עד היום לא
+// הייתה לזה שום דרך באפליקציה. הבטחה בלי כפתור היא לא הבטחה.
+//
+// הטעינה עצלה בכוונה: הייצוא שולף עשרות טבלאות, ואין שום סיבה להריץ אותו בכל
+// כניסה לפרופיל. הסעיפים נבנים דינמית מהמפתחות שה-RPC החזיר, ולא מרשימה קשיחה
+// בקוד — כך שאם הסוכן שכתב את ה-SQL הוסיף עוד טבלה, היא תופיע כאן מעצמה
+// (בקבוצת «עוד מידע») ולא תיבלע בשקט.
+
+// שורות שם־ערך של אובייקט אחד. ערכים מקוננים (אובייקט/מערך בתוך שורה) לא
+// נדחסים ל-JSON על המסך — הם עולים מעלה כתת-גושים משלהם.
+function DataRow({ row }) {
+  return (
+    <dl className="mdt-dl">
+      {Object.entries(row).map(([k, v]) => (
+        <div className="mdt-dl-row" key={k}>
+          <dt>{dataFieldLabel(k)}</dt>
+          <dd dir="auto">{dataValueText(v)}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+// גוש אחד של הייצוא: אובייקט שטוח, מערך שורות, אובייקט מקונן או מספר בלבד
+function DataBlock({ entryKey, value, depth = 0 }) {
+  const [all, setAll] = useState(false)
+  const title = dataSectionLabel(entryKey)
+
+  // מספר בלבד — הייצוא ספר ולא שמר תוכן. אומרים את זה במפורש ליד המספר.
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+    return (
+      <div className="mdt-block">
+        <h4 className="mdt-block-t">{title}</h4>
+        <p className="mdt-scalar">
+          <bdi>{dataValueText(value)}</bdi>
+          {typeof value === 'number' && (
+            <span className="muted small"> {L('(מספר בלבד, בלי התוכן)', '(a count only, not the content)')}</span>
+          )}
+        </p>
+      </div>
+    )
+  }
+
+  const isList = Array.isArray(value)
+  const rows = isList ? value : [value]
+  const objRows = rows.filter((r) => r && typeof r === 'object' && !Array.isArray(r))
+  const flatRows = rows.filter((r) => !r || typeof r !== 'object' || Array.isArray(r))
+
+  // אובייקט יחיד שיש בתוכו טבלאות (למשל activity: { streak, feedback:[...] }):
+  // השדות הפשוטים נשארים כאן, והמקוננים יורדים לתת-גושים עם כותרת משלהם —
+  // אחרת הם היו מוצגים כמחרוזת JSON, וזה כבר לא «המידע שלי בשפה פשוטה».
+  const nested = []
+  let plain = objRows
+  if (!isList && objRows.length === 1 && depth < 2) {
+    const flat = {}
+    for (const [k, v] of Object.entries(objRows[0])) {
+      // רשימת ערכים פשוטים (שנתונים, למשל) נשארת בשורה אחת; רק טבלה אמיתית
+      // או אובייקט מקונן זוכים לגוש נפרד
+      const isTable = Array.isArray(v)
+        ? v.some((x) => x && typeof x === 'object')
+        : !!v && typeof v === 'object' && Object.keys(v).length > 0
+      if (isTable) nested.push({ key: `${entryKey}.${k}`, value: v })
+      else flat[k] = v
+    }
+    plain = Object.keys(flat).length > 0 ? [flat] : []
+  }
+
+  const shown = all ? plain : plain.slice(0, 3)
+  const hidden = plain.length - shown.length
+
+  return (
+    <div className="mdt-block">
+      <h4 className="mdt-block-t">
+        {title}
+        {isList && <span className="mdt-badge"><bdi>{rows.length}</bdi></span>}
+      </h4>
+
+      {shown.map((row, i) => <DataRow row={row} key={i} />)}
+
+      {/* ערכים פשוטים בתוך מערך (רשימת שנתונים, למשל) */}
+      {flatRows.length > 0 && (
+        <p className="mdt-scalar" dir="auto">{flatRows.map((v) => dataValueText(v)).join(', ')}</p>
+      )}
+
+      {nested.map((n) => <DataBlock key={n.key} entryKey={n.key} value={n.value} depth={depth + 1} />)}
+
+      {hidden > 0 && (
+        <button type="button" className="mdt-more" onClick={() => setAll(true)}>
+          <ChevronDown size={15} aria-hidden="true" />
+          {L('הצגת עוד ', 'Show ')}<bdi>{hidden}</bdi>{L('', ' more')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function MyDataCard() {
+  const [phase, setPhase] = useState('idle') // idle | loading | ready | error | missing
+  const [data, setData] = useState(null)
+
+  const load = useCallback(async () => {
+    setPhase('loading')
+    const res = await myDataExport()
+    if (res.ok) {
+      setData(res.data || {})
+      setPhase('ready')
+      return
+    }
+    // מסד שטרם הריץ את המיגרציה — לא שגיאה, פשוט עוד לא קיים
+    if (res.notDeployed) { setPhase('missing'); return }
+    setPhase('error')
+  }, [])
+
+  const groups = useMemo(() => (data ? groupDataSections(data) : []), [data])
+  const summaries = useMemo(() => (data ? summaryOnlyItems(data) : []), [data])
+  const generatedAt = data ? exportGeneratedAt(data) : ''
+
+  const save = (kind) => {
+    const text = kind === 'json' ? exportToJsonText(data) : exportToCsvText(data)
+    // קובץ CSV שיש בו רק BOM = אין שום חלק טבלאי. עדיף לומר את זה מלהוריד ריק.
+    // trim מנקה גם את ה-BOM עצמו (U+FEFF נחשב תו לבן ב-JS), ולכן זו בדיקה מספקת.
+    if (!text || text.trim().length === 0) {
+      toast.error(L('אין מה להוריד עדיין', 'There is nothing to download yet'))
+      return
+    }
+    const ok = downloadTextFile(exportFileName(kind), text, kind === 'json' ? 'application/json' : 'text/csv')
+    toast[ok ? 'success' : 'error'](ok
+      ? L('הקובץ ירד למכשיר', 'The file was downloaded')
+      : L('ההורדה נחסמה בדפדפן — נסו מהמחשב', 'The download was blocked — try from a computer'))
+  }
+
+  const label = <p className="pl-section-label" style={{ marginTop: 20 }}>{L('המידע שלי', 'My data')}</p>
+
+  return (
+    <>
+      {label}
+      <section className="mdt-card">
+        <div className="mdt-head">
+          <span className="mdt-ic"><Database size={20} /></span>
+          <div className="mdt-head-txt">
+            <strong>{L('מה שמור עליך אצלנו', 'What we hold about you')}</strong>
+            <span className="muted small">
+              {L('זה המידע שלך. אפשר לראות אותו כאן ולהוריד אותו למכשיר.',
+                 'This is your data. You can see it here and download it to your device.')}
+            </span>
+          </div>
+        </div>
+
+        {phase === 'idle' && (
+          <div className="mdt-actions">
+            <button type="button" className="btn-primary" onClick={load}>
+              <Eye size={16} /> {L('הצגת המידע שלי', 'Show my data')}
+            </button>
+          </div>
+        )}
+
+        {phase === 'loading' && <SkeletonCards count={2} lines={3} />}
+
+        {/* שגיאת שליפה חייבת להיראות כשגיאה עם דרך חזרה — לא כמסך ריק */}
+        {phase === 'error' && (
+          <div className="mdt-alert" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>{L('לא הצלחנו לטעון את המידע. אולי זו תקלת רשת.',
+                     'We could not load your data. It may be a network problem.')}</span>
+            <button type="button" className="btn-soft mdt-retry" onClick={load}>
+              <RefreshCw size={15} /> {L('נסו שוב', 'Try again')}
+            </button>
+          </div>
+        )}
+
+        {phase === 'missing' && (
+          <p className="muted small mdt-foot" role="status">
+            {L('האפשרות הזו עוד לא פעילה בשרת. אפשר לבקש את המידע מהמאמן/ת בינתיים.',
+               'This is not live on the server yet. You can ask your coach for your data meanwhile.')}
+          </p>
+        )}
+
+        {phase === 'ready' && groups.length === 0 && (
+          <p className="muted small mdt-foot">
+            {L('חוץ מפרטי החשבון עוד לא נאסף עליך מידע.',
+               'Apart from your account details, nothing has been collected about you yet.')}
+          </p>
+        )}
+
+        {phase === 'ready' && groups.length > 0 && (
+          <>
+            {groups.map((g) => (
+              <div className="mdt-group" key={g.id}>
+                <h3 className="mdt-group-t">{g.title}</h3>
+                {g.entries.map((e) => <DataBlock key={e.key} entryKey={e.key} value={e.value} />)}
+              </div>
+            ))}
+
+            {/* יושר על החלקים המסוכמים: מונה בלי תוכן נראה על המסך כמו «זה הכל»,
+                ולכן אומרים במפורש שזו ספירה ולא התוכן עצמו. */}
+            {summaries.length > 0 && (
+              <div className="mdt-note" role="note">
+                <Info size={16} aria-hidden="true" />
+                <div className="mdt-note-body">
+                  <strong>{L('מה שמופיע כאן כמספר בלבד', 'What appears here as a number only')}</strong>
+                  <p className="muted small">
+                    {L('בחלקים האלה שמרנו רק כמה יש, לא את התוכן. למשל הודעות — נספרות, לא מוצגות.',
+                       'For these we kept only how many there are, not the content. Messages, for example, are counted and not shown.')}
+                  </p>
+                  <ul className="mdt-sum">
+                    {summaries.map((s) => (
+                      <li key={s.key}>
+                        <span>{dataSectionLabel(s.key)}</span>
+                        <b><bdi>{s.count == null ? '—' : s.count}</bdi></b>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            <div className="mdt-actions">
+              <button type="button" className="btn-soft" onClick={() => save('json')}>
+                <FileJson size={16} /> {L('הורדה כ-JSON', 'Download JSON')}
+              </button>
+              <button type="button" className="btn-soft" onClick={() => save('csv')}>
+                <FileSpreadsheet size={16} /> {L('הורדה כטבלה (CSV)', 'Download table (CSV)')}
+              </button>
+              <button type="button" className="btn-soft mdt-refresh" onClick={load}>
+                <RefreshCw size={15} /> {L('רענון', 'Refresh')}
+              </button>
+            </div>
+
+            <p className="muted small mdt-foot">
+              <Download size={13} aria-hidden="true" />{' '}
+              {L('JSON שומר הכול בדיוק כפי שהוא. CSV נפתח באקסל, ומכיל רק את החלקים שהם טבלה.',
+                 'JSON keeps everything exactly as it is. CSV opens in Excel and holds only the table-like parts.')}
+            </p>
+            <p className="muted small mdt-foot">
+              {L('חסר לך משהו כאן, או שרצית לראות גם את התוכן ולא רק את המספר? בקשו מהמאמן/ת או שלחו פנייה למנהל המערכת.',
+                 'Something missing, or want the content and not just the count? Ask your coach or send a request to the admin.')}
+              {generatedAt && (
+                <>
+                  {' '}
+                  {L('המידע נאסף ב-', 'Collected on ')}
+                  <bdi>{dataValueText(generatedAt)}</bdi>
+                </>
+              )}
+            </p>
+          </>
+        )}
+      </section>
+    </>
+  )
+}
+
 // ---------- מסך: פרופיל (זהות, סטטיסטיקות, קבוצות, הגדרות) ----------
 function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView }) {
   const [st, setSt] = useState(null)
@@ -2064,6 +2322,10 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 
       {/* לשחקן בגיר אין הורה מאשר — הכרטיס כולו יורד מהמסך */}
       {!isAdultPlayer(profile) && <ParentConsentCard profile={profile} />}
+
+      {/* זכות עיון — פתוח לכל שחקן, קטין או בגיר */}
+      <MyDataCard />
+
 
       <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הגדרות', 'Settings')}</p>
       <div className="plp-settings">

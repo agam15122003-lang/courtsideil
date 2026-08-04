@@ -287,6 +287,111 @@ export async function pendingRequests(coachId, { quiet = false } = {}) {
   }))
 }
 
+// ---------- הצלבת גיל: מה שרשום בסגל מול מה שהשחקן הצהיר ----------
+// למה זה קיים: תאריך הלידה נאסף פעמיים ובאופן בלתי תלוי — המאמן מקליד אותו
+// בשורת הסגל (team_players.birth_date), והשחקן מצהיר עליו בפרופיל שלו.
+// כששני המקורות לא מסכימים אף אחד לא יודע מי צודק, ובמקרה הגרוע ההפרש הוא
+// בדיוק הקו שבין קטין לבגיר — כלומר בין "נדרש אישור הורה" ל"לא נדרש".
+// התפקיד של השכבה הזו הוא רק להביא את שני המספרים למאמן. היא לא מכריעה,
+// לא מתקנת ולא מסמנת אשם — ההכרעה היא של האדם שמכיר את המשפחה.
+
+// "המיגרציה עוד לא רצה" עבור הקריאות האלה: פונקציה חסרה (PGRST202/42883),
+// טבלה או עמודה שהיא נשענת עליהן (42P01/42703), grant execute שלא ניתן
+// (42501 — פריסה חלקית, לא תקלה של המאמן) או קאש PostgREST ישן (PGRST205).
+// בכל אחד מאלה המסך חייב להיראות *בדיוק* כמו היום: בלי פאנל ובלי טוסט.
+function isAgeRpcMissing(error) {
+  if (!error) return false
+  if (isMissingRpc(error) || isMissingColumn(error)) return true
+  return error.code === 'PGRST205'
+}
+
+// סדר ההצגה. critical = שני המקורות חלוקים על עצם היות השחקן קטין.
+const SEVERITY_RANK = { critical: 0, major: 1, minor: 2 }
+
+// חומרה שלא מוכרת לנו לא נבלעת ולא מוצגת כ"קטנה": עדיף להטריד את המאמן
+// בפער אמיתי מאשר להחביא ממנו ערך חדש שהשרת התחיל להחזיר.
+// hasOwnProperty ולא [s] === undefined: severity בשם 'toString' היה עובר
+// דרך מפתחות ה-prototype ומגיע ל-UI כערך שלא קיים בטבלת התוויות.
+const normSeverity = (s) => (Object.prototype.hasOwnProperty.call(SEVERITY_RANK, s) ? s : 'major')
+
+// התאריך אמור לחזור כ-date ('YYYY-MM-DD'). אם השרת יחזיר timestamp מלא —
+// חותכים ליום, כי הפורמטר בצד הלקוח מצפה בדיוק לצורה הזו. ערך שלא נראה
+// כתאריך הופך ל-null: המסך יציג אז את הגיל בלבד, ולא מחרוזת ג׳יבריש.
+const dateOnly = (v) => {
+  if (!v) return null
+  const s = String(v)
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null
+}
+
+// גיל/תאריך חוזרים מהשרת כמספר וכ-date. ממירים בזהירות: NaN בתצוגה גרוע
+// יותר מ"אין נתון", ולכן ערך שלא ניתן להמרה הופך ל-null.
+const numOrNull = (v) => {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function normalizeMismatch(r) {
+  return {
+    player_id: r.player_id,
+    name: r.name || '',
+    team: r.team || '',
+    coach_age: numOrNull(r.coach_age),
+    player_age: numOrNull(r.player_age),
+    coach_birth: dateOnly(r.coach_birth),
+    player_birth: dateOnly(r.player_birth),
+    severity: normSeverity(r.severity),
+    approval_status: r.approval_status || null,
+  }
+}
+
+// אי-התאמות הגיל של מאמן, בכל הקבוצות שלו, ממוינות לפי חומרה.
+//
+// חוזה החזרה זהה ל-pendingRequests ומאותה סיבה: תמיד מערך (הקורא עושה עליו
+// .filter), וכשל טעינה מסומן בתכונה `loadError` — כדי שהמסך יבדיל בין
+// "אין אי-התאמות" (מצב תקין ורצוי) לבין "לא הצלחנו לבדוק". ריק בגלל שגיאה
+// הוא בדיוק הבאג שכבר הפיל את מסך הבקשות בפרודקשן.
+// quiet=true: השגיאה נרשמת ומסומנת ב-loadError אבל בלי טוסט, למסך שמציג
+// פס שגיאה אינליין משלו.
+export async function ageMismatches(coachId, { quiet = false } = {}) {
+  const { data, error } = await supabase
+    .rpc('age_mismatches', { p_coach: coachId || null })
+  if (error) {
+    if (isAgeRpcMissing(error)) {
+      // לא כשל — פשוט מסד שטרם הריץ את supabase_age_crosscheck.sql
+      console.warn('players.ageMismatches: age_mismatches לא זמין —', error.message || error)
+      return []
+    }
+    reportError('ageMismatches', error, quiet ? null : L(
+      'בדיקת תאריכי הלידה בסגל נכשלה — נסו לרענן.',
+      'Checking the roster birth dates failed — try refreshing.'))
+    const failed = []
+    failed.loadError = true
+    return failed
+  }
+  // setof מוחזר כמערך; מגינים גם מפני צורה אחרת כדי שלא ניפול על .filter
+  const rows = Array.isArray(data) ? data : (data ? [data] : [])
+  return rows
+    .filter((r) => r && r.player_id)
+    .map(normalizeMismatch)
+    .sort((a, b) => (SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+      || String(a.name).localeCompare(String(b.name)))
+}
+
+// מונה בלבד, לתג/צ׳יפ במסך שלא צריך את השורות עצמן.
+// בלי טוסט במכוון: זו קריאת רקע לתג, והמסך שמציג את הרשימה כבר מתריע על
+// אותה תקלה — שני טוסטים זהים על אותה שגיאה זה רעש. 0 = "אין מה להראות",
+// וזו גם התשובה כשהמיגרציה טרם רצה.
+export async function ageMismatchCount() {
+  const { data, error } = await supabase.rpc('age_mismatch_count')
+  if (error) {
+    if (!isAgeRpcMissing(error)) console.error('players.ageMismatchCount:', error.message || error)
+    return 0
+  }
+  const n = numOrNull(Array.isArray(data) ? data[0] : data)
+  return n == null || n < 0 ? 0 : n
+}
+
 // כל החברויות של שחקן (עם פרטי המאמן)
 export async function myMemberships(playerId) {
   const { data, error } = await supabase

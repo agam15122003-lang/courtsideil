@@ -360,3 +360,388 @@ export function consentValueLabel(value) {
   if (value === 'revoked') return L('בוטל', 'Revoked')
   return L('טרם נענה', 'No answer yet')
 }
+
+// ============================================================
+//  זכות עיון — «המידע שלי»
+// ============================================================
+// מדיניות הפרטיות כבר מבטיחה למשתמש לראות מה מוחזק עליו. עד היום לא הייתה
+// לזה שום דרך באפליקציה. ה-RPC (supabase_my_data.sql) מחזיר jsonb אחד עם כל
+// מה שקשור למשתמש, והשכבה כאן רק מנרמלת אותו ומכינה קבצים להורדה.
+//
+// למה נורמליזציה בכלל: הקובץ ה-SQL נכתב במקביל, ואי אפשר לדעת אם הוא מחזיר
+// { ok:true, profile:{...} }, { ok:true, data:{...} } או פשוט { profile:{...} }.
+// callRpc מחזיר אובייקט jsonb כמות שהוא, ולכן ייצוא בלי דגל ok היה נראה
+// לקורא ככישלון. normalizeExport מיישר את שלוש הצורות לחוזה אחד:
+// { ok:true, data:<הייצוא עצמו> }.
+
+const EXPORT_ENVELOPE_KEYS = ['data', 'export', 'payload', 'result']
+
+function normalizeExport(res) {
+  if (!res || typeof res !== 'object') return { ok: false, reason: 'error' }
+  if (res.ok === false) return res // כולל notDeployed — עובר כמו שהוא לקורא
+  // setof במקום jsonb — עוטפים כדי שהקורא יקבל תמיד אובייקט
+  if (Array.isArray(res.rows)) return { ok: true, data: { items: res.rows } }
+  for (const k of EXPORT_ENVELOPE_KEYS) {
+    const v = res[k]
+    if (v && typeof v === 'object' && !Array.isArray(v)) return { ok: true, data: v }
+  }
+  const { ok: _ok, ...rest } = res
+  return { ok: true, data: rest }
+}
+
+export async function myDataExport() {
+  return normalizeExport(await callRpc('my_data_export'))
+}
+
+export async function adminDataExport(userId) {
+  if (!userId) return { ok: false, reason: 'no_user' }
+  return normalizeExport(await callRpc('admin_data_export', { p_user: userId }))
+}
+
+// גילוי-תכונה: ייתכן שהפונקציה הזו לא נוצרה כלל (ייצוא להורה דרך טוקן ניהול
+// הוא החלטה פתוחה). notDeployed כאן אינו תקלה אלא «התכונה לא קיימת», והקורא
+// פשוט לא מציג את הכפתור במקום להראות שגיאה.
+export async function guardianDataExport(token) {
+  if (!token) return { ok: false, reason: 'no_token' }
+  return normalizeExport(await callRpc('guardian_data_export', { p_token: token }))
+}
+
+// ===== שמות בעברית =====
+// המפתחות מגיעים מהמסד באנגלית. מילון קטן הופך אותם למשהו שילד בן 13 מבין;
+// מפתח שלא מוכר מוצג כמו שהוא ולא נעלם — עדיף מפתח גולמי על מידע חסר.
+
+const SECTION_LABELS = {
+  profile: ['הפרטים שלי', 'My details'],
+  account: ['החשבון', 'Account'],
+  user: ['החשבון', 'Account'],
+  guardians: ['ההורה או האחראי', 'Parent or guardian'],
+  guardian: ['ההורה או האחראי', 'Parent or guardian'],
+  consents: ['ההחלטות של ההורה', "My parent's decisions"],
+  consent_requests: ['בקשות אישור שנשלחו', 'Approval requests sent'],
+  consent_documents: ['גרסאות טופס ההסכמה', 'Consent form versions'],
+  team_players: ['הכרטיס שהמאמן מנהל עליי', 'The card my coach keeps on me'],
+  coach_records: ['הכרטיס שהמאמן מנהל עליי', 'The card my coach keeps on me'],
+  team_memberships: ['הקבוצות שלי', 'My teams'],
+  memberships: ['הקבוצות שלי', 'My teams'],
+  teams: ['הקבוצות שלי', 'My teams'],
+  attendance: ['נוכחות באימונים', 'Practice attendance'],
+  practice_attendance: ['נוכחות באימונים', 'Practice attendance'],
+  practice_rsvp: ['אישורי הגעה', 'RSVPs'],
+  assignments: ['משימות', 'Assignments'],
+  assignment_completions: ['משימות שסיימתי', 'Assignments I completed'],
+  assignment_progress: ['התקדמות במשימות', 'Assignment progress'],
+  goals: ['היעדים שלי', 'My goals'],
+  player_goals: ['היעדים שלי', 'My goals'],
+  goal_logs: ['תיעוד התקדמות ביעדים', 'Goal progress logs'],
+  session_effort: ['דיווחי עומס', 'Effort reports'],
+  feedback: ['משוב אחרי אימון', 'Post-practice feedback'],
+  session_feedback: ['משוב אחרי אימון', 'Post-practice feedback'],
+  ratings: ['דירוגים', 'Ratings'],
+  game_reviews: ['סיכומי משחק', 'Game reviews'],
+  posts: ['פוסטים שכתבתי', 'Posts I wrote'],
+  comments: ['תגובות שכתבתי', 'Comments I wrote'],
+  reactions: ['לייקים', 'Likes'],
+  messages: ['הודעות', 'Messages'],
+  chat_messages: ['הודעות', 'Messages'],
+  notifications: ['התראות', 'Notifications'],
+  admin_requests: ['פניות שלי למנהל', 'My requests to the admin'],
+  account_deletion_requests: ['בקשות מחיקת חשבון', 'Account deletion requests'],
+  counts: ['מה שנספר בלבד', 'Counted only'],
+  items: ['פריטים', 'Items'],
+}
+
+const FIELD_LABELS = {
+  id: ['מזהה', 'ID'],
+  first_name: ['שם פרטי', 'First name'],
+  last_name: ['שם משפחה', 'Last name'],
+  name: ['שם', 'Name'],
+  email: ['מייל', 'Email'],
+  phone: ['טלפון', 'Phone'],
+  phone_public: ['הטלפון גלוי לקבוצה', 'Phone visible to team'],
+  club: ['מועדון', 'Club'],
+  team: ['קבוצה', 'Team'],
+  role: ['סוג חשבון', 'Account type'],
+  position: ['תפקיד במגרש', 'Position'],
+  number: ['מספר חולצה', 'Shirt number'],
+  height: ['גובה', 'Height'],
+  birth_year: ['שנת לידה', 'Birth year'],
+  birth_date: ['תאריך לידה', 'Date of birth'],
+  age_groups: ['שנתונים', 'Age groups'],
+  avatar_url: ['תמונת פרופיל', 'Profile photo'],
+  approval_status: ['מצב האישור', 'Approval status'],
+  adult_confirmed_at: ['אישרתי שאני בגיר', 'Confirmed as adult at'],
+  accepted_terms_at: ['אישרתי את התנאים', 'Terms accepted at'],
+  terms_version: ['גרסת התנאים', 'Terms version'],
+  guardian_name: ['שם ההורה', 'Guardian name'],
+  guardian_email: ['מייל ההורה', 'Guardian email'],
+  guardian_phone: ['טלפון ההורה', 'Guardian phone'],
+  guardian_consent_at: ['מועד אישור ההורה', 'Guardian consent at'],
+  consent_version: ['גרסת ההסכמה', 'Consent version'],
+  relation: ['הקשר אליי', 'Relation to me'],
+  type: ['סוג', 'Type'],
+  kind: ['סוג', 'Type'],
+  value: ['החלטה', 'Decision'],
+  status: ['מצב', 'Status'],
+  purpose: ['מטרה', 'Purpose'],
+  message: ['תוכן', 'Content'],
+  notes: ['הערות', 'Notes'],
+  coach_notes: ['הערות המאמן', 'Coach notes'],
+  injury_note: ['הערת פציעה', 'Injury note'],
+  availability_since: ['זמין מתאריך', 'Available since'],
+  effort: ['עומס', 'Effort'],
+  mood: ['הרגשה', 'Mood'],
+  title: ['כותרת', 'Title'],
+  text: ['טקסט', 'Text'],
+  count: ['כמות', 'Count'],
+  verified: ['מאומת', 'Verified'],
+  banned: ['חסום', 'Blocked'],
+  is_admin: ['מנהל מערכת', 'Admin'],
+  created_at: ['נוצר בתאריך', 'Created at'],
+  updated_at: ['עודכן בתאריך', 'Updated at'],
+  done_at: ['הושלם בתאריך', 'Completed at'],
+  decided_at: ['הוכרע בתאריך', 'Decided at'],
+  expires_at: ['תקף עד', 'Valid until'],
+  sent_at: ['נשלח בתאריך', 'Sent at'],
+  date: ['תאריך', 'Date'],
+}
+
+// המרה נעימה של key גולמי: team_players -> "Team players"
+function humanizeKey(key) {
+  return String(key).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+}
+
+export function dataSectionLabel(key) {
+  const pair = SECTION_LABELS[key]
+  if (pair) return L(pair[0], pair[1])
+  // מפתח מקונן כמו activity.goals — מנסים את החלק האחרון
+  const tail = String(key).split('.').pop()
+  const tailPair = SECTION_LABELS[tail]
+  if (tailPair) return L(tailPair[0], tailPair[1])
+  return humanizeKey(key)
+}
+
+export function dataFieldLabel(key) {
+  const pair = FIELD_LABELS[key]
+  if (pair) return L(pair[0], pair[1])
+  if (/_count$/.test(key)) {
+    const base = key.replace(/_count$/, '')
+    return L(`${dataSectionLabel(base)} — כמות`, `${dataSectionLabel(base)} — count`)
+  }
+  return humanizeKey(key)
+}
+
+// ===== קיבוץ לארבע קבוצות =====
+// הסדר הוא סדר התצוגה, והוא מסופר כסיפור: מי אני · מי מאשר עליי ·
+// מה המאמן רושם · מה עשיתי.
+const GROUP_DEFS = [
+  { id: 'me', title: ['הפרטים שלי', 'My details'],
+    keys: ['profile', 'account', 'user', 'auth', 'details', 'settings'] },
+  { id: 'guardian', title: ['ההורה שלי והאישורים', 'My guardian and consents'],
+    keys: ['guardians', 'guardian', 'consents', 'consent', 'consent_requests', 'consent_log', 'consent_documents'] },
+  { id: 'coach', title: ['מה המאמן רושם עליי', 'What my coach records about me'],
+    keys: ['team_players', 'coach_record', 'coach_records', 'roster', 'team_memberships', 'memberships', 'teams', 'ratings', 'game_reviews'] },
+  { id: 'activity', title: ['הפעילות שלי', 'My activity'],
+    keys: ['attendance', 'practice_attendance', 'practice_rsvp', 'rsvp', 'assignments', 'assignment_completions',
+      'assignment_progress', 'goals', 'player_goals', 'goal_logs', 'session_effort', 'feedback', 'session_feedback',
+      'posts', 'comments', 'reactions', 'messages', 'chat_messages', 'notifications', 'admin_requests',
+      'account_deletion_requests', 'counts', 'activity'] },
+]
+
+// מפתחות שירות של הייצוא עצמו — לא «מידע עליי», ולכן לא מוצגים כסעיף
+const EXPORT_META_KEYS = ['ok', 'success', 'generated_at', 'exported_at', 'generated', 'version', 'schema_version', 'export_version']
+
+export function exportGeneratedAt(data) {
+  if (!data || typeof data !== 'object') return ''
+  return data.generated_at || data.exported_at || data.generated || ''
+}
+
+// מחזיר [{ id, title, entries:[{key, value}] }] — רק קבוצות שיש בהן משהו.
+// כל מפתח שאינו מוכר נופל ל«עוד מידע» ולא נבלע: ייצוא שמסתיר חלק מעצמו
+// מפספס בדיוק את המטרה.
+export function groupDataSections(data) {
+  if (!data || typeof data !== 'object') return []
+  const groups = GROUP_DEFS.map((g) => ({ id: g.id, title: L(g.title[0], g.title[1]), entries: [] }))
+  const other = { id: 'other', title: L('עוד מידע', 'More data'), entries: [] }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (EXPORT_META_KEYS.includes(key)) continue
+    if (value === null || value === undefined) continue
+    if (Array.isArray(value) && value.length === 0) continue
+    if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) continue
+    // חלק שהוא מונה בלבד לא מוצג כאן אלא בבלוק היושר — מספר בלי הסתייגות
+    // לצדו נקרא כאילו זה כל התוכן שקיים
+    if (isSummaryOnly(key, value)) continue
+    const gi = GROUP_DEFS.findIndex((g) => g.keys.includes(key))
+    const target = gi >= 0 ? groups[gi] : other
+    target.entries.push({ key, value })
+  }
+  return [...groups, other].filter((g) => g.entries.length > 0)
+}
+
+// ===== מה שמוצג כמספר בלבד =====
+// הייצוא מכוון מחזיר על הודעות מונה ולא תוכן. אם המסך יציג רק את המונה בלי
+// לומר זאת, המשתמש יסיק שזה כל מה שיש — וזה בדיוק ההפך מזכות עיון.
+// הכלל הוא לפי *הערך* ולא לפי שם המפתח: אם messages חזר כמערך שורות מלא, זה
+// תוכן אמיתי ואסור להכריז עליו «מונה בלבד»; אם הוא חזר כמספר — זו ספירה.
+export function isSummaryOnly(key, value) {
+  const tail = String(key).split('.').pop()
+  if (typeof value === 'number') return true
+  if (/_count$/.test(tail)) return true
+  if (tail === 'counts') return true
+  // { count: 42 } — עטיפה של מונה בודד
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const keys = Object.keys(value)
+    if (keys.length <= 2 && typeof value.count === 'number') return true
+  }
+  return false
+}
+
+// כל הפריטים שהוחזרו כמספר בלבד, כרשימה שטוחה לתצוגה
+export function summaryOnlyItems(data) {
+  const out = []
+  if (!data || typeof data !== 'object') return out
+  for (const [key, value] of Object.entries(data)) {
+    if (EXPORT_META_KEYS.includes(key)) continue
+    if (key === 'counts' && value && typeof value === 'object' && !Array.isArray(value)) {
+      for (const [k, v] of Object.entries(value)) out.push({ key: k, count: typeof v === 'number' ? v : null })
+      continue
+    }
+    if (!isSummaryOnly(key, value)) continue
+    const count = typeof value === 'number' ? value
+      : Array.isArray(value) ? value.length
+      : (value && typeof value === 'object' && typeof value.count === 'number') ? value.count
+      : null
+    out.push({ key, count })
+  }
+  return out
+}
+
+// ===== הצגת ערך בודד =====
+const ISO_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
+
+export function dataValueText(v) {
+  if (v === null || v === undefined || v === '') return L('לא מולא', 'Not filled in')
+  if (typeof v === 'boolean') return v ? L('כן', 'Yes') : L('לא', 'No')
+  if (typeof v === 'number') return String(v)
+  if (Array.isArray(v)) {
+    if (v.length === 0) return L('לא מולא', 'Not filled in')
+    return v.map((x) => dataValueText(x)).join(', ')
+  }
+  if (typeof v === 'object') return JSON.stringify(v)
+  const s = String(v)
+  if (ISO_RE.test(s)) {
+    const d = new Date(s.length === 10 ? `${s}T00:00:00` : s)
+    if (!Number.isNaN(d.getTime())) {
+      return s.length === 10
+        ? d.toLocaleDateString(L('he-IL', 'en-US'))
+        : d.toLocaleString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    }
+  }
+  return s
+}
+
+// ===== קבצים להורדה =====
+// שתי הפונקציות טהורות (מחרוזת נכנסת, מחרוזת יוצאת) כדי שיהיו ניתנות לבדיקה
+// בלי DOM. ההורדה עצמה מופרדת ל-downloadTextFile.
+
+export function exportToJsonText(data) {
+  try {
+    return JSON.stringify(data ?? {}, null, 2)
+  } catch {
+    return '{}'
+  }
+}
+
+// תא CSV אחד. שלושה דברים חייבים לעבוד כאן:
+// 1. פסיק/מרכאות/שורה חדשה בתוך ערך (הערת מאמן חופשית) — ציטוט והכפלת מרכאות.
+// 2. עברית — נפתר ב-BOM בראש הקובץ, אחרת Excel פותח ג'יבריש.
+// 3. הזרקת נוסחאות: ערך שמתחיל ב-= + - @ מתפרש ב-Excel כנוסחה. מקדימים
+//    גרש כדי שיישאר טקסט, אבל לא למספרים שליליים שהם באמת מספרים.
+function csvCell(v) {
+  if (v === null || v === undefined) return ''
+  let s = typeof v === 'object' ? JSON.stringify(v) : String(v)
+  if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`
+  if (/[",\n\r]/.test(s) || /^\s|\s$/.test(s)) s = `"${s.replace(/"/g, '""')}"`
+  return s
+}
+
+function isRowObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+}
+
+function columnsOf(rows) {
+  const cols = []
+  for (const r of rows) {
+    for (const k of Object.keys(r || {})) if (!cols.includes(k)) cols.push(k)
+  }
+  return cols
+}
+
+// שולף מהייצוא את כל החלקים הטבלאיים. מערך של אובייקטים = טבלה; אובייקט
+// שטוח = טבלה בת שורה אחת; אובייקט מקונן נפתח רמה אחת ואז נשמר כ-JSON בתא.
+export function exportTables(data, prefix = '', depth = 0) {
+  const tables = []
+  if (!isRowObject(data)) return tables
+  const scalars = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (EXPORT_META_KEYS.includes(key) && !prefix) continue
+    const name = prefix ? `${prefix}.${key}` : key
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue
+      const rows = value.every(isRowObject) ? value : value.map((x) => ({ value: x }))
+      tables.push({ key: name, rows, columns: columnsOf(rows) })
+    } else if (isRowObject(value)) {
+      const flat = Object.values(value).every((x) => x === null || typeof x !== 'object')
+      if (flat) tables.push({ key: name, rows: [value], columns: Object.keys(value) })
+      else if (depth < 2) tables.push(...exportTables(value, name, depth + 1))
+      else tables.push({ key: name, rows: [value], columns: Object.keys(value) })
+    } else {
+      scalars[key] = value
+    }
+  }
+  if (Object.keys(scalars).length > 0) {
+    tables.unshift({ key: prefix || L('כללי', 'General'), rows: [scalars], columns: Object.keys(scalars) })
+  }
+  return tables
+}
+
+export function exportToCsvText(data) {
+  const tables = exportTables(data)
+  const lines = []
+  for (const t of tables) {
+    lines.push(csvCell(`# ${dataSectionLabel(t.key)}`))
+    lines.push(t.columns.map((c) => csvCell(dataFieldLabel(c))).join(','))
+    for (const r of t.rows) lines.push(t.columns.map((c) => csvCell(r?.[c])).join(','))
+    lines.push('')
+  }
+  // BOM = Excel מזהה UTF-8 ופותח עברית נכון · CRLF = סוף שורה שהוא מכבד.
+  // השורה משתמשת ב-\uFEFF ולא בתו BOM ממשי — תו בלתי-נראה בקוד נעלם בעריכה הבאה.
+  return `\uFEFF${lines.join('\r\n')}`
+}
+
+export function exportFileName(ext) {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `courtside-my-data-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.${ext}`
+}
+
+// ההורדה עצמה. מחזיר false במקום לזרוק — ב-WebView של Capacitor התכונה
+// download יכולה להיחסם, והקורא מציג הודעה במקום מסך לבן.
+export function downloadTextFile(filename, text, mime) {
+  try {
+    const blob = new Blob([text], { type: `${mime || 'text/plain'};charset=utf-8` })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    // ניקוי מושהה: ספארי מבטל את ההורדה אם ה-URL משוחרר מיד
+    setTimeout(() => URL.revokeObjectURL(url), 4000)
+    return true
+  } catch {
+    return false
+  }
+}

@@ -22820,3 +22820,192 @@ html.a11y-motion .plc-row { transition: none; }
   .adq-kind { transition: none; }
 }
 html.a11y-motion .adq-kind { transition: none; }
+
+/* ============================================================
+   4.8.2026 · «המידע שלי» — זכות עיון (MY_DATA)
+   בלוק תוספת בלבד — index.css הוא append-only.
+   מדיניות הפרטיות מבטיחה למשתמש לראות מה מוחזק עליו, והמסך הזה הוא
+   הכפתור שחסר לה. לכן הטון כאן שקט ולא «משפטי»: אותו כרטיס לבן של
+   שאר הפרופיל, בלי צבע אזהרה ובלי מסגרת דרמטית — זה המידע של
+   המשתמש שמוצג לו בחזרה, לא מסמך שצריך להיבהל ממנו.
+   כל המידות בטוקנים, כל התכונות לוגיות (RTL), ואין כאן שום hex.
+   ============================================================ */
+
+/* ===== הכרטיס ===== */
+.mdt-card {
+  margin-block-start: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-align: start;
+}
+.mdt-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+.mdt-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 38px;
+  block-size: 38px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.mdt-head-txt { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
+
+/* ===== קבוצה (הפרטים שלי · ההורה · המאמן · הפעילות) ===== */
+.mdt-group { margin-block-start: var(--space-4); }
+.mdt-group-t {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+/* ===== גוש מידע בודד ===== */
+.mdt-block {
+  margin-block-end: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.mdt-block-t {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: none;
+}
+/* תת-גוש (טבלה בתוך אובייקט) — נבדל מהאב בגוון ובהזחה קלה */
+.mdt-block .mdt-block {
+  margin-block: var(--space-2) 0;
+  margin-inline-start: var(--space-2);
+  background: var(--surface);
+}
+.mdt-badge {
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* שורות שם־ערך. הערך יכול להיות הערת מאמן ארוכה — נשבר ולא גולש. */
+.mdt-dl { margin: 0; }
+.mdt-dl + .mdt-dl { margin-block-start: var(--space-2); padding-block-start: var(--space-2); border-block-start: 1px solid var(--border); }
+.mdt-dl-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding-block: 3px;
+}
+.mdt-dl-row dt {
+  flex: 0 0 auto;
+  min-inline-size: 34%;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.mdt-dl-row dd {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.mdt-scalar { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+
+.mdt-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block-start: var(--space-2);
+  min-block-size: 44px;
+  padding-inline: var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.mdt-more:hover { color: var(--accent-press); }
+
+/* ===== ההערה על החלקים שהם מונה בלבד ===== */
+.mdt-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+.mdt-note > svg { flex-shrink: 0; color: var(--accent-strong); }
+.mdt-note-body { display: flex; flex-direction: column; gap: var(--space-1); min-inline-size: 0; }
+.mdt-note-body p { margin: 0; }
+.mdt-sum { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mdt-sum li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+}
+.mdt-sum b { font-variant-numeric: tabular-nums; }
+
+/* ===== שגיאה, פעולות, כיתוב תחתון ===== */
+.mdt-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  font-size: var(--text-sm);
+}
+.mdt-alert > svg { flex-shrink: 0; color: var(--danger); }
+.mdt-retry { margin-inline-start: auto; }
+.mdt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+}
+.mdt-refresh { margin-inline-start: auto; }
+.mdt-foot {
+  display: block;
+  margin-block-start: var(--space-3);
+  line-height: 1.6;
+}
+.mdt-foot > svg { vertical-align: -2px; }
+
+/* מצב כהה: הגוון הרך נבלע על רקע כהה — מחזקים את הגבול */
+[data-theme='dark'] .mdt-note { border-color: var(--accent-strong); }
+[data-theme='dark'] .mdt-block { background: var(--surface); }
+[data-theme='dark'] .mdt-block .mdt-block { background: var(--surface-alt); }
+[data-theme='dark'] .mdt-badge { background: var(--surface-alt); }
+
+@media (max-width: 560px) {
+  .mdt-dl-row dt { min-inline-size: 100%; }
+  .mdt-actions > button { flex: 1 1 100%; margin-inline-start: 0; }
+  .mdt-retry { margin-inline-start: 0; inline-size: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mdt-more, .mdt-block { transition: none; }
+}
+html.a11y-motion .mdt-more,
+html.a11y-motion .mdt-block { transition: none; }

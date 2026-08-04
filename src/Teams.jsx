@@ -4,7 +4,7 @@ import {
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
-  Printer, Check, Share2,
+  Printer, Check, Share2, CalendarSearch,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -30,7 +30,7 @@ import Page from './Page'
 import { ChevronFwd } from './DirIcon'
 import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
-import { pendingRequests, decideMembership } from './players'
+import { pendingRequests, decideMembership, ageMismatches } from './players'
 import { waShare } from './share'
 
 // ---- סטטוס שחקן ----
@@ -65,6 +65,22 @@ const CONSENT_BADGE = {
   adult: { he: 'לא קטין', en: 'Not a minor', cls: 'tc-meter', style: { background: 'var(--surface-alt)', color: 'var(--text-muted)' } },
 }
 const reqName = (p) => (p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() : '') || L('שחקן', 'Player')
+
+// ---- הצלבת גיל: הסגל מול הצהרת השחקן ----
+// הניסוח כאן נבחר בקפידה: אף תווית לא מאשימה צד. תאריך לידה מוקלד פעמיים —
+// המאמן בשורת הסגל, השחקן בפרופיל — וטעות הקלדה של המאמן שכיחה בדיוק כמו
+// טעות של השחקן. 'critical' הוא המקרה היחיד שמסומן באדום, כי שם שני
+// המקורות חלוקים על עצם היות השחקן קטין — וזה מה שקובע אם בכלל נדרש אישור
+// הורה. גם כאן he/en נשמרים כמחרוזות ולא עוברים ב-L ברמת המודול, אחרת
+// שפת הטעינה הראשונה הייתה מתקבעת.
+const AGE_SEVERITY = {
+  critical: { he: 'קטין או בגיר — לא ברור', en: 'Minor or adult — unclear', style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
+  major: { he: 'פער משמעותי', en: 'Significant gap', style: { background: 'var(--warn-soft)', color: 'var(--warn-ink)' } },
+  minor: { he: 'פער קטן', en: 'Small gap', style: { background: 'var(--surface-alt)', color: 'var(--text-muted)' } },
+}
+// השוואת שם קבוצה סובלנית לרישיות ולרווחים: אותו שם נשמר לעתים בכתיב שונה
+// בין הפרופיל לשורת הסגל, ופאנל ריק בזמן שהצ׳יפ מראה מספר גרוע מכלום.
+const sameTeam = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
 
 // ---- תפקידי צוות מקצועי ----
 const STAFF_ROLES = [
@@ -256,6 +272,45 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   // מיגרציות ההסכמה זה תמיד ריק — והמסך זהה לחלוטין להיום.
   const consentReqs = reqs.filter((r) => consentState(r))
 
+  // ---------- אי-התאמות גיל ----------
+  // נטען פעם אחת לכל הקבוצות של המאמן (ולא לכל קבוצה בנפרד): הצ׳יפ בבאנר
+  // חייב להראות גם פער שיושב בקבוצה שלא פתוחה כרגע, אחרת המאמן צריך לחפש.
+  const [ageRows, setAgeRows] = useState([])
+  const [ageLoading, setAgeLoading] = useState(true)
+  const [ageFailed, setAgeFailed] = useState(false) // כשל בדיקה != אין פערים
+  const ageTokenRef = useRef(0)
+
+  const loadAges = async () => {
+    const token = ++ageTokenRef.current
+    setAgeLoading(true)
+    // quiet: זו לא תקלה שהמאמן גרם לה, והיא מוצגת כאן כפס אינליין עם
+    // "נסה שוב". טוסט אדום בכל כניסה לסגל היה רעש בלבד.
+    const rows = await ageMismatches(me, { quiet: true })
+    if (token !== ageTokenRef.current) return
+    setAgeFailed(!!rows.loadError)
+    setAgeRows(rows)
+    setAgeLoading(false)
+  }
+  useEffect(() => { loadAges() /* eslint-disable-next-line */ }, [me])
+  useEffect(() => () => { ageTokenRef.current++ }, [])
+
+  const teamAgeRows = ageRows.filter((r) => sameTeam(r.team, team))
+
+  // ההודעה למשפחה. הניסוח מכוון: מציג את שני התאריכים, אומר במפורש שייתכן
+  // שהטעות היא של המאמן, ומסביר למה זה משנה — בלי להטיל אשם ובלי לדרוש.
+  const ageNudgeText = (r) => {
+    const side = (birth, age) => (birth ? ilNum(birth)
+      : age != null ? L(`גיל ${age}`, `age ${age}`)
+        : L('לא מולא', 'not filled in'))
+    const mine = side(r.coach_birth, r.coach_age)
+    const theirs = side(r.player_birth, r.player_age)
+    const nm = r.name || L('השחקן', 'the player')
+    return L(
+      `שלום! אנחנו מסדרים את פרטי הקבוצה ב-CourtSide, ויש אי-התאמה בתאריך הלידה של ${nm}: אצלי ברשימת הקבוצה רשום ${mine}, ובפרופיל באפליקציה מופיע ${theirs}. כנראה טעות הקלדה — ובהחלט יכול להיות שדווקא אצלי. אפשר לבדוק את התאריך בפרופיל באפליקציה ולתקן אם צריך? אני אבדוק גם אצלי. התאריך חשוב כי לפיו נקבע אם נדרש אישור הורה. תודה רבה!`,
+      `Hi! We're tidying up the team details on CourtSide, and there's a mismatch in ${nm}'s date of birth: my team list says ${mine}, while the app profile shows ${theirs}. It's most likely a typo — quite possibly mine. Could you check the date in the app profile and fix it if needed? I'll check my side too. The date matters because it decides whether a parent's approval is required. Thank you!`
+    )
+  }
+
   // הודעה קצרה שהמאמן שולח למשפחה. לא ננעצת בשם מסך מסוים באפליקציה,
   // כדי שלא תתיישן ברגע שהניסוח שם ישתנה.
   const nudgeText = (r) => L(
@@ -371,11 +426,13 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       phone: p.phone || null, notes: p.notes || null, injury_note: p.injury_note || null,
     }).eq('id', p.id)
     if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
-    toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load()
+    // שנת לידה שהשתנתה כאן היא בדיוק מה שהצלבת הגיל בודקת — מרעננים אותה,
+    // אחרת הפער היה ממשיך להופיע אחרי שהמאמן כבר תיקן אותו.
+    toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load(); loadAges()
   }
   const delPlayer = async (id) => {
     if (!(await confirmDialog({ message: L('להסיר את השחקן?', 'Remove this player?'), danger: true }))) return
-    await supabase.from('team_players').delete().eq('id', id); setPEdit(null); load()
+    await supabase.from('team_players').delete().eq('id', id); setPEdit(null); load(); loadAges()
   }
 
   // ---------- צוות מקצועי ----------
@@ -436,7 +493,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
 
   // 1.7 — כרטיס שחקן מלא: נפתח מלחיצה על שחקן בסגל
   if (playerPage) {
-    return <PlayerCard coachId={me} team={team} player={playerPage} onBack={() => { setPlayerPage(null); load() }} />
+    // חזרה מהכרטיס מרעננת גם את הצלבת הגיל: תאריך הלידה נערך שם, וזה
+    // המקום היחיד שבו המאמן מתקן את הצד שלו.
+    return <PlayerCard coachId={me} team={team} player={playerPage} onBack={() => { setPlayerPage(null); load(); loadAges() }} />
   }
 
   return (
@@ -449,6 +508,29 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
           <span className="cs-hero-pill">{L(`${players.length} שחקנים`, `${players.length} players`)}</span>
           {teamAtt != null && <span className="cs-hero-pill">{L('נוכחות ', 'Attendance ')}<b dir="ltr">{teamAtt}%</b></span>}
           {injured > 0 && <span className="cs-hero-pill">{L(`${injured} לא זמינים`, `${injured} unavailable`)}</span>}
+          {/* הצ׳יפ הזה הוא הדרך של המאמן *לדעת* שיש מה לבדוק בלי לחפש: הוא
+              יושב בבאנר שנראה מכל שלושת הטאבים, וסופר את כל הקבוצות שלו.
+              כפתור ולא span — לחיצה מביאה לסגל, ואם בקבוצה הפתוחה אין פער
+              היא גם עוברת לקבוצה שבה הוא כן יושב. fontFamily בלבד באינליין:
+              כפתור לא יורש גופן, ושאר העיצוב נשאר של הטוקן בקלאס. */}
+          {ageRows.length > 0 && (
+            <button
+              type="button" className="cs-hero-pill" style={{ fontFamily: 'inherit', cursor: 'pointer' }}
+              onClick={() => {
+                setTab('roster')
+                if (teamAgeRows.length === 0) {
+                  const t = ageRows.find((r) => teams.some((x) => sameTeam(x, r.team)))?.team
+                  const match = t && teams.find((x) => sameTeam(x, t))
+                  if (match) setTeam(match)
+                }
+              }}
+              title={L('תאריך הלידה שרשום אצלך בסגל שונה ממה שהשחקן הצהיר — בכל הקבוצות שלך',
+                       'The birth date on your roster differs from what the player declared — across all your teams')}
+            >
+              <CalendarSearch size={13} aria-hidden="true" />
+              {L('תאריכי לידה לבדיקה ', 'Birth dates to check ')}<b><bdi>{ageRows.length}</bdi></b>
+            </button>
+          )}
         </div>
       )}
     >
@@ -490,6 +572,96 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               </button>
             )}
           </div>
+          {/* ---- תאריכי לידה שלא מסתדרים ----
+              יושב בראש הסגל ולא בתחתיתו: זה בירור שצריך לקרות לפני שממשיכים
+              לנהל את הקבוצה. כשה-RPC לא קיים (מסד שטרם הריץ את
+              supabase_age_crosscheck.sql) הרשימה ריקה והמסך זהה להיום.
+              כשל בדיקה כן מוצג — "אין פערים" ו"לא הצלחנו לבדוק" הם שני
+              דברים שונים לגמרי, ואסור שייראו אותו דבר. */}
+          {ageLoading ? null : ageFailed ? (
+            <p className="alert alert-error" style={{ marginBlockStart: 12 }}>
+              {L('לא הצלחנו לבדוק את תאריכי הלידה בסגל. זו תקלת בדיקה בלבד — שום נתון לא השתנה. ',
+                 'We could not check the roster birth dates. This is a check failure only — nothing was changed. ')}
+              <button type="button" className="link-button" onClick={loadAges}>{L('נסה שוב', 'Try again')}</button>
+            </p>
+          ) : teamAgeRows.length > 0 ? (
+            <div className="tc-panel tc-open" style={{ marginBlockStart: 12 }}>
+              <div className="tc-head tc-head-static">
+                <span className="tc-head-l"><CalendarSearch size={16} /> {L('תאריכי לידה שכדאי לוודא', 'Birth dates worth verifying')}</span>
+                <span className="tc-head-r"><span className="tc-badge"><bdi>{teamAgeRows.length}</bdi></span></span>
+              </div>
+              <div className="tc-body">
+                <p className="muted small" style={{ margin: 0, marginBlockStart: 10 }}>
+                  {L('בשורות האלה תאריך הלידה שרשום בסגל שונה מזה שהשחקן הזין בפרופיל שלו. זה לא אומר שמישהו לא דייק בכוונה — טעות הקלדה ברשימת הקבוצה שכיחה בדיוק כמו טעות של השחקן, ולכן שווה לבדוק את שני הצדדים ולתקן את זה שטעה.',
+                     'On these rows the birth date on the roster differs from the one the player entered in their profile. Nobody is being accused — a typo on the team list is just as common as a mistake by the player, so it is worth checking both sides and fixing whichever is wrong.')}
+                </p>
+                <div className="tc-reqs">
+                  {teamAgeRows.map((r) => {
+                    const sev = AGE_SEVERITY[r.severity] || AGE_SEVERITY.major
+                    const crit = r.severity === 'critical'
+                    // מצב ההסכמה של השחקן, אם ידוע — אותו תג בדיוק כמו בבקשות
+                    const cSt = consentState({ approval_status: r.approval_status })
+                    const cBadge = cSt ? CONSENT_BADGE[cSt] : null
+                    // השורה בסגל שממנה מתקנים את הצד של המאמן
+                    const rosterRow = players.find((p) => p.player_id === r.player_id)
+                    const side = (birth, age) => (
+                      <>
+                        {birth ? <bdi>{ilNum(birth)}</bdi> : age != null
+                          ? <>{L('גיל ', 'age ')}<bdi>{age}</bdi></>
+                          : L('לא מולא', 'not filled in')}
+                        {birth && age != null ? <> (<bdi>{age}</bdi>)</> : null}
+                      </>
+                    )
+                    return (
+                      <div key={r.player_id} className="tc-req"
+                        style={crit ? { borderColor: 'var(--danger)', background: 'var(--danger-soft)' } : undefined}>
+                        <Avatar name={r.name || L('שחקן', 'Player')} size={34} />
+                        <span className="tc-req-name">
+                          {r.name || L('שחקן', 'Player')}
+                          <span style={{ display: 'block', marginBlockStart: 4 }}>
+                            <span className="tc-meter" style={sev.style}>{L(sev.he, sev.en)}</span>
+                            {cBadge && (
+                              <span className={cBadge.cls} style={{ ...cBadge.style, marginInlineStart: 6 }}>
+                                {L(cBadge.he, cBadge.en)}
+                              </span>
+                            )}
+                          </span>
+                          <span className="muted small" style={{ display: 'block', marginBlockStart: 4 }}>
+                            {L('ברשימה שלך: ', 'On your list: ')}{side(r.coach_birth, r.coach_age)}
+                            {' · '}
+                            {L('השחקן הצהיר: ', 'The player declared: ')}{side(r.player_birth, r.player_age)}
+                          </span>
+                          {crit && (
+                            /* המקרה היחיד שמסומן באדום: לפי מקור אחד זה קטין
+                               ולפי השני בגיר. זו לא קוסמטיקה — זה מה שקובע
+                               אם בכלל צריך אישור הורה. */
+                            <span className="small" style={{ display: 'block', marginBlockStart: 4, color: 'var(--danger)' }}>
+                              {L('לפי מקור אחד מדובר בקטין ולפי השני בבגיר — וזה בדיוק מה שקובע אם נדרש אישור הורה. כדאי לברר את השורה הזו קודם כל.',
+                                 'One source says this is a minor and the other says an adult — and that is exactly what decides whether parental consent is required. Worth resolving this row first.')}
+                            </span>
+                          )}
+                        </span>
+                        <button type="button" className="icon-btn" disabled={!rosterRow}
+                          onClick={() => rosterRow && setPlayerPage({ ...rosterRow })}
+                          aria-label={L('פתיחת כרטיס השחקן לתיקון הפרטים ברשימה', 'Open the player card to fix the roster details')}
+                          title={rosterRow
+                            ? L('תיקון הפרטים אצלי', 'Fix my details')
+                            : L('שורת הסגל לא נמצאה', 'Roster row not found')}>
+                          <Pencil size={15} />
+                        </button>
+                        <button type="button" className="icon-btn" onClick={() => waShare(ageNudgeText(r))}
+                          aria-label={L('שליחת בקשה למשפחה לבדוק את התאריך בוואטסאפ', 'Ask the family on WhatsApp to check the date')}
+                          title={L('בקשה למשפחה לבדוק', 'Ask the family to check')}>
+                          <Share2 size={15} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="roster-add">
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
               placeholder={L('שם השחקן', 'Player name')} aria-label={L('שם השחקן', 'Player name')}
