@@ -1530,6 +1530,46 @@ end $upd$;
 
 
 -- ---------------------------------------------------------------------
+-- 10ג) החלת השער למפרע על שחקנים קיימים
+--
+--  התגלה בהרצה בפרודקשן (3.8.2026): העמודה approval_status נוספת עם
+--  default 'active', והטריגר trg_minor_consent רץ רק ב-INSERT/UPDATE —
+--  ולכן על שורות שכבר קיימות הוא לא רץ מעולם. התוצאה: **כל קטין שכבר
+--  רשום נשאר active** עד הפעם הבאה שהפרופיל שלו יישמר במקרה. המכונה
+--  נכונה אבל לא מוחלת למפרע, וזה מרוקן את השער מתוכן בהתקנה על מסד קיים.
+--
+--  UPDATE ריק מפעיל את הטריגר, והוא מחשב את הסטטוס מחדש לכל שחקן:
+--    קטין בלי הסכמה  → pending_parent
+--    קטין עם הסכמה שה-backfill (10ב) הכיר בה → נשאר active
+--    בגיר → נשאר active
+--  suspended שנקבע בידי אדמין שורד — הטריגר מכבד שער סגור.
+--
+--  התנאי על תאריך הלידה הכרחי: שורת שחקן בלי גיל כלל תזרוק
+--  'חובה למלא שנת לידה בפרופיל שחקן' ותפיל את כל הקובץ.
+-- ---------------------------------------------------------------------
+do $gate$
+declare v_pending int; v_skipped int;
+begin
+  select count(*) into v_skipped
+    from public.profiles
+   where role = 'player' and birth_year is null and birth_date is null;
+
+  update public.profiles
+     set updated_at = now()
+   where role = 'player'
+     and (birth_year is not null or birth_date is not null);
+
+  select count(*) into v_pending
+    from public.profiles where approval_status = 'pending_parent';
+
+  raise notice 'שער הקטינים הוחל למפרע: % שחקנים ממתינים כעת לאישור הורה', v_pending;
+  if v_skipped > 0 then
+    raise warning 'דולגו % שורות שחקן בלי שנת/תאריך לידה — הן יישארו active עד שיושלם הגיל', v_skipped;
+  end if;
+end $gate$;
+
+
+-- ---------------------------------------------------------------------
 -- 11) רענון סכימת ה-API + רישום בלדג'ר
 -- ---------------------------------------------------------------------
 do $mig$
