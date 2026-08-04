@@ -1483,27 +1483,35 @@ grant execute on function public.admin_mark_deletion_done(uuid) to authenticated
 --             on public.profiles to authenticated;
 --         (ההגנה עדיין עומדת: הטריגר שבסעיף 7 מחזיר את הערכים בשקט.)
 -- ---------------------------------------------------------------------
-do $upd$
-declare
-  v_cols text;
-begin
-  select string_agg(quote_ident(column_name), ', ' order by column_name)
-    into v_cols
-    from information_schema.columns
-   where table_schema = 'public'
-     and table_name   = 'profiles'
-     and column_name not in (
-       'created_at',
-       'approval_status', 'adult_confirmed_at',
-       'accepted_terms_at', 'terms_version',
-       'guardian_consent_at', 'guardian_consent_version'
-     );
+-- ⚠ בוטל אחרי כשל בפרודקשן (3.8.2026) — אל תחזיר בלי לקרוא את זה.
+--
+--  הבלוק שהיה כאן ביטל את הרשאת ה-UPDATE ברמת הטבלה והחזיר אותה
+--  עמודה-עמודה, למעט שדות ההסכמה. בהרצה בפרוד התוצאה הייתה
+--  «permission denied for table profiles» על **כל שמירת פרופיל** — גם
+--  לשחקן וגם למאמן. כלומר הפיצ'ר המרכזי ביותר באפליקציה נשבר.
+--
+--  לא הצלחנו לבודד איזו עמודה בדיוק נפלה: כל 16 העמודות שהטופס שולח
+--  היו ברשימת ה-grant, והחשד המרכזי (upsert של PostgREST מתורגם
+--  ל-INSERT ... ON CONFLICT DO UPDATE, שדורש גם INSERT) לא אומת —
+--  שחזור הכשל דורש לשבור שוב את הפרודקשן, וזה לא שווה את המחיר.
+--
+--  ולמה זה לא שווה: **הנעילה הזו מיותרת.** ההגנה על שדות ההסכמה היא
+--  הטריגר enforce_minor_consent שבסעיף 7, והוא זה שבאמת מחזיק:
+--    · approval_status — שער סגור נשאר סגור (הענף elsif בשורה ~546)
+--    · birth_date/birth_year — ננעלים כשהעריכה הופכת קטין לבגיר
+--    · guardian_* — מוחזרים לערכם הקודם אחרי שההורה הכריע
+--    · guardian_consent_at/version — נכתבים רק בהקשר privileged
+--  אומת חי בפרוד: קטין ב-pending_parent שערך את הפרופיל שלו נשאר
+--  pending_parent. הטריגר עשה את העבודה בלי הנעילה.
+--
+--  מסקנה: הרשאות עמודה הן שכבת עומק, לא ההגנה. כשהן מפילות את
+--  הפיצ'ר שהן אמורות להגן עליו — מורידים אותן ומשאירים את הטריגר.
+--
+--  אם בכל זאת תרצה להחזיר: אל תריץ ישירות בפרוד. שחזר על מסד staging,
+--  בדוק שמירת פרופיל של מאמן ושל שחקן, ורק אז.
 
-  revoke update on public.profiles from anon, authenticated;
-  if v_cols is not null then
-    execute format('grant update (%s) on public.profiles to authenticated', v_cols);
-  end if;
-end $upd$;
+-- (הבלוק המקורי הוסר. ההרשאה נשארת ברמת הטבלה.)
+grant update on public.profiles to authenticated;
 
 -- ------------------------- שלב 2 (אחרי פריסת הפרונט) -------------------
 -- הסר את סימני ההערה והרץ מחדש רק את הבלוק הזה:
