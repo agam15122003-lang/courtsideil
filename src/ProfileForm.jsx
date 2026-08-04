@@ -195,17 +195,39 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       payload.age_groups = orderedTeams
     }
 
+    // ---- שמירה בלי upsert (תוקן 3.8.2026 אחרי כשל בפרודקשן) ----
+    // upsert של PostgREST מתורגם ל-INSERT ... ON CONFLICT DO UPDATE. כש-RLS
+    // פעיל, פוסטגרס חייב לקרוא את השורה המתנגשת כדי לאכוף את ה-USING של
+    // מדיניות ה-UPDATE — ולשם כך הוא דורש SELECT **ברמת הטבלה**, לא ברמת
+    // העמודה. supabase_privacy4.sql ביטל בדיוק את זה בכוונה (טלפון, שנת לידה
+    // ופרטי הורה פתוחים רק ברמת עמודה), ולכן כל שמירת פרופיל החזירה
+    // 42501 "permission denied for table profiles". פוסטגרס אפילו הציע
+    // GRANT SELECT ON public.profiles — הצעה שאסור לקבל: היא הייתה פותחת את
+    // הטלפון ופרטי ההורה של כל מאמן לכל משתמש רשום.
+    // update רגיל לא דורש SELECT ברמת הטבלה. אם לא עודכנה אף שורה — הפרופיל
+    // עוד לא קיים (טריגר ההרשמה נכשל) ואז מוסיפים; זה שומר על הסיבה המקורית
+    // שבגללה נבחר upsert, בלי לוותר על נעילת ה-PII.
+    const saveProfile = async (row) => {
+      const { id, ...fields } = row
+      const { data, error: upErr } = await supabase
+        .from('profiles').update(fields).eq('id', id).select('id')
+      if (upErr) return { error: upErr }
+      if (data && data.length > 0) return { error: null }
+      const { error: insErr } = await supabase.from('profiles').insert(row)
+      return { error: insErr }
+    }
+
     // ---- שכבה א': עמודה שעדיין לא קיימת במסד ----
     // מסירים בדיוק את העמודה שהמסד לא מכיר (PostgREST נוקב בשמה) ומנסים שוב,
     // כדי לא לזרוק בדרך עמודות תקינות כמו birth_year — שהטריגר הישן דורש.
-    let { error } = await supabase.from('profiles').upsert(payload)
+    let { error } = await saveProfile(payload)
     const attempt = { ...payload }
     for (let i = 0; error && i < 4; i++) {
       const m = String(error.message || '').match(/'([a-z_]+)' column|column "?([a-z_]+)"? does not exist/i)
       const col = m && (m[1] || m[2])
       if (!col || !(col in attempt)) break
       delete attempt[col]
-      ;({ error } = await supabase.from('profiles').upsert(attempt))
+      ;({ error } = await saveProfile(attempt))
     }
     // גיבוי רחב אם ההודעה לא נקבה בשם עמודה — ההתנהגות ההיסטורית
     if (error && /column .* does not exist|could not find the .* column/i.test(error.message || '')) {
@@ -213,7 +235,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
         role: _r, birth_year: _b, birth_date: _bd, position: _p,
         guardian_phone: _gp, guardian_consent_version: _gv, ...basic
       } = payload
-      ;({ error } = await supabase.from('profiles').upsert(basic))
+      ;({ error } = await saveProfile(basic))
     }
 
     // ---- שכבה ב': הטריגר הישן של הסכמת הורה נפל — עוברים למסלול legacy ----
