@@ -419,8 +419,17 @@ export default function Dashboard({ session }) {
   // approval_status שלא קיים בשורה (מסד שטרם הריץ את המיגרציה) נחשב 'active' —
   // בשום מצב לא נועלים משתמש קיים בגלל עמודה חסרה.
   const approvalStatus = profile?.approval_status || 'active'
-  const awaitingGuardian =
-    isPlayer && (approvalStatus === 'pending_parent' || approvalStatus === 'suspended')
+  // שני מצבים שאסור לבלבל ביניהם:
+  //  suspended      = ההורה ביטל הסכמה בפועל (או אדמין השעה) → נעילה מלאה.
+  //                   זו החלטה אנושית מפורשת, ואסור שיהיה לה מעקף.
+  //  pending_parent = פשוט עוד לא הגיעה תשובה → החשבון נפתח במצב מוגבל.
+  //                   החלטת הבעלים: המאמן הוא שומר הסף, והדרך להגיע אליו
+  //                   היא הצטרפות עם קוד קבוצה — ולכן נעילה מלאה כאן סוגרת
+  //                   בדיוק את הדלת שדרכה הפיקוח האנושי נכנס. השרת
+  //                   (supabase_consent_enforcement.sql) חוסם ממילא כתיבה,
+  //                   וה-UI רק משקף את זה.
+  const suspended = isPlayer && approvalStatus === 'suspended'
+  const restricted = isPlayer && approvalStatus === 'pending_parent'
 
   // שחקן שהגיע ל-18 בזמן ההמתנה נשאר 'pending_parent' לנצח: הסטטוס מחושב
   // מחדש רק ב-UPDATE על profiles, ולכן «בדיקת סטטוס» לבדה לא תשחרר אותו לעולם.
@@ -432,7 +441,7 @@ export default function Dashboard({ session }) {
   // בלי תלות ב-loading: «בדיקת סטטוס» מפעילה loading=true לרגע, ובלעדי זה
   // המסך היה מהבהב אל מעטפת המאמן בכל לחיצה. הפרופיל הישן נשאר ב-state
   // עד שהטעינה מסתיימת, ולכן השער עדיין מחושב על נתונים אמיתיים.
-  if (!loadError && isComplete && awaitingGuardian) {
+  if (!loadError && isComplete && suspended) {
     // «שינוי הפרטים של ההורה» — טופס הפרופיל לבדו, בלי המעטפת של המאמן
     if (editing) {
       return (
@@ -449,8 +458,7 @@ export default function Dashboard({ session }) {
     return (
       <PendingApproval
         profile={profile}
-        status={approvalStatus}
-        canSelfConfirm={canSelfConfirm}
+        status="suspended"
         onEditProfile={() => setEditing(true)}
         onRecheck={loadProfile}
       />
@@ -459,8 +467,12 @@ export default function Dashboard({ session }) {
 
   // בגיר שעדיין לא אישר בעצמו: המודל מוצג רק כשהעמודה קיימת בשורה (אחרת
   // המסד טרם עודכן), רק כשיש פרטי הורה לנקות, ורק פעם אחת בסשן.
+  // !restricted: עד היום שחקן ממתין-הורה נעצר בנעילה המלאה ומעולם לא הגיע
+  // לכאן. עכשיו הוא כן מגיע — והבאנר כבר מציע לו בדיוק את אותו אישור עצמי,
+  // ולכן מודל שקופץ מעליו הוא כפילות ולא עזרה.
   const adultNeedsConfirm =
     isPlayer &&
+    !restricted &&
     !adultDone &&
     !!profile &&
     Object.prototype.hasOwnProperty.call(profile, 'adult_confirmed_at') &&
@@ -484,7 +496,17 @@ export default function Dashboard({ session }) {
                 </div>
               )}
             >
-              <PlayerDashboard session={session} profile={profile} onProfileReload={loadProfile} />
+              {/* restricted יורד כאן ולא מחושב שוב בפנים: מי שמכריע מיהו
+                  שחקן מוגבל הוא השער היחיד שלמעלה, ולא שני חישובים
+                  שעלולים להיפרד. canSelfConfirm מגיע איתו כדי שהבאנר
+                  יציע לבגיר שנתקע לשחרר את עצמו. */}
+              <PlayerDashboard
+                session={session}
+                profile={profile}
+                onProfileReload={loadProfile}
+                restricted={restricted}
+                canSelfConfirm={canSelfConfirm}
+              />
             </Suspense>
           </ChunkGate>
         </ErrorBoundary>

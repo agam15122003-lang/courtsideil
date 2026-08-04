@@ -207,19 +207,84 @@ export async function decideMembership(membership, approve) {
   return { ok: true }
 }
 
-// בקשות ממתינות לכל הקבוצות של מאמן (עם פרטי השחקן).
+// קודי שגיאה שמשמעותם "העמודה/הטבלה עוד לא קיימת אצל המשתמש הזה" ולא כשל
+// אמיתי: 42703 = undefined_column · 42501 = insufficient_privilege (עמודה בלי
+// grant) · 42P01 = undefined_table · PGRST204 = העמודה לא ב-schema cache.
+// שים לב: ב-PostgREST עמודה חסרה בתוך embed מפילה את *כל* השאילתה — בדיוק
+// כך מסך אישור הבקשות היה ריק בפרודקשן. לכן נסיגה, ולא בליעה.
+function isMissingColumn(error) {
+  if (!error) return false
+  if (['42703', '42501', '42P01', 'PGRST204'].includes(error.code)) return true
+  return /column .* does not exist|permission denied for (column|table)|does not exist in the schema cache/i
+    .test(String(error.message || ''))
+}
+
+const REQ_PLAYER_COLS = 'first_name, last_name, position, avatar_url'
+const reqSelect = (withStatus) =>
+  `*, player:profiles!player_id(${REQ_PLAYER_COLS}${withStatus ? ', approval_status' : ''})`
+
+// בקשות ממתינות לכל הקבוצות של מאמן (עם פרטי השחקן והקשר ההסכמה).
+//
 // שים לב: אין כאן birth_year — privacy4 שלל את ההרשאה על העמודה הזו,
-// והבקשה כולה הייתה מוחזרת כ-42501. גיל השחקן אינו נחוץ כדי לאשר בקשה;
-// אם ייווצר צורך — דרך RPC ייעודי שמחזיר רק את מה שהמאמן באמת צריך.
-export async function pendingRequests(coachId) {
-  const { data, error } = await supabase
+// והבקשה כולה הייתה מוחזרת כ-42501. גיל השחקן אינו נחוץ כדי לאשר בקשה.
+//
+// למה שני מקורות להקשר ההסכמה ולא אחד:
+//   · approval_status (יש עליו grant מפורש ב-supabase_rls_hardening_3_8.sql,
+//     ו-shares_team_with מתיר למאמן לקרוא את שורת הפרופיל של מי שיש לו אצלו
+//     שורת חברות בכל סטטוס — כולל 'pending') אומר אם השער סגור, אבל
+//     'active' לא מבדיל בין בגיר לבין קטין שההורה שלו כבר אישר.
+//   · has_consent(minor,'basic') — SECURITY DEFINER, מוענק ל-authenticated —
+//     הוא הסימן היחיד ל"הורה אישר" שהמאמן רשאי לראות. את guardian_* /
+//     birth_date שללו במכוון ואין להחזיר אותם.
+//
+// חוזה החזרה: תמיד מערך (TeamConnect עושה עליו .filter). כשל טעינה מסומן
+// בתכונה `loadError` על המערך, כדי שמסך יוכל להבדיל בין "אין בקשות" לבין
+// "לא הצלחנו לטעון" — ריק בגלל שגיאה הוא בדיוק הבאג שכבר קרה כאן פעם.
+// quiet=true: השגיאה נרשמת ללוג ומסומנת ב-loadError אבל בלי טוסט, למסך
+// שמציג פס שגיאה אינליין משלו (שני טוסטים זהים על אותה תקלה זה רעש).
+export async function pendingRequests(coachId, { quiet = false } = {}) {
+  const run = (withStatus) => supabase
     .from('team_memberships')
-    .select('*, player:profiles!player_id(first_name, last_name, position, avatar_url)')
+    .select(reqSelect(withStatus))
     .eq('coach_id', coachId)
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
-  if (reportError('pendingRequests', error, L('טעינת בקשות ההצטרפות נכשלה — נסו לרענן.', 'Loading join requests failed — try refreshing.'))) return []
-  return data || []
+
+  let { data, error } = await run(true)
+  let hasStatus = true
+  if (error && isMissingColumn(error)) {
+    // מסד שטרם הריץ את supabase_parent_consent.sql — נסיגה מדויקת להתנהגות
+    // של היום. בלי טוסט: זו לא תקלה של המאמן ולא "אין בקשות".
+    console.warn('players.pendingRequests: approval_status לא זמין —', error.message || error)
+    hasStatus = false
+    ;({ data, error } = await run(false))
+  }
+  if (reportError('pendingRequests', error,
+    quiet ? null : L('טעינת בקשות ההצטרפות נכשלה — נסו לרענן.', 'Loading join requests failed — try refreshing.'))) {
+    const failed = []
+    failed.loadError = true
+    return failed
+  }
+
+  const rows = data || []
+  if (!hasStatus || rows.length === 0) return rows
+
+  return Promise.all(rows.map(async (r) => {
+    const status = r.player?.approval_status
+    // הפרופיל לא נקרא (או שהעמודה חזרה ריקה) — בדיוק כמו היום, בלי הקשר
+    if (!status || !r.player_id) return r
+    // רק 'active' דורש בירור: pending_parent/suspended = ההורה בוודאות לא אישר
+    if (status !== 'active') return { ...r, approval_status: status, parent_approved: false }
+    const { data: granted, error: cErr } = await supabase
+      .rpc('has_consent', { p_minor: r.player_id, p_type: 'basic' })
+    if (cErr) {
+      // RPC חסר = המיגרציה טרם רצה; שגיאה אחרת נרשמת ללוג. בשני המקרים
+      // parent_approved נשאר undefined — עדיף בלי תג מאשר תג שקרי.
+      if (!isMissingRpc(cErr)) console.error('players.pendingRequests/has_consent:', cErr.message || cErr)
+      return { ...r, approval_status: status }
+    }
+    return { ...r, approval_status: status, parent_approved: !!granted }
+  }))
 }
 
 // כל החברויות של שחקן (עם פרטי המאמן)

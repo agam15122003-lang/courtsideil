@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   ShieldCheck, Flag, Users, BarChart3, Search, Check, Ban,
   AlertTriangle, X, RefreshCw, UserCheck, Trash2, Clock, FileText,
+  Inbox, UserCog,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -11,8 +12,9 @@ import { L, trTeam } from './i18n'
 import { SkeletonStats, SkeletonRoster } from './Skeleton'
 import { confirmDialog } from './confirm'
 import {
-  adminPendingMinors, adminConsentLog, adminRevokeConsent,
+  adminPendingMinors, adminConsentLog, adminRevokeConsent, adminSetConsent,
   adminDeletionRequests, adminMarkDeletionDone,
+  adminRequests, adminMarkRequestDone, adminSetGuardian, adminRequestKindLabel,
   CONSENT_TYPES, consentLabel, consentValueLabel,
 } from './consent'
 
@@ -20,8 +22,17 @@ const REASON_HE = {
   impersonation: 'התחזות', inappropriate: 'תוכן לא הולם', spam: 'ספאם', other: 'אחר',
 }
 
+// קרבת האפוטרופוס — הערכים חייבים להיות בדיוק אלה שה-RPC מקבל
+// ('parent' | 'guardian' | 'other'). מוגדר כאן ולא מיובא מטופס הפרופיל
+// כי שם הוא פרטי לקובץ.
+const RELATIONS = [
+  { value: 'parent', label: () => L('הורה', 'Parent') },
+  { value: 'guardian', label: () => L('אפוטרופוס/ית', 'Legal guardian') },
+  { value: 'other', label: () => L('אחר', 'Other') },
+]
+
 // מצב אחיד לרשימות של הלשונית החדשה: טעינה · לא-מותקן · שגיאה · ריק
-function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, emptyText, onRetry }) {
+function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, emptyText, onRetry, notDeployedText }) {
   if (loading) return <SkeletonRoster count={3} />
   if (notDeployed) {
     return (
@@ -29,7 +40,7 @@ function ListState({ loading, notDeployed, error, empty, icon, emptyTitle, empty
         <span className="empty-ic"><Clock size={26} /></span>
         <div className="empty-title">{L('הפיצ׳ר עדיין לא הותקן במסד', 'Not deployed to the database yet')}</div>
         <p className="muted small">
-          {L('צריך להריץ את מיגרציית ההסכמות (supabase_parent_consent.sql) ואז לרענן.',
+          {notDeployedText || L('צריך להריץ את מיגרציית ההסכמות (supabase_parent_consent.sql) ואז לרענן.',
              'Run the consent migration (supabase_parent_consent.sql) and refresh.')}
         </p>
       </div>
@@ -93,6 +104,16 @@ export default function Admin({ session, profile }) {
   const [openMinor, setOpenMinor] = useState(null) // id של הקטין שהלוג שלו פתוח
   const [log, setLog] = useState({ loading: false, rows: [], notDeployed: false, error: false })
 
+  // ----- פניות לאדמין -----
+  // מצב נפרד לגמרי מרשימת הקטינים, כולל לוג משלו: אותו אדם יכול להופיע גם
+  // כקטין ממתין וגם כפונה, ומצב פתיחה משותף היה פותח את שתי הכרטיסיות יחד.
+  const [reqs, setReqs] = useState({ loading: true, rows: [], notDeployed: false, error: false })
+  const [openReq, setOpenReq] = useState(null) // id של הפנייה שהלוג שלה פתוח
+  const [reqLog, setReqLog] = useState({ loading: false, rows: [], notDeployed: false, error: false })
+  // טופס החלפת ההורה — פתוח לפנייה אחת בכל רגע
+  const [gForm, setGForm] = useState(null) // { reqId, name, email, phone, relation }
+  const [gSaving, setGSaving] = useState(false)
+
   // ממיר את התשובה האחידה של consent.js למצב הרשימה
   const toListState = (res) => ({
     loading: false,
@@ -104,42 +125,85 @@ export default function Admin({ session, profile }) {
   async function loadConsent() {
     setMinors((s) => ({ ...s, loading: true }))
     setDels((s) => ({ ...s, loading: true }))
-    const [m, d] = await Promise.all([adminPendingMinors(), adminDeletionRequests()])
+    setReqs((s) => ({ ...s, loading: true }))
+    const [m, d, r] = await Promise.all([adminPendingMinors(), adminDeletionRequests(), adminRequests()])
     setMinors(toListState(m))
     setDels(toListState(d))
+    setReqs(toListState(r))
   }
   useEffect(() => {
     if (tab === 'consent') loadConsent()
     /* eslint-disable-next-line */
   }, [tab])
 
+  // מושך את לוג ההסכמות של מזהה כלשהו לתוך setter נתון — משותף לשתי
+  // הרשימות (הקטינים הממתינים והפניות), כדי שלא יהיו שתי גרסאות שנפרדות בזמן.
+  const fetchLog = async (id, setter) => {
+    setter({ loading: true, rows: [], notDeployed: false, error: false })
+    setter(toListState(await adminConsentLog(id)))
+  }
+
   const openLog = async (id) => {
     if (openMinor === id) { setOpenMinor(null); return }
     setOpenMinor(id)
-    setLog({ loading: true, rows: [], notDeployed: false, error: false })
-    setLog(toListState(await adminConsentLog(id)))
+    await fetchLog(id, setLog)
   }
 
-  const revoke = async (minorId, type) => {
+  // ההכרעה האחרונה שנרשמה לכל סוג, נגזרת מהלוג עצמו (מסודר created_at desc).
+  // בלי זה האדמין לוחץ «אשר» על משהו שכבר מאושר, ואין לו שום מושג מה המצב.
+  const latestInLog = (type) => {
+    const row = log.rows.find((r) => (r.consent_type || r.type) === type)
+    return row ? row.value : null
+  }
+
+  // עד היום לאדמין הייתה רק דרך אחת — לבטל. הורה שהתקשר וביקש לאשר משהו
+  // שסירב לו בעבר (למשל פרסום תמונות) נשאר בלי מענה: create_consent_request
+  // מסרב להנפיק קישור ניהול, ו-submit_parent_consent חוסם שדרוג מ-denied
+  // ל-granted דרך קישור ראשוני. admin_set_consent הוא הנתיב האנושי לזה.
+  const setConsent = async (minorId, type, value) => {
+    const basic = type === 'basic'
+    const message = value === 'granted'
+      ? (basic
+        ? L('רישום ההסכמה הבסיסית כמאושרת מפעיל מחדש את חשבון השחקן, ומבטל בקשת מחיקה פתוחה אם נפתחה בעקבות ביטול קודם.',
+            'Recording the basic consent as granted reactivates the player account and cancels an open deletion request, if a previous revocation opened one.')
+        : L('ההרשאה תירשם כמאושרת בשם ההורה. עשו זאת רק אחרי פנייה מתועדת של ההורה — זו הסכמה משפטית שהוא נותן, לא אתם.',
+            'The permission will be recorded as granted on the guardian’s behalf. Do this only after a documented request from them — this is their legal consent, not yours.'))
+      : basic
+        ? L('ביטול ההסכמה הבסיסית משעה את חשבון השחקן לחלוטין ופותח בקשת מחיקת חשבון, לפי מדיניות הפרטיות.',
+            'Removing the basic consent fully suspends the player account and opens an account-deletion request, per the privacy policy.')
+        : L('ההרשאה תוסר. תוכן שכבר פורסם על סמך ההרשאה הזו לא יורד מעצמו — צריך לטפל בו בנפרד.',
+            'The permission will be removed. Content already published under it is not taken down automatically — handle it separately.')
     const ok = await confirmDialog({
-      title: L('לבטל את ההסכמה?', 'Revoke this consent?'),
-      message: type === 'basic'
-        ? L('ביטול ההסכמה הבסיסית משעה את חשבון השחקן לחלוטין.', 'Revoking the basic consent fully suspends the player account.')
-        : L('ההרשאה תבוטל. אפשר יהיה לאשר אותה מחדש רק דרך ההורה.', 'The permission will be revoked. Only the guardian can grant it again.'),
-      confirmText: L('בטלו', 'Revoke'),
-      danger: true,
+      title: value === 'granted'
+        ? L('לרשום אישור בשם ההורה?', 'Record an approval on the guardian’s behalf?')
+        : value === 'denied'
+          ? L('לרשום סירוב בשם ההורה?', 'Record a refusal on the guardian’s behalf?')
+          : L('לבטל את ההסכמה?', 'Revoke this consent?'),
+      // .cf-msg הוא פסקה רגילה (בלי white-space: pre-line), ולכן שורות חדשות
+      // היו נבלעות — המשפט נבנה כאן כטקסט רץ עם מפרידים.
+      message: `«${consentLabel(type)}» ← ${consentValueLabel(value)}. ${message} ` +
+        L('הפעולה נרשמת ביומן ההסכמות ומסומנת כפעולת אדמין.',
+          'The action is written to the consent log and marked as an admin action.'),
+      confirmText: value === 'granted' ? L('רשמו אישור', 'Record approval') : L('אישור', 'Confirm'),
+      danger: value !== 'granted',
     })
     if (!ok) return
-    const res = await adminRevokeConsent(minorId, type)
+
+    let res = await adminSetConsent(minorId, type, value)
+    // מסד שטרם הריץ את מיגרציית קישור הניהול: ביטול עדיין אפשרי בנתיב הישן,
+    // ולכן לא מאבדים יכולת קיימת רק כי הפונקציה החדשה עוד לא הותקנה.
+    if (res.notDeployed && value === 'revoked') res = await adminRevokeConsent(minorId, type)
+
     if (res.ok) {
-      toast.success(L('ההסכמה בוטלה', 'Consent revoked'))
+      toast.success(L('ההסכמה עודכנה', 'Consent updated'))
       setLog(toListState(await adminConsentLog(minorId)))
       loadConsent()
-    } else {
-      toast.error(res.notDeployed
-        ? L('הפעולה עדיין לא קיימת במסד', 'This action is not deployed yet')
-        : L('הביטול נכשל', 'Revoke failed'))
+      return
     }
+    toast.error(res.notDeployed
+      ? L('הפעולה עדיין לא קיימת במסד — צריך להריץ את מיגרציית קישור הניהול',
+          'This action is not deployed yet — run the management-link migration')
+      : L('העדכון נכשל', 'Update failed'))
   }
 
   const markDone = async (id) => {
@@ -160,6 +224,80 @@ export default function Admin({ session, profile }) {
         ? L('הפעולה עדיין לא קיימת במסד', 'This action is not deployed yet')
         : L('העדכון נכשל', 'Update failed'))
     }
+  }
+
+  // ----- פניות לאדמין: פתיחת לוג, סימון כטופל, והחלפת ההורה בפועל -----
+
+  const NOT_DEPLOYED_REQS = L(
+    'צריך להריץ את מיגרציית ערוץ הפניות (הקובץ החדש supabase_*.sql) ואז לרענן. עד אז אין פניות להציג, וזו לא תקלה.',
+    'Run the requests-channel migration (the new supabase_*.sql file) and refresh. Until then there is nothing to show, and this is not a fault.'
+  )
+
+  const openReqLog = async (req) => {
+    if (openReq === req.id) { setOpenReq(null); return }
+    setOpenReq(req.id)
+    setGForm(null) // טופס פתוח של פנייה אחרת לא ממשיך לרחף מעל פנייה חדשה
+    await fetchLog(req.user_id, setReqLog)
+  }
+
+  const markRequestDone = async (id) => {
+    const ok = await confirmDialog({
+      title: L('לסמן את הפנייה כטופלה?', 'Mark this request as handled?'),
+      message: L('סימון מצהיר שטיפלת בפנייה — הפונה לא מקבל הודעה אוטומטית, כדאי לעדכן אותו.',
+                 'Marking states that you handled it — the person is not notified automatically, so update them.'),
+      confirmText: L('סמן כטופל', 'Mark done'),
+      danger: false,
+    })
+    if (!ok) return
+    const res = await adminMarkRequestDone(id)
+    if (res.ok) {
+      toast.success(L('סומן כטופל', 'Marked as done'))
+      setReqs(toListState(await adminRequests()))
+      return
+    }
+    toast.error(res.notDeployed
+      ? L('הפעולה עדיין לא קיימת במסד', 'This action is not deployed yet')
+      : L('העדכון נכשל', 'Update failed'))
+  }
+
+  // הפעולה הרגישה ביותר במסך: היא מעבירה את הפיקוח ההורי לאדם אחר.
+  // לכן אימות מחוץ למערכת לפני, ודיאלוג שאומר את זה במפורש.
+  const saveGuardian = async (req) => {
+    const email = (gForm?.email || '').trim()
+    if (!email) { toast.error(L('צריך למלא מייל של ההורה', 'A guardian email is required')); return }
+    const ok = await confirmDialog({
+      title: L('להחליף את ההורה הרשום?', 'Change the registered guardian?'),
+      message: L(
+        `ההורה הרשום של ${req.first_name || ''} ${req.last_name || ''} יוחלף ל-${email}. מרגע זה כל הפיקוח ההורי — קישורי האישור, השינוי וביטול ההסכמה — עובר לאדם הזה. עשו זאת רק אחרי שאימתתם את הפנייה מחוץ למערכת, למשל בשיחת טלפון. ההחלטות שכבר נרשמו נשמרות ביומן ההסכמות.`,
+        `The registered guardian of ${req.first_name || ''} ${req.last_name || ''} will be changed to ${email}. From now on all parental oversight — the approval, change and revocation links — moves to that person. Do this only after verifying the request out of band, for example by phone. Decisions already recorded stay in the consent log.`
+      ),
+      confirmText: L('החלף הורה', 'Change guardian'),
+      danger: true,
+    })
+    if (!ok) return
+    setGSaving(true)
+    const res = await adminSetGuardian(req.user_id, {
+      name: gForm?.name, email, phone: gForm?.phone, relation: gForm?.relation,
+    })
+    setGSaving(false)
+    if (res.ok) {
+      toast.success(L('ההורה הרשום הוחלף', 'The registered guardian was changed'))
+      setGForm(null)
+      await fetchLog(req.user_id, setReqLog)
+      loadConsent()
+      return
+    }
+    // ההודעות של consentRequestError כתובות בקולו של השחקן ("פנו למאמן/ת"),
+    // ולכן כאן ניסוח נפרד — האדמין צריך לדעת מה לתקן, לא למי לפנות.
+    toast.error(res.notDeployed
+      ? L('החלפת ההורה עדיין לא קיימת במסד — צריך להריץ את המיגרציה החדשה',
+          'Changing the guardian is not deployed yet — run the new migration')
+      : res.reason === 'guardian_email_is_self'
+        ? L('מייל ההורה זהה למייל של השחקן — אז השחקן היה מאשר לעצמו.',
+            'The guardian email equals the player’s own — they would be approving for themselves.')
+        : res.reason === 'not_a_player'
+          ? L('החשבון הזה אינו חשבון שחקן.', 'This account is not a player account.')
+          : L('החלפת ההורה נכשלה', 'Changing the guardian failed'))
   }
 
   const setFlag = async (id, patch) => {
@@ -208,6 +346,8 @@ export default function Admin({ session, profile }) {
     return `${c.first_name} ${c.last_name} ${c.club}`.toLowerCase().includes(s)
   })
   const coachById = (id) => coaches.find((c) => c.id === id)
+  // כמה פניות עדיין פתוחות — נספר מהשורות שכבר נטענו, בלי קריאה נוספת
+  const openReqCount = reqs.rows.filter((r) => r.status !== 'done').length
 
   return (
     <div className="welcome-card">
@@ -371,22 +511,211 @@ export default function Admin({ session, profile }) {
                           ))}
                         </ul>
                       )}
-                      {!log.notDeployed && (
-                        <div className="adm-revoke">
-                          <span className="muted small">{L('ביטול הסכמה בשם ההורה (לתיעוד פנייה):', 'Revoke a consent on the guardian’s behalf (for a documented request):')}</span>
-                          <div className="admin-coach-actions">
-                            {CONSENT_TYPES.map((t) => (
-                              <button key={t} type="button" className="chip danger-on" onClick={() => revoke(m.id, t)}>
-                                <Ban size={13} /> {consentLabel(t)}
-                              </button>
-                            ))}
-                          </div>
+                      {/* שינוי ההסכמה יושב מתחת ללוג בכוונה: קודם רואים את
+                          ההיסטוריה, ורק אחר כך משנים. הכפתורים מוצגים גם כשהלוג
+                          ריק (הורה שטרם החליט), אבל לא כשהוא כלל לא מותקן. */}
+                      {!log.notDeployed && !log.loading && !log.error && (
+                        <div className="adm-set">
+                          <span className="muted small">
+                            {L('שינוי הסכמה בשם ההורה — רק לתיעוד פנייה ישירה שלו (טלפון או מייל):',
+                               'Change a consent on the guardian’s behalf — only to record a direct request from them (phone or email):')}
+                          </span>
+                          {CONSENT_TYPES.map((t) => {
+                            const cur = latestInLog(t)
+                            return (
+                              <div key={t} className="adm-set-row">
+                                <span className="adm-set-label">
+                                  <span className="adm-log-type">{consentLabel(t)}</span>
+                                  <span className={`status-pill adm-cv cv-${cur || 'none'}`}>{consentValueLabel(cur)}</span>
+                                </span>
+                                <div className="admin-coach-actions">
+                                  <button type="button" className="chip" disabled={cur === 'granted'}
+                                    onClick={() => setConsent(m.id, t, 'granted')}>
+                                    <Check size={13} /> {L('אישור', 'Grant')}
+                                  </button>
+                                  <button type="button" className="chip" disabled={cur === 'denied'}
+                                    onClick={() => setConsent(m.id, t, 'denied')}>
+                                    <X size={13} /> {L('סירוב', 'Deny')}
+                                  </button>
+                                  <button type="button" className="chip danger-on" disabled={cur === 'revoked'}
+                                    onClick={() => setConsent(m.id, t, 'revoked')}>
+                                    <Ban size={13} /> {L('ביטול', 'Revoke')}
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
                   )}
                 </li>
               ))}
+            </ul>
+          )}
+
+          {/* ----- פניות לאדמין -----
+              זה הערוץ שסוגר את המבוי הסתום: קטין שההורה שלו לא זמין, מייל
+              הורה שהשתנה, תאריך לידה שהוקלד הפוך. הכלים לתקן כבר היו כאן —
+              מה שחסר היה הדרך של המשתמש להגיע אליהם. */}
+          <h3 className="form-section-title" style={{ marginBlockStart: 22 }}>
+            <Inbox size={16} /> {L('פניות לאדמין', 'Requests to the admin')}
+            {openReqCount > 0 && <> (<bdi>{openReqCount}</bdi>)</>}
+          </h3>
+          <p className="muted small">
+            {L('פניות שנשלחו מתוך האפליקציה על ידי שחקנים או הורים שנתקעו. לפני כל פעולה — אימות מחוץ למערכת, בטלפון.',
+               'Requests filed from inside the app by players or parents who got stuck. Before acting — verify out of band, by phone.')}
+          </p>
+          <ListState
+            loading={reqs.loading}
+            notDeployed={reqs.notDeployed}
+            error={reqs.error}
+            empty={reqs.rows.length === 0}
+            icon={<Inbox size={26} />}
+            emptyTitle={L('אין פניות', 'No requests')}
+            emptyText={L('כשמישהו יבקש עזרה מתוך האפליקציה, הפנייה תופיע כאן.',
+                         'When someone asks for help from inside the app, the request shows up here.')}
+            onRetry={loadConsent}
+            notDeployedText={NOT_DEPLOYED_REQS}
+          />
+          {!reqs.loading && !reqs.notDeployed && !reqs.error && reqs.rows.length > 0 && (
+            <ul className="admin-list">
+              {reqs.rows.map((r) => {
+                const done = r.status === 'done'
+                const st = r.approval_status
+                const editing = gForm?.reqId === r.id
+                return (
+                  <li key={r.id} className={`admin-report adm-minor status-${done ? 'resolved' : 'open'}`}>
+                    <div className="adm-minor-main">
+                      <strong>{r.first_name} {r.last_name}</strong>
+                      <span className="adm-log-type">{adminRequestKindLabel(r.kind)}</span>
+                      {r.message && <span className="muted small">{r.message}</span>}
+                      <span className="muted small" dir="ltr">{r.guardian_email || '—'}</span>
+                      <span className="admin-report-meta">
+                        <span className={`status-pill admin-status st-${st === 'suspended' ? 'open' : st === 'pending_parent' ? 'pending' : 'resolved'}`}>
+                          {st === 'suspended'
+                            ? L('מושעה', 'Suspended')
+                            : st === 'pending_parent'
+                              ? L('ממתין להורה', 'Awaiting parent')
+                              : L('פעיל', 'Active')}
+                        </span>
+                        <span className={`status-pill admin-status st-${done ? 'resolved' : 'open'}`}>
+                          {done ? L('טופל', 'Done') : L('פתוח', 'Open')}
+                        </span>
+                        <span className="muted small" dir="ltr">{(r.created_at || '').replace('T', ' ').slice(0, 16)}</span>
+                      </span>
+                    </div>
+                    <div className="admin-report-actions">
+                      <button type="button" className="chip" onClick={() => openReqLog(r)} aria-expanded={openReq === r.id}>
+                        <FileText size={13} /> {openReq === r.id ? L('סגירת הפרטים', 'Hide details') : L('פתיחה וטיפול', 'Open and handle')}
+                      </button>
+                      {!done && (
+                        <button type="button" className="chip" onClick={() => markRequestDone(r.id)}>
+                          <Check size={13} /> {L('סמן כטופל', 'Mark done')}
+                        </button>
+                      )}
+                    </div>
+
+                    {openReq === r.id && (
+                      <div className="adm-log">
+                        {/* קודם ההיסטוריה, אחר כך הפעולה — אותו סדר כמו אצל
+                            הקטינים הממתינים, כדי שאף אחד לא יחליף הורה בלי
+                            לראות מה כבר הוכרע בשמו. */}
+                        <ListState
+                          loading={reqLog.loading}
+                          notDeployed={reqLog.notDeployed}
+                          error={reqLog.error}
+                          empty={reqLog.rows.length === 0}
+                          icon={<FileText size={26} />}
+                          emptyTitle={L('אין עדיין רשומות הסכמה', 'No consent records yet')}
+                          emptyText={L('לא נרשמה שום הכרעה של הורה בחשבון הזה.', 'No guardian decision was ever recorded on this account.')}
+                          onRetry={() => fetchLog(r.user_id, setReqLog)}
+                        />
+                        {!reqLog.loading && !reqLog.notDeployed && !reqLog.error && reqLog.rows.length > 0 && (
+                          <ul className="adm-log-list">
+                            {reqLog.rows.map((row, i) => (
+                              <li key={row.id || i}>
+                                <span className="adm-log-type">{consentLabel(row.consent_type || row.type)}</span>
+                                <span className={`status-pill adm-cv cv-${row.value}`}>{consentValueLabel(row.value)}</span>
+                                <span className="muted small" dir="ltr">{(row.created_at || '').replace('T', ' ').slice(0, 16)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        <div className="adm-set">
+                          <span className="muted small">
+                            {L('החלפת ההורה הרשום מעבירה את הפיקוח ההורי לאדם אחר — קישורי האישור, השינוי והביטול יגיעו אליו מעתה. רק אחרי אימות טלפוני.',
+                               'Changing the registered guardian moves parental oversight to a different person — the approval, change and revocation links will reach them from now on. Only after verifying by phone.')}
+                          </span>
+                          {!editing ? (
+                            <div className="admin-coach-actions">
+                              <button
+                                type="button"
+                                className="chip"
+                                onClick={() => setGForm({
+                                  reqId: r.id, name: r.guardian_name || '', email: '', phone: '', relation: 'parent',
+                                })}
+                              >
+                                <UserCog size={13} /> {L('החלפת ההורה הרשום', 'Change the registered guardian')}
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="form-grid-2">
+                                <label className="pf-label">
+                                  {L('שם ההורה החדש', 'New guardian name')}
+                                  <input
+                                    type="text" value={gForm.name}
+                                    onChange={(e) => setGForm({ ...gForm, name: e.target.value })}
+                                    placeholder={L('שם מלא', 'Full name')}
+                                  />
+                                </label>
+                                <label className="pf-label">
+                                  {L('מייל ההורה החדש', 'New guardian email')}
+                                  <input
+                                    type="email" dir="ltr" required value={gForm.email}
+                                    onChange={(e) => setGForm({ ...gForm, email: e.target.value })}
+                                    placeholder="parent@example.com"
+                                  />
+                                </label>
+                                <label className="pf-label">
+                                  {L('טלפון ההורה', 'Guardian phone')}
+                                  <input
+                                    type="tel" dir="ltr" maxLength={20} value={gForm.phone}
+                                    onChange={(e) => setGForm({ ...gForm, phone: e.target.value })}
+                                    placeholder="050-0000000"
+                                  />
+                                </label>
+                                <label className="pf-label">
+                                  {L('הקרבה לשחקן', 'Relation to the player')}
+                                  <select value={gForm.relation} onChange={(e) => setGForm({ ...gForm, relation: e.target.value })}>
+                                    {RELATIONS.map((rel) => (
+                                      <option key={rel.value} value={rel.value}>{rel.label()}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+                              <div className="admin-coach-actions">
+                                <button
+                                  type="button" className="chip danger-on"
+                                  disabled={gSaving || !gForm.email.trim()}
+                                  onClick={() => saveGuardian(r)}
+                                >
+                                  <UserCog size={13} /> {gSaving ? L('מחליף...', 'Changing...') : L('החלף הורה', 'Change guardian')}
+                                </button>
+                                <button type="button" className="chip" disabled={gSaving} onClick={() => setGForm(null)}>
+                                  <X size={13} /> {L('ביטול', 'Cancel')}
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
 

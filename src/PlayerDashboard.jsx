@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
@@ -6,6 +6,7 @@ import {
   ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
   MapPin, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
+  MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -29,6 +30,11 @@ import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import WeekList from './WeekList'
 import BasketballIcon from './BasketballIcon'
 import { requestJoinByCode, myMemberships } from './players'
+import { waShare, copyText } from './share'
+import {
+  myConsentState, requestManageLink, isAdultPlayer, consentRequestError,
+  consentManageShareText, CONSENT_TYPES, consentLabel, consentHelp, consentValueLabel,
+} from './consent'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
 import { expandSlots, expandSlotsRange } from './sessionId'
@@ -36,8 +42,65 @@ import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIE
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
 import { SkeletonCards, SkeletonMedia } from './Skeleton'
+import { PendingBanner, sendParentLink } from './PendingApproval'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
+
+// ============================================================
+//  מצב מוגבל — קטין שההורה שלו עוד לא אישר
+// ============================================================
+// החשבון פתוח: אפשר להסתובב, לתקן פרטים ובעיקר להצטרף לקבוצה עם קוד —
+// כי המאמן, שמכיר את המשפחה, הוא שומר הסף האנושי.
+//
+// מה שחסום הוא כתיבת *תוכן*, וזה נאכף בשרת ב-supabase_consent_enforcement.sql:
+// מדיניות RESTRICTIVE על INSERT לכל טבלאות התוכן, עם is_active_user().
+// מה שמוחרג שם במפורש — team_memberships, profiles, account_deletion_requests,
+// client_errors וטבלאות ההסכמה — הוא בדיוק דרך המילוט, ולכן חייב להישאר
+// פתוח גם כאן. הכלל בשני הכיוונים: לא להציע פעולה שהשרת ידחה (הילד יקבל
+// שגיאת RLS גולמית), ולא לחסום פעולה שהשרת מתיר (נסגרת דרך המילוט).
+export function isRestricted(profile) {
+  return profile?.approval_status === 'pending_parent'
+}
+
+// ההקשר חוסך השחלת prop דרך עשר קומפוננטות מקוננות (כרטיס משימה, אישור
+// הגעה, רצועת המשימות בבית) רק כדי להגיע לאותה שורת הסבר.
+const RESTRICTED_OFF = { restricted: false, sendLink: () => {}, sending: false }
+const RestrictedCtx = createContext(RESTRICTED_OFF)
+function useRestricted() { return useContext(RestrictedCtx) }
+
+// הסבר קצר לצד פעולה חסומה. תמיד עם אותו מוצא — שליחת הקישור להורה —
+// כדי שהמסר יהיה «ככה פותחים את זה» ולא «אסור לך».
+function RestrictedNote({ children, block = false }) {
+  const { sendLink, sending } = useRestricted()
+  const Tag = block ? 'div' : 'p'
+  return (
+    <Tag className={block ? 'rstr-note rstr-block' : 'rstr-note'} role="note">
+      <Lock size={13} aria-hidden="true" />
+      <span className="rstr-txt">
+        {children}{' '}
+        <button type="button" className="rstr-cta" onClick={sendLink} disabled={sending} aria-busy={sending}>
+          {L('שליחת הקישור להורה', 'Send the link to my parent')}
+        </button>
+      </span>
+    </Tag>
+  )
+}
+
+// הסבר ברמת מסך, למסכים שהכתיבה בהם חיה בקומפוננטות אחרות (הצ'אטים,
+// הקהילה, היעדים, מרכז הקבוצה). התוכן עצמו נשאר גלוי — *קריאה* מותרת.
+const RESTRICTED_SCREEN = {
+  coach: () => L('אפשר לקרוא כאן הכול, אבל שליחת הודעה למאמן נפתחת רק אחרי אישור ההורה.',
+    'You can read everything here, but messaging your coach opens only after your parent approves.'),
+  teamchat: () => L('אפשר לקרוא את צ׳אט הקבוצה, אבל הכתיבה בו נפתחת רק אחרי אישור ההורה.',
+    'You can read the team chat, but writing in it opens only after your parent approves.'),
+  community: () => L('אפשר לקרוא את הקהילה, אבל פרסום פוסט, תגובה או לייק נפתחים רק אחרי אישור ההורה.',
+    'You can read the community, but posting, commenting and liking open only after your parent approves.'),
+  goals: () => L('אפשר לראות את היעדים שלך, אבל הוספה ותיעוד התקדמות נפתחים רק אחרי אישור ההורה.',
+    'You can see your goals, but adding one and logging progress open only after your parent approves.'),
+  schedule: () => L('אפשר לראות את הקבוצה והלו״ז, אבל אישור הגעה וכתיבה בצ׳אט נפתחים רק אחרי אישור ההורה.',
+    'You can see your team and schedule, but confirming attendance and chatting open only after your parent approves.'),
+}
+RESTRICTED_SCREEN.team = RESTRICTED_SCREEN.schedule
 
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
 
@@ -281,6 +344,9 @@ function PlayerQuote() {
 function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
   const [custom, setCustom] = useState('') // קלט "כמה עשיתי?"
   const [customOpen, setCustomOpen] = useState(false)
+  // assignment_completions נמצאת ברשימת השערים בשרת — כל רישום ביצוע
+  // או התקדמות יידחה ב-RLS, ולכן הכפתורים מושבתים ולא «נכשלים».
+  const { restricted } = useRestricted()
   const done = compl?.done_at != null
   const prog = Number(compl?.progress_value) || 0
   const hasTarget = Number(a.target_value) > 0
@@ -300,7 +366,7 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 
   if (done) {
     return (
-      <button className="pla done" onClick={() => onToggleDone(a.id, true)} aria-pressed="true">
+      <button className="pla done" onClick={() => onToggleDone(a.id, true)} aria-pressed="true" disabled={restricted}>
         <span className="pla-check on"><Check size={16} /></span>
         <span className="pla-done-body">
           <span className="pla-done-title">{title}{cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}</span>
@@ -347,8 +413,8 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
           </div>
           <div className="pla-prog-bar"><span style={{ width: `${Math.min(100, Math.round((prog / a.target_value) * 100))}%` }} /></div>
           <div className="pla-quick">
-            <button onClick={() => onProgress(a, 10)}>+10</button>
-            <button onClick={() => onProgress(a, 25)}>+25</button>
+            <button onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
+            <button onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
             {customOpen ? (
               <span className="pla-quick-custom">
                 <input type="number" dir="ltr" min="1" autoFocus value={custom} onChange={(e) => setCustom(e.target.value)}
@@ -356,20 +422,26 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
                 <button className="on" onClick={logCustom} aria-label={L('שמירת ערך', 'Save value')}><Check size={14} /></button>
               </span>
             ) : (
-              <button onClick={() => setCustomOpen(true)}>{L('כמה עשיתי?', 'Log amount')}</button>
+              <button onClick={() => setCustomOpen(true)} disabled={restricted}>{L('כמה עשיתי?', 'Log amount')}</button>
             )}
           </div>
           {/* תרגיל שנפתח מחדש כשההתקדמות כבר על היעד — דרך מפורשת לסמן שוב בוצע */}
           {prog >= Number(a.target_value) && (
-            <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
+            <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
               <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
             </button>
           )}
         </div>
       ) : (
-        <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)}>
+        <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
           <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
         </button>
+      )}
+      {restricted && (
+        <RestrictedNote>
+          {L('אפשר לקרוא את התרגיל ולבצע אותו — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
+             'You can read the drill and do it — logging it in the app opens once your parent approves.')}
+        </RestrictedNote>
       )}
     </article>
   )
@@ -628,6 +700,8 @@ function RsvpButtons({ session, membership, sessionId, sessionDate }) {
   const [busy, setBusy] = useState(false)
   const [askReason, setAskReason] = useState(false)
   const [reason, setReason] = useState('')
+  // practice_rsvp ברשימת השערים בשרת — תשובת הגעה של חשבון מוגבל תידחה
+  const { restricted } = useRestricted()
 
   useEffect(() => {
     let alive = true
@@ -672,14 +746,20 @@ function RsvpButtons({ session, membership, sessionId, sessionDate }) {
       </span>
       <div className="plh-rsvp-btns">
         <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
-          onClick={() => answer('yes')} disabled={busy} aria-pressed={mine === 'yes'}>
+          onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
           {L('מגיע', 'Coming')}
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
-          onClick={() => setAskReason((v) => !v)} disabled={busy} aria-pressed={mine === 'no'}>
+          onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
           {L('לא אגיע', "Can't make it")}
         </button>
       </div>
+      {restricted && (
+        <RestrictedNote>
+          {L('אישור הגעה נשמר אצל המאמן, ולכן הוא נפתח רק אחרי אישור ההורה.',
+             'Your attendance answer is saved with your coach, so it opens only after your parent approves.')}
+        </RestrictedNote>
+      )}
       {askReason && (
         <div className="plh-rsvp-reason">
           <input
@@ -1030,6 +1110,8 @@ function HomeRsvp({ session, membership, next }) {
   // §6 — «לא אוכל» פותח שדה סיבה במלל חופשי שהמאמן רואה
   const [askReason, setAskReason] = useState(false)
   const [reason, setReason] = useState('')
+  // אותו שער כמו ב-RsvpButtons — practice_rsvp חסומה לחשבון מוגבל
+  const { restricted } = useRestricted()
   const sessionId = next?.session_id
 
   useEffect(() => {
@@ -1079,14 +1161,20 @@ function HomeRsvp({ session, membership, next }) {
       </div>
       <div className="plh-rsvp-btns">
         <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
-          onClick={() => answer('yes')} disabled={busy} aria-pressed={mine === 'yes'}>
+          onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
           {L('מגיע', 'Coming')}
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
-          onClick={() => setAskReason((v) => !v)} disabled={busy} aria-pressed={mine === 'no'}>
+          onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
           {L('לא אוכל', "Can't make it")}
         </button>
       </div>
+      {restricted && (
+        <RestrictedNote>
+          {L('אישור הגעה נשמר אצל המאמן, ולכן הוא נפתח רק אחרי אישור ההורה.',
+             'Your attendance answer is saved with your coach, so it opens only after your parent approves.')}
+        </RestrictedNote>
+      )}
       {askReason && (
         <div className="plh-rsvp-reason">
           <input
@@ -1259,6 +1347,9 @@ function NextPracticeGoal({ session, membership }) {
 function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats, setView }) {
   const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
+  // סיכום האימון נכתב ל-session_effort ו-session_goal_marks — שתיהן ברשימת
+  // השערים, ולכן ה-CTA לא נפתח לחשבון מוגבל במקום להיכשל בתוך הגיליון.
+  const { restricted } = useRestricted()
   // 'ask' = היה אימון היום ואין עדיין סיכום → ההירו שואל "איך היה?"
   // 'done' = הסיכום של היום כבר נשלח → שורת אישור קטנה
   const [summary, setSummary] = useState(null)
@@ -1380,9 +1471,15 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
           /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
           <div className="plh-ask">
             <strong className="plh-ask-title">{summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}</strong>
-            <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback}>
+            <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback} disabled={restricted}>
               <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
             </button>
+            {restricted && (
+              <RestrictedNote>
+                {L('הסיכום נשלח למאמן, ולכן הוא נפתח אחרי אישור ההורה.',
+                   'The summary goes to your coach, so it opens after your parent approves.')}
+              </RestrictedNote>
+            )}
           </div>
         )}
         {summary?.state === 'done' && (
@@ -1439,6 +1536,8 @@ function LastTeamReview({ membership, me }) {
 function HomeTasks({ session, setView }) {
   const me = session.user.id
   const [rows, setRows] = useState(null)
+  // אותה טבלה כמו במסך המשימות (assignment_completions) — ולכן אותו שער
+  const { restricted } = useRestricted()
 
   const load = useCallback(async () => {
     const [{ data: asg }, { data: compl }] = await Promise.all([
@@ -1493,7 +1592,7 @@ function HomeTasks({ session, setView }) {
                 )}
               </button>
               {target > 0 && (
-                <button type="button" className="plht-quick" onClick={() => quick(a, prog)}>
+                <button type="button" className="plht-quick" onClick={() => quick(a, prog)} disabled={restricted}>
                   +{Math.max(1, Math.round(target / 20))}
                 </button>
               )}
@@ -1501,6 +1600,12 @@ function HomeTasks({ session, setView }) {
           )
         })}
       </div>
+      {restricted && (
+        <RestrictedNote>
+          {L('רישום ההתקדמות נשמר אצל המאמן, ולכן הוא נפתח אחרי אישור ההורה.',
+             'Your progress is saved with your coach, so logging it opens after your parent approves.')}
+        </RestrictedNote>
+      )}
     </section>
   )
 }
@@ -1580,6 +1685,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
 
 function PlayerHome({ session, profile, membership, setView, onJoined }) {
   const [stats, setStats] = useState(null)
+  const { restricted } = useRestricted()
   const [fbOpen, setFbOpen] = useState(false)
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
 
@@ -1642,12 +1748,22 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       {membership && <div className="pl-stagger"><HomeVideos setView={setView} /></div>}
 
       {membership && (
-        <button type="button" className="plh-msg-cta pl-stagger" onClick={() => setView('coach')}>
-          <Send size={18} /> {L('שלח הודעה למאמן', 'Message your coach')}
-        </button>
+        <div className="pl-stagger">
+          <button type="button" className="plh-msg-cta" onClick={() => setView('coach')} disabled={restricted}>
+            <Send size={18} /> {L('שלח הודעה למאמן', 'Message your coach')}
+          </button>
+          {restricted && (
+            <RestrictedNote>
+              {L('שליחת הודעות נפתחת אחרי אישור ההורה. את מה שהמאמן כתב לך אפשר לקרוא בכל רגע.',
+                 'Sending messages opens after your parent approves. You can read what your coach wrote you at any time.')}
+            </RestrictedNote>
+          )}
+        </div>
       )}
 
-      {membership && (
+      {/* הגיליון לא נפתח כלל לחשבון מוגבל: session_effort חסומה בשרת,
+          ומילוי טופס שלם שנדחה בשליחה גרוע מכפתור מושבת עם הסבר. */}
+      {membership && !restricted && (
         <FeedbackSheet session={session} membership={membership} open={fbOpen}
           onClose={() => setFbOpen(false)} onSent={() => { loadStats(); setFbRefresh((k) => k + 1) }} />
       )}
@@ -1673,6 +1789,205 @@ function DarkSwitch() {
     <button className={dark ? 'plp-switch on' : 'plp-switch'} onClick={toggle} role="switch" aria-checked={dark} aria-label={L('מצב כהה', 'Dark mode')}>
       <span className="plp-switch-knob" />
     </button>
+  )
+}
+
+// ---------- כרטיס: ההרשאות שההורה אישר + הנפקת קישור ניהול ----------
+// עד היום לשחקן הקטין לא הייתה שום נוכחות של ההסכמה במסך: הוא לא ראה מה
+// ההורה אישר, ובעיקר — לא היה לו שום דרך לשלוח להורה קישור לשינוי ההחלטה.
+// הורה שסירב פעם אחת (או שאיבד את קישור הניהול שקיבל בסיום) היה נעול על
+// ההחלטה הראשונה לנצח, וזה סותר את ההבטחה המשפטית שאפשר להתחרט בכל רגע.
+// הכרטיס הזה הוא היציאה מהמבוי הסתום, והוא בטוח בדיוק בגלל נעילת מייל
+// האפוטרופוס: קישור ניהול חדש תמיד מגיע לאותו הורה שכבר הכריע פעם אחת.
+const CONSENT_TONE = { granted: 'on', denied: 'off', revoked: 'off' }
+
+function ParentConsentCard({ profile }) {
+  const [phase, setPhase] = useState('loading') // loading | ready | error | hidden
+  const [st, setSt] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [link, setLink] = useState('')
+  const [sentTo, setSentTo] = useState('') // מסירה בצד שרת — אין טוקן ביד הקטין
+  const [expires, setExpires] = useState('')
+
+  const load = useCallback(async () => {
+    setPhase('loading')
+    const res = await myConsentState()
+    if (res.ok) {
+      setSt(res)
+      // בגיר (או חשבון בלי תאריך לידה שהשרת לא מסווג כקטין) — אין הורה בתמונה
+      setPhase(res.is_minor === false ? 'hidden' : 'ready')
+      return
+    }
+    // מסד שטרם הריץ את מיגרציית ההסכמות, או חשבון בלי שורת פרופיל: הכרטיס
+    // פשוט לא קיים. לא מציגים לילד בן 13 שגיאה על פונקציה חסרה בשרת.
+    if (res.notDeployed || res.reason === 'no_profile' || res.reason === 'not_authenticated') {
+      setPhase('hidden')
+      return
+    }
+    setPhase('error')
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const send = async () => {
+    setBusy(true)
+    const res = await requestManageLink()
+    setBusy(false)
+    if (res.ok && (res.link || res.sent_to)) {
+      setLink(res.link || '')
+      setSentTo(res.sent_to || '')
+      setExpires((res.expires_at || '').split('T')[0])
+      toast.success(res.link
+        ? L('נוצר קישור ניהול להורה', 'A management link was created for your parent')
+        : L('שלחנו קישור ניהול למייל של ההורה', "We emailed a management link to your parent"))
+      return
+    }
+    // הצלחה בלי קישור ובלי כתובת — אין מה להציג, וגם לא קרה כאן כישלון
+    if (res.ok) { toast.success(L('הבקשה נשלחה', 'The request was sent')); return }
+    if (res.notDeployed) {
+      toast.error(L('האפשרות הזו עדיין לא פעילה בשרת — פנו למאמן/ת',
+        'This is not live on the server yet — talk to your coach'))
+      return
+    }
+    toast.error(consentRequestError(res.reason))
+  }
+
+  if (phase === 'hidden') return null
+
+  const label = <p className="pl-section-label" style={{ marginTop: 20 }}>{L('אישור ההורה', 'Parental consent')}</p>
+
+  if (phase === 'loading') {
+    return <>{label}<SkeletonCards count={1} lines={3} /></>
+  }
+
+  // שגיאת שליפה חייבת להיראות כשגיאה עם דרך חזרה — לא ככרטיס ריק
+  if (phase === 'error') {
+    return (
+      <>
+        {label}
+        <div className="plc-card plc-error" role="alert">
+          <span className="plc-ic danger"><AlertTriangle size={20} /></span>
+          <div className="plc-head-txt">
+            <strong>{L('לא הצלחנו לטעון את ההרשאות', 'We could not load your permissions')}</strong>
+            <span className="muted small">{L('ייתכן שזו תקלת רשת זמנית.', 'This may be a temporary network problem.')}</span>
+          </div>
+          <button type="button" className="btn-soft plc-retry" onClick={load}>
+            <RefreshCw size={15} /> {L('נסו שוב', 'Try again')}
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  const state = st?.state || {}
+  const guardianEmail = (st?.guardian_email || profile?.guardian_email || '').trim()
+  const guardianName = (st?.guardian_name || profile?.guardian_name || '').trim()
+  const minorName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim()
+  const answered = CONSENT_TYPES.some((t) => state[t])
+
+  return (
+    <>
+      {label}
+      <section className="plc-card">
+        <div className="plc-head">
+          <span className="plc-ic"><ShieldCheck size={20} /></span>
+          <div className="plc-head-txt">
+            <strong>{L('מה ההורה שלך אישר', 'What your parent approved')}</strong>
+            <span className="muted small">
+              {L('ההחלטות האלה שייכות להורה בלבד, והוא יכול לשנות אותן בכל רגע.',
+                 'These decisions belong to your parent alone, and they can change them at any time.')}
+            </span>
+          </div>
+        </div>
+
+        {/* מסמך ההסכמה עודכן מאז ההחלטה האחרונה — צריך אישור מחודש */}
+        {st?.needs_reconsent && (
+          <p className="plc-alert" role="status">
+            <AlertTriangle size={15} aria-hidden="true" />
+            <span>
+              {L('טופס ההסכמה עודכן מאז שההורה שלך אישר. שלחו לו קישור ניהול כדי שיאשר את הגרסה החדשה.',
+                 'The consent form was updated since your parent approved. Send them a management link so they can approve the new version.')}
+            </span>
+          </p>
+        )}
+
+        <ul className="plc-list">
+          {CONSENT_TYPES.map((t) => {
+            const v = state[t] || null
+            const tone = CONSENT_TONE[v] || 'none'
+            return (
+              <li key={t} className={`plc-row ${tone}`}>
+                <span className="plc-row-ic" aria-hidden="true">
+                  {v === 'granted' ? <Check size={15} /> : v ? <X size={15} /> : <Clock size={15} />}
+                </span>
+                <span className="plc-row-body">
+                  <strong>{consentLabel(t)}</strong>
+                  <span className="muted small">{consentHelp(t)}</span>
+                </span>
+                <span className={`plc-val v-${v || 'none'}`}>{consentValueLabel(v)}</span>
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="plc-guardian">
+          <Mail size={15} aria-hidden="true" />
+          <span className="plc-row-body">
+            <span className="muted small">{L('ההורה או האחראי הרשום בחשבון', 'The parent or guardian on record')}</span>
+            <strong dir="ltr">{guardianEmail || L('לא הוזן', 'Not provided')}</strong>
+            {guardianName && <span className="muted small">{guardianName}</span>}
+          </span>
+        </div>
+
+        <p className="plc-note">
+          {L('הקישור צמוד למייל הזה בלבד. מרגע שההורה קיבל החלטה ראשונה אי אפשר להחליף את מייל ההורה בחשבון — כך שכל קישור ניהול חדש חוזר תמיד לאותו הורה, ואי אפשר להפנות אותו למישהו אחר.',
+             'The link is tied to this email only. Once your parent has made a first decision, the parent email on the account can no longer be changed — so every new management link always goes back to the same parent, and cannot be redirected to anyone else.')}
+        </p>
+
+        <div className="plc-actions">
+          <button type="button" className="btn-primary" onClick={send} disabled={busy} aria-busy={busy}>
+            {busy && <span className="btn-spinner" aria-hidden="true" />}
+            <Link2 size={16} /> {(link || sentTo)
+              ? L('שליחת קישור ניהול מחדש', 'Send a management link again')
+              : L('שליחת קישור ניהול להורה', 'Send a management link to my parent')}
+          </button>
+        </div>
+
+        {(link || sentTo) && (
+          <div className="plc-link-box">
+            <span className="muted small">
+              {sentTo
+                ? L('שלחנו קישור ניהול אל:', 'We sent a management link to:')
+                : L('קישור הניהול להורה:', 'The management link for your parent:')}
+            </span>
+            <code className="plc-link" dir="ltr">{sentTo || link}</code>
+            {expires && (
+              <span className="muted small">
+                {L('תקף עד ', 'Valid until ')}<bdi dir="ltr">{expires}</bdi>
+              </span>
+            )}
+            {/* כפתורי השיתוף רק כשהטוקן באמת ביד הקטין; במסירה בצד שרת אין
+                מה להעתיק ואין מה לשלוח */}
+            {link && (
+              <div className="plc-actions">
+                <button type="button" className="btn-soft" onClick={() => waShare(consentManageShareText(minorName, link))}>
+                  <MessageCircle size={16} /> {L('שליחה בוואטסאפ', 'Send on WhatsApp')}
+                </button>
+                <button type="button" className="btn-soft" onClick={() => copyText(link, L('קישור הניהול הועתק', 'Management link copied'))}>
+                  <Copy size={16} /> {L('העתקת הקישור', 'Copy link')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!answered && (
+          <p className="muted small plc-foot">
+            {L('עוד לא נרשמה שום החלטה של הורה בחשבון הזה. אם החשבון עדיין ממתין לאישור — הקישור שצריך לשלוח הוא קישור האישור הראשוני, לא קישור הניהול.',
+               'No parental decision is recorded on this account yet. If the account is still waiting for approval, the link to send is the initial approval link, not the management link.')}
+          </p>
+        )}
+      </section>
+    </>
   )
 }
 
@@ -1747,6 +2062,9 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
         <button className="plp-join-more" onClick={() => setView('home')}>{L('הצטרפות לקבוצה נוספת', 'Join another team')}</button>
       )}
 
+      {/* לשחקן בגיר אין הורה מאשר — הכרטיס כולו יורד מהמסך */}
+      {!isAdultPlayer(profile) && <ParentConsentCard profile={profile} />}
+
       <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הגדרות', 'Settings')}</p>
       <div className="plp-settings">
         <div className="plp-set-row">
@@ -1813,13 +2131,28 @@ const PLAYER_NAV = [
 // (coach + teamchat) שתפסו 40% מהסרגל, בעוד היעדים והלו״ז היו במגירה בלבד.
 const PLAYER_BOTTOM = ['home', 'drills', 'feedback', 'schedule', 'profile']
 
-export default function PlayerDashboard({ session, profile, onProfileReload }) {
+export default function PlayerDashboard({ session, profile, onProfileReload, restricted: restrictedProp, canSelfConfirm = false }) {
   const [view, setView] = useState('home')
   const [drawer, setDrawer] = useState(false)
   const [editing, setEditing] = useState(false)
   const [memberships, setMemberships] = useState(null)
+  const [sendingLink, setSendingLink] = useState(false)
   // editing במפתח: בעריכת פרופיל אף פריט אינו פעיל והפס צריך להיעלם
   const [navRef, navBox] = useNavMarker(`${view}:${editing}`)
+
+  // ה-prop מגיע מהדשבורד (שם יושב השער היחיד); הנפילה לחישוב המקומי היא
+  // רק בשביל קורא שעדיין לא מעביר אותו — לא בשביל להכריע אחרת.
+  const restricted = restrictedProp ?? isRestricted(profile)
+  // אותו כפתור מוצע ליד כל פעולה חסומה — ולכן השליחה עצמה חיה כאן, פעם אחת
+  const sendLink = useCallback(async () => {
+    setSendingLink(true)
+    await sendParentLink(profile, onProfileReload)
+    setSendingLink(false)
+  }, [profile, onProfileReload])
+  const restrictedCtx = useMemo(
+    () => (restricted ? { restricted: true, sendLink, sending: sendingLink } : RESTRICTED_OFF),
+    [restricted, sendLink, sendingLink],
+  )
 
   const loadMemberships = useCallback(async () => {
     setMemberships(await myMemberships(session.user.id))
@@ -1852,19 +2185,47 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
   const renderView = () => {
     if (editing) {
       return (
-        <ProfileForm
-          session={session}
-          profile={profile}
-          onSaved={() => { setEditing(false); onProfileReload?.() }}
-          onCancel={() => setEditing(false)}
-        />
+        <>
+          {/* profiles מוחרגת בכוונה משער הכתיבה — עריכת הפרטים חייבת לעבוד.
+              מה שכן חסום הוא ההעלאה ל-storage (supabase_private_media.sql),
+              ולכן ההסבר צמוד לטופס. restricted יורד ל-ProfileForm כדי
+              שהבעלים של הקובץ הזה יוכל להשבית שם את בורר התמונה. */}
+          {restricted && (
+            <RestrictedNote block>
+              {L('אפשר לערוך כאן הכול. רק העלאת תמונת פרופיל מחכה לאישור ההורה.',
+                 'You can edit everything here. Only uploading a profile photo waits for your parent.')}
+            </RestrictedNote>
+          )}
+          <ProfileForm
+            session={session}
+            profile={profile}
+            restricted={restricted}
+            onSaved={() => { setEditing(false); onProfileReload?.() }}
+            onCancel={() => setEditing(false)}
+          />
+        </>
       )
     }
+    // בלי קבוצה המסך ממילא מציג «הצטרפו עם קוד» (LockedFeature) — ודווקא
+    // *זו* הפעולה שהשרת מתיר. הסבר על צ'אט חסום מעליה רק היה מבלבל.
+    const note = restricted && (hasTeam || view === 'community')
+      ? RESTRICTED_SCREEN[view]?.()
+      : null
+    const content = renderScreen()
+    return note ? <><RestrictedNote block>{note}</RestrictedNote>{content}</> : content
+  }
+
+  // ה-switch עצמו לא השתנה — הוא רק ירד לפונקציה משלו כדי ש-renderView
+  // יוכל להקדים לו את הסבר המצב המוגבל בלי לשכפל אותו בכל ענף.
+  // restricted יורד גם לילדים שהכתיבה שלהם חיה אצלם (שורת הכתיבה בצ'אטים,
+  // מלבן הפוסט בקהילה, תיעוד יעד): הקובץ הזה לא רשאי לגעת בהם, וה-prop הוא
+  // הקצה שדרכו הבעלים שלהם משבית את הפקד עצמו.
+  const renderScreen = () => {
     switch (view) {
       case 'drills': return <MyAssignments session={session} />
       case 'coach':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="coach"
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach"
               ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('המאמן שלי', 'My coach')}
@@ -1877,13 +2238,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
               desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
       case 'goals':
         return hasTeam
-          ? <MyGoals session={session} membership={membership} />
+          ? <MyGoals session={session} membership={membership} restricted={restricted} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('היעדים שלי', 'My goals')}
               desc={L('המאמן יגדיר לך יעדים ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
       case 'schedule':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="schedule"
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="schedule"
               ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('לוח האימונים והמשחקים', 'Schedule')}
@@ -1891,16 +2252,16 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       case 'videos': return <PlayerVideos />
       case 'teamchat':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="chat"
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="chat"
               ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('צ׳אט הקבוצה', 'Team chat')}
               desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
-      case 'community': return <PlayerCommunity session={session} profile={profile} />
+      case 'community': return <PlayerCommunity session={session} profile={profile} restricted={restricted} />
       case 'team':
         // קישורים ישנים ממשיכים לעבוד — נפתח על לשונית «הקבוצה שלי»
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} initialTab="team"
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="team"
               ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
@@ -1912,6 +2273,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
   }
 
   return (
+    <RestrictedCtx.Provider value={restrictedCtx}>
     <div className="layout pl-layout">
       <header className="mobile-topbar">
         <button className="drawer-toggle" onClick={() => setDrawer(true)} aria-label={L('תפריט', 'Menu')}><Menu size={22} /></button>
@@ -1963,6 +2325,16 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
       </aside>
 
       <main className="main-content" id="main">
+        {/* מחוץ ל-.main-inner בכוונה: ל-main-inner יש key לפי המסך, וכל
+            ניווט היה מרכיב את הבאנר מחדש ומוחק את הקישור שכבר נשלח. */}
+        {restricted && (
+          <PendingBanner
+            profile={profile}
+            canSelfConfirm={canSelfConfirm}
+            onEditProfile={() => setEditing(true)}
+            onRecheck={onProfileReload}
+          />
+        )}
         <div className="main-inner" key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
@@ -1990,5 +2362,6 @@ export default function PlayerDashboard({ session, profile, onProfileReload }) {
         })}
       </nav>
     </div>
+    </RestrictedCtx.Provider>
   )
 }

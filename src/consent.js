@@ -10,13 +10,17 @@ import { L } from './i18n'
 
 // PGRST202 = הפונקציה לא נמצאה ב-schema cache · 42883 = undefined_function
 // 42P01 = undefined_table (כשה-RPC נשען על טבלה שטרם נוצרה)
-const NOT_DEPLOYED_CODES = ['PGRST202', 'PGRST106', '42883', '42P01']
+// PGRST205 = הטבלה לא נמצאה ב-schema cache. זה המקרה של גישה ישירה לטבלה
+// חדשה (admin_requests) לפני שהמיגרציה רצה — PostgREST עוצר עוד לפני פוסטגרס,
+// ולכן הקוד הוא PGRST205 ולא 42P01, ובלעדיו הפנייה נראית כשגיאה אמיתית.
+// 42703 = undefined_column, כשהטבלה קיימת אבל עמודה חדשה טרם נוספה לה.
+const NOT_DEPLOYED_CODES = ['PGRST202', 'PGRST205', 'PGRST106', '42883', '42P01', '42703']
 
 export function isNotDeployed(error) {
   if (!error) return false
   if (NOT_DEPLOYED_CODES.includes(error.code)) return true
   const msg = String(error.message || '')
-  return /function .*does not exist|could not find the function|does not exist in the schema cache|relation .*does not exist/i.test(msg)
+  return /function .*does not exist|could not find the (function|table)|does not exist in the schema cache|relation .*does not exist|column .*does not exist/i.test(msg)
 }
 
 // עוטף קריאת RPC אחת ומחזיר תמיד אובייקט אחיד — בלי לזרוק
@@ -102,6 +106,37 @@ export async function myConsentState() {
   return callRpc('my_consent_state')
 }
 
+// ===== הנפקה מחדש של קישור הניהול =====
+// המבוי הסתום שזה סוגר: הורה שסירב פעם אחת לאחת ההרשאות האופציונליות לא יכול
+// היה לחזור בו לעולם — create_consent_request דוחה purpose='manage' על הסף,
+// ו-submit_parent_consent חוסם שדרוג מ-denied ל-granted דרך טוקן 'initial'.
+// כלומר: הורה שאיבד (או מעולם לא קיבל) את קישור הניהול נעול על ההחלטה
+// הראשונה שלו — בדיוק ההפך ממה שמערכת הסכמה אמורה להבטיח.
+// זו אינה פרצת אבטחה: מייל האפוטרופוס ננעל ברגע שנרשמה הכרעה בסיסית ראשונה
+// (גם ב-create_consent_request וגם בטריגר), ולכן קישור ניהול חדש חוזר תמיד
+// לאותו הורה שכבר החליט פעם אחת. ההגנה האמיתית היא נעילת המייל, לא חסימת
+// ההנפקה. תומך גם כאן בשתי צורות התשובה — token ביד הקטין או sent_to בצד שרת.
+export async function requestManageLink() {
+  const res = await callRpc('request_manage_link')
+  if (res.ok && res.token) return { ...res, link: consentLink(res.token) }
+  return res
+}
+
+// הודעת הוואטסאפ שהקטין שולח להורה יחד עם קישור הניהול
+export function consentManageShareText(minorName, link) {
+  const name = (minorName || '').trim()
+  return L(
+    `היי! זה קישור הניהול של החשבון שלי${name ? ` (${name})` : ''} ב-CourtSide.\n` +
+      'דרכו אפשר לראות בכל רגע מה אישרת, לשנות הרשאות (למשל לאשר או לבטל פרסום תמונות) ולבטל את ההסכמה לגמרי:\n' +
+      `${link}\n` +
+      'כדאי לשמור את הקישור — הוא אישי ותקף לשנה.',
+    `Hi! This is the management link for my CourtSide account${name ? ` (${name})` : ''}.\n` +
+      'It lets you see what you approved, change permissions (for example allow or stop photo publishing) and revoke consent entirely:\n' +
+      `${link}\n` +
+      'Worth saving — it is personal and valid for a year.'
+  )
+}
+
 export async function confirmAdult() {
   return callRpc('confirm_adult')
 }
@@ -131,8 +166,110 @@ export async function adminConsentLog(minorId) { return callRpc('admin_consent_l
 export async function adminRevokeConsent(minorId, type) {
   return callRpc('admin_revoke_consent', { p_minor: minorId, p_type: type })
 }
+// עד היום לאדמין הייתה רק דרך אחת — לבטל. הורה שהתקשר וביקש לאשר משהו
+// שסירב לו בעבר נשאר בלי מענה, כי אין פונקציה שמעניקה הסכמה.
+// value: 'granted' | 'denied' | 'revoked'
+export async function adminSetConsent(minorId, type, value) {
+  return callRpc('admin_set_consent', { p_minor: minorId, p_type: type, p_value: value })
+}
 export async function adminDeletionRequests() { return callRpc('admin_deletion_requests') }
 export async function adminMarkDeletionDone(id) { return callRpc('admin_mark_deletion_done', { p_id: id }) }
+
+// ===== ערוץ הפנייה לאדמין =====
+// המבוי הסתום שזה סוגר: אמא שהחליפה מייל, הורים פרודים שהקישור הלך לאבא
+// הלא-נכון, תאריך לידה שהוקלד הפוך — לאדמין כבר יש את הכלים לתקן את כל אלה,
+// אבל למשתמש לא הייתה שום דרך *להגיע* אליו מתוך האפליקציה. הטבלה נגישה
+// בכוונה גם לקטין מוגבל (היא לא נעולה מאחורי is_active_user), כי בדיוק מי
+// שתקוע הוא זה שצריך לבקש עזרה.
+export const ADMIN_REQUEST_KINDS = ['guardian_change', 'consent_change', 'age_correction', 'other']
+
+// תקרת האורך זהה ל-CHECK במסד. חוסמים גם בלקוח כדי שהמשתמש יראה מונה
+// ולא ישלח 1200 תווים ויקבל שגיאת 400 סתומה אחרי שכתב הכל.
+export const ADMIN_REQUEST_MAX = 1000
+
+export function adminRequestKindLabel(kind) {
+  switch (kind) {
+    case 'guardian_change':
+      return L('החלפת ההורה הרשום', 'Change the registered guardian')
+    case 'consent_change':
+      return L('שינוי הרשאות', 'Change permissions')
+    case 'age_correction':
+      return L('תיקון תאריך לידה', 'Fix the date of birth')
+    case 'other':
+      return L('אחר', 'Something else')
+    default:
+      return kind
+  }
+}
+
+// טקסט עזר לבורר בצד השחקן — כדי שהוא יבין איזו אפשרות מתאימה לו
+export function adminRequestKindHelp(kind) {
+  switch (kind) {
+    case 'guardian_change':
+      return L('הקישור נשלח להורה הלא-נכון, המייל השתנה, או שההורה שרשום כבר לא הכתובת הנכונה.',
+        'The link went to the wrong parent, the email changed, or the registered guardian is no longer the right address.')
+    case 'consent_change':
+      return L('ההורה רוצה לאשר או לבטל הרשאה, ואין לו את קישור הניהול.',
+        'Your parent wants to allow or cancel a permission and does not have the management link.')
+    case 'age_correction':
+      return L('תאריך הלידה בפרופיל שגוי, ולכן החשבון סווג לא נכון.',
+        'The date of birth on the profile is wrong, so the account was classified incorrectly.')
+    case 'other':
+      return L('כל דבר אחר שתקוע — תארו במילים שלכם.', 'Anything else that is stuck — describe it in your own words.')
+    default:
+      return ''
+  }
+}
+
+// פנייה לאדמין. INSERT ישיר ולא RPC — הטבלה מוגנת ב-RLS על user_id=auth.uid(),
+// ואין כאן שום דבר שדורש הרשאות-על. מחזיר את אותו חוזה כמו callRpc, כך
+// שהקורא מטפל ב-notDeployed בדיוק באותה דרך.
+export async function fileAdminRequest({ kind, message } = {}) {
+  if (!ADMIN_REQUEST_KINDS.includes(kind)) return { ok: false, reason: 'bad_kind' }
+  // חיתוך ולא דחייה: המשתמש כבר כתב, וזריקת הטקסט שלו בגלל תו 1001 גרועה
+  // מלשלוח את מה שנכנס. ה-UI ממילא מגביל את שדה הקלט לאותו אורך.
+  const text = String(message || '').trim().slice(0, ADMIN_REQUEST_MAX)
+
+  let user
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user
+  } catch {
+    return { ok: false, reason: 'network' }
+  }
+  if (!user) return { ok: false, reason: 'not_authenticated' }
+
+  let error
+  try {
+    ;({ error } = await supabase.from('admin_requests').insert({
+      user_id: user.id,
+      kind,
+      message: text || null,
+    }))
+  } catch (err) {
+    return { ok: false, reason: 'network', message: err?.message || '' }
+  }
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true, reason: 'not_deployed' }
+    return { ok: false, reason: 'error', message: error.message || '' }
+  }
+  return { ok: true }
+}
+
+export async function adminRequests() { return callRpc('admin_requests_list') }
+export async function adminMarkRequestDone(id) { return callRpc('admin_mark_request_done', { p_id: id }) }
+
+// החלפת ההורה הרשום. זו הפעולה הרגישה ביותר בלוח האדמין: היא מעבירה את
+// הפיקוח ההורי לאדם אחר, ולכן היא נעשית רק אחרי אימות מחוץ למערכת.
+export async function adminSetGuardian(minorId, { name, email, phone, relation } = {}) {
+  return callRpc('admin_set_guardian', {
+    p_minor: minorId,
+    p_name: (name || '').trim() || null,
+    p_email: (email || '').trim(),
+    p_phone: (phone || '').trim() || null,
+    p_relation: (relation || '').trim() || null,
+  })
+}
 
 // ===== סוגי ההסכמה =====
 // הסדר כאן הוא סדר החוזה, וגם סדר התצוגה בטופס ההורה.
@@ -207,6 +344,11 @@ export function consentRequestError(reason) {
     // וההודעה כאן היא רק רשת ביטחון אם מישהו בכל זאת יציג אותה.
     case 'already_consented':
       return L('החשבון כבר אושר — אין צורך בקישור חדש.', 'The account is already approved — no new link is needed.')
+    // request_manage_link: אין עדיין שום הכרעה של הורה, ולכן אין מה «לנהל».
+    // המסלול הנכון הוא הקישור הראשוני, לא קישור הניהול.
+    case 'no_prior_consent':
+      return L('עוד לא ניתנה החלטה — שלחו קודם את קישור האישור הראשוני',
+        'No decision has been made yet — send the initial approval link first')
     default:
       return L('יצירת הקישור נכשלה — נסו שוב.', 'Creating the link failed — please try again.')
   }

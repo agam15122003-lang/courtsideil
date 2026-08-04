@@ -4,7 +4,7 @@ import {
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
-  Printer,
+  Printer, Check, Share2,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -30,6 +30,8 @@ import Page from './Page'
 import { ChevronFwd } from './DirIcon'
 import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
+import { pendingRequests, decideMembership } from './players'
+import { waShare } from './share'
 
 // ---- סטטוס שחקן ----
 const STATUSES = [
@@ -39,6 +41,30 @@ const STATUSES = [
   { key: 'absent', he: 'לא מגיע', en: 'Absent' },
 ]
 const statusLabel = (k) => L((STATUSES.find((x) => x.key === k) || STATUSES[0]).he, (STATUSES.find((x) => x.key === k) || STATUSES[0]).en)
+
+// ---- הקשר ההסכמה של בקשת הצטרפות ----
+// המודל כאן נשען על המאמן כשומר האנושי: הוא זה שמכיר את השחקן ואת המשפחה.
+// כדי שההחלטה שלו תהיה מודעת ולא מקרית, כל בקשה מסומנת במצב ההסכמה שלה.
+// null = המיגרציה טרם רצה (approval_status/has_consent חסרים) — ואז המסך
+// חוזר בדיוק להתנהגות של היום: בלי תג, בלי דיאלוג, בלי פאנל.
+const consentState = (r) => {
+  if (!r?.approval_status) return null
+  if (r.approval_status === 'pending_parent') return 'waiting'
+  if (r.approval_status === 'suspended') return 'revoked'
+  if (r.parent_approved === true) return 'approved'
+  if (r.parent_approved === false) return 'adult'
+  return null // has_consent לא זמין — עדיף בלי תג מאשר תג שקרי
+}
+// הטקסטים נשמרים he/en ולא עוברים ב-L כאן: מודול נטען פעם אחת, והחלפת
+// שפה בזמן ריצה הייתה מקבעת את השפה של הטעינה הראשונה.
+// הצבעים דרך טוקנים בלבד — אין hex, ואין תוספת ל-index.css.
+const CONSENT_BADGE = {
+  approved: { he: 'ההורה אישר', en: 'Parent approved', cls: 'tc-meter full' },
+  waiting: { he: 'ממתין לאישור הורה', en: 'Waiting for parent approval', cls: 'tc-meter', style: { background: 'var(--warn-soft)', color: 'var(--warn-ink)' } },
+  revoked: { he: 'ההסכמה בוטלה', en: 'Consent revoked', cls: 'tc-meter', style: { background: 'var(--danger-soft)', color: 'var(--danger)' } },
+  adult: { he: 'לא קטין', en: 'Not a minor', cls: 'tc-meter', style: { background: 'var(--surface-alt)', color: 'var(--text-muted)' } },
+}
+const reqName = (p) => (p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() : '') || L('שחקן', 'Player')
 
 // ---- תפקידי צוות מקצועי ----
 const STAFF_ROLES = [
@@ -203,6 +229,78 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [team])
   useEffect(() => () => { loadTokenRef.current++ }, []) // ביטול טעינה תלויה בעת יציאה
+
+  // ---------- בקשות הצטרפות: המאמן כשומר מודע ----------
+  const [reqs, setReqs] = useState([])
+  const [reqsLoading, setReqsLoading] = useState(true)
+  const [reqsFailed, setReqsFailed] = useState(false) // כשל טעינה != אין בקשות
+  const [deciding, setDeciding] = useState(null)      // id של בקשה בטיפול
+  const [reqsRev, setReqsRev] = useState(0)           // מפתח רענון ל-TeamConnect
+  const reqTokenRef = useRef(0)
+
+  const loadReqs = async () => {
+    const token = ++reqTokenRef.current
+    setReqsLoading(true)
+    // quiet: פאנל החיבור שמתחת קורא לאותה פונקציה, ושני טוסטים זהים על
+    // אותה תקלה זה רעש. השגיאה מוצגת כאן כפס אינליין עם "נסה שוב".
+    const rows = await pendingRequests(me, { quiet: true })
+    if (token !== reqTokenRef.current) return // קבוצה אחרת נבחרה בינתיים
+    setReqsFailed(!!rows.loadError)
+    setReqs(rows.filter((r) => r.team === team))
+    setReqsLoading(false)
+  }
+  useEffect(() => { loadReqs() /* eslint-disable-next-line */ }, [me, team])
+  useEffect(() => () => { reqTokenRef.current++ }, [])
+
+  // רק בקשות שיש להן הקשר הסכמה אמיתי מוצגות כאן. במסד שטרם הריץ את
+  // מיגרציות ההסכמה זה תמיד ריק — והמסך זהה לחלוטין להיום.
+  const consentReqs = reqs.filter((r) => consentState(r))
+
+  // הודעה קצרה שהמאמן שולח למשפחה. לא ננעצת בשם מסך מסוים באפליקציה,
+  // כדי שלא תתיישן ברגע שהניסוח שם ישתנה.
+  const nudgeText = (r) => L(
+    `שלום! ${reqName(r.player)} ביקש/ה להצטרף לקבוצה שלנו ב-CourtSide. כדי שהחשבון יהיה פעיל צריך אישור של הורה — האפליקציה שולחת להורה לינק אישור קצר, וזה לוקח דקה. עד האישור החשבון נשאר מוגבל: בלי העלאת תמונות ובלי כתיבה בקהילה ובצ׳אטים. תודה!`,
+    `Hi! ${reqName(r.player)} asked to join our team on CourtSide. The account needs a parent's approval to become active — the app sends the parent a short approval link, and it takes a minute. Until then the account stays restricted: no photo uploads and no posting in the community or chats. Thanks!`
+  )
+
+  const decideRequest = async (r, approve) => {
+    const st = consentState(r)
+    // ההחלטה נשארת של המאמן — אבל היא חייבת להיות מפורשת, לא אגבית.
+    if (approve && st === 'waiting') {
+      const ok = await confirmDialog({
+        title: L('לאשר שחקן שההורה שלו טרם אישר?', 'Approve a player whose parent has not approved?'),
+        message: L(
+          'זהו קטין שהאפוטרופוס שלו עדיין לא אישר את ההרשמה. באישור הבקשה אתם מצהירים שאתם מכירים את השחקן ואת משפחתו. השחקן יצטרף לקבוצה — אבל יישאר מוגבל באפליקציה: בלי העלאת תמונות, בלי כתיבה בקהילה ובצ׳אטים ובלי שליחת הודעות — עד שההורה יאשר.',
+          'This is a minor whose guardian has not yet approved the registration. By approving you confirm that you know the player and their family. The player will join the team — but will stay restricted in the app: no photo uploads, no posting in the community or chats and no messaging — until the parent approves.',
+        ),
+        confirmText: L('אני מכיר את המשפחה — לאשר', 'I know the family — approve'),
+        danger: false,
+      })
+      if (!ok) return
+    }
+    if (approve && st === 'revoked') {
+      const ok = await confirmDialog({
+        title: L('לאשר שחקן שההסכמה שלו בוטלה?', 'Approve a player whose consent was revoked?'),
+        message: L(
+          'ההורה ביטל את ההסכמה והחשבון מושהה. אישור הבקשה לא יפתח לשחקן את האפליקציה — הוא יישאר חסום עד שהעניין ייפתר מול ההורה או מול מנהל המערכת.',
+          'The parent revoked consent and the account is suspended. Approving will not open the app for this player — they stay blocked until it is resolved with the parent or with an administrator.',
+        ),
+        confirmText: L('אישור בכל זאת', 'Approve anyway'),
+        danger: true,
+      })
+      if (!ok) return
+    }
+    setDeciding(r.id)
+    const res = await decideMembership({ ...r }, approve)
+    setDeciding(null)
+    if (!res.ok) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + res.reason); return }
+    toast.success(approve
+      ? L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster')
+      : L('הבקשה נדחתה', 'Request declined'))
+    loadReqs()
+    setReqsRev((v) => v + 1) // מרענן גם את רשימת הבקשות בפאנל החיבור
+    if (approve) load()
+  }
 
   // סנכרון תיבות היעדים — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
   // טעינה מהמסד). תלות בערך הספציפי ולא באובייקט כולו — כדי ששמירת תיבה אחת
@@ -458,9 +556,73 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </>
           )}
 
+          {/* ---- בקשות הצטרפות עם הקשר ההסכמה ----
+              נטען בשקט: אותה רשימה מוצגת גם בפאנל החיבור שמתחת, ולכן שורת
+              "טוען..." כאן רק הייתה מקפיצה את הפריסה בכל כניסה לסגל.
+              שגיאת טעינה כן מוצגת — "אין בקשות" ו"לא הצלחנו לטעון" חייבים
+              להיראות שונה. */}
+          {reqsLoading ? null : reqsFailed ? (
+            <p className="alert alert-error" style={{ marginTop: 14 }}>
+              {L('לא הצלחנו לטעון את בקשות ההצטרפות. זו תקלת טעינה — הבקשות לא נמחקו. ',
+                 'We could not load the join requests. This is a loading error — no request was deleted. ')}
+              <button type="button" className="link-button" onClick={loadReqs}>{L('נסה שוב', 'Try again')}</button>
+            </p>
+          ) : consentReqs.length > 0 ? (
+            <div className="tc-panel tc-open" style={{ marginTop: 14 }}>
+              <div className="tc-head tc-head-static">
+                <span className="tc-head-l"><UserCheck size={16} /> {L('בקשות הצטרפות · אישור הורה', 'Join requests · parent approval')}</span>
+                <span className="tc-head-r"><span className="tc-badge"><bdi>{consentReqs.length}</bdi></span></span>
+              </div>
+              <div className="tc-body">
+                <p className="muted small" style={{ margin: '10px 0 0' }}>
+                  {L('לפני שמאשרים — כאן רואים אם ההורה כבר אישר את ההרשמה. שחקן שההורה שלו טרם אישר יכול להצטרף לקבוצה, אבל יישאר מוגבל באפליקציה עד שההורה יאשר.',
+                     'Before approving — see whether the parent has already approved. A player whose parent has not approved yet can still join the team, but stays restricted in the app until the parent approves.')}
+                </p>
+                <div className="tc-reqs">
+                  {consentReqs.map((r) => {
+                    const st = consentState(r)
+                    const badge = CONSENT_BADGE[st]
+                    const needsParent = st === 'waiting' || st === 'revoked'
+                    return (
+                      <div key={r.id} className="tc-req">
+                        <Avatar name={reqName(r.player)} url={r.player?.avatar_url} size={34} />
+                        <span className="tc-req-name">
+                          {reqName(r.player)}
+                          {r.player?.position ? <span className="muted small"> · {r.player.position}</span> : null}
+                          <span style={{ display: 'block', marginBlockStart: 4 }}>
+                            <span className={badge.cls} style={badge.style}>{L(badge.he, badge.en)}</span>
+                          </span>
+                        </span>
+                        {needsParent && (
+                          /* דחיפה עדינה למשפחה — הדרך של המאמן לקדם את האישור
+                             במקום להישאר תקוע מולו. */
+                          <button type="button" className="icon-btn" onClick={() => waShare(nudgeText(r))}
+                            aria-label={L('שליחת הסבר להורה בוואטסאפ', 'Send the parent an explanation on WhatsApp')}
+                            title={L('שליחת הסבר להורה', 'Nudge the parent')}>
+                            <Share2 size={15} />
+                          </button>
+                        )}
+                        <button className="tc-approve" disabled={deciding === r.id}
+                          onClick={() => decideRequest(r, true)} aria-label={L('אישור', 'Approve')}>
+                          <Check size={16} />
+                        </button>
+                        <button className="tc-reject" disabled={deciding === r.id}
+                          onClick={() => decideRequest(r, false)} aria-label={L('דחייה', 'Decline')}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* קוד ההצטרפות ירד לכאן: הסגל הוא הסיבה שנכנסים לטאב הזה, והקוד
-              תפס את כל החלק העליון של המסך בכל כניסה. */}
-          <TeamConnect coachId={me} team={team} onApproved={load} />
+              תפס את כל החלק העליון של המסך בכל כניסה.
+              key: החלטה שהתקבלה בפאנל שלמעלה חייבת להיעלם גם מהרשימה שבפנים,
+              אחרת נשארת שם בקשה שכבר הוכרעה. */}
+          <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />
 
           {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת
               היחידה אליהם, והיא חייבת להיות בזרימה הראשית. */}

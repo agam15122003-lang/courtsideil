@@ -22429,3 +22429,394 @@ html.a11y-motion .pc-check { transition: none; }
   min-height: 100%;
   border-radius: inherit;
 }
+
+/* ============================================================
+   4.8.2026 · קישור ניהול חוזר להורה (CONSENT_MANAGE) — בלוק
+   תוספת בלבד. index.css הוא append-only, ולכן הסגנונות של
+   כרטיס ההסכמה בפרופיל השחקן ושל שינוי ההסכמה באדמין נוספים
+   כאן בסוף הקובץ ולא נדחפים לבלוקים הקיימים.
+   הרקע: הורה שסירב פעם אחת נשאר נעול על ההחלטה, כי אי אפשר
+   היה להנפיק מחדש קישור ניהול. הכרטיס החדש הוא היציאה מזה.
+   ============================================================ */
+
+/* ===== כרטיס «אישור ההורה» בפרופיל השחקן ===== */
+.plc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-block-start: var(--space-3);
+  text-align: start;
+}
+.plc-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+.plc-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 38px;
+  block-size: 38px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.plc-ic.danger { background: var(--danger-soft); color: var(--danger); }
+.plc-head-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* ההודעה על מסמך הסכמה שהתעדכן — אזהרה, לא שגיאה */
+.plc-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+.plc-alert > svg { flex-shrink: 0; margin-block-start: 2px; }
+
+.plc-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+.plc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-block-end: 1px solid var(--border);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.plc-row:last-child { border-block-end: 0; }
+.plc-row-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 26px;
+  block-size: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+.plc-row.on .plc-row-ic { background: var(--c-green-bg); color: var(--c-green); }
+.plc-row.off .plc-row-ic { background: var(--c-red-bg); color: var(--c-red); }
+.plc-row-body { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.plc-val {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+.plc-val.v-granted { background: var(--c-green-bg); color: var(--c-green); }
+.plc-val.v-denied { background: var(--c-navy-bg); color: var(--c-navy); }
+.plc-val.v-revoked { background: var(--c-red-bg); color: var(--c-red); }
+
+.plc-guardian {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  overflow-wrap: anywhere;
+}
+.plc-guardian > svg { flex-shrink: 0; margin-block-start: 3px; color: var(--accent-strong); }
+
+/* המשפט שמסביר למה הנפקה חוזרת בטוחה: הקישור צמוד למייל הנעול */
+.plc-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.plc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+}
+.plc-actions .btn-primary,
+.plc-actions .btn-soft { justify-content: center; }
+.plc-link-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-block-start: var(--space-4);
+  text-align: start;
+}
+.plc-link {
+  display: block;
+  overflow-wrap: anywhere;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  margin-block-start: var(--space-2);
+}
+.plc-link-box .plc-actions { margin-block-start: var(--space-3); }
+.plc-foot { margin-block-start: var(--space-3); }
+.plc-error { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
+.plc-retry { margin-inline-start: auto; }
+
+/* ===== אדמין — שינוי הסכמה (ולא רק ביטול) ===== */
+.adm-set { display: flex; flex-direction: column; gap: var(--space-2); }
+.adm-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-block-end: 1px solid var(--border);
+}
+.adm-set-row:last-child { border-block-end: 0; }
+.adm-set-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.adm-set-row .admin-coach-actions { margin-inline-start: auto; }
+/* «טרם נענה» — אין לו גוון משלו בבלוק המקורי, ובלי הכלל הזה הוא נראה
+   כמו תווית ריקה בלי רקע */
+.adm-cv.cv-none { background: var(--surface-alt); color: var(--text-muted); }
+.adm-set .chip:disabled { opacity: 0.45; cursor: default; }
+
+@media (max-width: 520px) {
+  .plc-actions > button { flex: 1 1 100%; }
+  .plc-retry { margin-inline-start: 0; }
+  .adm-set-row .admin-coach-actions { margin-inline-start: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plc-row { transition: none; }
+}
+html.a11y-motion .plc-row { transition: none; }
+
+/* ============================================================
+   4.8.2026 · מצב מוגבל לקטין שממתין לאישור הורה (CONSENT_RESTRICTED)
+   בלוק תוספת בלבד — index.css הוא append-only, ולכן הסגנונות
+   של הבאנר, של הסבר הפעולה החסומה ושל טופס הפנייה לאדמין
+   נוספים כאן בסוף הקובץ ולא נדחפים לבלוקים הקיימים.
+   הרקע: עד היום קטין שההורה שלו טרם אישר קיבל מסך נעילה מלא.
+   החלטת הבעלים היא ההפך — האפליקציה נשארת פתוחה כדי שהוא יגיע
+   למאמן עם קוד קבוצה, והמאמן הוא שומר הסף האנושי. לכן הטון כאן
+   הוא של «הנה איך פותחים את זה», לא של קיר: גוון אקצנט חמים
+   ולא גוון שגיאה, ואף פקד לא נעלם — רק מושבת עם הסבר לידו.
+   ============================================================ */
+
+/* ===== הבאנר הקבוע בראש כל מסך של שחקן מוגבל ===== */
+.pbn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  text-align: start;
+}
+.pbn-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 34px;
+  block-size: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--accent-strong);
+}
+.pbn-body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; flex: 1; }
+.pbn-title { font-family: var(--font-display); font-size: var(--text-base); color: var(--text); }
+.pbn-lead { margin: 0; font-size: var(--text-sm); color: var(--text-muted); line-height: 1.55; }
+.pbn-mail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.pbn-mail svg { flex-shrink: 0; color: var(--accent-strong); align-self: center; }
+.pbn-mail strong { overflow-wrap: anywhere; }
+.pbn-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-1); }
+.pbn-actions > button { margin-top: 0; }
+.pbn-more { margin-inline-start: auto; }
+
+.pbn-link-box { display: flex; flex-direction: column; gap: var(--space-1); }
+.pbn-link {
+  display: block;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+}
+
+/* «כבר מלאו לי 18» — הפעולה שמשחררת בגיר שנתקע, ולכן היא לא נחבאת */
+.pbn-self {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.pbn-self > svg { flex-shrink: 0; margin-block-start: 2px; color: var(--accent-strong); }
+.pbn-self-body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.pbn-self-body .btn-primary { margin-top: 0; justify-content: center; }
+
+.pbn-more-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+.pbn-more-box > .btn-soft { margin-top: 0; align-self: flex-start; }
+.pbn-foot { margin: 0; }
+
+/* ===== הסבר ליד פעולה שהשרת יחסום ===== */
+/* לא אדום ולא אזהרה: זו לא שגיאה של המשתמש, זה מצב זמני של החשבון. */
+.rstr-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: start;
+}
+.rstr-note > svg { flex-shrink: 0; margin-block-start: 2px; color: var(--accent-strong); }
+.rstr-txt { min-width: 0; }
+.rstr-note.rstr-block {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  font-size: var(--text-sm);
+}
+/* כפתור-קישור בתוך משפט — נשאר בשורת הטקסט ולא הופך לבלוק */
+.rstr-cta {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.rstr-cta:hover { color: var(--accent-press); }
+.rstr-cta:disabled { opacity: 0.55; cursor: default; text-decoration: none; }
+
+/* פקדים שהושבתו במצב מוגבל — קריאים, לא "שבורים" */
+.pla-quick button:disabled,
+.pla-mark:disabled,
+.plht-quick:disabled,
+.plh-msg-cta:disabled,
+.plh-ask-cta:disabled,
+.pla.done:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* ===== טופס הפנייה למנהל המערכת ===== */
+.adq { display: flex; flex-direction: column; gap: var(--space-3); text-align: start; }
+.adq:not(.adq-compact) { margin-block-start: var(--space-4); }
+.adq-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.adq-toggle:hover { color: var(--accent-press); }
+.adq-form, .adq-sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.adq-legend, .adq-label { font-size: var(--text-sm); font-weight: 600; }
+.adq-kinds { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.adq-kind {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.adq-kind.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
+.adq-help { margin: 0; }
+.adq-text {
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+.adq-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.adq-send { margin-top: 0; margin-inline-start: auto; }
+.adq-sent { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.adq-sent > svg { flex-shrink: 0; color: var(--success); }
+.adq-again { margin-inline-start: auto; }
+
+/* מצב כהה: הגוון הרך על רקע כהה נבלע — מחזקים אותו במעט */
+[data-theme='dark'] .pbn { background: var(--accent-soft); border-color: var(--accent-strong); }
+[data-theme='dark'] .pbn-ic { background: var(--surface-alt); }
+
+@media (max-width: 560px) {
+  .pbn { padding: var(--space-3); }
+  .pbn-actions > button,
+  .pbn-more,
+  .adq-send { flex: 1 1 100%; margin-inline-start: 0; justify-content: center; }
+  .adq-again { margin-inline-start: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adq-kind { transition: none; }
+}
+html.a11y-motion .adq-kind { transition: none; }
