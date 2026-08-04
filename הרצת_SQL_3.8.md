@@ -71,13 +71,26 @@ where schemaname = 'public' and qual = 'true';
 וההורה חייב לקרוא אותה בלי חשבון. אין בה שום מידע אישי.
 כל שורה אחרת שתופיע כאן היא בעיה שצריך לסגור.
 
-**ב. הניקוי מתוזמן:**
+**ב. הניקוי מתוזמן:** ✅ **אומת ב-4.8.2026 — מתוזמן ופעיל, סופר ולא מוחק.**
+
+ב-SQL Editor השתמש בשתי אלה. הראשונה צריכה להחזיר שורה, והשנייה צריכה
+להחזיר `active = true` על `25 3 * * *` (שעון UTC — 6:25 בבוקר בישראל בקיץ):
+
+```sql
+select extname, extversion from pg_extension where extname = 'pg_cron';
+select jobname, schedule, active from cron.job where jobname = 'courtside-retention-purge';
+```
+
+אם השנייה חוזרת ריקה — הרץ שוב את `supabase_retention_schedule.sql`.
+
+**מתוך האתר**, מחשבון מנהל מחובר, יש דוח מלא:
 
 ```sql
 select public.admin_retention_status();
 ```
 
-הרץ מחשבון מנהל. תסתכל על השדה `state`:
+⚠ **היא נכשלת ב-SQL Editor** עם «למנהלים בלבד» — בעורך אינך מחובר כמשתמש,
+ולכן היא לא מזהה אותך כמנהל. זו אינה תקלה. תסתכל על השדה `state`:
 
 * `not_scheduled` — אין תזמון. משהו לא הופעל. ראו סעיף 4.
 * `dry_only` — מתוזמן ורץ, סופר ולא מוחק. **זה המצב הנכון היום.**
