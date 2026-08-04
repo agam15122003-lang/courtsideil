@@ -14,6 +14,9 @@ import { ErrorState } from './states'
 import { safeUrl, SITE_URL } from './constants'
 import { waShare } from './share'
 import { confirmDialog } from './confirm'
+// הקובץ שמגיש את Rubik בעברית — ?url מחזיר את הנתיב הסופי (עם ה-hash)
+// אחרי build, כדי שמסמך ההדפסה יטען את אותו פונט שהאפליקציה משתמשת בו.
+import rubikFont from '@fontsource/rubik/files/rubik-hebrew-400-normal.woff2?url'
 
 // יעד אורך אימון מלא. מוצג גם בעורך התוכנית וגם על כרטיס התוכנית ברשימה (13a).
 export const PLAN_TARGET_MIN = 90
@@ -872,13 +875,22 @@ function PlanBuilder({ planId, plan, onBack }) {
 
     // מסמך ההדפסה הוא מסמך נפרד ולכן אין בו משתני CSS — הצבעים כאן הם
     // ערכי הטוקנים עצמם (--text, --text-muted, --navy) כדי שהפלט המודפס
-    // ייראה כמו המותג. Rubik נטען מ-fonts.googleapis.com, שמותר ב-CSP.
+    // ייראה כמו המותג.
+    //
+    // הפונט: עד 4.8.2026 נטען כאן מ-fonts.googleapis.com. מאז שהפונטים
+    // עברו לאחסון עצמי, ה-CSP כבר לא מתיר את הדומיין הזה — ומסמך blob:
+    // יורש את ה-CSP של הדף שיצר אותו, כך שהקישור פשוט נחסם והפלט המודפס
+    // נפל ל-Arial. עכשיו טוענים את אותו קובץ שהאפליקציה כבר מגישה
+    // מהשרת שלנו (font-src 'self'), דרך ?url של Vite כדי שהנתיב יכלול
+    // את ה-hash הנכון אחרי build. new URL(...) הופך אותו לכתובת מוחלטת,
+    // כי בתוך blob: נתיב יחסי חסר משמעות.
+    const rubikUrl = new URL(rubikFont, window.location.origin).href
     const html =
       '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">' +
       '<title>' + name + '</title>' +
-      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
-      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap">' +
       '<style>' +
+      "@font-face{font-family:'Rubik';font-style:normal;font-weight:400 700;" +
+      "font-display:swap;src:url('" + rubikUrl + "') format('woff2')}" +
       "body{font-family:'Rubik',Arial,Helvetica,sans-serif;padding:28px;color:#0F1F33}" + // --text
       'h1{font-size:24px;font-weight:700;margin:0 0 4px;color:#152238}' + // --navy
       '.sub{color:#55647A;font-size:14px;margin-bottom:18px}' + // --text-muted
