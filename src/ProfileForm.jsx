@@ -177,6 +177,9 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       payload.position = position.trim() || null
       payload.age_groups = [] // לשחקן אין "קבוצות שאני מאמן"
       payload.phone_public = false // טלפון של שחקן לא מוצג לאף אחד
+      // לשחקן אין תמונת פרופיל. מאפסים גם בשמירה ולא רק מסתירים את הטופס,
+      // כדי שתמונה שהועלתה לפני השינוי תימחק בעריכה הבאה של הפרופיל.
+      payload.avatar_url = null
       if (isMinor) {
         // רק פרטי הקשר של האפוטרופוס. ההסכמה עצמה נכתבת אך ורק בשרת,
         // אחרי שההורה אישר בטופס שלו — הקליינט לא נוגע בה יותר.
@@ -409,32 +412,49 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             <User size={16} /> {L('פרטים אישיים', 'Personal details')}
           </h3>
 
-          <div className="avatar-upload">
-            <Avatar name={`${firstName} ${lastName}`} url={avatarUrl} size={76} />
-            <div className="avatar-upload-actions">
-              <label className="btn-soft avatar-pick">
-                <Camera size={16} />
-                {uploadingAvatar ? L('מעלה...', 'Uploading...') : avatarUrl ? L('החלפת תמונה', 'Change photo') : L('העלאת תמונה', 'Upload photo')}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={onAvatarPick}
-                  disabled={uploadingAvatar}
-                  hidden
-                />
-              </label>
-              {avatarUrl && (
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setAvatarUrl('')}
-                >
-                  {L('הסר תמונה', 'Remove photo')}
-                </button>
-              )}
+          {/* תמונת פרופיל — למאמנים בלבד (החלטת הבעלים, 4.8.2026).
+              לשחקן אין העלאת תמונה כלל: רוב השחקנים קטינים, ותמונת פנים
+              של ילד היא הפריט הרגיש ביותר במערכת. הדרך הפשוטה והבטוחה
+              ביותר להגן עליה היא לא לאסוף אותה מלכתחילה. במקומה מוצגות
+              ראשי התיבות של השם, בכל מקום שבו מוצג אווטאר.
+              האכיפה אינה כאן בלבד — מדיניות ה-Storage חוסמת העלאה
+              לתיקיית avatars/ מחשבון שחקן (supabase_no_player_avatars.sql). */}
+          {isPlayer ? (
+            <div className="avatar-upload">
+              <Avatar name={`${firstName} ${lastName}`} url={null} size={76} />
+              <p className="muted small" style={{ margin: 0 }}>
+                {L('בפרופיל שחקן אין תמונה — מוצגות ראשי התיבות של השם.',
+                   'Player profiles have no photo — initials are shown instead.')}
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="avatar-upload">
+              <Avatar name={`${firstName} ${lastName}`} url={avatarUrl} size={76} />
+              <div className="avatar-upload-actions">
+                <label className="btn-soft avatar-pick">
+                  <Camera size={16} />
+                  {uploadingAvatar ? L('מעלה...', 'Uploading...') : avatarUrl ? L('החלפת תמונה', 'Change photo') : L('העלאת תמונה', 'Upload photo')}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={onAvatarPick}
+                    disabled={uploadingAvatar}
+                    hidden
+                  />
+                </label>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => setAvatarUrl('')}
+                  >
+                    {L('הסר תמונה', 'Remove photo')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="form-grid-2">
             <label className="pf-label">
