@@ -78,6 +78,12 @@ end $$;
 --    pending_parent חייב להצליח ליצור בקשת הסכמה, אחרת אין לו דרך
 --    לצאת מהמצב הממתין. הן ממילא נכתבות רק דרך RPC של security definer.
 --  • public.schema_migrations — תשתית, נכתבת רק דרך mark_migration.
+--  • public.team_memberships — ⚑ הוחרג ב-3.8.2026 לפי החלטת הבעלים.
+--    המודל הוא שהמאמן הוא שומר הסף: השחקן נכנס עם קוד קבוצה, המאמן
+--    רואה את מצב הסכמת ההורה ורק אז מאשר. אם בקשת ההצטרפות עצמה
+--    חסומה לקטין שממתין להורה — הוא לעולם לא יגיע למאמן שיכול לאמת
+--    אותו, והשער סוגר בדיוק את הדלת שדרכה הפיקוח האנושי נכנס.
+--    ההגנה נשמרת: הבקשה נוצרת במצב 'pending', והאישור הוא של המאמן.
 -- ---------------------------------------------------------------------
 do $$
 declare
@@ -90,8 +96,8 @@ declare
     'messages', 'player_messages', 'team_messages',
     -- התראות
     'notifications',
-    -- קבוצות וחברויות
-    'team_memberships', 'team_join_codes', 'team_players', 'team_staff',
+    -- קבוצות וחברויות ('team_memberships' מוחרג — ראה נימוק למעלה)
+    'team_join_codes', 'team_players', 'team_staff',
     'team_goals', 'team_games', 'team_iba', 'team_practice_slots',
     -- תרגילים ותוכן נלווה
     'drills', 'drill_comments', 'drill_ratings', 'drill_videos',
