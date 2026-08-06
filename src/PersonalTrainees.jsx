@@ -123,6 +123,27 @@ export default function PersonalTrainees({ session }) {
     toast.success(L('המשימה נשלחה', 'Task sent'))
   }
 
+  // הקוד האישי — נוצר בפעם הראשונה שנכנסים למסך. RPC ולא קריאה לעמודה:
+  // הרשאת קריאה על personal_code הייתה מאפשרת למפות קודים של אחרים.
+  const [code, setCode] = useState(null)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error: err } = await supabase.rpc('personal_code_mine')
+      if (alive && !err) setCode(data)
+    })()
+    return () => { alive = false }
+  }, [])
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      toast.success(L('הקוד הועתק', 'Code copied'))
+    } catch {
+      toast.error(L('ההעתקה נכשלה — סמן והעתק ידנית', 'Copy failed — select and copy manually'))
+    }
+  }
+
   if (loading) return <div className="welcome-card"><SkeletonCards count={2} /></div>
 
   if (missing) {
@@ -153,6 +174,21 @@ export default function PersonalTrainees({ session }) {
 
   return (
     <div className="welcome-card">
+      {code && (
+        <div className="pt-code">
+          <div>
+            <span className="field-label">{L('הקוד האישי שלך', 'Your personal code')}</span>
+            <p className="muted small" style={{ margin: '4px 0 0' }}>
+              {L('תן אותו למי שאתה מאמן אישית. הוא מזין אותו אצלו, ואתה מאשר כאן. זה לא קוד הקבוצה.',
+                 'Give it to whoever you train one-on-one. They enter it, you approve here. This is not the team code.')}
+            </p>
+          </div>
+          <button type="button" className="pt-code-val" onClick={copyCode} title={L('העתקה', 'Copy')}>
+            <span dir="ltr">{code}</span>
+          </button>
+        </div>
+      )}
+
       {live.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><UserPlus size={26} /></span>

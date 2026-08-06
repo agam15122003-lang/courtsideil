@@ -7,7 +7,7 @@ import {
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
   MapPin, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
-  Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown,
+  Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -215,6 +215,80 @@ function JoinTeam({ session, onJoined, compact }) {
           </div>
         )}
       </div>
+
+      {/* קוד אימון אישי — ערוץ נפרד לגמרי מהקבוצה. יושב כאן כי זה בדיוק
+          המקום שאליו מגיע מי שנרשם לאפליקציה בשביל מאמן אישי ואין לו
+          קבוצה בכלל. */}
+      {!compact && <PersonalCoachJoin />}
+    </div>
+  )
+}
+
+// ---------- הצטרפות למאמן אישי בקוד ----------
+// נפרד מ-JoinTeam במכוון: קוד הקבוצה פותח קבוצה, והקוד הזה פותח קשר
+// אישי. ערבוב השניים היה נותן למאמן ערוץ שלא התכוון לפתוח.
+function PersonalCoachJoin() {
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const submit = async () => {
+    if (code.length < 6) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('request_personal_coach', { p_code: code })
+    setBusy(false)
+    if (error) {
+      // הפונקציה נוספת ב-supabase_personal_code_4_8.sql. עד שהיא תרוץ,
+      // אין להאשים את המשתמש בקוד שגוי.
+      toast.error(/function .* does not exist|PGRST202/i.test(error.message || '')
+        ? L('הפיצ׳ר עוד לא הופעל. פנה למאמן.', 'Not enabled yet. Ask your coach.')
+        : L('הבקשה נכשלה: ', 'Request failed: ') + error.message)
+      return
+    }
+    if (!data?.ok) {
+      toast.error(
+        data?.reason === 'rate' ? L('יותר מדי ניסיונות. נסה שוב בעוד שעה.', 'Too many attempts. Try again in an hour.')
+          : data?.reason === 'self' ? L('זה הקוד שלך.', "That's your own code.")
+            : L('קוד לא נמצא — בדוק אותו מול המאמן', 'Code not found — check it with your coach'),
+      )
+      return
+    }
+    setCode('')
+    setSent(true)
+    toast.success(data.reason === 'already'
+      ? L('כבר שלחת בקשה למאמן הזה', 'You already requested this coach')
+      : L('הבקשה נשלחה למאמן לאישור', 'Request sent to the coach'))
+  }
+
+  return (
+    <div className="pl-join-card">
+      <span className="pl-join-ic"><UserPlus size={30} /></span>
+      <h2>{L('מאמן אישי', 'Personal coach')}</h2>
+      <p className="muted">
+        {L('יש לך קוד ממאמן אישי? הזן אותו כאן. זה לא קוד הקבוצה.',
+           'Got a code from a personal coach? Enter it here. This is not the team code.')}
+      </p>
+      <div className="pl-join-row">
+        <input
+          className="finder-input pl-code-input"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder={L('קוד המאמן', 'Coach code')}
+          dir="ltr"
+          aria-label={L('קוד המאמן האישי', 'Personal coach code')}
+        />
+        <button className="btn-primary" style={{ marginTop: 0 }} onClick={submit} disabled={busy || code.length < 6}>
+          {busy ? L('בודק...', 'Checking...') : L('שליחת בקשה', 'Request')}
+        </button>
+      </div>
+      {sent && (
+        <div className="pl-waiting">
+          <Hourglass size={16} />
+          {L('הבקשה נשלחה. המאמן צריך לאשר, ואם אתה מתחת לגיל 18 — גם ההורה.',
+             'Request sent. The coach approves, and if you are under 18 so does a parent.')}
+        </div>
+      )}
     </div>
   )
 }

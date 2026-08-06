@@ -23301,3 +23301,31 @@ html.a11y-motion .csx-quick-row { transition: none; }
   padding-block-start: 12px;
   border-block-start: 1px solid var(--border);
 }
+
+/* --- 4.8.2026 (ד) · הקוד האישי של המאמן --- */
+.pt-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-block-end: 14px;
+}
+.pt-code-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px dashed var(--border-hover);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.pt-code-val:hover { border-color: var(--accent); color: var(--accent-strong); }
