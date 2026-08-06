@@ -28,7 +28,15 @@ const CHUNK_FLAG = 'cs-chunk-reload'
 // גישה ל-sessionStorage זורקת בגלישה פרטית/עוגיות חסומות — כל נגיעה עטופה
 const chunkFlag = {
   read() {
-    try { if (sessionStorage.getItem(CHUNK_FLAG) === '1') return true } catch { /* מצב פרטיות */ }
+    try {
+      // ⚠ כש-sessionStorage זמין הוא הסימן **היחיד**, ויוצאים כאן.
+      // הגרסה הקודמת נפלה מכאן הלאה גם כשהוא עבד, ואז בדיקת סוג הניווט
+      // ספרה **רענון ידני של המשתמש** כ«כבר ניסינו לרענן» — ומרגע
+      // שהמשתמש הקיש Ctrl+Shift+R, ההתאוששות האוטומטית הושבתה לכל אורך
+      // חיי הדף. דפלוי שיצא אחר כך הקפיץ לו מסך שגיאה במקום לרענן.
+      // בדיוק זה קרה ב-6.8.2026.
+      return sessionStorage.getItem(CHUNK_FLAG) === '1'
+    } catch { /* מצב פרטיות — אין אחסון, נופלים לבדיקה שלמטה */ }
     // גיבוי כשאין sessionStorage בכלל: אם הטעינה הנוכחית היא כבר רענון, רענון
     // נוסף לא יביא נכסים חדשים יותר — הוא רק ייצור לולאת רענונים.
     try { return performance.getEntriesByType('navigation')[0]?.type === 'reload' } catch { return false }
@@ -646,7 +654,12 @@ export default function Dashboard({ session }) {
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
               ה-key ירד מ-.main-inner ולכן הוא יושב כאן — בלעדיו מסך שקרס
               היה משאיר את הודעת השגיאה גם אחרי מעבר למסך אחר. */}
+          {/* ChunkGate גם כאן, לא רק במסלול השחקן: מסכי המאמן נטענים
+              עצלנית בדיוק כמוהו, וכשיוצא דפלוי בזמן שהאפליקציה פתוחה הם
+              נכשלו על «משהו נתקע במסך הזה» — הודעת קריסה כללית, במקום
+              ההסבר שכבר כתוב ומכוון בדיוק למצב הזה. */}
           <ErrorBoundary key={viewKey} screen={showForm ? 'coach:profile-form' : `coach:${view}`}>
+          <ChunkGate key={'cg-' + viewKey}>
           <Suspense
             fallback={
               <div className="app-loading" style={{ padding: '48px 0' }}>
@@ -861,6 +874,7 @@ export default function Dashboard({ session }) {
             </Page>
           )}
           </Suspense>
+          </ChunkGate>
           </ErrorBoundary>
         </div>
       </main>
