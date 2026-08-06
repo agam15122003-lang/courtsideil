@@ -23329,3 +23329,72 @@ html.a11y-motion .csx-quick-row { transition: none; }
   cursor: pointer;
 }
 .pt-code-val:hover { border-color: var(--accent); color: var(--accent-strong); }
+
+/* ==========================================================================
+   4.8.2026 (ה) · צד השחקן — מאמן אישי + צמצום רוחב הלו״ז
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* --- הלו״ז: הכרטיס נמתח לרוחב מלא בזמן שהתוכן בו קטן, ואז הזמן והכותרת
+       יושבים בשני קצוות של שורה כמעט ריקה. תקרת רוחב מחזירה אותו לעמודה
+       שנקראת בסריקה אחת. במובייל אין שינוי — שם הרוחב קטן מהתקרה ממילא. --- */
+@media (min-width: 700px) {
+  .wl { max-width: 660px; }
+  .wl-day-hd { max-width: 660px; }
+}
+
+/* --- כרטיס המאמן האישי, מעל «המשימות שלי» --- */
+.pl-pcoach {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 13px 15px;
+  margin-block-end: 14px;
+  max-width: 660px;
+}
+.pl-pcoach-hd {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--accent-strong);
+  margin-block-end: 10px;
+}
+.pl-pcoach-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pl-pcoach-row + .pl-pcoach-row { margin-block-start: 9px; }
+.pl-pcoach-av {
+  inline-size: 38px;
+  block-size: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 800;
+  font-size: 15px;
+}
+.pl-pcoach-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.pl-pcoach-main b {
+  font-size: 14.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pl-pcoach-note {
+  margin: 10px 0 0;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 11px;
+}

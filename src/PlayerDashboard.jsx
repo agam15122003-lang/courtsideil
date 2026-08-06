@@ -526,6 +526,65 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 }
 
 // ---------- מסך: התרגילים שלי (עם סינון והתקדמות, כולל התקדמות חלקית) ----------
+// ---------- המאמנים האישיים שלי ----------
+// יושב מעל «המשימות שלי» ולא בטאב נפרד: המשימות מהמאמן האישי נוחתות
+// ממילא באותה רשימה (player_assignments), והכרטיס הזה עונה על השאלה
+// «ממי זה הגיע» בלי להוסיף יעד ניווט שמינימנו.
+function MyPersonalCoaches({ session }) {
+  const [rows, setRows] = useState(null) // null = טוען, [] = אין
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      // ⚠ רק עמודות מהרשימה המותרת של privacy4 — עמודה אסורה אחת
+      // מפילה את כל השאילתה עם permission denied.
+      const { data, error } = await supabase
+        .from('personal_trainees')
+        .select('id, status, coach:profiles!personal_trainees_coach_id_fkey(id, first_name, last_name, club)')
+        .eq('player_id', session.user.id)
+        .neq('status', 'ended')
+      if (!alive) return
+      // טבלה חסרה = המיגרציה טרם רצה. לא מציגים כלום, לא מקפיצים שגיאה.
+      setRows(error ? [] : data || [])
+    })()
+    return () => { alive = false }
+  }, [session.user.id])
+
+  if (!rows || rows.length === 0) return null
+
+  return (
+    <div className="pl-pcoach">
+      <span className="pl-pcoach-hd">{L('המאמן האישי שלי', 'My personal coach')}</span>
+      {rows.map((r) => {
+        const c = r.coach || {}
+        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('מאמן', 'Coach')
+        return (
+          <div key={r.id} className="pl-pcoach-row">
+            <span className="pl-pcoach-av" aria-hidden="true">{(c.first_name || '?').slice(0, 1)}</span>
+            <span className="pl-pcoach-main">
+              <b>{name}</b>
+              {c.club && <span className="muted small">{c.club}</span>}
+            </span>
+            {r.status === 'active' ? (
+              <span className="status-pill adm-cv cv-granted">{L('פעיל', 'Active')}</span>
+            ) : r.status === 'pending_parent' ? (
+              <span className="status-pill adm-cv cv-revoked">{L('ממתין להורה', 'Waiting for a parent')}</span>
+            ) : (
+              <span className="status-pill adm-cv cv-denied">{L('ממתין לאישור', 'Pending')}</span>
+            )}
+          </div>
+        )
+      })}
+      {rows.some((r) => r.status === 'pending_parent') && (
+        <p className="muted small pl-pcoach-note">
+          {L('כדי להתחיל, ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.',
+             'To start, your parent needs to approve this coach. No tasks arrive until then.')}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function MyAssignments({ session }) {
   const [items, setItems] = useState(null)
   const [complBy, setComplBy] = useState({}) // assignment_id -> { progress_value, done_at }
@@ -2558,7 +2617,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // הקצה שדרכו הבעלים שלהם משבית את הפקד עצמו.
   const renderScreen = () => {
     switch (view) {
-      case 'drills': return <MyAssignments session={session} />
+      case 'drills': return (
+        <>
+          <MyPersonalCoaches session={session} />
+          <MyAssignments session={session} />
+        </>
+      )
       case 'coach':
         return hasTeam
           ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach"
