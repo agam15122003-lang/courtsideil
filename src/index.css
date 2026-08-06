@@ -23250,3 +23250,54 @@ html.a11y-motion .csx-quick-row { transition: none; }
     white-space: nowrap;
   }
 }
+
+/* ==========================================================================
+   4.8.2026 (ג) · מתאמנים אישיים  (pt-*)
+   --------------------------------------------------------------------------
+   רשימת אנשים, לא רשימת קבוצות. שורות בעלות גבול ולא כרטיסים מרחפים —
+   זו רשימה צפופה שקוראים בסריקה.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+.pt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.pt-row {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+.pt-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pt-main b { font-size: 15px; }
+.pt-note {
+  margin: 8px 0 0;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 11px;
+}
+.pt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-block-start: 11px;
+}
+/* יעד מגע — הצ'יפים כאן הם פעולות אמיתיות, לא תוויות */
+.pt-actions .chip { min-height: 44px; }
+.pt-actions .chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.pt-form {
+  margin-block-start: 12px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}

@@ -106,6 +106,7 @@ const TrainingPlans = lazy(lazyRetry(() => import('./TrainingPlans')))
 const Messages = lazy(lazyRetry(() => import('./Messages')))
 const Community = lazy(lazyRetry(() => import('./Community')))
 const Schedule = lazy(lazyRetry(() => import('./Schedule')))
+const PersonalTrainees = lazy(lazyRetry(() => import('./PersonalTrainees')))
 const Teams = lazy(lazyRetry(() => import('./Teams')))
 const Admin = lazy(lazyRetry(() => import('./Admin')))
 // 10a — הצד הציבורי של הפרופיל הוא בדיוק המסך שמאמן אחר רואה
@@ -134,6 +135,7 @@ import {
   Eye,
   AlertTriangle,
   RotateCcw,
+  UserPlus,
 } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
@@ -151,6 +153,7 @@ const NAV = [
   { id: 'work', key: 'nav.work', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teams', Icon: Shield },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
+  { id: 'trainees', key: 'nav.trainees', Icon: UserPlus },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
 
@@ -197,6 +200,11 @@ const PAGE_META = {
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
     title: L('הלו״ז שלי', 'My schedule'),
     subtitle: L('כל האימונים, המשחקים והפגישות שלך בשבוע אחד.', 'Every practice, game and meeting of yours in one week.'),
+  }),
+  trainees: () => ({
+    eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: UserPlus,
+    title: L('מתאמנים אישיים', 'Personal trainees'),
+    subtitle: L('השחקנים שאתה מאמן אישית, והמשימות שאתה שולח להם.', 'The players you train one-on-one, and the tasks you send them.'),
   }),
   teams: () => ({
     eyebrow: L('הקבוצות שלי', 'My teams'), eyebrowIcon: Shield,
@@ -748,6 +756,10 @@ export default function Dashboard({ session }) {
           ) : view === 'schedule' ? (
             <Page {...PAGE_META.schedule()}>
               <Schedule session={session} onNavigate={navigate} />
+            </Page>
+          ) : view === 'trainees' ? (
+            <Page {...PAGE_META.trainees()}>
+              <PersonalTrainees session={session} />
             </Page>
           ) : view === 'teams' ? (
             /* לקבוצה יש באנר משלה — שם הקבוצה, המועדון ומספרי הסגל (מסך 4a),
