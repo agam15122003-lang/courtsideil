@@ -228,10 +228,17 @@ export default function Schedule({ session, onNavigate }) {
         .select('*, from_p:profiles!coach_meetings_from_coach_fkey(first_name,last_name), to_p:profiles!coach_meetings_to_coach_fkey(first_name,last_name)')
         .gte('date', ymd(weekStart))
         .lte('date', ymd(weekEnd)),
-      // רשימת מאמנים לזימון (כל מי שאינו אני)
+      // רשימת מאמנים לזימון.
+      // ⚠ `role = 'coach'` הוא חובה, לא נוחות. מדיניות הקריאה של profiles
+      // מחזירה למאמן גם את השחקנים שלו (shares_team_with), ולכן בלי הסינון
+      // הזה הרשימה כללה **קטינים** כנמענים אפשריים לזימון פגישה, והזימון
+      // נחת ביומן של הילד. השער האמיתי הוא במסד
+      // (supabase_schedule_board_4_8.sql) — זה כאן רק כדי שלא נציג בחירה
+      // שהשרת ידחה ממילא.
       supabase
         .from('profiles')
         .select('id, first_name, last_name, club')
+        .eq('role', 'coach')
         .neq('id', me),
       // ימי אימון קבועים (מנוהלים ב"הקבוצות שלי") — מוצגים גם בלו"ז השבועי
       supabase

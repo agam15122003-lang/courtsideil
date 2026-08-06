@@ -92,7 +92,11 @@ export default function PlayerTimeline({ session, membership }) {
     const today = new Date().toISOString().slice(0, 10)
     const [slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ, complQ] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-      supabase.from('schedule_entries').select('id, date, start_time, end_time, location').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
+      // select('*') ולא רשימת עמודות: הרשימה כללה `location`, שלא הייתה
+      // קיימת בטבלה — PostgREST מחזיר 42703 ומפיל את **כל** השאילתה, כלומר
+      // הלו"ז נעלם מהציר של השחקן. `*` מחזיר את העמודה כשהיא קיימת
+      // (supabase_schedule_board_4_8.sql) ומדלג עליה כשלא, בלי לשבור.
+      supabase.from('schedule_entries').select('*').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
       supabase.from('team_games').select('id, game_date, game_time, opponent, location').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today),
       supabase.from('session_effort').select('session_id, effort, note, session_date').eq('player_id', me),
       supabase.from('player_feedback').select('*, coach:profiles!coach_id(first_name, last_name, avatar_url)').eq('player_id', me).order('created_at', { ascending: false }),

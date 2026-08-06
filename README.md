@@ -75,6 +75,11 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 34 | `supabase_consent_enforcement.sql` | **חובה** — אכיפה בשרת: מדיניות RESTRICTIVE על כתיבה לכל טבלת תוכן — חשבון חסום או קטין שממתין להסכמת הורה אינו כותב. דורש 32 ו-33 |
 | 35 | `supabase_private_media.sql` | **חובה** — מדיניות SELECT על `storage.objects` והכנת המעבר ל-bucket פרטי + Signed URLs. **שורת ההיפוך שבסוף הקובץ מורצת ידנית רק אחרי פריסת פרונט שמייצר Signed URLs** |
 | 36 | `supabase_hardening_medium_3_8.sql` | הקשחות בינוניות: `join_with_code()` (הצטרפות בקוד בלי INSERT ישיר), תצוגת `public_drills` בלי `created_by`, תפוגת קודי הצטרפות ומונה ניסיונות, אינדקסים לעמודות RLS. דורש 32 ו-33; שני סעיפים נעולים מאחורי `v_frontend_ready` |
+| 37 | `supabase_schedule_board_4_8.sql` | **חובה** — זימון פגישה רק בין מאמנים (עד כה אפשר היה לזמן קטין), `location` ל-`schedule_entries`/`coach_meetings`, ואינדקס ראשון ל-`schedule_entries` |
+
+> **גל 3.8–4.8 אינו בטבלה הזו.** ארבעה־עשר הקבצים שרצו בגל ההוא מרוכזים
+> ב-`הרצת_SQL_3.8.md`, יחד עם מצב ההרצה בפועל ובדיקות האימות. הטבלה כאן
+> מתארת את סדר ההקמה מאפס.
 
 > **סדר קריטי בגל 32–36:** 32 → 33 → 34 (34 דורש `is_active_user()` מ-33 ו-`is_banned()` מ-32, ואם אחת חסרה הוא לא יוצר כלום). 35 עצמאי. 36 אחרי 32 ו-33.
 >
