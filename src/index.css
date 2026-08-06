@@ -23398,3 +23398,18 @@ html.a11y-motion .csx-quick-row { transition: none; }
   border-radius: 10px;
   padding: 8px 11px;
 }
+
+/* --- 4.8.2026 (ו) · כרטיס המאמן האישי — כותרת + פתיחת הזנת קוד --- */
+.pl-pcoach-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-block-end: 10px;
+}
+.pl-pcoach-top .pl-pcoach-hd { margin-block-end: 0; }
+.pl-pcoach-add {
+  margin-block-end: 12px;
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--border);
+}

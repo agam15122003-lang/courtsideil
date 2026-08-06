@@ -227,7 +227,9 @@ function JoinTeam({ session, onJoined, compact }) {
 // ---------- הצטרפות למאמן אישי בקוד ----------
 // נפרד מ-JoinTeam במכוון: קוד הקבוצה פותח קבוצה, והקוד הזה פותח קשר
 // אישי. ערבוב השניים היה נותן למאמן ערוץ שלא התכוון לפתוח.
-function PersonalCoachJoin() {
+// compact — בתוך כרטיס אחר (מסך «המשימות שלי»), בלי כותרת ואייקון משלו.
+// onSent — נקרא אחרי בקשה שנשלחה, כדי שההורה-רכיב יטען מחדש את הרשימה.
+function PersonalCoachJoin({ compact = false, onSent }) {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -258,16 +260,11 @@ function PersonalCoachJoin() {
     toast.success(data.reason === 'already'
       ? L('כבר שלחת בקשה למאמן הזה', 'You already requested this coach')
       : L('הבקשה נשלחה למאמן לאישור', 'Request sent to the coach'))
+    onSent?.()
   }
 
-  return (
-    <div className="pl-join-card">
-      <span className="pl-join-ic"><UserPlus size={30} /></span>
-      <h2>{L('מאמן אישי', 'Personal coach')}</h2>
-      <p className="muted">
-        {L('יש לך קוד ממאמן אישי? הזן אותו כאן. זה לא קוד הקבוצה.',
-           'Got a code from a personal coach? Enter it here. This is not the team code.')}
-      </p>
+  const inner = (
+    <>
       <div className="pl-join-row">
         <input
           className="finder-input pl-code-input"
@@ -289,6 +286,21 @@ function PersonalCoachJoin() {
              'Request sent. The coach approves, and if you are under 18 so does a parent.')}
         </div>
       )}
+    </>
+  )
+
+  // compact — כבר יש כותרת בכרטיס העוטף, ושתי כותרות זו כפילות.
+  if (compact) return inner
+
+  return (
+    <div className="pl-join-card">
+      <span className="pl-join-ic"><UserPlus size={30} /></span>
+      <h2>{L('מאמן אישי', 'Personal coach')}</h2>
+      <p className="muted">
+        {L('יש לך קוד ממאמן אישי? הזן אותו כאן. זה לא קוד הקבוצה.',
+           'Got a code from a personal coach? Enter it here. This is not the team code.')}
+      </p>
+      {inner}
     </div>
   )
 }
@@ -532,6 +544,8 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 // «ממי זה הגיע» בלי להוסיף יעד ניווט שמינימנו.
 function MyPersonalCoaches({ session }) {
   const [rows, setRows] = useState(null) // null = טוען, [] = אין
+  const [adding, setAdding] = useState(false)
+  const [tick, setTick] = useState(0) // טעינה מחדש אחרי בקשה שנשלחה
 
   useEffect(() => {
     let alive = true
@@ -548,13 +562,38 @@ function MyPersonalCoaches({ session }) {
       setRows(error ? [] : data || [])
     })()
     return () => { alive = false }
-  }, [session.user.id])
+  }, [session.user.id, tick])
 
-  if (!rows || rows.length === 0) return null
+  // בזמן הטעינה לא מהבהבים כרטיס ריק
+  if (!rows) return null
 
   return (
     <div className="pl-pcoach">
-      <span className="pl-pcoach-hd">{L('המאמן האישי שלי', 'My personal coach')}</span>
+      <div className="pl-pcoach-top">
+        <span className="pl-pcoach-hd">{L('המאמן האישי שלי', 'My personal coach')}</span>
+        <button
+          type="button"
+          className="wl-chip"
+          onClick={() => setAdding((v) => !v)}
+          aria-expanded={adding}
+        >
+          {adding ? L('סגירה', 'Close') : rows.length ? L('הוספת מאמן', 'Add a coach') : L('יש לי קוד', 'I have a code')}
+        </button>
+      </div>
+
+      {rows.length === 0 && !adding && (
+        <p className="muted small" style={{ margin: 0 }}>
+          {L('אין לך עדיין מאמן אישי. אם קיבלת קוד ממאמן — לחץ על «יש לי קוד».',
+             'No personal coach yet. If a coach gave you a code, tap “I have a code”.')}
+        </p>
+      )}
+
+      {adding && (
+        <div className="pl-pcoach-add">
+          <PersonalCoachJoin compact onSent={() => { setAdding(false); setTick((n) => n + 1) }} />
+        </div>
+      )}
+
       {rows.map((r) => {
         const c = r.coach || {}
         const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('מאמן', 'Coach')
