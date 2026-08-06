@@ -27,6 +27,9 @@ const ROW_H_WIDE = 64
 // כדי שגרירה ביד לא תיצור 18:07.
 const SNAP_MIN = 15
 
+// שמות הימים לשורות «ימי אימון קבועים». team_practice_slots.weekday הוא 0=ראשון.
+const WD_LONG = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
 // האם המסך רחב מספיק ללוח דו-טורי. hook מקומי ולא ייבוא ממסך אחר —
 // אין כאן ספריית hooks משותפת, וייבוא ממסך שכן היה יוצר תלות הפוכה.
 function useWide(query = '(min-width: 1100px)') {
@@ -587,6 +590,26 @@ export default function Schedule({ session, onNavigate }) {
   // שלושת מצבי הטור הצדדי, בלעדיים.
   const railMode = selected ? 'detail' : (adding || inviting) ? 'compose' : 'idle'
 
+  // «הבא בתור» — האירוע הקרוב ביותר בשבוע המוצג שעוד לא הסתיים.
+  // מחושב מ-weekDays שכבר בזיכרון, בלי שאילתה נוספת.
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
+  const nextUp = weekDays
+    .flatMap((d) => d.items)
+    .filter((x) => {
+      if (!x.start_time) return false
+      if (x.date > todayStr) return true
+      if (x.date < todayStr) return false
+      const end = hoursOf(x.end_time) ?? (hoursOf(x.start_time) ?? 0) + 1
+      return end * 60 > nowMin
+    })
+    .sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time))[0] || null
+
+  const whenLabel = (dateStr) => {
+    if (dateStr === todayStr) return L('היום', 'Today')
+    if (dateStr === ymd(addDays(new Date(todayStr + 'T00:00'), 1))) return L('מחר', 'Tomorrow')
+    return L('יום ', 'Day ') + WD_LONG[new Date(dateStr + 'T00:00').getDay()]
+  }
+
   // מוגדר פעם אחת ומוצג במיקום אחד בלבד — לפני הלוח במסך צר, אחריו
   // במסך רחב. שכפול ה-JSX היה מזמין את שתי הגרסאות להיפרד עם הזמן.
   const weekListEl = (
@@ -679,6 +702,17 @@ export default function Schedule({ session, onNavigate }) {
                 {trTeam(t)}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* המקרא יושב בסרגל ולא בטור הצדדי — הוא מסביר את הלוח, ולכן
+            מקומו לידו. מוסתר במסך צר, שם אין לו מקום ואין גם לוח. */}
+        {wide && (
+          <div className="csx-legend" aria-hidden="true">
+            <span><i className="csx-dot practice" />{L('אימון קבוצה', 'Practice')}</span>
+            <span><i className="csx-dot personal" />{L('אימון אישי', 'Personal')}</span>
+            <span><i className="csx-dot meeting" />{L('פגישה', 'Meeting')}</span>
+            <span><i className="csx-dot game" />{L('משחק', 'Game')}</span>
           </div>
         )}
         {/* 1.2 — הרשימה השבועית: כותרת יום + כרטיסי אירועים, עם צ'יפים למאמן.
@@ -982,27 +1016,83 @@ export default function Schedule({ session, onNavigate }) {
             )}
           </div>
 
-          <div className="csx-legend" aria-hidden="true">
-            <span><i className="csx-dot practice" />{L('אימון קבוצה', 'Practice')}</span>
-            <span><i className="csx-dot personal" />{L('אימון אישי', 'Personal')}</span>
-            <span><i className="csx-dot meeting" />{L('פגישה', 'Meeting')}</span>
-            <span><i className="csx-dot game" />{L('משחק', 'Game')}</span>
-          </div>
+          {/* «הבא בתור» — האירוע הקרוב ביותר שעוד לא נגמר. מחושב ממה
+              שכבר בזיכרון; אין כאן שאילתה נוספת. */}
+          {nextUp && (
+            <div className="csx-card">
+              <span className="csx-eyebrow csx-eyebrow-accent">{L('הבא בתור', 'Next up')}</span>
+              <h3 className="csx-next-title">
+                {nextUp.kind === 'meeting'
+                  ? nextUp.topic
+                  : nextUp.kind === 'game'
+                    ? L('מול ', 'vs ') + (nextUp.opponent || '')
+                    : nextUp.kind === 'personal'
+                      ? L('אימון אישי', 'Personal practice')
+                      : trTeam(nextUp.team)}
+              </h3>
+              <p className="muted small csx-next-meta">
+                <span dir="ltr">{nextUp.start_time}{nextUp.end_time ? '–' + nextUp.end_time : ''}</span>
+                {' · '}{whenLabel(nextUp.date)}
+                {nextUp.location ? ' · ' + nextUp.location : ''}
+              </p>
+              <div className="csx-next-actions">
+                <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={() => openFromList(nextUp)}>
+                  {L('פרטים ונוכחות', 'Details & attendance')}
+                </button>
+                <button
+                  type="button"
+                  className="btn-soft"
+                  style={{ marginTop: 0 }}
+                  onClick={() => downloadIcs({
+                    title: nextUp.kind === 'meeting' ? nextUp.topic : trTeam(nextUp.team) || L('אימון', 'Practice'),
+                    date: nextUp.date,
+                    start: nextUp.start_time,
+                    end: nextUp.end_time,
+                    location: nextUp.location,
+                  })}
+                >
+                  <CalendarPlus size={15} /> {L('הוסף ליומן', 'Add to calendar')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ימי האימון הקבועים — שורות אמיתיות, לא רק הפניה */}
+          {slots.length > 0 && (
+            <div className="csx-card">
+              <div className="csx-card-head">
+                <span className="csx-eyebrow csx-eyebrow-accent">{L('ימי אימון קבועים', 'Fixed practice days')}</span>
+                <span className="muted small">{L('מופיעים אוטומטית לשחקנים', 'Shown to players automatically')}</span>
+              </div>
+              <div className="csx-slotrows">
+                {slots.map((s) => (
+                  <div key={s.id} className="csx-slotrow">
+                    <span>
+                      <b>{trTeam(s.team)}</b>
+                      <span className="muted small">{L('יום ', 'Day ')}{WD_LONG[s.weekday] || ''}{s.location ? ' · ' + s.location : ''}</span>
+                    </span>
+                    <span className="csx-slotrow-when" dir="ltr">
+                      {(s.start_time || '').slice(0, 5)}–{(s.end_time || '').slice(0, 5)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="muted small csx-slots-note">
+                {L('שינוי יום קבוע נעשה ב«הקבוצות שלי ← ימי אימון», והוא מתעדכן בכל השבועות. ', 'Fixed days are changed under “My teams → practice days”, and update across every week. ')}
+                {onNavigate && (
+                  <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
+                    {L('לניהול', 'Manage')}
+                  </button>
+                )}
+              </p>
+            </div>
+          )}
 
           <div className="csx-stats">
             <div><b className="stat-num" dir="ltr">{weekDays.reduce((a, d) => a + d.items.filter((x) => x.kind === 'practice').length, 0)}</b><span className="muted small">{L('אימונים השבוע', 'Practices')}</span></div>
             <div><b className="stat-num" dir="ltr">{weekDays.reduce((a, d) => a + d.items.filter((x) => x.kind === 'game').length, 0)}</b><span className="muted small">{L('משחקים', 'Games')}</span></div>
             <div><b className="stat-num" dir="ltr">{slots.length}</b><span className="muted small">{L('ימים קבועים', 'Fixed days')}</span></div>
           </div>
-
-          <p className="muted small csx-slots-note">
-            <RotateCw size={13} /> {L('אימון שחוזר כל שבוע מוגדר פעם אחת ומופיע כאן ואצל השחקנים אוטומטית. ', 'A weekly fixed practice is set once and appears here and for your players automatically. ')}
-            {onNavigate && (
-              <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
-                {L('להגדרת ימי אימון', 'Set practice days')}
-              </button>
-            )}
-          </p>
         </>
       )}
 
