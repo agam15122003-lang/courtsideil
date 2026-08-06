@@ -51,7 +51,18 @@ export default function PersonalTrainees({ session }) {
     setLoading(true)
     const { data, error: err } = await supabase
       .from('personal_trainees')
-      .select('*, player:profiles!personal_trainees_player_id_fkey(id, first_name, last_name, birth_year)')
+      // ⚠ רק עמודות מהרשימה המותרת של supabase_privacy4.sql. הגרסה
+      // הראשונה ביקשה גם birth_year — שאינה שם — וכל השאילתה נפלה על
+      // «permission denied for table profiles». זו הרשאה ברמת עמודה,
+      // לא RLS: עמודה אחת אסורה מפילה את הכל.
+      // הרשימה: id, first_name, last_name, club, age_groups, avatar_url,
+      //          verified, banned, role, position, phone_public, is_admin,
+      //          created_at, updated_at
+      // גיל אינו ניתן לקריאה כאן במכוון. הסטטוס «ממתין לאישור הורה» הוא
+      // ממילא הסימן היחיד שצריך במסך הזה.
+      // avatar_url לא נשלף אף שהוא מותר: לשחקנים אין תמונת פרופיל
+      // (supabase_no_player_avatars.sql), והוא היה חוזר null תמיד.
+      .select('*, player:profiles!personal_trainees_player_id_fkey(id, first_name, last_name)')
       .eq('coach_id', me)
       .order('requested_at', { ascending: false })
     if (err) {

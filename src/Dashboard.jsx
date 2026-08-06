@@ -152,8 +152,10 @@ const NAV = [
   // אותם כמסך אחד עם שני טאבים: «בניית תוכנית» / «בניית תרגיל».
   { id: 'work', key: 'nav.work', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teams', Icon: Shield },
-  { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
+  // מתחת ל«הקבוצות שלי» במכוון: שניהם ניהול אנשים, וזה ההבדל ביניהם —
+  // קבוצה מול יחיד.
   { id: 'trainees', key: 'nav.trainees', Icon: UserPlus },
+  { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
 
