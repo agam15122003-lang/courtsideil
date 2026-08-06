@@ -78,6 +78,9 @@ export default function Schedule({ session, onNavigate }) {
   const [teamFilter, setTeamFilter] = useState('')
   // 1.2 — ברירת המחדל היא הרשימה השבועית; גריד השעות נפתח לפי דרישה
   const [showGrid, setShowGrid] = useState(false)
+  // ...ובמסך רחב בדיוק ההפך: הלוח הוא המסך, והרשימה היא התצוגה המשנית
+  // שנפתחת לפי דרישה — מתחת ללוח, לא מעליו.
+  const [showListWide, setShowListWide] = useState(false)
   const [entries, setEntries] = useState([])
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -584,6 +587,25 @@ export default function Schedule({ session, onNavigate }) {
   // שלושת מצבי הטור הצדדי, בלעדיים.
   const railMode = selected ? 'detail' : (adding || inviting) ? 'compose' : 'idle'
 
+  // מוגדר פעם אחת ומוצג במיקום אחד בלבד — לפני הלוח במסך צר, אחריו
+  // במסך רחב. שכפול ה-JSX היה מזמין את שתי הגרסאות להיפרד עם הזמן.
+  const weekListEl = (
+    <WeekList
+      days={weekDays}
+      isCoach
+      attMarked={attMarked}
+      rsvpYes={rsvpYes}
+      rosterCount={rosterCounts}
+      onOpen={openFromList}
+      onOpenPlan={(ev) => openPlan(ev.plan)}
+      onBuildPlan={() => onNavigate && onNavigate('plans')}
+      onAttendance={(ev) => setReviewEntry({
+        id: ev.session_id, team: ev.team, date: ev.date, start_time: ev.start_time,
+        session_type: 'practice', location: ev.location,
+      })}
+    />
+  )
+
   return (
     <div className={'welcome-card' + (wide ? ' csx-wide' : '')}>
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
@@ -659,21 +681,10 @@ export default function Schedule({ session, onNavigate }) {
             ))}
           </div>
         )}
-        {/* 1.2 — הרשימה השבועית: כותרת יום + כרטיסי אירועים, עם צ'יפים למאמן */}
-        <WeekList
-          days={weekDays}
-          isCoach
-          attMarked={attMarked}
-          rsvpYes={rsvpYes}
-          rosterCount={rosterCounts}
-          onOpen={openFromList}
-          onOpenPlan={(ev) => openPlan(ev.plan)}
-          onBuildPlan={() => onNavigate && onNavigate('plans')}
-          onAttendance={(ev) => setReviewEntry({
-            id: ev.session_id, team: ev.team, date: ev.date, start_time: ev.start_time,
-            session_type: 'practice', location: ev.location,
-          })}
-        />
+        {/* 1.2 — הרשימה השבועית: כותרת יום + כרטיסי אירועים, עם צ'יפים למאמן.
+            במסך צר היא המשטח הראשי ולכן מופיעה כאן; במסך רחב היא יורדת
+            אל מתחת ללוח (אותו אלמנט בדיוק, רק במיקום אחר בעץ). */}
+        {!wide && weekListEl}
 
         {/* במסך רחב הלוח פתוח תמיד, ואין מה לפתוח ולסגור. */}
         {!wide && (
@@ -908,6 +919,25 @@ export default function Schedule({ session, onNavigate }) {
               'Tap an empty slot to add a practice · drag to open one over an exact range.')
           : L('לחיצה על משבצת ריקה מוסיפה אימון באותה שעה.', 'Tap an empty slot to add a practice at that time.')}
       </p>
+      )}
+
+      {/* במסך רחב הרשימה היא התצוגה המשנית, ויושבת מתחת ללוח */}
+      {wide && !loading && !error && (
+        <>
+          <button
+            type="button"
+            className="cal-weeksep"
+            onClick={() => setShowListWide((v) => !v)}
+            aria-expanded={showListWide}
+          >
+            <span aria-hidden="true" />
+            <span className="cal-weeksep-t">
+              {L('תצוגת רשימה', 'List view')} {showListWide ? '▴' : '▾'}
+            </span>
+            <span aria-hidden="true" />
+          </button>
+          {showListWide && weekListEl}
+        </>
       )}
 
       </div>{/* /csx-board */}
