@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, X, Check, CalendarPlus, ClipboardCheck, RotateCw } from 'lucide-react'
+import { Plus, Trash2, X, Check, CalendarPlus, ClipboardCheck, RotateCw, MapPin, Users, User, Handshake, Trophy } from 'lucide-react'
 // אייקוני כיוון דרך DirIcon — מתהפכים אוטומטית במעבר לאנגלית (חוק RTL)
 import { ArrowBack, ChevronFwd, ChevronBack } from './DirIcon'
 import { downloadIcs } from './ics'
@@ -16,10 +16,31 @@ import { useNetworkSmall } from './network'
 import WeekList from './WeekList'
 import { RsvpBreakdown } from './PracticeRsvp'
 
-// טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים
+// טווח השעות המוצג בלוח, וגובה שורת-שעה בפיקסלים.
+// ROW_H_WIDE — במסך רחב הלוח הוא המשטח הראשי ולא תצוגה משנית, ושורה
+// גבוהה יותר היא מה שמאפשר לקרוא שם קבוצה ותוכנית בתוך הבלוק.
 const START_HOUR = 6
 const END_HOUR = 23
 const ROW_H = 44
+const ROW_H_WIDE = 64
+// קפיצת הגרירה. 15 דקות — אותו ערך שהפרוטוטייפ עובד בו, ומספיק גס
+// כדי שגרירה ביד לא תיצור 18:07.
+const SNAP_MIN = 15
+
+// האם המסך רחב מספיק ללוח דו-טורי. hook מקומי ולא ייבוא ממסך אחר —
+// אין כאן ספריית hooks משותפת, וייבוא ממסך שכן היה יוצר תלות הפוכה.
+function useWide(query = '(min-width: 1100px)') {
+  const [wide, setWide] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return wide
+}
 
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -71,6 +92,21 @@ export default function Schedule({ session, onNavigate }) {
   const [allHours, setAllHours] = useState(false) // ברירת מחדל: רק השעות שיש בהן משהו
   const [planView, setPlanView] = useState(null) // {plan, items} — צפייה בתוכנית המצורפת
 
+  // מסך רחב = הלוח הוא המשטח הראשי, והפאנלים עוברים לטור צדדי דביק.
+  // מתחת לזה שום דבר לא משתנה — המסך נשאר בדיוק כפי שהוא היום.
+  const wide = useWide()
+  const rowH = wide ? ROW_H_WIDE : ROW_H
+
+  // schedule_entries.location נוספה ב-supabase_schedule_board_4_8.sql.
+  // עד שהיא תרוץ אין להציג שדה שהקלדה בו נזרקת בשקט — לכן בודקים בפועל
+  // ולא מניחים. null = עוד לא נבדק.
+  const [hasLoc, setHasLoc] = useState(null)
+  const [location, setLocation] = useState('')
+
+  // גרירה ליצירת אירוע. {col, a, b} בדקות מתחילת היום; null = לא גוררים.
+  const [ghost, setGhost] = useState(null)
+  const dragRef = useRef(null)
+
   const openPlan = async (plan) => {
     const { data } = await supabase
       .from('plan_items')
@@ -108,6 +144,17 @@ export default function Schedule({ session, onNavigate }) {
       setRosterCounts(counts)
     })()
   }, [me])
+
+  // בדיקה חד-פעמית: האם עמודת המקום קיימת. שאילתת שורה אחת — אם העמודה
+  // חסרה PostgREST מחזיר שגיאה, ואז השדה פשוט לא מוצג.
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { error } = await supabase.from('schedule_entries').select('id, location').limit(1)
+      if (alive) setHasLoc(!error)
+    })()
+    return () => { alive = false }
+  }, [])
 
   // זימון מאמן אחר לפגישה
   const [meetings, setMeetings] = useState([])
@@ -176,14 +223,68 @@ export default function Schedule({ session, onNavigate }) {
     }
   })
 
+  // בחירת אירוע סוגרת כל טופס פתוח. בלי זה הטור הצדדי היה מציג גם טופס
+  // וגם פרטים בו-זמנית — שלושת המצבים חייבים להיות בלעדיים.
+  const selectEvent = (v) => { setSelected(v); setAdding(false); setInviting(false) }
+
+  // ---- גרירה על עמודה ריקה = פתיחת אירוע בטווח שנגרר ----
+  // רק בעכבר: במגע הגרירה מתנגשת בגלילת הדף, ולכן שם נשארת הלחיצה
+  // הרגילה שפותחת שעה עגולה.
+  const finePointer = () =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
+  const minsAt = (clientY, el) => {
+    const r = el.getBoundingClientRect()
+    const raw = startHour * 60 + ((clientY - r.top) / rowH) * 60
+    const snapped = Math.round(raw / SNAP_MIN) * SNAP_MIN
+    return Math.max(startHour * 60, Math.min((endHour + 1) * 60, snapped))
+  }
+  const hhmm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
+
+  const onColPointerDown = (dateStr, colIndex) => (ev) => {
+    if (ev.button || !finePointer()) return
+    const el = ev.currentTarget
+    const a = minsAt(ev.clientY, el)
+    dragRef.current = { el, dateStr, a, moved: false }
+    setGhost({ col: colIndex, a, b: a })
+    el.setPointerCapture?.(ev.pointerId)
+  }
+  const onColPointerMove = (colIndex) => (ev) => {
+    const d = dragRef.current
+    if (!d || d.el !== ev.currentTarget) return
+    const b = minsAt(ev.clientY, d.el)
+    if (Math.abs(b - d.a) >= SNAP_MIN) d.moved = true
+    setGhost({ col: colIndex, a: d.a, b })
+  }
+  const endDrag = (ev) => {
+    const d = dragRef.current
+    dragRef.current = null
+    setGhost(null)
+    if (!d) return
+    // גרירה קצרה מדי = לחיצה. נופלים למסלול השעה העגולה הקיים.
+    if (!d.moved) { openAdd(d.dateStr, Math.floor(d.a / 60)); return }
+    const b = minsAt(ev.clientY, d.el)
+    const lo = Math.min(d.a, b)
+    const hi = Math.max(d.a, b)
+    openRange(d.dateStr, hhmm(lo), hhmm(Math.max(hi, lo + 30)))
+  }
+  const cancelDrag = () => { dragRef.current = null; setGhost(null) }
+
+  // Escape מבטל גרירה באמצע — אחרת אין דרך לצאת בלי ליצור אירוע.
+  useEffect(() => {
+    if (!ghost) return
+    const on = (e) => { if (e.key === 'Escape') cancelDrag() }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [ghost])
+
   // פתיחת אירוע מהרשימה — לפי הסוג
   const openFromList = (ev) => {
-    if (ev.kind === 'meeting') setSelected({ ...ev.raw, _meeting: true })
+    if (ev.kind === 'meeting') selectEvent({ ...ev.raw, _meeting: true })
     else if (ev.kind === 'game') setReviewEntry({
       id: ev.raw.id, team: ev.raw.team, date: ev.raw.game_date, start_time: ev.raw.game_time,
       session_type: 'game', opponent: ev.raw.opponent,
     })
-    else setSelected(ev.raw)
+    else selectEvent(ev.raw)
   }
   // טווח השעות מותאם למה שבאמת יש בשבוע. קודם לכן הוצגו תמיד 06:00–23:00,
   // כלומר כמעט תמיד חצי לוח ריק מעל האימון הראשון. "כל השעות" פותח את הטווח המלא.
@@ -350,10 +451,19 @@ export default function Schedule({ session, onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart])
 
+  // openAdd מקבל שעה שלמה (לחיצה) — openRange מקבל טווח מדויק (גרירה).
   const openAdd = (dateStr, hour) => {
+    openRange(
+      dateStr,
+      hour != null ? `${pad(hour)}:00` : '18:00',
+      hour != null ? `${pad(Math.min(hour + 1, 23))}:00` : '19:30',
+    )
+  }
+  const openRange = (dateStr, start, end) => {
     setFormDate(dateStr || todayStr)
-    setStartTime(hour != null ? `${pad(hour)}:00` : '18:00')
-    setEndTime(hour != null ? `${pad(Math.min(hour + 1, 23))}:00` : '19:30')
+    setStartTime(start)
+    setEndTime(end)
+    setLocation('')
     setIsPersonal(false)
     setTeam(myTeams.length === 1 ? myTeams[0] : '')
     setPlanId('')
@@ -387,13 +497,25 @@ export default function Schedule({ session, onNavigate }) {
       plan_id: planId || null,
       note: note.trim() || null,
     }
+    if (hasLoc && location.trim()) base.location = location.trim()
     // אימון חוזר: יוצרים 12 מופעים שבועיים (מאותו יום בשבוע)
     const rows = []
     const weeks = repeatWeekly && !isPersonal ? 12 : 1
     for (let i = 0; i < weeks; i++) {
       rows.push({ ...base, date: ymd(addDays(new Date(formDate + 'T00:00'), i * 7)) })
     }
-    const { error } = await supabase.from('schedule_entries').insert(rows)
+    let { error } = await supabase.from('schedule_entries').insert(rows)
+    // רשת ביטחון שנייה: אם הבדיקה אמרה שהעמודה קיימת אבל השרת מסרב
+    // (מסד שדרסו לו את המיגרציה, cache ישן של PostgREST) — שומרים בלעדיה
+    // במקום להפיל למשתמש את כל השמירה.
+    if (error && /location/i.test(error.message || '') &&
+        (error.code === 'PGRST204' || error.code === '42703' ||
+         /column .* does not exist|could not find the .* column/i.test(error.message || ''))) {
+      setHasLoc(false)
+      ;({ error } = await supabase
+        .from('schedule_entries')
+        .insert(rows.map(({ location: _drop, ...r }) => r)))
+    }
     setSaving(false)
     if (error) {
       toast.error(L('השמירה נכשלה: ', 'Save failed: ') + error.message)
@@ -456,8 +578,14 @@ export default function Schedule({ session, onNavigate }) {
     )
   }
 
+  // במסך רחב הלוח פתוח תמיד — הוא המשטח הראשי. מתחת לזה נשמרת ההתנהגות
+  // הקיימת: רשימה קודם, והגריד נפתח לפי דרישה.
+  const gridOpen = wide || showGrid
+  // שלושת מצבי הטור הצדדי, בלעדיים.
+  const railMode = selected ? 'detail' : (adding || inviting) ? 'compose' : 'idle'
+
   return (
-    <div className="welcome-card">
+    <div className={'welcome-card' + (wide ? ' csx-wide' : '')}>
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       <div className="cal-toolbar">
@@ -472,7 +600,7 @@ export default function Schedule({ session, onNavigate }) {
           <button className="btn-ghost cal-today" onClick={() => setWeekStart(sundayOf(new Date()))}>
             {L('היום', 'Today')}
           </button>
-          {showGrid && (
+          {gridOpen && (
             <button
               type="button"
               className="btn-ghost cal-today"
@@ -503,6 +631,12 @@ export default function Schedule({ session, onNavigate }) {
           </button>
         </div>
       </div>
+
+      {/* csx-shell — במסך רחב שני טורים (לוח + טור צדדי דביק); מתחת
+          לנקודת השבירה הוא לא מוגדר ב-CSS בכלל, והכל נשאר זרימה רגילה
+          אחת מתחת לשנייה, בדיוק כפי שהיה. */}
+      <div className="csx-shell">
+      <div className="csx-board">
 
       {loading ? (
         <SkeletonCards count={2} />
@@ -541,15 +675,18 @@ export default function Schedule({ session, onNavigate }) {
           })}
         />
 
-        <button type="button" className="cal-weeksep" onClick={() => setShowGrid((v) => !v)} aria-expanded={showGrid}>
-          <span aria-hidden="true" />
-          <span className="cal-weeksep-t">
-            {L('תצוגת רשת שעות', 'Hour grid')} {showGrid ? '▴' : '▾'}
-          </span>
-          <span aria-hidden="true" />
-        </button>
+        {/* במסך רחב הלוח פתוח תמיד, ואין מה לפתוח ולסגור. */}
+        {!wide && (
+          <button type="button" className="cal-weeksep" onClick={() => setShowGrid((v) => !v)} aria-expanded={showGrid}>
+            <span aria-hidden="true" />
+            <span className="cal-weeksep-t">
+              {L('תצוגת רשת שעות', 'Hour grid')} {showGrid ? '▴' : '▾'}
+            </span>
+            <span aria-hidden="true" />
+          </button>
+        )}
 
-        {showGrid && (
+        {gridOpen && (
         <div className="cal-scroll" ref={calRef}>
           {/* key לפי שבוע — החלפת שבוע נכנסת ב-fade קצר במקום swap יבש */}
           <div className="cal-grid" key={ymd(weekStart)}>
@@ -568,7 +705,7 @@ export default function Schedule({ session, onNavigate }) {
 
             <div className="cal-gutter">
               {hours.map((h) => (
-                <div key={h} className="cal-hour" style={{ height: ROW_H }}>
+                <div key={h} className="cal-hour" style={{ height: rowH }}>
                   <span dir="ltr">{pad(h)}:00</span>
                 </div>
               ))}
@@ -582,6 +719,10 @@ export default function Schedule({ session, onNavigate }) {
               }))
               const dayEntries = [...fEntries.filter((e) => e.date === ds), ...slotEntries]
               const dayMeetings = meetings.filter((m) => m.date === ds)
+              // משחקים נטענים מזה זמן אך מעולם לא צוירו על הלוח — רק
+              // ברשימה. אין להם end_time בטבלה, ולכן גובה קבוע של שורה
+              // אחת; לא ממציאים שעת סיום, לא כאן ולא בתווית.
+              const dayGames = fGames.filter((g) => g.game_date === ds)
 
               // אירועים חופפים נפרסים זה-לצד-זה (interval partitioning):
               // מחלקים כל "אשכול" חפיפה לעמודות, כך ששום אירוע לא מוסתר
@@ -629,27 +770,36 @@ export default function Schedule({ session, onNavigate }) {
                 <div
                   key={i}
                   className={'cal-daycol' + (ds === todayStr ? ' today' : '')}
-                  style={{ height: hours.length * ROW_H }}
+                  style={{ height: hours.length * rowH }}
+                  onPointerDown={onColPointerDown(ds, i)}
+                  onPointerMove={onColPointerMove(i)}
+                  onPointerUp={endDrag}
+                  onPointerCancel={cancelDrag}
                   onClick={(ev) => {
+                    // בעכבר הכל עובר דרך ה-pointer handlers; ה-onClick נשאר
+                    // למגע ולמקלדת, ששם אין גרירה.
+                    if (finePointer()) return
                     const rect = ev.currentTarget.getBoundingClientRect()
                     const y = ev.clientY - rect.top
-                    const hour = Math.min(endHour, startHour + Math.floor(y / ROW_H))
+                    const hour = Math.min(endHour, startHour + Math.floor(y / rowH))
                     openAdd(ds, hour)
                   }}
                 >
                   {dayEntries.map((e) => {
                     const s = hoursOf(e.start_time) ?? (e.hour || 18)
                     const en = hoursOf(e.end_time) ?? s + 1
-                    const top = (s - startHour) * ROW_H
-                    const height = Math.max(28, (en - s) * ROW_H - 2)
+                    const top = (s - startHour) * rowH
+                    const height = Math.max(28, (en - s) * rowH - 2)
                     return (
                       <button
                         key={e.id}
-                        className={'cal-event' + (e.is_personal ? ' personal' : '') + (e._recurring ? ' recurring' : '')}
+                        className={'cal-event' + (e.is_personal ? ' personal' : '') + (e._recurring ? ' recurring' : '')
+                          + (selected && selected.id === e.id ? ' csx-sel' : '')}
                         style={{ top, height, ...laneStyle('e' + e.id) }}
+                        onPointerDown={(ev) => ev.stopPropagation()}
                         onClick={(ev) => {
                           ev.stopPropagation()
-                          setSelected(e)
+                          selectEvent(e)
                         }}
                       >
                         <span className="cal-event-time" dir="ltr">
@@ -667,17 +817,19 @@ export default function Schedule({ session, onNavigate }) {
                   {dayMeetings.map((m) => {
                     const s = hoursOf(m.start_time) ?? 18
                     const en = hoursOf(m.end_time) ?? s + 1
-                    const top = (s - startHour) * ROW_H
-                    const height = Math.max(28, (en - s) * ROW_H - 2)
+                    const top = (s - startHour) * rowH
+                    const height = Math.max(28, (en - s) * rowH - 2)
                     const other = m.from_coach === me ? m.to_p : m.from_p
                     return (
                       <button
                         key={'m' + m.id}
-                        className={'cal-event meeting' + (m.status === 'pending' ? ' pending' : '')}
+                        className={'cal-event meeting' + (m.status === 'pending' ? ' pending' : '')
+                          + (selected && selected._meeting && selected.id === m.id ? ' csx-sel' : '')}
                         style={{ top, height, ...laneStyle('m' + m.id) }}
+                        onPointerDown={(ev) => ev.stopPropagation()}
                         onClick={(ev) => {
                           ev.stopPropagation()
-                          setSelected({ ...m, _meeting: true })
+                          selectEvent({ ...m, _meeting: true })
                         }}
                       >
                         <span className="cal-event-time" dir="ltr">
@@ -693,11 +845,52 @@ export default function Schedule({ session, onNavigate }) {
                     )
                   })}
 
+                  {dayGames.map((g) => {
+                    const s = hoursOf(g.game_time)
+                    if (s == null) return null
+                    return (
+                      <button
+                        key={'g' + g.id}
+                        className="cal-event csx-game"
+                        style={{ top: (s - startHour) * rowH, height: Math.max(28, rowH - 2) }}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        onClick={(ev) => {
+                          ev.stopPropagation()
+                          setReviewEntry({
+                            id: g.id, team: g.team, date: g.game_date, start_time: g.game_time,
+                            session_type: 'game', opponent: g.opponent,
+                          })
+                        }}
+                      >
+                        <span className="cal-event-time" dir="ltr">{g.game_time}</span>
+                        <span className="cal-event-title">
+                          {L('מול ', 'vs ')}{g.opponent || trTeam(g.team)}
+                        </span>
+                      </button>
+                    )
+                  })}
+
+                  {/* רמז הגרירה — מראה את הטווח שייווצר, לפני שנוצר */}
+                  {ghost && ghost.col === i && Math.abs(ghost.b - ghost.a) >= SNAP_MIN && (
+                    <div
+                      className="csx-ghost"
+                      aria-hidden="true"
+                      style={{
+                        top: (Math.min(ghost.a, ghost.b) / 60 - startHour) * rowH,
+                        height: Math.max(18, (Math.abs(ghost.b - ghost.a) / 60) * rowH - 2),
+                      }}
+                    >
+                      <span dir="ltr">
+                        {hhmm(Math.min(ghost.a, ghost.b))}–{hhmm(Math.max(ghost.a, ghost.b))}
+                      </span>
+                    </div>
+                  )}
+
                   {ds === todayStr && (() => {
                     const now = new Date()
                     const nowH = now.getHours() + now.getMinutes() / 60
                     if (nowH < startHour || nowH > endHour + 1) return null
-                    return <div className="cal-nowline" style={{ top: (nowH - startHour) * ROW_H }} aria-hidden="true" />
+                    return <div className="cal-nowline" style={{ top: (nowH - startHour) * rowH }} aria-hidden="true" />
                   })()}
                 </div>
               )
@@ -708,10 +901,79 @@ export default function Schedule({ session, onNavigate }) {
         </>
       )}
 
-      {showGrid && (
+      {gridOpen && (
       <p className="muted small" style={{ marginTop: 10 }}>
-        {L('לחיצה על משבצת ריקה מוסיפה אימון באותה שעה.', 'Tap an empty slot to add a practice at that time.')}
+        {wide
+          ? L('לחיצה על משבצת ריקה מוסיפה אימון באותה שעה · גרירה פותחת אירוע בטווח המדויק.',
+              'Tap an empty slot to add a practice · drag to open one over an exact range.')
+          : L('לחיצה על משבצת ריקה מוסיפה אימון באותה שעה.', 'Tap an empty slot to add a practice at that time.')}
       </p>
+      )}
+
+      </div>{/* /csx-board */}
+
+      <div className="csx-rail">
+
+      {/* מצב סרק — מה שרואים כשלא נבחר אירוע ולא פתוח טופס */}
+      {railMode === 'idle' && !loading && !error && (
+        <>
+          <div className="csx-quick">
+            <span className="csx-eyebrow">{L('הוספה מהירה', 'Quick add')}</span>
+            <button type="button" className="csx-quick-row" onClick={() => openAdd()}>
+              <span>
+                <b>{L('אימון קבוצה', 'Team practice')}</b>
+                <span className="muted small">{L('קבוצה, תוכנית, אישורי הגעה', 'Team, plan, RSVPs')}</span>
+              </span>
+              <Users size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="csx-quick-row"
+              onClick={() => { openAdd(); setIsPersonal(true) }}
+            >
+              <span>
+                <b>{L('אימון אישי', 'Personal practice')}</b>
+                <span className="muted small">{L('רק ביומן שלך', 'Yours only')}</span>
+              </span>
+              <User size={17} aria-hidden="true" />
+            </button>
+            {netSmall === false && (
+              <button
+                type="button"
+                className="csx-quick-row"
+                onClick={() => { setInviting(true); setSelected(null); setAdding(false) }}
+              >
+                <span>
+                  <b>{L('פגישה עם מאמן', 'Coach meeting')}</b>
+                  <span className="muted small">{L('נשלחת לאישור הצד השני', 'Sent for their approval')}</span>
+                </span>
+                <Handshake size={17} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <div className="csx-legend" aria-hidden="true">
+            <span><i className="csx-dot practice" />{L('אימון קבוצה', 'Practice')}</span>
+            <span><i className="csx-dot personal" />{L('אימון אישי', 'Personal')}</span>
+            <span><i className="csx-dot meeting" />{L('פגישה', 'Meeting')}</span>
+            <span><i className="csx-dot game" />{L('משחק', 'Game')}</span>
+          </div>
+
+          <div className="csx-stats">
+            <div><b className="stat-num" dir="ltr">{weekDays.reduce((a, d) => a + d.items.filter((x) => x.kind === 'practice').length, 0)}</b><span className="muted small">{L('אימונים השבוע', 'Practices')}</span></div>
+            <div><b className="stat-num" dir="ltr">{weekDays.reduce((a, d) => a + d.items.filter((x) => x.kind === 'game').length, 0)}</b><span className="muted small">{L('משחקים', 'Games')}</span></div>
+            <div><b className="stat-num" dir="ltr">{slots.length}</b><span className="muted small">{L('ימים קבועים', 'Fixed days')}</span></div>
+          </div>
+
+          <p className="muted small csx-slots-note">
+            <RotateCw size={13} /> {L('אימון שחוזר כל שבוע מוגדר פעם אחת ומופיע כאן ואצל השחקנים אוטומטית. ', 'A weekly fixed practice is set once and appears here and for your players automatically. ')}
+            {onNavigate && (
+              <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
+                {L('להגדרת ימי אימון', 'Set practice days')}
+              </button>
+            )}
+          </p>
+        </>
       )}
 
       {/* פרטי פגישה שנבחרה */}
@@ -944,13 +1206,27 @@ export default function Schedule({ session, onNavigate }) {
             ))}
           </select>
 
+          {/* מוצג רק כשהעמודה באמת קיימת — שדה שההקלדה בו נזרקת בשקט
+              גרוע משדה שאינו קיים. */}
+          {hasLoc && (
+            <input
+              className="finder-input"
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              aria-label={L('מקום', 'Location')}
+              placeholder={L('אולם / מגרש (לא חובה)', 'Venue / court (optional)')}
+              style={{ marginTop: 10 }}
+            />
+          )}
+
           <input
             className="finder-input"
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             aria-label={L('הערה לאימון', 'Practice note')}
-            placeholder={L('הערה (לא חובה)', 'Note (optional)')}
+            placeholder={L('הערה — השחקנים בקבוצה יראו אותה', 'Note — visible to the team')}
             style={{ marginTop: 10 }}
           />
 
@@ -1040,6 +1316,9 @@ export default function Schedule({ session, onNavigate }) {
           )}
         </div>
       )}
+
+      </div>{/* /csx-rail */}
+      </div>{/* /csx-shell */}
 
       {reviewEntry && (
         <SessionDetail session={session} entry={reviewEntry} onClose={() => setReviewEntry(null)} />

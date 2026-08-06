@@ -23009,3 +23009,164 @@ html.a11y-motion .adq-kind { transition: none; }
 }
 html.a11y-motion .mdt-more,
 html.a11y-motion .mdt-block { transition: none; }
+
+/* ==========================================================================
+   4.8.2026 · לוח הלו״ז השבועי במסך רחב  (csx-*)
+   --------------------------------------------------------------------------
+   מימוש «Courtside Schedule Web» — הלוח כמשטח ראשי בשני טורים, עם טור
+   צדדי דביק. הכל תחוּם ל-min-width:1100px חוץ משלושה דברים שהם שיפור גם
+   במובייל: צבע המשחקים, סימון האירוע הנבחר, ורמז הגרירה.
+
+   append-only: אין כאן עריכה של אף כלל קיים. תיקון לכלל שנוסף כאן =
+   בלוק override מתוארך מתחת.
+
+   הצבעים מהפרוטוטייפ מופו לטוקנים ולא הועתקו כ-hex:
+     #17264A (אימון)  → var(--navy)
+     #B34E1C (פגישה)  → var(--accent-fill)
+     #0F141E (משחק)   → var(--ink-900)
+     #FBF0DF (אישי)   → נשאר הכלל הקיים .cal-event.personal
+   ========================================================================== */
+
+/* ---- משחק על הלוח. היה נטען ולא מצויר. ---- */
+.cal-event.csx-game {
+  background: var(--ink-900);
+  color: #fff;
+  border-inline-start: 3px solid var(--accent);
+}
+.cal-event.csx-game .cal-event-time { color: rgba(255, 255, 255, 0.72); }
+
+/* ---- האירוע הנבחר, כדי שהקשר ללוח לא יאבד כשהפרטים נפתחים בצד ---- */
+.cal-event.csx-sel {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- רמז הגרירה ---- */
+.csx-ghost {
+  position: absolute;
+  inset-inline: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent-fill);
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+@media (min-width: 1100px) {
+  /* תקרת הרוחב מוסרת למסך הזה בלבד */
+  .main-inner[data-view='schedule'] { max-width: 1360px; }
+
+  .csx-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+    gap: 16px;
+  }
+  .csx-board { min-width: 0; }
+
+  .csx-rail {
+    position: sticky;
+    inset-block-start: 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* הטור נגלל בעצמו כשהתוכן ארוך מהמסך — אחרת כפתור השמירה בתחתית
+       הטופס יוצא מהמסך בלי דרך להגיע אליו. */
+    max-height: calc(100dvh - 96px);
+    overflow-y: auto;
+  }
+  /* הפאנלים בטור אינם צפים — הם *הם* הטור */
+  .csx-rail > .cal-detail,
+  .csx-rail > .cal-form { margin-top: 0; }
+
+  /* כרטיס ההוספה המהירה — הגרדיאנט היחיד במסך, ממשפחת הלילה */
+  .csx-quick {
+    background: linear-gradient(160deg, var(--navy), var(--navy-2));
+    color: #fff;
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .csx-eyebrow {
+    display: block;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    margin-block-end: 10px;
+  }
+  .csx-quick-row {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: start;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 11px;
+    padding: 9px 12px;
+    color: inherit;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .csx-quick-row + .csx-quick-row { margin-block-start: 7px; }
+  .csx-quick-row:hover { background: rgba(255, 255, 255, 0.13); }
+  .csx-quick-row b { display: block; font-size: 13.5px; }
+  .csx-quick-row .muted { color: rgba(255, 255, 255, 0.72); }
+
+  .csx-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0 2px;
+  }
+  .csx-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .csx-dot {
+    inline-size: 9px;
+    block-size: 9px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .csx-dot.practice { background: var(--navy); }
+  .csx-dot.personal { background: var(--c-orange-bg); border: 1px solid var(--accent); }
+  .csx-dot.meeting  { background: var(--accent-fill); }
+  .csx-dot.game     { background: var(--ink-900); }
+
+  .csx-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .csx-stats > div {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 11px 8px;
+    text-align: center;
+  }
+  .csx-stats .stat-num { display: block; font-size: 24px; }
+
+  .csx-slots-note { margin: 0; padding: 0 2px; }
+
+  /* במסך רחב יש מקום לעכבר, ולכן הרמז שאפשר לגרור */
+  .cal-daycol { cursor: crosshair; touch-action: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .csx-quick-row { transition: none; }
+}
+html.a11y-motion .csx-quick-row { transition: none; }

@@ -633,7 +633,10 @@ export default function Dashboard({ session }) {
         {/* היה כאן key={view}: כל החלפת מסך פירקה ובנתה מחדש את כל המכולה
             (כולל QuoteStrip) רק כדי שאנימציית הכניסה תתנגן שוב. עכשיו
             האנימציה מופעלת מחדש ב-JS (viewAnimRef למטה) והמכולה יציבה. */}
-        <div className="main-inner" ref={mainInnerRef}>
+        {/* data-view — נקודת אחיזה ל-CSS למסך יחיד. הלו"ז השבועי הוא לוח
+            של שבע עמודות, ותקרת ה-1000px של .main-inner חונקת אותו במסך
+            רחב. ההרחבה חלה רק על המסך הזה ורק מעל נקודת השבירה. */}
+        <div className="main-inner" data-view={view} ref={mainInnerRef}>
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2).
               חוץ מדף הבית: שם הציטוט יושב בתוך ההירו ומסונכרן להחלפת התמונה,
               והצגתו פעמיים באותו מסך נראית כמו תקלה. */}
