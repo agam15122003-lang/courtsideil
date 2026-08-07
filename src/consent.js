@@ -96,6 +96,18 @@ export async function getConsentRequest(token) {
   return callRpc('get_consent_request', { p_token: token })
 }
 
+// ===== אישור הורה לאימון אישי =====
+// פונקציות נפרדות מהמסלול הראשי במכוון: אותן טבלאות, לוגיקה משלהן.
+// אותו טוקן ואותה כתובת (#/consent/<token>) — ParentConsent מנסה קודם
+// את המסלול הזה, ואם הטוקן אינו של אימון אישי נופל למסלול הרגיל.
+export async function getTraineeConsent(token) {
+  return callRpc('get_trainee_consent', { p_token: token })
+}
+
+export async function submitTraineeConsent(token, grant) {
+  return callRpc('submit_trainee_consent', { p_token: token, p_grant: !!grant })
+}
+
 export async function submitParentConsent(token, decisions) {
   const res = await callRpc('submit_parent_consent', { p_token: token, p_decisions: decisions })
   if (res.ok && res.manage_token) return { ...res, manageLink: consentLink(res.manage_token) }

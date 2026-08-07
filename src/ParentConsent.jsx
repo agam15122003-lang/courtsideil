@@ -10,6 +10,7 @@ import { waShare, copyText } from './share'
 import { confirmDialog } from './confirm'
 import {
   getConsentRequest, submitParentConsent,
+  getTraineeConsent, submitTraineeConsent,
   CONSENT_TYPES, consentLabel, consentHelp, consentValueLabel,
 } from './consent'
 
@@ -86,10 +87,18 @@ export default function ParentConsent({ token }) {
   const [checks, setChecks] = useState({ basic: false, media_team: false, media_public: false, marketing: false })
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(null) // { state, manage_token, manageLink }
+  // אישור לאימון אישי — מסלול נפרד, אותה כתובת
+  const [trainee, setTrainee] = useState(null)
+  const [trDone, setTrDone] = useState(null) // { granted }
+  const [trBusy, setTrBusy] = useState(false)
 
   async function load() {
     setLoading(true)
     setFailure(null)
+    // קודם המסלול של האימון האישי. טוקן שאינו כזה מחזיר not_found וממשיך
+    // הלאה — כך המסלול הראשי, שהוא הרגיש בפרויקט, לא נגע כלל.
+    const tr = await getTraineeConsent(token)
+    if (tr.ok) { setTrainee(tr); setLoading(false); return }
     const res = await getConsentRequest(token)
     if (res.ok) {
       setReq(res)
@@ -186,6 +195,78 @@ export default function ParentConsent({ token }) {
   )
 
   // ---- טעינה ----
+  // ===== אישור לאימון אישי =====
+  // מסך אחד, שאלה אחת. אין כאן ארבע קטגוריות — ההחלטה היא על אדם מסוים.
+  if (trainee || trDone) {
+    if (trDone) {
+      return shell(
+        <div className="pc-done">
+          <h1>{trDone.granted ? L('אושר', 'Approved') : L('נדחה', 'Declined')}</h1>
+          <p className="muted">
+            {trDone.granted
+              ? L(`${trainee?.coach_name || ''} יכול להתחיל לעבוד עם ${trainee?.minor_name || 'הילד/ה'} ולשלוח משימות.`,
+                  `${trainee?.coach_name || ''} can now work with ${trainee?.minor_name || 'your child'} and send tasks.`)
+              : L('הקשר לא נפתח, ולא יישלחו משימות. אפשר לסגור את החלון.',
+                  'The connection was not opened and no tasks will be sent. You can close this window.')}
+          </p>
+        </div>,
+      )
+    }
+    const already = trainee.decided === 'granted'
+    return shell(
+      <div className="pc-card">
+        <h1>{L('אישור לאימון אישי', 'Personal training approval')}</h1>
+        <p className="pc-lead">
+          {L(`${trainee.minor_name || 'הילד/ה שלך'} ביקש/ה להתאמן אישית עם ${trainee.coach_name || 'מאמן'}${trainee.coach_club ? ' · ' + trainee.coach_club : ''}.`,
+             `${trainee.minor_name || 'Your child'} asked to train one-on-one with ${trainee.coach_name || 'a coach'}${trainee.coach_club ? ' · ' + trainee.coach_club : ''}.`)}
+        </p>
+        <p className="muted small">
+          {L('אימון אישי הוא קשר אחד-על-אחד, מחוץ למסגרת הקבוצה. אם תאשר/י, המאמן יוכל לשלוח משימות ולראות מה בוצע. הוא לא יוכל לשלוח הודעות חופשיות.',
+             'Personal training is a one-on-one connection outside the team. If you approve, the coach can send tasks and see what was done. They cannot send free-form messages.')}
+        </p>
+        <p className="muted small">
+          {L('אפשר לבטל בכל רגע — פנייה למאמן או למנהל המערכת מסיימת את הקשר.',
+             'You can revoke at any time — contacting the coach or an admin ends the connection.')}
+        </p>
+
+        {already ? (
+          <div className="alert" role="status">{L('כבר אישרת את הקשר הזה.', 'You already approved this connection.')}</div>
+        ) : (
+          <div className="form-actions">
+            <button
+              className="btn-primary"
+              disabled={trBusy}
+              onClick={async () => {
+                setTrBusy(true)
+                const r = await submitTraineeConsent(token, true)
+                setTrBusy(false)
+                if (r.ok) setTrDone({ granted: true })
+              }}
+            >
+              {trBusy ? L('שומר...', 'Saving...') : L('אני מאשר/ת', 'I approve')}
+            </button>
+            <button
+              className="btn-ghost"
+              disabled={trBusy}
+              onClick={async () => {
+                if (!(await confirmDialog({
+                  message: L('לדחות את הבקשה? הקשר לא ייפתח.', 'Decline the request? The connection will not open.'),
+                  danger: true,
+                }))) return
+                setTrBusy(true)
+                const r = await submitTraineeConsent(token, false)
+                setTrBusy(false)
+                if (r.ok) setTrDone({ granted: false })
+              }}
+            >
+              {L('דחייה', 'Decline')}
+            </button>
+          </div>
+        )}
+      </div>,
+    )
+  }
+
   if (loading) {
     return shell(
       <div className="pc-skel" aria-busy="true" aria-label={L('טוען...', 'Loading...')}>

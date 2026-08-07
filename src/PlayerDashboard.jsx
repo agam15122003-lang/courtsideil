@@ -38,6 +38,7 @@ import {
   myDataExport, groupDataSections, summaryOnlyItems, exportGeneratedAt,
   dataSectionLabel, dataFieldLabel, dataValueText,
   exportToJsonText, exportToCsvText, exportFileName, downloadTextFile,
+  siteUrl,
 } from './consent'
 import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
@@ -538,6 +539,74 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 }
 
 // ---------- מסך: התרגילים שלי (עם סינון והתקדמות, כולל התקדמות חלקית) ----------
+// ---------- הפקת קישור אישור להורה, למאמן אישי מסוים ----------
+// אותו רעיון כמו קישור ההסכמה הראשי: הקטין מייצר, ומעביר להורה בוואטסאפ.
+// אין תשתית מייל בפרויקט, ולכן זו הדרך — מתועד כפער ידוע ב-HANDOFF.
+function ParentLinkButton({ coachId, coachName }) {
+  const [link, setLink] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const make = async () => {
+    if (!coachId) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('create_trainee_consent_request', { p_coach: coachId })
+    setBusy(false)
+    if (error || !data?.ok) {
+      const reason = data?.reason
+      toast.error(
+        error && /function .* does not exist|PGRST202/i.test(error.message || '')
+          ? L('הפיצ׳ר עוד לא הופעל. פנה למאמן.', 'Not enabled yet. Ask your coach.')
+          : reason === 'need_guardian'
+            ? L('אין הורה רשום בחשבון שלך. השלם קודם את אישור ההורה בהגדרות.',
+                'No guardian on file. Complete the parent approval in settings first.')
+            : L('לא הצלחנו לייצר קישור. נסה שוב.', 'Could not create a link. Try again.'),
+      )
+      return
+    }
+    setLink(`${siteUrl()}/#/consent/${data.token}`)
+  }
+
+  const share = () => {
+    const text = L(
+      `היי, אני רוצה להתאמן אישית עם ${coachName}. צריך את האישור שלך — הקישור כאן: ${link}`,
+      `Hi, I'd like to train one-on-one with ${coachName}. It needs your approval: ${link}`,
+    )
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener')
+  }
+
+  if (!link) {
+    return (
+      <button type="button" className="wl-chip" onClick={make} disabled={busy}>
+        <Link2 size={13} /> {busy ? L('רגע...', 'One moment...') : L('שליחת קישור להורה', 'Send a link to a parent')}
+      </button>
+    )
+  }
+
+  return (
+    <div className="pl-pcoach-link">
+      <input className="finder-input" readOnly value={link} dir="ltr" onFocus={(e) => e.target.select()} />
+      <div className="pl-pcoach-link-row">
+        <button type="button" className="wl-chip ok" onClick={share}>
+          <MessageCircle size={13} /> {L('שליחה בוואטסאפ', 'Send on WhatsApp')}
+        </button>
+        <button
+          type="button"
+          className="wl-chip"
+          onClick={async () => {
+            try { await navigator.clipboard.writeText(link); toast.success(L('הקישור הועתק', 'Link copied')) }
+            catch { toast.error(L('ההעתקה נכשלה — סמן והעתק', 'Copy failed — select and copy')) }
+          }}
+        >
+          <Copy size={13} /> {L('העתקה', 'Copy')}
+        </button>
+      </div>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        {L('הקישור תקף 14 יום ומיועד להורה בלבד.', 'The link is valid for 14 days and is meant for a parent only.')}
+      </p>
+    </div>
+  )
+}
+
 // ---------- המאמנים האישיים שלי ----------
 // יושב מעל «המשימות שלי» ולא בטאב נפרד: המשימות מהמאמן האישי נוחתות
 // ממילא באותה רשימה (player_assignments), והכרטיס הזה עונה על השאלה
@@ -628,12 +697,17 @@ function MyPersonalCoaches({ session }) {
           </div>
         )
       })}
-      {rows.some((r) => r.status === 'pending_parent') && (
-        <p className="muted small pl-pcoach-note">
-          {L('כדי להתחיל, ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.',
-             'To start, your parent needs to approve this coach. No tasks arrive until then.')}
-        </p>
-      )}
+      {rows.filter((r) => r.status === 'pending_parent').map((r) => (
+        <div key={'p' + r.id} className="pl-pcoach-note">
+          <p className="muted small" style={{ margin: '0 0 8px' }}>
+            {L('כדי להתחיל, ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.',
+               'To start, your parent needs to approve this coach. No tasks arrive until then.')}
+          </p>
+          <ParentLinkButton coachId={r.coach?.id} coachName={
+            `${r.coach?.first_name || ''} ${r.coach?.last_name || ''}`.trim()
+          } />
+        </div>
+      ))}
     </div>
     </div>
   )

@@ -23418,3 +23418,7 @@ html.a11y-motion .csx-quick-row { transition: none; }
        בלי margin-inline הכרטיס נצמד לקצה בעוד .pl-narrow שמתחתיו ממורכז,
        והפער ביניהם נראה כמו תקלה. --- */
 .pl-pcoach { max-width: 680px; margin-inline: auto; }
+
+/* --- 4.8.2026 (ח) · קישור אישור ההורה במסך המאמן האישי --- */
+.pl-pcoach-link { margin-block-start: 8px; }
+.pl-pcoach-link-row { display: flex; gap: 7px; flex-wrap: wrap; margin-block-start: 7px; }
