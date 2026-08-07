@@ -1,0 +1,420 @@
+<meta charset="utf-8">
+<title>CourtSide — בית השחקן במסך רחב · גרסה 2</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* לילה — הבסיס */
+  --night:#0B1524; --night-2:#122036; --night-3:#1B2C46;
+  /* פרקט — חם, «תורך לפעול» */
+  --rust:#B34E1C; --ember:#E8763A; --peach:#F0A878; --cream:#FBF0DF;
+  /* נייבי — קר, «כבר נקבע». הגוון החדש. */
+  --steel:#1F4E8C; --steel-2:#2E6BB8; --steel-soft:#EAF1FA; --steel-ink:#173E70;
+  /* ניטרלי */
+  --tx:#132038; --mut:#7A8AA0; --mut2:#4E6079;
+  --ln:#E4EAF2; --ln2:#F0F4F9; --sf:#fff; --bg:#EEF1F6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Rubik',system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--tx)}
+.page{direction:rtl;max-width:1280px;margin:0 auto;padding:22px 26px 40px}
+button{font-family:inherit}
+a{text-decoration:none}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.disp{font-family:'Heebo','Rubik',system-ui,sans-serif;font-weight:900}
+
+/* תוויות מקטע — כחול לקר, רוסט לחם */
+/* זהה ל-.pl-section-label באפליקציה: 12.5px · 800 · 0.04em · אפור.
+   קוד הצבע החם/קר עבר לנקודה שלפני התווית, כדי שהטיפוגרפיה לא תשתנה. */
+.eb{font-size:12.5px;font-weight:800;letter-spacing:.04em;color:var(--mut2);
+    display:inline-flex;align-items:center;gap:7px}
+.eb::before{content:'';width:7px;height:7px;border-radius:2px;flex:none;background:currentColor}
+.eb.cool::before{background:var(--steel)}
+.eb.warm::before{background:var(--ember)}
+.lnk{font-size:12.5px;font-weight:600;color:var(--mut2)}
+.lnk:hover{color:var(--tx)}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:18px;padding:18px 20px;
+      box-shadow:0 1px 2px rgba(19,32,56,.04)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+
+/* ===== לוח התוצאות ===== */
+.board{position:relative;overflow:hidden;border-radius:24px;background:var(--night);color:#fff;padding:26px 28px 0;margin-bottom:18px}
+/* קשת שלוש הנקודות — הסימן של המסך. קו צבוע, כמו על הפרקט. */
+.arc{position:absolute;inset-block-start:-170px;inset-inline-start:50%;transform:translateX(50%);width:620px;height:620px;border-radius:50%;border:1.5px solid rgba(240,168,120,.16);pointer-events:none}
+.arc.b{width:470px;height:470px;inset-block-start:-95px;border-color:rgba(46,107,184,.28)}
+.board .top{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;position:relative}
+.board h1{font-size:34px;line-height:1.08;margin:7px 0 6px}
+.board h1 em{font-style:normal;color:var(--peach)}
+.board .sub{font-size:13.5px;color:rgba(255,255,255,.66);margin:0;max-width:38ch}
+.next{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:13px 17px;text-align:center;flex:none}
+.next .k{display:block;font-size:11px;font-weight:800;letter-spacing:.04em;color:rgba(255,255,255,.6)}
+.next .t{display:block;font-size:26px;margin:5px 0 1px}
+.next .w{font-size:11.5px;color:rgba(255,255,255,.62)}
+
+.ask{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;position:relative;
+     background:linear-gradient(90deg,rgba(232,118,58,.20),rgba(232,118,58,.07));
+     border:1px solid rgba(240,168,120,.42);border-radius:16px;padding:14px 17px}
+.ask b{font-size:15px}
+.ask .hint{display:block;font-size:11.5px;color:rgba(255,255,255,.62);margin-top:2px}
+.ask button{border-radius:11px;padding:11px 22px;cursor:pointer;font-size:13.5px;font-weight:700;
+     transition:transform .12s ease,background .12s ease,box-shadow .12s ease}
+.ask button:active{transform:scale(.97)}
+/* «מגיע» היא הפעולה הצפויה — היא נראית כמו כפתור ראשי מהרגע הראשון,
+   בלי לסמן מראש תשובה שהשחקן לא נתן. */
+.ask button.yes{border:none;background:var(--ember);color:#12100C;box-shadow:0 6px 18px -8px rgba(232,118,58,.9)}
+.ask button.yes:hover{background:#F0873F}
+.ask button.no{border:1px solid rgba(255,255,255,.28);background:transparent;color:rgba(255,255,255,.86)}
+.ask button.no:hover{background:rgba(255,255,255,.10)}
+.ask button.on::before{content:'✓ '}
+.ask button.on.no{background:rgba(255,255,255,.18);border-color:transparent}
+
+/* שורת המספרים — לוח תוצאות, לא כרטיסיות */
+.score{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;position:relative;
+       border-block-start:1px solid rgba(255,255,255,.10)}
+.score div{padding:16px 6px 18px;text-align:center;border-inline-start:1px solid rgba(255,255,255,.07)}
+.score div:first-child{border-inline-start:none}
+.score b{display:block;font-size:30px;line-height:1}
+.score span{display:block;font-size:11px;color:rgba(255,255,255,.52);margin-top:5px;letter-spacing:.04em}
+
+/* ===== עיתון ===== */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* משימות — חם */
+.task{display:flex;align-items:center;gap:12px;padding:13px 0;border-block-start:1px solid var(--ln2)}
+.task:first-child{border-block-start:none;padding-block-start:4px}
+.chk{width:23px;height:23px;border-radius:8px;flex:none;cursor:pointer;display:grid;place-items:center;
+     font-size:13px;font-weight:900;border:2px solid #CBD6E4;background:#fff;color:#fff;transition:all .14s ease}
+.chk:hover{border-color:var(--ember)}
+.task.done{opacity:.5}
+.task.done .chk{border-color:transparent;background:var(--steel)}
+.task.done .t-t{text-decoration:line-through}
+.t-m{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.t-t{font-size:14.5px;font-weight:600}
+.t-s{font-size:11.5px;color:var(--mut)}
+.t-d{font-size:11.5px;font-weight:700;color:var(--mut);flex:none;padding:3px 9px;border-radius:7px;background:var(--ln2)}
+.t-d.late{color:var(--rust);background:rgba(232,118,58,.12)}
+
+/* משוב — ציטוט */
+.quote{display:flex;gap:15px;align-items:flex-start}
+.av{width:46px;height:46px;border-radius:14px;background:var(--cream);color:#8A6A34;display:grid;place-items:center;font-weight:800;font-size:17px;flex:none}
+.qt{font-size:16px;line-height:1.55;margin:0 0 6px;font-weight:500}
+.qm{font-size:11.5px;color:var(--mut)}
+.re{display:flex;gap:8px;margin-top:14px;padding-block-start:13px;border-block-start:1px solid var(--ln2)}
+.re button{border:1px solid var(--ln);background:#fff;border-radius:11px;width:42px;height:38px;cursor:pointer;font-size:16px;transition:all .14s ease}
+.re button:hover{border-color:#CBD6E4}
+.re button.on{border-color:var(--ember);background:rgba(232,118,58,.10)}
+
+/* סיכום המאמן — נייבי, קר */
+.recap{background:var(--steel-soft);border:1px solid #D6E3F3}
+.recap p{font-size:14px;line-height:1.65;color:var(--steel-ink);margin:10px 0 0}
+
+/* ===== סרגל ===== */
+.side .card{padding:15px 16px}
+.wk{display:flex;align-items:center;gap:10px;padding:10px 0;border-block-start:1px solid var(--ln2)}
+.wk:first-of-type{border-block-start:none}
+.wk .bar{width:3px;align-self:stretch;border-radius:99px;flex:none}
+.wk .m{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.wk b{font-size:12.5px;font-weight:600}
+.wk .w{font-size:11px;color:var(--mut)}
+.wk .t{font-size:12.5px;font-weight:700}
+.goal{margin-bottom:13px}
+.goal:last-child{margin-bottom:0}
+.goal .r{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.goal b{font-size:13px;font-weight:600}
+.goal .n{font-size:11.5px;color:var(--mut)}
+.gb{margin-top:6px;height:7px;border-radius:99px;background:var(--ln2);overflow:hidden}
+.gb span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--steel),var(--steel-2))}
+
+/* המאמן האישי — חם, כי הוא ממתין לפעולה */
+.pc{background:var(--night-2);border:1px solid rgba(240,168,120,.22)}
+.pc .eb{color:rgba(255,255,255,.72)}
+.pc .eb::before{background:var(--ember)}
+.pc .lnk{color:rgba(255,255,255,.6)}
+.pcr{display:flex;align-items:center;gap:11px}
+.pca{width:40px;height:40px;border-radius:13px;background:rgba(240,168,120,.16);color:var(--peach);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.pcm{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.pcm b{font-size:13.5px;color:#fff}
+.pcm span{font-size:11px;color:rgba(255,255,255,.55)}
+.pill{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:8px;flex:none;background:rgba(240,168,120,.16);color:var(--peach)}
+.pc p{font-size:11.5px;color:rgba(255,255,255,.6);margin:11px 0 0;line-height:1.55}
+
+/* סרטונים */
+.vids{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.th{height:88px;border-radius:12px;position:relative;overflow:hidden}
+.th::after{content:'';position:absolute;inset:0;border:1px solid rgba(255,255,255,.10);border-radius:12px}
+.vt{display:block;font-size:12px;font-weight:600;margin-top:7px;line-height:1.35}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .vids{grid-template-columns:repeat(2,1fr)}
+  .board .top{flex-direction:column}
+  .score{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ============================================================
+   מובייל — פריסה אחרת, לא הצרה של המסך הרחב.
+   העקרונות: (1) לוח התוצאות נשאר, אבל 2×2 במקום 4 בשורה.
+   (2) הסרגל נעלם — הלו״ז הופך לרצועה אופקית של כרטיסי-יום, שזה
+   מה שמתאים לאגודל. (3) המשימות עולות לראש, כי בטלפון השחקן פותח
+   כדי לדעת «מה עליי לעשות» ולא כדי לקרוא. (4) הכרטיסים ללא גבול
+   צדדי — הם נושמים עד קצה המסך.
+   ============================================================ */
+@media (max-width:640px){
+  .page{padding:12px 12px 26px}
+  .board{border-radius:20px;padding:20px 18px 0;margin-bottom:14px}
+  .arc{width:420px;height:420px;inset-block-start:-130px}
+  .arc.b{width:320px;height:320px;inset-block-start:-70px}
+  .board .top{flex-direction:column;gap:14px}
+  .board h1{font-size:26px}
+  .board .sub{font-size:12.5px;max-width:none}
+  .next{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:start;padding:11px 14px}
+  .next .t{font-size:22px;margin:0}
+  .ask{flex-direction:column;align-items:stretch;gap:12px;margin-top:16px}
+  .ask > div:last-child{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .ask button{width:100%;padding:13px 0}
+  .score{grid-template-columns:repeat(2,1fr)}
+  .score div:nth-child(-n+2){border-block-end:1px solid rgba(255,255,255,.07)}
+  .score div:nth-child(odd){border-inline-start:none}
+  .score b{font-size:26px}
+
+  .grid{grid-template-columns:1fr;gap:14px}
+  .col{gap:14px}
+  /* המשימות ראשונות — זה מה שפותחים בשבילו בטלפון */
+  .col:first-child{order:1}
+  .col.side{order:2}
+  .card{padding:15px 16px;border-radius:16px}
+
+  /* הלו״ז הופך לרצועה אופקית — יום אחד לכרטיס, גלילה באגודל */
+  #week{display:flex;gap:9px;overflow-x:auto;padding-block-end:4px;scroll-snap-type:x mandatory;
+        margin-inline:-16px;padding-inline:16px}
+  #week::-webkit-scrollbar{display:none}
+  .wk{flex-direction:column;align-items:flex-start;gap:7px;min-width:132px;flex:none;
+      border:1px solid var(--ln);border-radius:13px;padding:11px 12px;scroll-snap-align:start;
+      border-block-start:1px solid var(--ln)}
+  .wk .bar{width:26px;height:3px;align-self:auto}
+  .wk .t{font-size:15px}
+
+  .vids{grid-template-columns:repeat(2,1fr);gap:10px}
+  .quote{gap:12px}
+  .av{width:40px;height:40px;border-radius:12px;font-size:15px}
+  .qt{font-size:15px}
+  .task{padding:12px 0}
+  .t-t{font-size:14px}
+  /* יעד מגע — 44px לכל דבר שנוגעים בו */
+  .chk{width:26px;height:26px}
+  .re button{width:46px;height:44px}
+}
+
+/* ===== ירוק = סגור. הגוון השלישי: חם=תורך · קר=נקבע · ירוק=בוצע ===== */
+:root{--go:#1F7A44; --go-soft:#E7F4EC; --go-ln:#BFE3CD}
+.eb.done::before{background:var(--go)}
+
+/* ===== «איך היה האימון?» — נפתח רק בחלון שאחרי אימון ===== */
+.effort{background:var(--sf);border:1px solid var(--ln);border-radius:18px;padding:18px 20px;
+        box-shadow:0 1px 2px rgba(19,32,56,.04)}
+.effort.answered{background:var(--go-soft);border-color:var(--go-ln)}
+.effort .q{font-size:15.5px;font-weight:600;margin:0 0 3px}
+.effort .h{font-size:12.5px;color:var(--mut);margin:0 0 14px}
+.scale{display:flex;gap:6px}
+.scale button{flex:1;min-width:0;height:44px;border-radius:11px;border:1px solid var(--ln);
+   background:#fff;cursor:pointer;font-size:14px;font-weight:700;color:var(--mut2);
+   font-variant-numeric:tabular-nums;transition:all .12s ease}
+.scale button:hover{border-color:#CBD6E4;transform:translateY(-1px)}
+.scale button.on{background:var(--go);border-color:var(--go);color:#fff}
+.scale-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:7px}
+.effort .ok{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:#146034}
+.effort .ok b{font-size:20px;font-family:'Heebo','Rubik',system-ui,sans-serif;font-weight:900}
+.effort .undo{margin-inline-start:auto;font-size:12.5px;font-weight:600;color:#146034;
+   background:none;border:none;cursor:pointer;text-decoration:underline}
+
+/* מצב ריק עם כיוון, לא הודעת סוף */
+.empty{font-size:13.5px;color:var(--mut2);margin:2px 0 0;line-height:1.6}
+.empty b{color:var(--tx)}
+@media (max-width:640px){
+  .scale{flex-wrap:wrap}
+  .scale button{flex:0 0 calc(20% - 5px);height:46px}
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+
+  <div class="board">
+    <div class="arc"></div><div class="arc b"></div>
+
+    <div class="top">
+      <div>
+        <span class="eb" style="color:rgba(255,255,255,.62)">ערב טוב</span>
+        <h1 class="disp">מחכים לך על <em>הפרקט</em></h1>
+        <p class="sub" id="sub">יש שלוש משימות פתוחות לפני האימון של יום ראשון.</p>
+      </div>
+      <div class="next">
+        <span class="k">האימון הבא</span>
+        <b class="t disp num" dir="ltr">18:00</b>
+        <span class="w">ראשון · אולם ויתקין</span>
+      </div>
+    </div>
+
+    <div class="ask">
+      <div>
+        <b>מגיע לאימון ביום ראשון?</b>
+        <span class="hint">המאמן רואה את התשובה מיד</span>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="yes" data-rsvp="yes">מגיע</button>
+        <button class="no" data-rsvp="no">לא אוכל</button>
+      </div>
+    </div>
+
+    <div class="score">
+      <div><b class="disp num" style="color:#7FD1A6">100%</b><span>נוכחות</span></div>
+      <div><b class="disp num" style="color:var(--peach)">6.5</b><span>עומס ממוצע</span></div>
+      <div><b class="disp num" id="open" style="color:#fff">3</b><span>משימות פתוחות</span></div>
+      <div><b class="disp num" style="color:#8FB6E8">12</b><span>ימים ברצף</span></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+
+      <section class="card">
+        <div class="head"><span class="eb warm">מה עליי לעשות</span><a class="lnk" href="#">לכל המשימות ←</a></div>
+        <div id="tasks"></div>
+      </section>
+
+
+      <section class="effort" id="effort"></section>
+      <section class="card">
+        <div class="head"><span class="eb warm">משוב אחרון מהמאמן</span><span class="lnk num">25.7</span></div>
+        <div class="quote">
+          <span class="av">א</span>
+          <div style="flex:1;min-width:0">
+            <p class="qt">״היית בסדר גמור. הכדרור ביד שמאל השתפר מאוד — תמשיך ככה.״</p>
+            <span class="qm">אגם אדירי · אימון 25.7</span>
+          </div>
+        </div>
+        <div class="re" id="re"></div>
+      </section>
+
+      <section class="card recap">
+        <span class="eb cool">סיכום האימון האחרון</span>
+        <p>עבדנו על מעבר מהיר ועל הגנה בשטח. הקבוצה הגיעה מרוכזת, ובחלק האחרון ראינו שיפור אמיתי במסירות. באימון הבא נחזור על אותם דגשים.</p>
+      </section>
+
+    </div>
+
+    <div class="col side">
+
+      <section class="card">
+        <div class="head"><span class="eb cool">לו״ז השבוע</span><a class="lnk" href="#">הכל ←</a></div>
+        <div id="week"></div>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb cool">היעדים שלי</span><a class="lnk" href="#">הכל ←</a></div>
+        <div id="goals"></div>
+      </section>
+
+      <section class="card pc">
+        <div class="head"><span class="eb">המאמן האישי</span><a class="lnk" href="#">למסך ←</a></div>
+        <div class="pcr">
+          <span class="pca">ר</span>
+          <span class="pcm"><b>רון לוי</b><span>הפועל צפון</span></span>
+          <span class="pill">ממתין</span>
+        </div>
+        <p>ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.</p>
+      </section>
+
+    </div>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <div class="head"><span class="eb cool">סרטונים בשבילך</span><a class="lnk" href="#">לכל המדיה ←</a></div>
+    <div class="vids" id="vids"></div>
+  </section>
+</div>
+
+<script>
+const TASKS=[
+ {id:'t1',n:'200 זריקות מהפינה',s:'מהמאמן האישי · שתי סדרות',d:'עד ראשון',late:false},
+ {id:'t2',n:'כדרור יד חלשה',s:'קטסל א׳ · 10 דקות',d:'עד רביעי',late:false},
+ {id:'t3',n:'צפייה בסרטון הגנה',s:'קטסל א׳',d:'באיחור',late:true}];
+const WEEK=[
+ {d:'ראשון 2.8',w:'אולם ויתקין',t:'18:00',c:'var(--steel)'},
+ {d:'שלישי 4.8',w:'אימון אישי',t:'11:00',c:'var(--peach)'},
+ {d:'שלישי 4.8',w:'אולם ויתקין',t:'18:30',c:'var(--steel)'},
+ {d:'חמישי 6.8',w:'מול מכבי צפון',t:'18:00',c:'var(--night)'}];
+const GOALS=[{t:'חמש שלשות באימון',c:3,g:5},{t:'עשרה אימוני כושר',c:7,g:10},{t:'מסירות בלי איבוד',c:12,g:20}];
+const VIDS=['תרגילי כדרור למתחילים','זריקה נכונה — טכניקה','כושר לשחקני כדורסל','הגנה אחד על אחד','מסירות בתנועה'];
+const done={};
+
+function paint(){
+  document.getElementById('tasks').innerHTML=TASKS.map(t=>
+   `<div class="task ${done[t.id]?'done':''}" data-t="${t.id}">
+      <span class="chk">${done[t.id]?'✓':''}</span>
+      <span class="t-m"><b class="t-t">${t.n}</b><span class="t-s">${t.s}</span></span>
+      <span class="t-d ${t.late?'late':''}">${t.d}</span></div>`).join('');
+  const open=TASKS.filter(t=>!done[t.id]).length;
+  document.getElementById('open').textContent=open;
+  document.getElementById('sub').textContent = open===0
+    ? 'סיימת הכל. נתראה באימון של יום ראשון.'
+    : `יש ${open===1?'משימה אחת פתוחה':open+' משימות פתוחות'} לפני האימון של יום ראשון.`;
+}
+document.getElementById('tasks').addEventListener('click',e=>{
+  const r=e.target.closest('[data-t]'); if(!r) return;
+  done[r.dataset.t]=!done[r.dataset.t]; paint();
+});
+
+document.getElementById('week').innerHTML=WEEK.map(w=>
+ `<div class="wk"><span class="bar" style="background:${w.c}"></span>
+   <span class="m"><b>${w.d}</b><span class="w">${w.w}</span></span>
+   <span class="t num" dir="ltr">${w.t}</span></div>`).join('');
+
+document.getElementById('goals').innerHTML=GOALS.map(g=>
+ `<div class="goal"><div class="r"><b>${g.t}</b><span class="n num" dir="ltr">${g.c}/${g.g}</span></div>
+   <div class="gb"><span style="width:${(g.c/g.g)*100}%"></span></div></div>`).join('');
+
+document.getElementById('re').innerHTML=['🙏','💪','🔥','👍'].map((e,i)=>`<button data-r="${i}">${e}</button>`).join('');
+document.getElementById('re').addEventListener('click',e=>{
+  const b=e.target.closest('[data-r]'); if(!b) return;
+  document.querySelectorAll('#re button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+});
+document.querySelectorAll('[data-rsvp]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-rsvp]').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+}));
+
+document.getElementById('vids').innerHTML=VIDS.map((t,i)=>
+ `<div><div class="th" style="background:linear-gradient(${145+i*14}deg,#122036,#1F4E8C)"></div>
+   <span class="vt">${t}</span></div>`).join('');
+paint();
+
+// «איך היה האימון?» — מוצג רק כשיש אימון שהסתיים ולא דורג.
+// אחרי הדירוג הכרטיס לא נעלם: הוא הופך ירוק ומאשר, כדי שהילד יראה
+// שהתשובה נקלטה. «שינוי» פותח אותו מחדש.
+let effort = null;
+function paintEffort(){
+  const el = document.getElementById('effort');
+  if (effort === null){
+    el.className = 'effort';
+    el.innerHTML =
+      `<p class="q">איך היה האימון של אתמול?</p>
+       <p class="h">המאמן רואה את הממוצע של הקבוצה, לא מי אמר מה.</p>
+       <div class="scale">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-e="${n}">${n}</button>`).join('')}</div>
+       <div class="scale-ends"><span>קל</span><span>קשה מאוד</span></div>`;
+  } else {
+    el.className = 'effort answered';
+    el.innerHTML =
+      `<div class="ok"><span class="eb done" style="gap:9px"></span>
+         רשמת <b class="num" dir="ltr">${effort}</b> מתוך 10 — תודה
+         <button class="undo" id="undoE">שינוי</button></div>`;
+    document.getElementById('undoE').onclick = () => { effort = null; paintEffort(); };
+  }
+}
+document.getElementById('effort').addEventListener('click', e => {
+  const b = e.target.closest('[data-e]'); if(!b) return;
+  effort = Number(b.dataset.e); paintEffort();
+});
+paintEffort();
+
+</script>
