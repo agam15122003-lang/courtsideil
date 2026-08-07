@@ -23807,3 +23807,331 @@ html.a11y-motion .plh-scale button{ transition:none; }
   .pl-home-rich .plh-hero-court{ inline-size:330px; block-size:330px; inset-block-start:-72px; }
   .pl-home-rich .plh-rsvp{ margin-inline:16px; }
 }
+
+/* ==========================================================================
+   7.8.2026 · בית השחקן — הלוח כפי שאושר (תיקון נאמנות לפרוטוטייפ v4)
+   --------------------------------------------------------------------------
+   הבלוק (יד) מ-4.8 הסתיר את plh-hero-media — אבל בתוך האלמנט הזה ישבו
+   גם הברכה, הכותרת, שורת המשנה וכרטיס «האימון הבא», והקשת השנייה
+   נבנתה מ-plh-hero-court שישב שם גם הוא. מה שעלה לאוויר: לוח לילה
+   בלי שם, בלי כותרת ובלי האימון הבא — «לא כמו שאישרתי» (הבעלים, 7.8).
+
+   ה-JSX נבנה מחדש למבנה הלוח של הפרוטוטייפ: שתי קשתות (plh-arc),
+   ראש לוח (plh-board-top) עם ברכה וכרטיס «האימון הבא» זכוכיתי, ואז
+   הרגל החמה ולוח המספרים. הכללים כאן מלבישים את המבנה החדש ומחזירים
+   את הלוח לצורת הכרטיס המעוגל של הפרוטוטייפ (במקום רצועות full-bleed).
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* ---- מסגרת הלוח: כרטיס מעוגל צף, לא רצועה מקצה לקצה ---- */
+.pl-home-rich .plh-hero{
+  margin:0 0 16px;
+  border-radius:24px;
+  padding:24px 26px 0;
+}
+/* הקשת הישנה של בלוק (יד) — הוחלפה בשני spans מפורשים */
+.pl-home-rich .plh-hero::before{ content:none; }
+.plh-arc{
+  position:absolute;
+  inset-block-start:-180px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  inline-size:640px; block-size:640px;
+  border-radius:50%;
+  border:1.5px solid rgba(240,168,120,.15);
+  pointer-events:none;
+}
+.plh-arc.b{
+  inline-size:480px; block-size:480px;
+  inset-block-start:-100px;
+  border-color:rgba(46,107,184,.28);
+}
+
+/* ---- ראש הלוח: ברכה מימין, «האימון הבא» משמאל ---- */
+.plh-board-top{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:22px;
+}
+.plh-board-greet{ min-inline-size:0; }
+.plh-board-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size:12.5px;
+  font-weight:800;
+  letter-spacing:.04em;
+  color:rgba(255,255,255,.62);
+}
+.plh-board-eyebrow::before{
+  content:'';
+  inline-size:7px; block-size:7px;
+  border-radius:2px; flex:none;
+  background:currentColor;
+}
+.plh-board-greet .plh-hero-title-big{ margin:7px 0 6px; line-height:1.08; }
+/* «הפרקט» באפרסק — em בתוך הכותרת, לא השם בשורה נפרדת כמו פעם */
+.plh-board-greet .plh-hero-name{
+  display:inline;
+  font:inherit;
+  letter-spacing:inherit;
+  font-style:normal;
+  text-shadow:none;
+  color:#F0A878;
+}
+.plh-board-greet .plh-hero-sub{
+  margin:0;
+  font-size:13.5px;
+  color:rgba(255,255,255,.66);
+  max-inline-size:38ch;
+}
+
+/* ---- כרטיס «האימון הבא» — זכוכית, שעה גדולה ---- */
+.pl-home-rich .plh-next{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  flex:none;
+  margin:0;
+  padding:13px 17px;
+  text-align:center;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+}
+.pl-home-rich .plh-next-tag{
+  background:none;
+  padding:0;
+  border-radius:0;
+  font-family:inherit;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+  color:rgba(255,255,255,.6);
+}
+.plh-next-time{
+  font-family:var(--font-display);
+  font-weight:900;
+  font-size:26px;
+  line-height:1;
+  margin:5px 0 1px;
+  color:#fff;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-0.02em;
+}
+.pl-home-rich .plh-next-when{
+  background:none;
+  backdrop-filter:none;
+  padding:0;
+  font-size:11.5px;
+  font-weight:500;
+  color:rgba(255,255,255,.62);
+}
+/* אימון שכבר מתחיל — הכרטיס מתחמם */
+.pl-home-rich .plh-next.live{ border-color:rgba(240,168,120,.5); }
+.pl-home-rich .plh-next.live .plh-next-tag{ color:#F0A878; }
+
+/* ---- הרגל: על הלילה עצמו, בתוך ריפוד הלוח ---- */
+.pl-home-rich .plh-hero > .plh-hero-foot{
+  background:transparent;
+  padding:0;
+  margin-block-start:20px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.pl-home-rich .plh-rsvp{ margin-inline:0; }
+
+/* ---- לוח המספרים: צמוד לתחתית, בתוך הריפוד, עם צבע לכל מדד ---- */
+.pl-home-rich .plh-stats{
+  margin:20px 0 0;
+  padding:0;
+  background:transparent;
+}
+.pl-home-rich .plh-stats .plh-stat{ padding:15px 4px 17px; }
+.pl-home-rich .plh-stat b{ font-size:28px; }
+.pl-home-rich .plh-stat[data-k='att'] b{ color:#7FD1A6; }
+.pl-home-rich .plh-stat[data-k='load'] b{ color:#F0A878; }
+.pl-home-rich .plh-stat[data-k='open'] b{ color:#fff; }
+.pl-home-rich .plh-stat[data-k='fb'] b{ color:#8FB6E8; }
+
+/* ---- מובייל: הלוח נערם, הכרטיס הופך לשורה, המספרים 2×2 ---- */
+@media (max-width:640px){
+  .pl-home-rich .plh-hero{ border-radius:20px; padding:20px 18px 0; }
+  .plh-arc{ inline-size:430px; block-size:430px; inset-block-start:-135px; }
+  .plh-arc.b{ inline-size:330px; block-size:330px; inset-block-start:-72px; }
+  .plh-board-top{ flex-direction:column; gap:14px; }
+  .pl-home-rich .plh-next{
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+    inline-size:100%;
+    padding:11px 14px;
+    text-align:start;
+  }
+  .plh-next-time{ font-size:22px; margin:0; }
+  .pl-home-rich .plh-stat b{ font-size:26px; }
+  /* 2×2: לשני העליונים קו תחתון, ולפותח כל שורה אין קו צד */
+  .pl-home-rich .plh-stats .plh-stat:nth-child(-n+2){
+    border-block-end:1px solid rgba(255,255,255,.07);
+  }
+  .pl-home-rich .plh-stats .plh-stat:nth-child(odd){ border-inline-start:none; }
+}
+
+/* ==========================================================================
+   7.8.2026 (ב) · «הלוח» גם אצל המאמן + תיקון פס «מגיע?» של השחקן
+   --------------------------------------------------------------------------
+   1) פס «מגיע?» בבית השחקן: הכלל של 30.7 (‎.plh-hero > .plh-hero-foot
+      .plh-rsvp‎) ספציפי יותר מהכלל של 4.8 — ולכן הרקע החם שבפרוטוטייפ
+      מעולם לא נראה באוויר. כאן הוא חוזר, עם סלקטור חזק ממנו.
+   2) בית המאמן עובר לשפת הלוח שאושרה: כרטיס לילה מעוגל עם שתי קשתות
+      (spans ב-Home.jsx), ארבעת המספרים כשורת לוח בתוך הבאנר, פס אישורי
+      ההגעה חם («תורך לפעול»), ותוויות המקטעים עם ריבוע חם/קר — הטקסט
+      עצמו נשאר באפור הקבוע, כמו אצל השחקן.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* ---- (1) פס «מגיע?» של השחקן — הרקע החם חוזר ---- */
+.pl-home-rich .plh-hero > .plh-hero-foot .plh-rsvp{
+  margin:0;
+  padding:14px 17px;
+  background:linear-gradient(90deg,rgba(232,118,58,.20),rgba(232,118,58,.06));
+  border:1px solid rgba(240,168,120,.42);
+  border-radius:16px;
+}
+
+/* ---- (2) הלוח של המאמן: כרטיס לילה מעוגל, לא רצועה ---- */
+.home .home-hero{
+  margin:0 0 18px;
+  border-radius:24px;
+  padding:24px 26px 0;
+  background:linear-gradient(160deg,#152238 0%,#0B1524 62%,#080F1B 100%);
+  box-shadow:none;
+  align-items:start;
+}
+/* סימן-המים והזוהר מפנים את הבמה לקשתות */
+.home .home-hero .home-art-fill,
+.home .home-hero .home-hero-glow{ display:none; }
+
+/* הפס, הציטוט והמספרים חוצים את שני טורי הגריד */
+.home .home-hero .cs-rsvp,
+.home .home-hero .home-hero-quote,
+.home .home-hero .home-stats{ grid-column:1 / -1; }
+
+/* התאריך — eyebrow עם ריבוע, כמו אצל השחקן */
+.home .home-hero .home-greet-date{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size:12.5px;
+  font-weight:800;
+  letter-spacing:.04em;
+  color:rgba(255,255,255,.62);
+}
+.home .home-hero .home-greet-date::before{
+  content:'';
+  inline-size:7px; block-size:7px;
+  border-radius:2px; flex:none;
+  background:currentColor;
+}
+/* השם בכותרת — אפרסק הלוח, לא כתום המותג המלא */
+.home .home-hero .hero-title-accent{ color:#F0A878; }
+
+/* פס אישורי ההגעה — חם: תורך לפעול */
+.home .home-hero .cs-rsvp{
+  margin:8px 0 0;
+  padding:12px 15px;
+  background:linear-gradient(90deg,rgba(232,118,58,.20),rgba(232,118,58,.06));
+  border:1px solid rgba(240,168,120,.42);
+  border-radius:16px;
+}
+
+/* הציטוט — שקט, מעל שורת המספרים */
+.home .home-hero .home-hero-quote{
+  margin:12px 0 0;
+  font-size:12.5px;
+  color:rgba(255,255,255,.55);
+}
+
+/* ארבעת המספרים — שורת לוח בתוך הבאנר, קווים מפרידים בלבד */
+.home .home-hero .home-stats{
+  margin:14px 0 0;
+  padding:0;
+  border-block-start:1px solid rgba(255,255,255,.10);
+}
+.home .home-hero .stat-tile{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  padding:15px 6px 17px;
+  background:none;
+  border:none;
+  border-inline-start:1px solid rgba(255,255,255,.07);
+  box-shadow:none;
+  text-align:center;
+}
+.home .home-hero .stat-tile:first-child{ border-inline-start:none; }
+.home .home-hero .stat-tile-num{ font-size:28px; color:#fff; }
+.home .home-hero .stat-tile[data-c='green'] .stat-tile-num{ color:#7FD1A6; }
+.home .home-hero .stat-tile[data-c='blue'] .stat-tile-num{ color:#8FB6E8; }
+.home .home-hero .stat-tile[data-c='orange'] .stat-tile-num{ color:#F0A878; }
+.home .home-hero .stat-tile-label{ font-size:11px; color:rgba(255,255,255,.52); }
+/* סגול אינו בפלטת הלילה — הנקודה שלו מלבינה */
+.home .home-hero .stat-tile[data-c='purple'] .stat-tile-label::before{
+  background:rgba(255,255,255,.6);
+}
+
+/* ---- תוויות המקטעים בבית: ריבוע חם/קר, טקסט אפור קבוע ---- */
+.home .sec-kicker,
+.home .hp-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:var(--text-muted);
+}
+.home .sec-kicker::before,
+.home .hp-eyebrow::before{
+  content:'';
+  inline-size:7px; block-size:7px;
+  border-radius:2px; flex:none;
+  background:var(--pl-cool);
+}
+.home .sec-kicker.warm::before,
+.home .hp-eyebrow.warm::before{ background:var(--accent); }
+
+/* הקשתות אצל המאמן: כלל scrim ותיק (position:relative על ילדי ההירו)
+   החזיר אותן לזרימה — והן הפכו לפריטי גריד של 640px שניפחו את הלוח.
+   מקבעים אבסולוטית עם סלקטור חזק ממנו. */
+.home .home-hero > .plh-arc{
+  position:absolute;
+  inset-block-start:-180px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  z-index:0;
+}
+.home .home-hero > .plh-arc.b{ inset-block-start:-100px; }
+/* minmax(0,·) — שלא יתנפחו הטורים שוב ממינימום־תוכן של ילד כלשהו */
+.home .home-hero{ grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); }
+/* שורת המספרים ירשה כרטיס לבן מהבסיס — על הלילה היא שקופה */
+.home .home-hero .home-stats{
+  background:none;
+  border:none;
+  border-block-start:1px solid rgba(255,255,255,.10);
+  border-radius:0;
+  box-shadow:none;
+}
+
+/* ---- מובייל: הלוח של המאמן נערם, המספרים 2×2 ---- */
+@media (max-width:640px){
+  .home .home-hero{ border-radius:20px; padding:20px 18px 0; grid-template-columns:minmax(0,1fr); }
+  .home .home-hero > .plh-arc{ inset-block-start:-135px; }
+  .home .home-hero > .plh-arc.b{ inset-block-start:-72px; }
+  .home .home-hero .stat-tile:nth-child(n+3){
+    border-top:1px solid rgba(255,255,255,.07);
+  }
+  .home .home-hero .stat-tile:nth-child(3){ border-inline-start:none; }
+}

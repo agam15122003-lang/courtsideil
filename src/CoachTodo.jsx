@@ -186,7 +186,7 @@ export default function CoachTodo({ session, onNavigate }) {
 
   return (
     <section className="ctd">
-      <span className="sec-kicker">{L('דברים לביצוע', 'To do')}</span>
+      <span className="sec-kicker warm">{L('דברים לביצוע', 'To do')}</span>
       {rows.length === 0 ? (
         <div className="ctd-clear">
           <CheckCircle2 size={18} aria-hidden="true" />

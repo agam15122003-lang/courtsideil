@@ -446,6 +446,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           <CourtArt variant="home" />
         </span>
         <span className="home-hero-glow" aria-hidden="true" />
+        {/* שתי הקשתות של הלוח — אותו סימן כמו בבית השחקן (7.8) */}
+        <span className="plh-arc" aria-hidden="true" />
+        <span className="plh-arc b" aria-hidden="true" />
         <div className="home-hero-text">
           <span className="home-greet-date">{dateLabel}</span>
           <h1 className="home-greet-title">
@@ -485,22 +488,23 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           <span className="hhq-text">{L(quote.text, quote.text_en)}</span>
           <span className="hhq-author">— {L(quote.author, quote.author_en)}</span>
         </p>
-      </header>
 
-      {/* פס סטטיסטיקות — כרטיס אחד מחולק לארבעה */}
-      <div className="home-stats">
-        {STAT_TILES.map((t) => (
-          <div key={t.key} className="stat-tile" data-c={t.c}>
-            <span className="stat-tile-ic"><t.Icon size={17} /></span>
-            {/* dir="ltr" — בלעדיו סימן האחוז נדחף לשמאל המספר ומתקבל «%87» */}
-            <span className="stat-tile-num" dir="ltr">
-              <StatNum value={t.value} decimals={t.dec} />
-              {t.pct && typeof t.value === 'number' && <span className="stat-tile-pct">%</span>}
-            </span>
-            <span className="stat-tile-label">{t.label}</span>
-          </div>
-        ))}
-      </div>
+        {/* לוח המספרים — בתוך הלוח, כשורת תוצאות עם קווים מפרידים (7.8).
+            עד עכשיו ישב מתחת לבאנר ככרטיס לבן נפרד. */}
+        <div className="home-stats">
+          {STAT_TILES.map((t) => (
+            <div key={t.key} className="stat-tile" data-c={t.c}>
+              <span className="stat-tile-ic"><t.Icon size={17} /></span>
+              {/* dir="ltr" — בלעדיו סימן האחוז נדחף לשמאל המספר ומתקבל «%87» */}
+              <span className="stat-tile-num" dir="ltr">
+                <StatNum value={t.value} decimals={t.dec} />
+                {t.pct && typeof t.value === 'number' && <span className="stat-tile-pct">%</span>}
+              </span>
+              <span className="stat-tile-label">{t.label}</span>
+            </div>
+          ))}
+        </div>
+      </header>
 
       {/* סדר המוקאפ (עמוד 3): באנר → אישורי הגעה → ארבעת המספרים →
           האימון הקרוב. בדסקטופ הכרטיס יושב בתוך הבאנר, לצד הברכה. */}

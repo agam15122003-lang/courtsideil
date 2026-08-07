@@ -1,0 +1,418 @@
+<meta charset="utf-8">
+<title>CourtSide — בית המאמן · גרסה 1</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Heebo:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* לילה — הבסיס */
+  --night:#0B1524; --night-2:#122036; --night-3:#1B2C46;
+  /* פרקט — חם, «תורך לפעול» */
+  --rust:#B34E1C; --ember:#E8763A; --peach:#F0A878; --cream:#FBF0DF;
+  /* נייבי — קר, «כבר נקבע» */
+  --steel:#1F4E8C; --steel-2:#2E6BB8; --steel-soft:#EAF1FA; --steel-ink:#173E70;
+  /* ירוק — סגור */
+  --go:#1F7A44; --go-soft:#E7F4EC; --go-ln:#BFE3CD;
+  /* ניטרלי */
+  --tx:#132038; --mut:#7A8AA0; --mut2:#4E6079;
+  --ln:#E4EAF2; --ln2:#F0F4F9; --sf:#fff; --bg:#EEF1F6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Rubik',system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--tx)}
+.page{direction:rtl;max-width:1280px;margin:0 auto;padding:22px 26px 40px}
+button{font-family:inherit}
+a{text-decoration:none}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.disp{font-family:'Heebo','Rubik',system-ui,sans-serif;font-weight:900}
+
+/* תוויות מקטע — זהות ל-.pl-section-label: 12.5px · 800 · 0.04em.
+   קוד הצבע חם/קר/ירוק יושב על הריבוע שלפני התווית, לא על הטקסט. */
+.eb{font-size:12.5px;font-weight:800;letter-spacing:.04em;color:var(--mut2);
+    display:inline-flex;align-items:center;gap:7px}
+.eb::before{content:'';width:7px;height:7px;border-radius:2px;flex:none;background:currentColor}
+.eb.cool::before{background:var(--steel)}
+.eb.warm::before{background:var(--ember)}
+.eb.done::before{background:var(--go)}
+.lnk{font-size:12.5px;font-weight:600;color:var(--mut2);background:none;border:none;cursor:pointer;padding:0}
+.lnk:hover{color:var(--tx)}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:18px;padding:18px 20px;
+      box-shadow:0 1px 2px rgba(19,32,56,.04)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
+
+/* ===== לוח הלילה של המאמן ===== */
+.board{position:relative;overflow:hidden;border-radius:24px;background:var(--night);color:#fff;padding:26px 28px 0;margin-bottom:18px}
+.arc{position:absolute;inset-block-start:-170px;inset-inline-start:50%;transform:translateX(50%);width:620px;height:620px;border-radius:50%;border:1.5px solid rgba(240,168,120,.16);pointer-events:none}
+.arc.b{width:470px;height:470px;inset-block-start:-95px;border-color:rgba(46,107,184,.28)}
+.board .top{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;position:relative}
+.board h1{font-size:34px;line-height:1.08;margin:7px 0 6px}
+.board h1 em{font-style:normal;color:var(--peach)}
+.board .sub{font-size:13.5px;color:rgba(255,255,255,.66);margin:0;max-width:44ch}
+.next{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:13px 17px;text-align:center;flex:none}
+.next .k{display:block;font-size:11px;font-weight:800;letter-spacing:.04em;color:rgba(255,255,255,.6)}
+.next .t{display:block;font-size:26px;margin:5px 0 1px}
+.next .w{font-size:11.5px;color:rgba(255,255,255,.62)}
+
+/* פס «תורך לפעול» — אצל המאמן: אימון שעוד פתוח */
+.ask{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;position:relative;
+     background:linear-gradient(90deg,rgba(232,118,58,.20),rgba(232,118,58,.07));
+     border:1px solid rgba(240,168,120,.42);border-radius:16px;padding:14px 17px}
+.ask b{font-size:15px}
+.ask .hint{display:block;font-size:11.5px;color:rgba(255,255,255,.62);margin-top:2px}
+.ask button{border-radius:11px;padding:11px 22px;cursor:pointer;font-size:13.5px;font-weight:700;
+     transition:transform .12s ease,background .12s ease,box-shadow .12s ease}
+.ask button:active{transform:scale(.97)}
+.ask button.yes{border:none;background:var(--ember);color:#12100C;box-shadow:0 6px 18px -8px rgba(232,118,58,.9)}
+.ask button.yes:hover{background:#F0873F}
+.ask button.no{border:1px solid rgba(255,255,255,.28);background:transparent;color:rgba(255,255,255,.86)}
+.ask button.no:hover{background:rgba(255,255,255,.10)}
+/* ירוק = סגור: אחרי שהכול טופל הפס לא נעלם — הוא מאשר */
+.ask.ok{background:rgba(31,122,68,.16);border-color:rgba(127,209,166,.4)}
+.ask.ok b::before{content:'✓ ';color:#7FD1A6}
+
+/* שורת המספרים — לוח תוצאות */
+.score{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;position:relative;
+       border-block-start:1px solid rgba(255,255,255,.10)}
+.score div{padding:16px 6px 18px;text-align:center;border-inline-start:1px solid rgba(255,255,255,.07)}
+.score div:first-child{border-inline-start:none}
+.score b{display:block;font-size:30px;line-height:1}
+.score span{display:block;font-size:11px;color:rgba(255,255,255,.52);margin-top:5px;letter-spacing:.04em}
+
+/* ===== עיתון ===== */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* דברים לביצוע — חם */
+.todo{display:flex;align-items:center;gap:12px;padding:13px 0;border-block-start:1px solid var(--ln2);
+      cursor:pointer;background:none;border-inline:none;border-block-end:none;width:100%;text-align:start;font-family:inherit}
+.todo:first-of-type{border-block-start:none;padding-block-start:4px}
+.todo .sq{width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;
+     background:rgba(232,118,58,.12);color:var(--rust);font-weight:800;font-size:14px}
+.todo .m{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.todo b{font-size:14.5px;font-weight:600;color:var(--tx)}
+.todo span{font-size:11.5px;color:var(--mut)}
+.todo .go{flex:none;font-size:12.5px;font-weight:700;color:var(--rust)}
+
+/* תוכנית היום — מחברת, קר */
+.nb-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.nb-title{font-size:19px;margin:0}
+.nb-pill{font-size:11.5px;font-weight:700;color:var(--steel-ink);background:var(--steel-soft);
+         border-radius:8px;padding:4px 10px;flex:none}
+.nb-rows{list-style:none;margin:12px 0 0;padding:0;counter-reset:d}
+.nb-rows li{display:flex;align-items:center;gap:11px;padding:10px 0;border-block-start:1px solid var(--ln2)}
+.nb-rows li:first-child{border-block-start:none}
+.nb-n{counter-increment:d;width:24px;height:24px;border-radius:8px;background:var(--steel-soft);color:var(--steel-ink);
+      display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+.nb-n::before{content:counter(d)}
+.nb-name{flex:1;font-size:14px;font-weight:600;min-width:0}
+.nb-min{font-size:12px;font-weight:700;color:var(--mut);flex:none}
+.nb-total{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding-block-start:12px;
+          border-block-start:1px solid var(--ln2);font-size:12.5px;color:var(--mut2)}
+.nb-total b{font-size:14px;color:var(--tx)}
+.nb-acts{display:flex;gap:9px;margin-top:14px}
+.btn{border-radius:11px;padding:10px 18px;cursor:pointer;font-size:13px;font-weight:700;transition:all .12s ease}
+.btn.navy{border:none;background:var(--night-2);color:#fff}
+.btn.navy:hover{background:var(--night-3)}
+.btn.ghost{border:1px solid var(--ln);background:#fff;color:var(--mut2)}
+.btn.ghost:hover{border-color:#CBD6E4;color:var(--tx)}
+
+/* דורש תשומת לב — חם */
+.att{display:flex;align-items:center;gap:12px;padding:12px 0;border-block-start:1px solid var(--ln2)}
+.att:first-of-type{border-block-start:none;padding-block-start:4px}
+.av{width:42px;height:42px;border-radius:13px;background:var(--cream);color:#8A6A34;display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.att .m{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.att b{font-size:14px;font-weight:600}
+.att .why{font-size:11.5px;color:var(--rust);font-weight:600}
+.att .why.mild{color:var(--mut2)}
+.att button{flex:none}
+.btn.sm{padding:8px 14px;font-size:12px}
+
+/* קהילה — ניטרלי */
+.post{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-block-start:1px solid var(--ln2)}
+.post:first-of-type{border-block-start:none;padding-block-start:4px}
+.pth{width:52px;height:52px;border-radius:12px;flex:none}
+.post .m{display:flex;flex-direction:column;gap:3px;min-width:0}
+.post b{font-size:12px;font-weight:700;color:var(--mut2)}
+.post span{font-size:13.5px;line-height:1.45}
+
+/* ===== סרגל ===== */
+.side .card{padding:15px 16px}
+.wk{display:flex;align-items:center;gap:10px;padding:10px 0;border-block-start:1px solid var(--ln2)}
+.wk:first-of-type{border-block-start:none}
+.wk .bar{width:3px;align-self:stretch;border-radius:99px;flex:none}
+.wk .m{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.wk b{font-size:12.5px;font-weight:600}
+.wk .w{font-size:11px;color:var(--mut)}
+.wk .w.warn{color:var(--rust);font-weight:600}
+.wk .t{font-size:12.5px;font-weight:700}
+
+/* מאמן השבוע — הקהילה מרימה */
+.cw{display:flex;align-items:center;gap:11px}
+.cwa{width:40px;height:40px;border-radius:13px;background:var(--steel-soft);color:var(--steel-ink);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.cwm{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.cwm b{font-size:13.5px}
+.cwm span{font-size:11px;color:var(--mut)}
+
+/* ציטוט ליום — לילה, שקט */
+.qc{background:var(--night-2);border:1px solid rgba(255,255,255,.08)}
+.qc .eb{color:rgba(255,255,255,.72)}
+.qc .eb::before{background:var(--steel-2)}
+.qc p{font-size:14.5px;line-height:1.6;color:#fff;margin:10px 0 5px;font-weight:500}
+.qc span{font-size:11.5px;color:rgba(255,255,255,.55)}
+
+/* תוכן והשראה — רשימת קישורים שקטה */
+.res{display:flex;align-items:center;gap:9px;padding:9px 0;border-block-start:1px solid var(--ln2);color:var(--tx)}
+.res:first-of-type{border-block-start:none}
+.res b{font-size:12.5px;font-weight:600;flex:1}
+.res span{font-size:11px;color:var(--mut)}
+
+/* ===== כתבות — תחתית, קר ===== */
+.news{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.nc{display:flex;flex-direction:column}
+.nth{height:96px;border-radius:12px;position:relative;overflow:hidden}
+.nth::after{content:'';position:absolute;inset:0;border:1px solid rgba(255,255,255,.10);border-radius:12px}
+.nsrc{position:absolute;inset-block-end:7px;inset-inline-start:8px;font-size:10px;font-weight:700;color:#fff;
+      background:rgba(11,21,36,.72);border-radius:6px;padding:3px 7px}
+.nt{display:block;font-size:12.5px;font-weight:600;margin-top:8px;line-height:1.4}
+.nm{display:block;font-size:11px;color:var(--mut);margin-top:3px}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .news{grid-template-columns:repeat(2,1fr)}
+  .board .top{flex-direction:column}
+  .score{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ============================================================
+   מובייל — פריסה אחרת, לא הצרה של המסך הרחב.
+   (1) לוח 2×2. (2) «דברים לביצוע» ראשונים — בטלפון המאמן פותח
+   כדי לדעת מה דורש אותו. (3) הלו״ז — רצועה אופקית באגודל.
+   ============================================================ */
+@media (max-width:640px){
+  .page{padding:12px 12px 26px}
+  .board{border-radius:20px;padding:20px 18px 0;margin-bottom:14px}
+  .arc{width:420px;height:420px;inset-block-start:-130px}
+  .arc.b{width:320px;height:320px;inset-block-start:-70px}
+  .board .top{flex-direction:column;gap:14px}
+  .board h1{font-size:26px}
+  .board .sub{font-size:12.5px;max-width:none}
+  .next{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:start;padding:11px 14px}
+  .next .t{font-size:22px;margin:0}
+  .ask{flex-direction:column;align-items:stretch;gap:12px;margin-top:16px}
+  .ask > div:last-child{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .ask button{width:100%;padding:13px 0}
+  .score{grid-template-columns:repeat(2,1fr)}
+  .score div:nth-child(-n+2){border-block-end:1px solid rgba(255,255,255,.07)}
+  .score div:nth-child(odd){border-inline-start:none}
+  .score b{font-size:26px}
+
+  .grid{grid-template-columns:1fr;gap:14px}
+  .col{gap:14px}
+  .col.side{order:2}
+  .card{padding:15px 16px;border-radius:16px}
+
+  /* הלו״ז — רצועה אופקית, יום לכרטיס */
+  #week{display:flex;gap:9px;overflow-x:auto;padding-block-end:4px;scroll-snap-type:x mandatory;
+        margin-inline:-16px;padding-inline:16px}
+  #week::-webkit-scrollbar{display:none}
+  .wk{flex-direction:column;align-items:flex-start;gap:7px;min-width:132px;flex:none;
+      border:1px solid var(--ln);border-radius:13px;padding:11px 12px;scroll-snap-align:start;
+      border-block-start:1px solid var(--ln)}
+  .wk .bar{width:26px;height:3px;align-self:auto}
+  .wk .t{font-size:15px}
+
+  .news{grid-template-columns:repeat(2,1fr);gap:10px}
+  .todo .sq{width:40px;height:40px}
+  .btn{padding:12px 18px}
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+
+  <div class="board">
+    <div class="arc"></div><div class="arc b"></div>
+
+    <div class="top">
+      <div>
+        <span class="eb" style="color:rgba(255,255,255,.62)">יום חמישי · 7.8</span>
+        <h1 class="disp">ערב טוב, <em>אגם</em></h1>
+        <p class="sub" id="sub">3 דברים ממתינים לך, והאימון הבא היום ב-18:30.</p>
+      </div>
+      <div class="next">
+        <span class="k">האימון הבא</span>
+        <b class="t disp num" dir="ltr">18:30</b>
+        <span class="w">היום · קטסל א׳ · אולם ויתקין</span>
+      </div>
+    </div>
+
+    <div class="ask" id="openS">
+      <div>
+        <b>האימון של יום ג׳ עוד פתוח</b>
+        <span class="hint">נוכחות לא סומנה · 4 שחקנים בלי משוב</span>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="yes" id="closeS">סגור את האימון</button>
+        <button class="no" id="laterS">אחר כך</button>
+      </div>
+    </div>
+
+    <div class="score">
+      <div><b class="disp num" style="color:#7FD1A6">87%</b><span>נוכחות הקבוצה</span></div>
+      <div><b class="disp num" style="color:#8FB6E8">4</b><span>אימונים השבוע</span></div>
+      <div><b class="disp num" id="todoN" style="color:var(--peach)">3</b><span>דברים לביצוע</span></div>
+      <div><b class="disp num" style="color:#fff">11</b><span>תוכניות</span></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+
+      <section class="card">
+        <div class="head"><span class="eb warm" id="todoEb">דברים לביצוע</span></div>
+        <div id="todos"></div>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb cool">תוכנית האימון · היום</span><button class="lnk">למחברת המלאה ←</button></div>
+        <div class="nb-head">
+          <h3 class="nb-title disp">מעברים מהירים והגנת לחץ</h3>
+          <span class="nb-pill"><bdi dir="ltr">18:30</bdi> · קטסל א׳</span>
+        </div>
+        <ol class="nb-rows">
+          <li><span class="nb-n"></span><span class="nb-name">חימום עם כדור</span><b class="nb-min num" dir="ltr">10 דק׳</b></li>
+          <li><span class="nb-n"></span><span class="nb-name">מסירות בתנועה — שלשות</span><b class="nb-min num" dir="ltr">15 דק׳</b></li>
+          <li><span class="nb-n"></span><span class="nb-name">מעבר מהיר 3 על 2</span><b class="nb-min num" dir="ltr">20 דק׳</b></li>
+          <li><span class="nb-n"></span><span class="nb-name">משחקון סיום</span><b class="nb-min num" dir="ltr">15 דק׳</b></li>
+        </ol>
+        <div class="nb-total"><span>מבנה האימון</span><b class="num" dir="ltr">60 דק׳</b></div>
+        <div class="nb-acts">
+          <button class="btn navy">פתח את המחברת</button>
+          <button class="btn ghost">נוכחות</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb warm">דורש תשומת לב</span><button class="lnk">כל הסגל ←</button></div>
+        <div class="att">
+          <span class="av">י</span>
+          <span class="m"><b>יואב לוי</b><span class="why">נוכחות 55% בחודש</span></span>
+          <button class="btn ghost sm">פרופיל</button>
+        </div>
+        <div class="att">
+          <span class="av">ד</span>
+          <span class="m"><b>דניאל כהן</b><span class="why mild">4 אימונים בלי משוב</span></span>
+          <button class="btn ghost sm">פרופיל</button>
+        </div>
+        <div class="att">
+          <span class="av">א</span>
+          <span class="m"><b>איתי מזרחי</b><span class="why">3 היעדרויות ברצף — שווה שיחה</span></span>
+          <button class="btn ghost sm">פרופיל</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb cool">חדש בקהילה</span><button class="lnk">לכל הפיד ←</button></div>
+        <div class="post">
+          <span class="pth" style="background:linear-gradient(145deg,#122036,#1F4E8C)"></span>
+          <span class="m"><b>אבי כהן · הפועל חדרה</b><span>תרגיל חדש למסירות תחת לחץ — עבד מצוין עם קבוצת הנערים.</span></span>
+        </div>
+        <div class="post">
+          <span class="pth" style="background:linear-gradient(165deg,#1B2C46,#B34E1C)"></span>
+          <span class="m"><b>נועה שרון · מכבי רעננה</b><span>שיתפה צילומים מטורניר סוף העונה.</span></span>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="col side">
+
+      <section class="card">
+        <div class="head"><span class="eb cool">לו״ז השבוע</span><button class="lnk">הכל ←</button></div>
+        <div id="week"></div>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb cool">מאמן השבוע</span><button class="lnk">לקהילה ←</button></div>
+        <div class="cw">
+          <span class="cwa">ר</span>
+          <span class="cwm"><b>רון לוי</b><span>הפועל צפון · 12 שנות אימון</span></span>
+        </div>
+      </section>
+
+      <section class="card qc">
+        <span class="eb">ציטוט ליום</span>
+        <p>״אימון קשה — משחק קל.״</p>
+        <span>פתגם אולמות · מהמחברת</span>
+      </section>
+
+      <section class="card">
+        <div class="head"><span class="eb cool">תוכן והשראה</span></div>
+        <a class="res" href="#"><b>ספריית התרגילים של FIBA</b><span>אתר ↗</span></a>
+        <a class="res" href="#"><b>מדריך אימון גילאי קטסל</b><span>PDF ↗</span></a>
+        <a class="res" href="#"><b>ערוץ הווידאו של איגוד הכדורסל</b><span>יוטיוב ↗</span></a>
+      </section>
+
+    </div>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <div class="head"><span class="eb cool">מהתקשורת · כדורסל ישראלי</span><button class="lnk">עוד ←</button></div>
+    <div class="news" id="news"></div>
+  </section>
+</div>
+
+<script>
+const TODOS=[
+ {id:'a',sq:'2',t:'שני שחקנים בלי יעד פעיל',s:'קטסל א׳ · יואב, איתי',go:'להגדיר ←'},
+ {id:'b',sq:'1',t:'בקשת הצטרפות ממתינה לאישור',s:'אישור מהיר — והשחקן בפנים',go:'לאשר ←'},
+ {id:'c',sq:'1',t:'משימה שעבר זמנה ממתינה לסגירה',s:'כדרור יד חלשה · נשלחה 28.7',go:'לסגור ←'}];
+const done={};
+
+function paint(){
+  const open=TODOS.filter(t=>!done[t.id]);
+  document.getElementById('todos').innerHTML = open.length ? open.map(t=>
+   `<button class="todo" data-t="${t.id}">
+      <span class="sq num">${t.sq}</span>
+      <span class="m"><b>${t.t}</b><span>${t.s}</span></span>
+      <span class="go">${t.go}</span></button>`).join('')
+   : '<p style="font-size:13.5px;color:var(--mut2);margin:2px 0 4px">הכול סגור. האימון הבא היום ב-18:30 — המחברת מוכנה.</p>';
+  document.getElementById('todoN').textContent=open.length;
+  const eb=document.getElementById('todoEb');
+  eb.className = open.length ? 'eb warm' : 'eb done';
+  document.getElementById('sub').textContent = open.length
+    ? `${open.length===1?'דבר אחד ממתין':open.length+' דברים ממתינים'} לך, והאימון הבא היום ב-18:30.`
+    : 'הכול סגור — נתראה היום ב-18:30.';
+}
+document.getElementById('todos').addEventListener('click',e=>{
+  const r=e.target.closest('[data-t]'); if(!r) return;
+  done[r.dataset.t]=true; paint();
+});
+paint();
+
+/* פס האימון הפתוח: «סגור» מדמה טיפול → הפס הופך ירוק. «אחר כך» מעלים. */
+document.getElementById('closeS').onclick=()=>{
+  const s=document.getElementById('openS');
+  s.className='ask ok';
+  s.innerHTML='<div><b>האימון של יום ג׳ נסגר</b><span class="hint">נוכחות סומנה ו-4 המשובים נשלחו</span></div>';
+};
+document.getElementById('laterS').onclick=()=>{document.getElementById('openS').style.display='none'};
+
+const WEEK=[
+ {d:'חמישי 7.8',w:'תוכנית מוכנה · מעברים מהירים',t:'18:30',c:'var(--steel)',warn:false},
+ {d:'ראשון 10.8',w:'אין תוכנית — לבנות',t:'17:00',c:'var(--steel)',warn:true},
+ {d:'שלישי 12.8',w:'אימון אישי · דניאל',t:'11:00',c:'var(--peach)',warn:false},
+ {d:'חמישי 14.8',w:'משחק מול מכבי חדרה',t:'19:00',c:'var(--night)',warn:false}];
+document.getElementById('week').innerHTML=WEEK.map(w=>
+ `<div class="wk"><span class="bar" style="background:${w.c}"></span>
+   <span class="m"><b>${w.d}</b><span class="w ${w.warn?'warn':''}">${w.w}</span></span>
+   <span class="t num" dir="ltr">${w.t}</span></div>`).join('');
+
+const NEWS=[
+ {t:'מכבי ת״א פתחה את ההכנה לעונה בניצחון',s:'ספורט 5',d:'6 באוגוסט',g:'145deg,#122036,#1F4E8C'},
+ {t:'נבחרת הקדטים עלתה לחצי גמר אליפות אירופה',s:'ONE',d:'5 באוגוסט',g:'160deg,#1B2C46,#B34E1C'},
+ {t:'ליגת ווינר: לוח המשחקים המלא פורסם',s:'ישראל היום',d:'5 באוגוסט',g:'175deg,#0B1524,#2E6BB8'},
+ {t:'פרויקט חדש לקידום כדורסל נשים בפריפריה',s:'ספורט 1',d:'4 באוגוסט',g:'150deg,#122036,#15803D'}];
+document.getElementById('news').innerHTML=NEWS.map(n=>
+ `<a class="nc" href="#"><span class="nth" style="background:linear-gradient(${n.g})"><span class="nsrc">${n.s}</span></span>
+   <span class="nt">${n.t}</span><span class="nm">${n.d}</span></a>`).join('');
+</script>

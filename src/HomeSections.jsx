@@ -19,11 +19,13 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const hm = (t) => (t ? String(t).slice(0, 5) : '')
 const DAYS = [['א', 'Su'], ['ב', 'Mo'], ['ג', 'Tu'], ['ד', 'We'], ['ה', 'Th'], ['ו', 'Fr'], ['ש', 'Sa']]
 
-// כותרת סקשן: eyebrow כתום + כותרת + קישור «הכל ←» בקצה
-export function SecHead({ eyebrow, title, linkLabel, onLink }) {
+// כותרת סקשן: eyebrow + כותרת + קישור «הכל ←» בקצה.
+// tone (7.8) — שפת הצבע של ההאנדוף: warm=תורך לפעול · cool=כבר נקבע.
+// הצבע יושב על הריבוע שלפני התווית, לא על הטקסט.
+export function SecHead({ eyebrow, title, linkLabel, onLink, tone }) {
   return (
     <div className="hp-sechead">
-      <span className="hp-eyebrow">{eyebrow}</span>
+      <span className={tone ? `hp-eyebrow ${tone}` : 'hp-eyebrow'}>{eyebrow}</span>
       <h2 className="hp-title">{title}</h2>
       {onLink && (
         <button type="button" className="link-button hp-seclink" onClick={onLink}>
@@ -164,7 +166,7 @@ export function TodayPlanCard({ session, profile, schedule, onNavigate }) {
 
   return (
     <>
-      <SecHead eyebrow={L('היום', 'Today')} title={L('תוכנית האימון', "Today's plan")} />
+      <SecHead tone="cool" eyebrow={L('היום', 'Today')} title={L('תוכנית האימון', "Today's plan")} />
       <div className="hp-nb">
         <div className="hp-nb-head">
           <span className="hp-nb-club">— {profile?.club || 'CourtSide'}</span>
@@ -246,7 +248,7 @@ export function WeekSchedule({ session, schedule, onNavigate }) {
   if (rows === null) {
     return (
       <>
-        <SecHead eyebrow={L('לו״ז', 'Schedule')} title={L('השבוע', 'This week')} />
+        <SecHead tone="cool" eyebrow={L('לו״ז', 'Schedule')} title={L('השבוע', 'This week')} />
         <SkeletonCards count={3} lines={1} />
       </>
     )
@@ -256,6 +258,7 @@ export function WeekSchedule({ session, schedule, onNavigate }) {
   return (
     <>
       <SecHead
+        tone="cool"
         eyebrow={L('לו״ז', 'Schedule')}
         title={L('השבוע', 'This week')}
         linkLabel={L('כל הלו״ז', 'Full schedule')}
@@ -358,7 +361,7 @@ export function NeedsAttention({ session, onNavigate }) {
   if (players === null) {
     return (
       <>
-        <SecHead eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
+        <SecHead tone="warm" eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
         <SkeletonRoster count={3} />
       </>
     )
@@ -367,7 +370,7 @@ export function NeedsAttention({ session, onNavigate }) {
   if (!players.length) {
     return (
       <>
-        <SecHead eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
+        <SecHead tone="warm" eyebrow={L('הסגל', 'Roster')} title={L('דורש תשומת לב', 'Needs attention')} />
         <p className="hp-att-clear">
           {L('כרגע אין שחקנים שדורשים תשומת לב — כולם עם נוכחות תקינה ומשוב עדכני.', 'No players need attention right now — everyone has solid attendance and recent feedback.')}
         </p>
@@ -378,6 +381,7 @@ export function NeedsAttention({ session, onNavigate }) {
   return (
     <>
       <SecHead
+        tone="warm"
         eyebrow={L('הסגל', 'Roster')}
         title={L('דורש תשומת לב', 'Needs attention')}
         linkLabel={L('כל הסגל', 'Full roster')}

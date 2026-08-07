@@ -1583,8 +1583,9 @@ function HeroStats({ stats, setView }) {
   ]
   return (
     <div className="plh-stats">
+      {/* data-k — צבע לכל מספר לפי הפרוטוטייפ (ירוק/אפרסק/לבן/תכלת) */}
       {tiles.map((t) => (
-        <button key={t.k} type="button" className="plh-stat" onClick={() => setView(t.go)}>
+        <button key={t.k} type="button" className="plh-stat" data-k={t.k} onClick={() => setView(t.go)}>
           <b className={t.hot ? 'hot' : ''} dir="ltr">{t.num}</b>
           <span>{t.lbl}</span>
         </button>
@@ -1839,68 +1840,65 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
   const hour = new Date().getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
-  let dd = '00', hh = '00', mm = '00', ss = '00', started = false, whenStr = '', titleStr = ''
+  // «עכשיו» — מרגע תחילת האימון ועד סופו. שאר משתני הספירה ירדו יחד
+  // עם ההצגה הישנה של התג; הלוח מציג שעה גדולה ויום+מקום מתחתיה.
+  let started = false
   if (next) {
     const start = new Date(`${next.date}T${next.start_time || '00:00'}`)
-    const diff = Math.max(0, start.getTime() - now)
     started = start.getTime() - now <= 0 && new Date(`${next.date}T${next.end_time || next.start_time || '23:59'}`).getTime() >= now
-    const pad = (n) => String(n).padStart(2, '0')
-    dd = pad(Math.floor(diff / 86400000)); hh = pad(Math.floor((diff % 86400000) / 3600000)); mm = pad(Math.floor((diff % 3600000) / 60000)); ss = pad(Math.floor((diff % 60000) / 1000))
-    // «מחר · 18:00 · אולם ויתקין» — dayLabel נותן «היום»/«מחר» וכל השאר
-    // נופל לשם היום. קודם הוצג התאריך המלא, שהעיצוב לא מציג.
-    whenStr = dayLabel(next.date) + (next.start_time ? ` · ${next.start_time.slice(0, 5)}` : '') + (next.location ? ` · ${next.location}` : '')
-    titleStr = next.title || L('אימון קבוצתי', 'Team practice')
   }
   const isGame = next?.kind === 'game'
 
+  // הלוח שאושר (v4): הכרטיס מציג שעה גדולה, והיום+המקום בשורה הקטנה
+  const timeBig = next?.start_time ? next.start_time.slice(0, 5) : (next ? dayLabel(next.date) : '')
+  const whenSmall = next
+    ? [next.start_time ? dayLabel(next.date) : null, next.location].filter(Boolean).join(' · ')
+    : ''
+
   return (
     <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
-      {/* מסך 3b בנוי משלוש רצועות: תמונה בגובה 292 עם התוכן עליה,
-          רצועת «מגיע?» מתחתיה, ופס ארבעת המספרים אחרון. */}
-      {/* העיצוב מראה כאן צילום של השחקן באימון. אין לזה עמודה בסכימה,
-          והחלטת הבעלים היא גרדיאנט עד שתהיה דרך להעלות צילום אמיתי. */}
-      <div className="plh-hero-media">
-        <span className="plh-hero-glow" aria-hidden="true" />
-        {/* סימן-מים של מגרש (דפוס 1 במסמך העיצוב) — מחליף את אימוג'י הכדור */}
-        <svg className="plh-hero-court" viewBox="0 0 400 200" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <rect x="4" y="4" width="392" height="192" rx="8" />
-          <line x1="200" y1="4" x2="200" y2="196" />
-          <circle cx="200" cy="100" r="34" />
-          <rect x="4" y="58" width="76" height="84" />
-          <rect x="320" y="58" width="76" height="84" />
-          <path d="M80 4 A96 96 0 0 1 80 196" />
-          <path d="M320 4 A96 96 0 0 0 320 196" />
-        </svg>
-        <div className="plh-hero-bottom">
-      {next && (
-        <div className={started ? 'plh-next live' : 'plh-next'}>
-          <span className="plh-next-tag">
-            {started
-              ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
-              : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
-          </span>
-          <span className="plh-next-when">{whenStr}</span>
-        </div>
-      )}
+      {/* שתי הקשתות — הסימן של הלוח, כמו קווי הצבע על הפרקט.
+          עד עכשיו הקשת השנייה נבנתה מ-plh-hero-court שישב בתוך
+          plh-hero-media המוסתר — ולכן לא נראתה בכלל. */}
+      <span className="plh-arc" aria-hidden="true" />
+      <span className="plh-arc b" aria-hidden="true" />
 
-      <div className="plh-hero-head">
-        <h1 className="plh-hero-title-big">
-          <span className="plh-hero-greet">{greet},</span>{' '}
-          <span className="plh-hero-name" dir="auto">{profile.first_name}</span>
-        </h1>
-        {/* שורה אחת שאומרת מה מחכה לך — במקום שם הקבוצה והמאמן, שכבר
-            מופיעים בפס למעלה ובסרגל הניווט. */}
-        <p className="plh-hero-sub">
-          {!membership
-            ? L('מצטרפים לקבוצה עם קוד מהמאמן ומתחילים', 'Join your team with a code from your coach')
-            : [
-                stats?.open > 0 ? L(cnt(stats.open, 'משימה פתוחה אחת', 'משימות פתוחות'), stats.open + ' open tasks') : null,
-                summary?.state === 'ask' ? L('נשאר לסכם את האימון של היום', "today's practice still needs a summary") : null,
-                next ? (isGame ? L('ומשחק בדרך', 'and a game coming up') : null) : L('אין אימון קרוב בלו״ז', 'no upcoming practice'),
-              ].filter(Boolean).join(' · ') || L('הכול מסודר — נתראה באימון', "You're all set — see you at practice")}
-        </p>
-      </div>
+      {/* ראש הלוח: ברכה מימין, כרטיס «האימון הבא» זכוכיתי משמאל (v4).
+          המבנה הקודם קינן את כל זה בתוך plh-hero-media — שבלוק (יד)
+          הסתיר, וכך הבאנר עלה לאוויר בלי שם, בלי כותרת ובלי האימון הבא. */}
+      <div className="plh-board-top">
+        <div className="plh-board-greet">
+          <span className="plh-board-eyebrow">
+            {greet}{profile.first_name ? L(`, ${profile.first_name}`, `, ${profile.first_name}`) : ''}
+          </span>
+          <h1 className="plh-hero-title-big">
+            {L('מחכים לך על ', 'See you on the ')}
+            <em className="plh-hero-name">{L('הפרקט', 'hardwood')}</em>
+          </h1>
+          {/* שורה אחת שאומרת מה מחכה לך — במקום שם הקבוצה והמאמן, שכבר
+              מופיעים בפס למעלה ובסרגל הניווט. */}
+          <p className="plh-hero-sub">
+            {!membership
+              ? L('מצטרפים לקבוצה עם קוד מהמאמן ומתחילים', 'Join your team with a code from your coach')
+              : [
+                  stats?.open > 0 ? L(cnt(stats.open, 'משימה פתוחה אחת', 'משימות פתוחות'), stats.open + ' open tasks') : null,
+                  summary?.state === 'ask' ? L('נשאר לסכם את האימון של היום', "today's practice still needs a summary") : null,
+                  next ? (isGame ? L('ומשחק בדרך', 'and a game coming up') : null) : L('אין אימון קרוב בלו״ז', 'no upcoming practice'),
+                ].filter(Boolean).join(' · ') || L('הכול מסודר — נתראה באימון', "You're all set — see you at practice")}
+          </p>
         </div>
+
+        {next && (
+          <div className={started ? 'plh-next live' : 'plh-next'}>
+            <span className="plh-next-tag">
+              {started
+                ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
+                : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
+            </span>
+            <b className="plh-next-time" dir="ltr">{timeBig}</b>
+            <span className="plh-next-when">{whenSmall}</span>
+          </div>
+        )}
       </div>
 
       <div className="plh-hero-foot">
