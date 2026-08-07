@@ -23708,3 +23708,102 @@ html[data-theme='dark']{
 }
 @media (prefers-reduced-motion:reduce){ .plh-scale button{ transition:none; } }
 html.a11y-motion .plh-scale button{ transition:none; }
+
+/* ==========================================================================
+   4.8.2026 (יד) · הבאנר — יישום הפרוטוטייפ שאושר
+   --------------------------------------------------------------------------
+   הבלוק הקודם יישם את מערכת הצבע ואת לוח התוצאות, אבל השאיר את הבאנר
+   כפי שהיה — וזה החלק הכי נראה בפרוטוטייפ. כאן הוא נסגר: רקע לילה נקי
+   במקום תמונה, שתי קשתות במקום זוהר, ופס «מגיע לאימון?» בגוון חם.
+
+   בלי שינוי JSX. כל מה שכאן הוא עיצוב על המבנה הקיים, ולכן אין סיכון
+   לפונקציונליות של המסך שהשחקנים משתמשים בו בפועל.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+@media (min-width:1px){
+  /* רקע לילה נקי. התמונה והשכבה הכהה מעליה יצרו עומק עכור שהתחרה
+     בטקסט; בפרוטוטייפ הרקע שקט והטקסט הוא הגיבור. */
+  .pl-home-rich .plh-hero{
+    background:linear-gradient(160deg,#152238 0%,#0B1524 62%,#080F1B 100%);
+    min-height:auto;
+  }
+  .pl-home-rich .plh-hero .plh-hero-media,
+  .pl-home-rich .plh-hero .plh-hero-glow,
+  .pl-home-rich .plh-hero .plh-hero-ball{ display:none; }
+  .pl-home-rich .plh-hero::after{ background:none; }
+
+  /* שתי קשתות — קווי צבע כמו על הפרקט. הסימן של המסך.
+     נבנות מ-::before של הבאנר ומ-.plh-hero-court הקיים. */
+  .pl-home-rich .plh-hero::before{
+    content:'';
+    position:absolute;
+    inset-block-start:-180px;
+    inset-inline-start:50%;
+    transform:translateX(50%);
+    inline-size:640px; block-size:640px;
+    border-radius:50%;
+    border:1.5px solid rgba(240,168,120,.15);
+    pointer-events:none;
+  }
+  .pl-home-rich .plh-hero-court{
+    inset:auto; position:absolute;
+    inset-block-start:-100px; inset-inline-start:50%;
+    transform:translateX(50%);
+    inline-size:480px; block-size:480px;
+    border-radius:50%;
+    border:1.5px solid rgba(46,107,184,.28);
+    opacity:1;
+  }
+  .pl-home-rich .plh-hero-court > *{ display:none; }
+
+  /* «מגיע לאימון?» — הפעולה החמה, לא עוד שורה כהה */
+  .pl-home-rich .plh-rsvp{
+    background:linear-gradient(90deg,rgba(232,118,58,.20),rgba(232,118,58,.06));
+    border:1px solid rgba(240,168,120,.42);
+    border-radius:16px;
+    padding:14px 17px;
+    margin-inline:22px;
+  }
+  /* «מגיע» הוא הכפתור הראשי — הפעולה הצפויה, בלי לסמן תשובה מראש */
+  .pl-home-rich .plh-rsvp-btn.yes{
+    background:var(--accent);
+    border-color:transparent;
+    color:#12100C;
+    font-weight:700;
+    box-shadow:0 6px 18px -8px rgba(232,118,58,.9);
+  }
+  .pl-home-rich .plh-rsvp-btn.no{
+    background:transparent;
+    border:1px solid rgba(255,255,255,.28);
+    color:rgba(255,255,255,.86);
+  }
+  .pl-home-rich .plh-rsvp-btn.no:hover{ background:rgba(255,255,255,.10); }
+
+  /* לוח התוצאות נצמד לתחתית הבאנר במקום לרחף מתחתיו */
+  .pl-home-rich .plh-stats{
+    margin-block-start:18px;
+    background:transparent;
+    border:none;
+    border-block-start:1px solid rgba(255,255,255,.10);
+    border-radius:0;
+    box-shadow:none;
+  }
+  .pl-home-rich .plh-stats .plh-stat{
+    background:transparent;
+    border:none;
+    border-inline-start:1px solid rgba(255,255,255,.07);
+    border-radius:0;
+    box-shadow:none;
+    color:#fff;
+  }
+  .pl-home-rich .plh-stats .plh-stat:first-child{ border-inline-start:none; }
+  .pl-home-rich .plh-stats .plh-stat .muted,
+  .pl-home-rich .plh-stats .plh-stat span:last-child{ color:rgba(255,255,255,.52); }
+}
+
+@media (max-width:640px){
+  .pl-home-rich .plh-hero::before{ inline-size:430px; block-size:430px; inset-block-start:-135px; }
+  .pl-home-rich .plh-hero-court{ inline-size:330px; block-size:330px; inset-block-start:-72px; }
+  .pl-home-rich .plh-rsvp{ margin-inline:16px; }
+}
