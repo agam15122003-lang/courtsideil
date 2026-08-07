@@ -543,7 +543,13 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 // ממילא באותה רשימה (player_assignments), והכרטיס הזה עונה על השאלה
 // «ממי זה הגיע» בלי להוסיף יעד ניווט שמינימנו.
 function MyPersonalCoaches({ session }) {
-  const [rows, setRows] = useState(null) // null = טוען, [] = אין
+  // ⚠ מתחיל כמערך ריק ולא כ-null, במכוון.
+  // הגרסה הקודמת התחילה ב-null והחזירה null עד שהשאילתה ענתה — כלומר
+  // הכרטיס **לא היה קיים** בזמן הטעינה, וכל תקלה בצד השרת (טבלה חסרה,
+  // הרשאה, בקשה שלא נפתרת) הסתירה אותו לגמרי. הכרטיס הוא נקודת הכניסה
+  // היחידה להזנת קוד המאמן — אסור שהוא יהיה תלוי בתשובה כלשהי מהשרת.
+  // עכשיו הוא מרונדר תמיד, והנתונים רק ממלאים אותו.
+  const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [tick, setTick] = useState(0) // טעינה מחדש אחרי בקשה שנשלחה
 
@@ -567,8 +573,6 @@ function MyPersonalCoaches({ session }) {
     return () => { alive = false }
   }, [session.user.id, tick])
 
-  // בזמן הטעינה לא מהבהבים כרטיס ריק
-  if (!rows) return null
 
   return (
     <div className="pl-pcoach">
