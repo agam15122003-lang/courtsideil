@@ -539,6 +539,109 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 }
 
 // ---------- מסך: התרגילים שלי (עם סינון והתקדמות, כולל התקדמות חלקית) ----------
+// ---------- כרטיס יעדים לסרגל הצד של הבית ----------
+// גרסה מכווצת של «היעדים שלי»: שלושה יעדים פעילים עם בר התקדמות,
+// וקישור למסך המלא. לא מחליף אותו — נותן הצצה.
+function HomeGoals({ session, setView }) {
+  const [goals, setGoals] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('player_goals')
+        .select('id, title, metric_type, target_value, progress_value, unit, status')
+        .eq('player_id', session.user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(3)
+      if (alive) setGoals(error ? [] : data || [])
+    })().catch(() => { if (alive) setGoals([]) })
+    return () => { alive = false }
+  }, [session.user.id])
+
+  if (goals.length === 0) return null
+
+  return (
+    <section className="plh-side-card">
+      <div className="plh-side-head">
+        <span className="pl-section-label"><Target size={15} /> {L('היעדים שלי', 'My goals')}</span>
+        <button type="button" className="link-button" onClick={() => setView('goals')}>
+          {L('לכל היעדים', 'All goals')}
+        </button>
+      </div>
+      <ul className="plh-goals">
+        {goals.map((g) => {
+          const tgt = Number(g.target_value) || 0
+          const cur = Number(g.progress_value) || 0
+          const pct = g.metric_type === 'count' && tgt > 0
+            ? Math.min(100, Math.round((cur / tgt) * 100))
+            : null
+          return (
+            <li key={g.id}>
+              <div className="plh-goal-top">
+                <b>{g.title}</b>
+                {pct !== null && (
+                  <span className="muted small" dir="ltr">{cur}/{tgt}{g.unit ? ' ' + g.unit : ''}</span>
+                )}
+              </div>
+              {pct !== null && (
+                <div className="plh-goal-bar" role="img"
+                  aria-label={L(`התקדמות ${pct} אחוז`, `${pct} percent complete`)}>
+                  <span style={{ width: pct + '%' }} />
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+// ---------- כרטיס המאמן האישי לסרגל הצד ----------
+function HomePersonalCoach({ session, setView }) {
+  const [rows, setRows] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('personal_trainees')
+        .select('id, status, coach:profiles!personal_trainees_coach_id_fkey(first_name, last_name)')
+        .eq('player_id', session.user.id)
+        .neq('status', 'ended')
+      if (alive) setRows(error ? [] : data || [])
+    })().catch(() => { if (alive) setRows([]) })
+    return () => { alive = false }
+  }, [session.user.id])
+
+  if (rows.length === 0) return null
+
+  return (
+    <section className="plh-side-card">
+      <div className="plh-side-head">
+        <span className="pl-section-label"><UserPlus size={15} /> {L('המאמן האישי', 'Personal coach')}</span>
+        <button type="button" className="link-button" onClick={() => setView('pcoach')}>
+          {L('למסך', 'Open')}
+        </button>
+      </div>
+      {rows.map((r) => {
+        const c = r.coach || {}
+        return (
+          <div key={r.id} className="plh-pc-row">
+            <span className="pl-pcoach-av" aria-hidden="true">{(c.first_name || '?').slice(0, 1)}</span>
+            <b>{`${c.first_name || ''} ${c.last_name || ''}`.trim() || L('מאמן', 'Coach')}</b>
+            {r.status !== 'active' && (
+              <span className="status-pill adm-cv cv-revoked">{L('ממתין', 'Pending')}</span>
+            )}
+          </div>
+        )
+      })}
+    </section>
+  )
+}
+
 // ---------- הפקת קישור אישור להורה, למאמן אישי מסוים ----------
 // אותו רעיון כמו קישור ההסכמה הראשי: הקטין מייצר, ומעביר להורה בוואטסאפ.
 // אין תשתית מייל בפרויקט, ולכן זו הדרך — מתועד כפער ידוע ב-HANDOFF.
@@ -2011,15 +2114,28 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       {/* סדר 1.12: משוב אחרון → משימות לתרגול → הלו"ז השבועי הגדול →
           סיכום המאמן → רצועת סרטונים. היעדים ירדו מהבית — חוץ מיעד
           האימון הקרוב שחי בתוך כרטיס האימון בבאנר. */}
-      {membership && <div className="pl-stagger"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>}
+      {/* ===== מבנה «עיתון» במסך רחב: טור ראשי + סרגל צד =====
+          הסדר בבחירת הבעלים: משימות ומשוב בטור הרחב, ולו״ז/יעדים/מאמן
+          אישי בטור הצר. שני העוטפים הם display:contents במובייל — כלומר
+          הם נעלמים לגמרי, והילדים חוזרים לזרימה אחת. הסדר במובייל נשמר
+          בדיוק כשהיה, דרך order ב-CSS, כדי שהמסך שהשחקנים מכירים לא יזוז. */}
+      {membership && (
+        <>
+          <div className="plh-main">
+            <div className="pl-stagger plh-o-tasks"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>
+            <div className="pl-stagger plh-o-fb"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>
+            <div className="pl-stagger plh-o-review"><LastTeamReview membership={membership} me={session.user.id} /></div>
+          </div>
 
-      {membership && <div className="pl-stagger"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>}
+          <div className="plh-side">
+            <div className="pl-stagger plh-o-week"><HomeWeek session={session} membership={membership} setView={setView} /></div>
+            <div className="pl-stagger plh-o-goals"><HomeGoals session={session} setView={setView} /></div>
+            <div className="pl-stagger plh-o-coach"><HomePersonalCoach session={session} setView={setView} /></div>
+          </div>
+        </>
+      )}
 
-      {membership && <div className="pl-stagger"><HomeWeek session={session} membership={membership} setView={setView} /></div>}
-
-      {membership && <div className="pl-stagger"><LastTeamReview membership={membership} me={session.user.id} /></div>}
-
-      {membership && <div className="pl-stagger"><HomeVideos setView={setView} /></div>}
+      {membership && <div className="pl-stagger plh-o-videos"><HomeVideos setView={setView} /></div>}
 
       {membership && (
         <div className="pl-stagger">

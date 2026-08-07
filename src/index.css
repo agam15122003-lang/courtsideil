@@ -23447,3 +23447,95 @@ html.a11y-motion .csx-quick-row { transition: none; }
   .pl-screen .wl,
   .pl-screen .wl-day-hd { max-width: 100%; }
 }
+
+/* ==========================================================================
+   4.8.2026 (יא) · בית השחקן במסך רחב — מבנה «עיתון»
+   --------------------------------------------------------------------------
+   בחירת הבעלים: טור ראשי רחב (משימות · משוב · סיכום המאמן) וסרגל צד צר
+   (לו״ז השבוע · יעדים · מאמן אישי), עם באנר ורצועת סרטונים לרוחב מלא.
+   הסיבה: עמודה אחת היא עיצוב מובייל מתוח, ומסך רחב יכול להראות שני
+   מישורים במקביל — מה לעשות עכשיו, ומה מתוכנן.
+
+   ⚠ המובייל לא זז. שני העוטפים הם display:contents מתחת לנקודת השבירה,
+   כלומר הם נעלמים מהעץ החזותי לגמרי, וסדר הכרטיסים נשמר בדיוק כשהיה
+   דרך order. בלי זה שינוי המבנה היה מסדר מחדש גם את המסך בטלפון —
+   וזה המסך שהשחקנים באמת משתמשים בו.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* --- מובייל: העוטפים שקופים, והסדר ההיסטורי נשמר --- */
+.plh-main, .plh-side { display: contents; }
+.pl-home-rich { display: flex; flex-direction: column; }
+.plh-o-fb     { order: 1; }
+.plh-o-tasks  { order: 2; }
+.plh-o-week   { order: 3; }
+.plh-o-goals  { order: 4; }
+.plh-o-coach  { order: 5; }
+.plh-o-review { order: 6; }
+.plh-o-videos { order: 7; }
+
+@media (min-width: 1000px) {
+  .pl-home-rich {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: start;
+    gap: 16px;
+    max-width: 1180px;
+  }
+  /* הבאנר, הסרטונים וה-CTA חוצים את שני הטורים */
+  .pl-home-rich > :not(.plh-main):not(.plh-side) { grid-column: 1 / -1; }
+
+  .plh-main, .plh-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .plh-main { grid-column: 1; }
+  .plh-side { grid-column: 2; }
+  /* order חוזר לברירת המחדל — בתוך הטורים הסדר הוא סדר ה-DOM */
+  .plh-o-fb, .plh-o-tasks, .plh-o-week, .plh-o-goals,
+  .plh-o-coach, .plh-o-review, .plh-o-videos { order: 0; }
+
+  /* הסרגל דביק: הלו״ז והיעדים נשארים מול העין גם בגלילה ארוכה */
+  .plh-side { position: sticky; inset-block-start: 16px; }
+}
+
+/* --- כרטיסי הסרגל --- */
+.plh-side-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 13px 15px;
+}
+.plh-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 10px;
+}
+.plh-goals { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.plh-goal-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plh-goal-top b { font-size: 13.5px; font-weight: 600; }
+.plh-goal-bar {
+  margin-block-start: 5px;
+  block-size: 6px;
+  border-radius: 99px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.plh-goal-bar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: 99px;
+  background: var(--accent-fill);
+}
+.plh-pc-row { display: flex; align-items: center; gap: 9px; }
+.plh-pc-row + .plh-pc-row { margin-block-start: 8px; }
+.plh-pc-row b { flex: 1; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
