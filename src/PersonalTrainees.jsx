@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { UserPlus, Send, Check, X, Lock, Clock, ShieldAlert } from 'lucide-react'
+import { UserPlus, Send, Check, X, Lock, Clock, ShieldAlert, Link2, Copy } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { siteUrl } from './consent'
 import { toast } from './toast'
 import { confirmDialog } from './confirm'
 import { SkeletonCards } from './Skeleton'
@@ -34,6 +35,74 @@ const STATUS = {
 // שגיאות שמשמעותן «המיגרציה עוד לא רצה», ולא «משהו נשבר»
 const notDeployed = (e) =>
   !!e && (e.code === '42P01' || e.code === 'PGRST205' || /relation .* does not exist/i.test(e.message || ''))
+
+// הפקת קישור האישור להורה — אצל המאמן.
+// הוא לא מקבל שום פרט על ההורה, רק טוקן, ומעביר אותו בערוץ שכבר קיים
+// בינו לבין המשפחה. עדיף שמבוגר יפנה להורה מאשר שהילד יהיה השליח.
+function ParentLink({ playerId, playerName }) {
+  const [link, setLink] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const make = async () => {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('coach_trainee_consent_link', { p_player: playerId })
+    setBusy(false)
+    if (error || !data?.ok) {
+      toast.error(
+        error?.code === 'PGRST202'
+          ? L('צריך להריץ את supabase_trainee_consent_4_8.sql', 'Run supabase_trainee_consent_4_8.sql')
+          : data?.reason === 'need_guardian'
+            ? L('אין הורה רשום בחשבון של המתאמן. הוא צריך להשלים קודם את אישור ההורה הבסיסי.',
+                'No guardian on file for this trainee. They must complete the basic parent approval first.')
+            : L('לא הצלחנו לייצר קישור: ', 'Could not create a link: ') + (error?.message || data?.reason || ''),
+      )
+      return
+    }
+    if (data.reason === 'already_active') { toast.success(L('הקשר כבר פעיל', 'Already active')); return }
+    setLink(`${siteUrl()}/#/consent/${data.token}`)
+  }
+
+  const share = () => {
+    const text = L(
+      `שלום, ${playerName} מבקש/ת להתאמן איתי אישית. נדרש אישורך — הקישור כאן: ${link}`,
+      `Hello, ${playerName} asked to train with me one-on-one. Your approval is needed: ${link}`,
+    )
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener')
+  }
+
+  if (!link) {
+    return (
+      <button type="button" className="chip" onClick={make} disabled={busy}>
+        <Link2 size={13} /> {busy ? L('רגע...', 'One moment...') : L('קישור אישור להורה', 'Parent approval link')}
+      </button>
+    )
+  }
+
+  return (
+    <div className="pt-link">
+      <input className="finder-input" readOnly value={link} dir="ltr" onFocus={(e) => e.target.select()} />
+      <div className="pt-actions" style={{ marginBlockStart: 7 }}>
+        <button type="button" className="chip" onClick={share}>
+          <Send size={13} /> {L('שליחה בוואטסאפ', 'Send on WhatsApp')}
+        </button>
+        <button
+          type="button"
+          className="chip"
+          onClick={async () => {
+            try { await navigator.clipboard.writeText(link); toast.success(L('הקישור הועתק', 'Link copied')) }
+            catch { toast.error(L('ההעתקה נכשלה — סמן והעתק', 'Copy failed — select and copy')) }
+          }}
+        >
+          <Copy size={13} /> {L('העתקה', 'Copy')}
+        </button>
+      </div>
+      <p className="muted small" style={{ margin: '6px 0 0' }}>
+        {L('תקף 14 יום. מיועד להורה בלבד — אל תשלח אותו למתאמן.',
+           'Valid for 14 days. Meant for a parent only — do not send it to the trainee.')}
+      </p>
+    </div>
+  )
+}
 
 export default function PersonalTrainees({ session }) {
   const me = session.user.id
@@ -224,10 +293,13 @@ export default function PersonalTrainees({ session }) {
                 </div>
 
                 {r.status === 'pending_parent' && (
-                  <p className="muted small pt-note">
-                    {L('הקשר נעול עד שההורה יאשר אותך אישית. עד אז אי אפשר לשלוח משימות.',
-                       'Locked until a parent approves you personally. No tasks can be sent until then.')}
-                  </p>
+                  <div className="pt-note">
+                    <p className="muted small" style={{ margin: '0 0 8px' }}>
+                      {L('הקשר נעול עד שההורה יאשר אותך אישית. עד אז אי אפשר לשלוח משימות.',
+                         'Locked until a parent approves you personally. No tasks can be sent until then.')}
+                    </p>
+                    <ParentLink playerId={r.player_id} playerName={name(r)} />
+                  </div>
                 )}
 
                 <div className="pt-actions">

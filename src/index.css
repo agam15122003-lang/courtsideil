@@ -23422,3 +23422,6 @@ html.a11y-motion .csx-quick-row { transition: none; }
 /* --- 4.8.2026 (ח) · קישור אישור ההורה במסך המאמן האישי --- */
 .pl-pcoach-link { margin-block-start: 8px; }
 .pl-pcoach-link-row { display: flex; gap: 7px; flex-wrap: wrap; margin-block-start: 7px; }
+
+/* --- 4.8.2026 (ט) · קישור אישור ההורה במסך המאמן --- */
+.pt-link { margin-block-start: 8px; }

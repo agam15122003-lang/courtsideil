@@ -75,6 +75,60 @@ revoke all on function public.create_trainee_consent_request(uuid) from public, 
 grant execute on function public.create_trainee_consent_request(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
+-- 1ב) **המאמן** מנפיק את הקישור — וזו הדרך המועדפת
+--
+--     החלטת הבעלים, והיא נכונה גם מבחינת המודל: עדיף שמבוגר יפנה להורה
+--     ישירות מאשר שהילד יהיה השליח של האישור על עצמו. הגרסה של הקטין
+--     (1) נשארת כגיבוי, למקרה שהמאמן אינו זמין.
+--
+--     המאמן אינו מקבל שום פרט על ההורה — לא מייל ולא טלפון. הוא מקבל
+--     טוקן בלבד, ומעביר אותו בערוץ שכבר יש לו מול המשפחה.
+-- ---------------------------------------------------------------------
+create or replace function public.coach_trainee_consent_link(p_player uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  v_me       uuid := auth.uid();
+  v_guardian uuid;
+  v_token    text;
+  v_status   text;
+begin
+  if v_me is null or not public.is_coach_id(v_me) then
+    return jsonb_build_object('ok', false, 'reason', 'auth');
+  end if;
+
+  select status into v_status from public.personal_trainees
+   where coach_id = v_me and player_id = p_player;
+  if v_status is null or v_status = 'ended' then
+    return jsonb_build_object('ok', false, 'reason', 'no_bond');
+  end if;
+  if v_status = 'active' then
+    return jsonb_build_object('ok', true, 'reason', 'already_active');
+  end if;
+
+  select id into v_guardian from public.guardians where minor_id = p_player;
+  if v_guardian is null then
+    return jsonb_build_object('ok', false, 'reason', 'need_guardian');
+  end if;
+
+  v_token := public.new_consent_token();
+
+  insert into public.consent_requests (minor_id, guardian_id, token_hash, purpose, subject_id, expires_at)
+  values (p_player, v_guardian, encode(sha256(convert_to(v_token, 'utf8')), 'hex'), 'trainee', v_me,
+          now() + interval '14 days');
+
+  return jsonb_build_object('ok', true, 'token', v_token);
+end;
+$$;
+
+revoke all on function public.coach_trainee_consent_link(uuid) from public, anon;
+grant execute on function public.coach_trainee_consent_link(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
 -- 2) ההורה פותח את הקישור — בלי חשבון
 --
 --     anon בכוונה: ההורה אינו משתמש רשום, וזו בדיוק אותה החלטה שנעשתה
