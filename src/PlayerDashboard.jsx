@@ -1721,6 +1721,62 @@ function NextPracticeGoal({ session, membership }) {
   )
 }
 
+// ---------- סולם המאמץ המהיר, בבאנר ----------
+// תשובה אחת בלחיצה אחת, במקום לפתוח גיליון בשביל מספר יחיד. הגיליון
+// המלא נשאר מתחתיו למי שרוצה לכתוב יותר — זה לא מחליף אותו.
+//
+// המשפט «המאמן רואה את הממוצע של הקבוצה» אינו נימוס: בלעדיו נער מדרג
+// לפי מה שנוח לומר למאמן, לא לפי מה שהרגיש, והנתון מאבד את ערכו.
+function EffortScale({ session, sessionId, sessionDate }) {
+  const [val, setVal] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const send = async (n) => {
+    setBusy(true)
+    const { error } = await supabase.from('session_effort').insert({
+      player_id: session.user.id,
+      session_id: sessionId,
+      session_date: sessionDate,
+      effort: n,
+    })
+    setBusy(false)
+    if (error) {
+      toast.error(L('לא הצלחנו לשמור: ', 'Could not save: ') + error.message)
+      return
+    }
+    setVal(n)
+  }
+
+  if (val !== null) {
+    return (
+      <div className="plh-effort done" role="status">
+        <Check size={16} aria-hidden="true" />
+        {L('רשמת ', 'You logged ')}<b className="num" dir="ltr">{val}</b>{L(' מתוך 10 — תודה', ' out of 10 — thanks')}
+      </div>
+    )
+  }
+
+  return (
+    <div className="plh-effort">
+      <span className="plh-effort-h">
+        {L('המאמן רואה את הממוצע של הקבוצה, לא מי אמר מה.',
+           'Your coach sees the team average, not who said what.')}
+      </span>
+      <div className="plh-scale" role="group" aria-label={L('דירוג מאמץ מ-1 עד 10', 'Rate effort from 1 to 10')}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          <button key={n} type="button" disabled={busy} onClick={() => send(n)} aria-label={String(n)}>
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className="plh-scale-ends">
+        <span>{L('קל', 'Easy')}</span>
+        <span>{L('קשה מאוד', 'Very hard')}</span>
+      </div>
+    </div>
+  )
+}
+
 function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats, setView }) {
   const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
@@ -1770,7 +1826,11 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
       if (!endedToday) { setSummary(null); return }
       const { data: eff } = await supabase.from('session_effort')
         .select('id').eq('player_id', profile.id).eq('session_date', today).limit(1)
-      setSummary(eff && eff.length ? { state: 'done' } : { state: 'ask', kind: endedToday.kind })
+      // sessionId/date נשמרים כדי שהסולם המהיר יוכל לכתוב ישירות
+      // ל-session_effort בלי לפתוח את הגיליון המלא.
+      setSummary(eff && eff.length
+        ? { state: 'done' }
+        : { state: 'ask', kind: endedToday.kind, sessionId: endedToday.id, date: endedToday.date })
     })()
   }, [membership, profile.id, refreshKey])
 
@@ -1848,6 +1908,15 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
           /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
           <div className="plh-ask">
             <strong className="plh-ask-title">{summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}</strong>
+            {/* סולם מהיר לפני הכפתור: תשובה אחת בלחיצה אחת. מי שרוצה
+                לכתוב יותר ממשיך לגיליון המלא — הוא לא הוחלף. */}
+            {!restricted && summary.sessionId && (
+              <EffortScale
+                session={session}
+                sessionId={summary.sessionId}
+                sessionDate={summary.date}
+              />
+            )}
             <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback} disabled={restricted}>
               <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
             </button>

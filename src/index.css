@@ -23539,3 +23539,172 @@ html.a11y-motion .csx-quick-row { transition: none; }
 .plh-pc-row { display: flex; align-items: center; gap: 9px; }
 .plh-pc-row + .plh-pc-row { margin-block-start: 8px; }
 .plh-pc-row b { flex: 1; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ==========================================================================
+   4.8.2026 (יב) · בית השחקן — יישום הפרוטוטייפ המאושר
+   --------------------------------------------------------------------------
+   מיישם את «Courtside Player Home v4» שאושר: הגוון הכחול כשכבה סמנטית,
+   לוח תוצאות בראש, וסימון חם/קר/סגור בתוויות המקטע.
+
+   הכלל שמאחורי הצבע — הוא מה שהופך אותו למידע ולא לקישוט:
+     חם (כתום/רוסט) = תורך לפעול     · משימות, משוב, אישור הגעה
+     קר (נייבי)      = כבר נקבע       · לו״ז, יעדים, סיכום המאמן
+     ירוק           = סגור            · בוצע, אושר, נרשם
+
+   ⚠ הטיפוגרפיה לא זזה. .pl-section-label נשארת 12.5px/800/0.04em כפי
+   שהייתה — קוד הצבע יושב על ריבוע קטן לפניה ולא על הטקסט. זו הייתה
+   הערת הבעלים על הפרוטוטייפ, והיא נכונה: תווית שמשנה גודל וצבע בין
+   מסכים מפרקת את אחידות המוצר.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+:root{
+  --pl-cool:#1F4E8C;        /* נייבי — «כבר נקבע» */
+  --pl-cool-2:#2E6BB8;
+  --pl-cool-soft:#EAF1FA;
+  --pl-cool-ink:#173E70;
+  --pl-cool-ln:#D6E3F3;
+  --pl-done:#1F7A44;        /* ירוק — «סגור» */
+  --pl-done-soft:#E7F4EC;
+  --pl-done-ln:#BFE3CD;
+}
+html[data-theme='dark']{
+  --pl-cool-soft:rgba(46,107,184,.12);
+  --pl-cool-ink:#9CC2EF;
+  --pl-cool-ln:rgba(46,107,184,.28);
+  --pl-done-soft:rgba(31,122,68,.14);
+  --pl-done-ln:rgba(31,122,68,.34);
+}
+
+/* ---- הסימן שלפני תווית המקטע. הטיפוגרפיה עצמה לא נגעה. ---- */
+.pl-home-rich .pl-section-label::before,
+.plh-side-card .pl-section-label::before{
+  content:'';
+  inline-size:7px; block-size:7px;
+  border-radius:2px; flex:none;
+  background:var(--accent-fill);
+}
+.plh-side-card .pl-section-label::before{ background:var(--pl-cool); }
+.pl-section-label.is-done::before{ background:var(--pl-done); }
+
+/* ---- יעדים: בר בנייבי. הם מעקב, לא פעולה. ---- */
+.plh-goal-bar > span{
+  background:linear-gradient(90deg,var(--pl-cool),var(--pl-cool-2));
+}
+
+/* ---- סיכום המאמן: כרטיס קר. טקסט ארוך על רקע נפרד נקרא כציטוט. ---- */
+.pl-home-rich .plr-card{
+  background:var(--pl-cool-soft);
+  border-color:var(--pl-cool-ln);
+}
+.pl-home-rich .plr-card .plr-note{ color:var(--pl-cool-ink); }
+
+/* ---- לוח התוצאות: מספרים רצופים עם קווים מפרידים, לא ארבע כרטיסיות ---- */
+@media (min-width:1000px){
+  .plh-stats{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    overflow:hidden;
+    gap:0;
+    box-shadow:var(--shadow-sm);
+  }
+  .plh-stats .plh-stat{
+    border:none;
+    border-radius:0;
+    box-shadow:none;
+    border-inline-start:1px solid var(--border);
+    padding:16px 6px 18px;
+  }
+  .plh-stats .plh-stat:first-child{ border-inline-start:none; }
+}
+
+/* ---- כרטיסי הסרגל: אותו עומק כמו שאר הכרטיסים ---- */
+.plh-side-card{ box-shadow:var(--shadow-sm); }
+
+/* ---- «איך היה האימון היום?» — הפעולה החמה בבאנר ---- */
+.plh-ask{
+  background:linear-gradient(90deg,rgba(232,118,58,.16),rgba(232,118,58,.05));
+  border:1px solid rgba(232,118,58,.34);
+  border-radius:16px;
+  padding:13px 15px;
+  gap:9px;
+}
+
+/* ---- ירוק = סגור ---- */
+.pl-home-rich .plh-done{
+  background:var(--pl-done-soft);
+  border:1px solid var(--pl-done-ln);
+  color:var(--pl-done);
+  border-radius:12px;
+  padding:9px 12px;
+}
+
+/* ==========================================================================
+   מובייל — הפריסה שאושרה. מתחת ל-640px.
+   ========================================================================== */
+@media (max-width:640px){
+  /* לוח התוצאות 2×2: ארבעה בשורה על 390px הופכים את המספרים לזעירים */
+  .pl-home-rich .plh-stats{ grid-template-columns:repeat(2,1fr); }
+
+  /* הלו״ז הופך לרצועה אופקית — כרטיס ליום, גלילה באגודל.
+     רשימה אנכית של ארבעה ימים גוזלת חצי מסך; רצועה גוזלת שורה. */
+  .plh-o-week .wl{
+    display:flex;
+    gap:9px;
+    overflow-x:auto;
+    scroll-snap-type:x mandatory;
+    margin-inline:-14px;
+    padding-inline:14px;
+    padding-block-end:4px;
+  }
+  .plh-o-week .wl::-webkit-scrollbar{ display:none; }
+  .plh-o-week .wl-day{
+    flex:none;
+    min-inline-size:150px;
+    scroll-snap-align:start;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:13px;
+    padding:10px 11px;
+  }
+  .plh-o-week .wl-card{ margin-bottom:0; border:none; box-shadow:none; background:none; }
+  .plh-o-week .wl-head{ padding:6px 0; gap:8px; }
+  .plh-o-week .wl-chips{ display:none; }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .plh-side-card, .plh-ask{ transition:none; }
+}
+
+/* --- 4.8.2026 (יג) · סולם המאמץ המהיר בבאנר --- */
+.plh-effort{ display:flex; flex-direction:column; gap:8px; }
+.plh-effort-h{ font-size:12px; color:rgba(255,255,255,.62); line-height:1.5; }
+.plh-scale{ display:flex; gap:6px; }
+.plh-scale button{
+  flex:1; min-inline-size:0; block-size:44px;
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.06);
+  color:#fff;
+  font:inherit; font-size:14px; font-weight:700;
+  font-variant-numeric:tabular-nums;
+  cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.plh-scale button:hover{ background:rgba(255,255,255,.16); transform:translateY(-1px); }
+.plh-scale button:active{ transform:scale(.96); }
+.plh-scale button:disabled{ opacity:.5; cursor:default; }
+.plh-scale-ends{ display:flex; justify-content:space-between; font-size:11px; color:rgba(255,255,255,.5); }
+.plh-effort.done{
+  flex-direction:row; align-items:center; gap:8px;
+  font-size:14px; font-weight:600; color:#8FE0B0;
+}
+.plh-effort.done b{ font-family:var(--font-display); font-weight:900; font-size:19px; }
+/* יעד מגע: במסך צר הסולם נשבר לשתי שורות במקום להצטמק */
+@media (max-width:640px){
+  .plh-scale{ flex-wrap:wrap; }
+  .plh-scale button{ flex:0 0 calc(20% - 5px); block-size:46px; }
+}
+@media (prefers-reduced-motion:reduce){ .plh-scale button{ transition:none; } }
+html.a11y-motion .plh-scale button{ transition:none; }
