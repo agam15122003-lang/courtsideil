@@ -2205,7 +2205,9 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
       {membership && <div className="pl-stagger plh-o-videos"><HomeVideos setView={setView} /></div>}
 
       {membership && (
-        <div className="pl-stagger">
+        /* plh-o-msg (7.8) — בלי מחלקת order הכפתור קיבל order:0 וקפץ
+           לראש המסך במובייל, מעל כל המקטעים */
+        <div className="pl-stagger plh-o-msg">
           <button type="button" className="plh-msg-cta" onClick={() => setView('coach')} disabled={restricted}>
             <Send size={18} /> {L('שלח הודעה למאמן', 'Message your coach')}
           </button>

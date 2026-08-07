@@ -2,10 +2,17 @@
    אסטרטגיה: נכסים סטטיים (JS/CSS/פונטים/תמונות) — stale-while-revalidate;
    ניווט (HTML) — network-first עם נפילה לעותק שמור כשאין רשת.
    קריאות API (Supabase וכו') לא נשמרות במטמון לעולם. */
-const CACHE = 'courtside-v1'
+/* __BUILD_ID__ מוחלף בזמן build (vite.config.js): כל דיפלוי משנה את
+   הבייטים של הקובץ → הדפדפן מתקין SW חדש → activate מוחק את המטמון
+   הישן → controllerchange ב-main.jsx מרענן פעם אחת. בלי זה הקובץ היה
+   זהה בין דיפלויים וכל צינור העדכון היה מת — טלפונים נתקעו על גרסה
+   ישנה לתמיד (7.8). */
+const CACHE = 'courtside-__BUILD_ID__'
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/'])))
+  // cache:'reload' — עוקף את מטמון ה-HTTP של הדפדפן; בלעדיו העותק
+  // השמור של '/' יכול להיוולד ישן כבר בהתקנה
+  e.waitUntil(caches.open(CACHE).then((c) => c.add(new Request('/', { cache: 'reload' }))))
   self.skipWaiting()
 })
 
@@ -30,7 +37,9 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open(CACHE).then((c) => c.put('/', copy))
+          // waitUntil — בלעדיו ה-SW יכול להיסגר לפני שהכתיבה הסתיימה,
+          // והעותק השמור נשאר בשקט על הגרסה הקודמת
+          e.waitUntil(caches.open(CACHE).then((c) => c.put('/', copy)))
           return res
         })
         .catch(() => caches.match('/'))

@@ -24135,3 +24135,82 @@ html.a11y-motion .plh-scale button{ transition:none; }
   }
   .home .home-hero .stat-tile:nth-child(3){ border-inline-start:none; }
 }
+
+/* ==========================================================================
+   7.8.2026 (ג) · מובייל — סקירת «לא הכל»: תשעה תיקונים משני העולמות
+   --------------------------------------------------------------------------
+   הסקירה המקבילה מצאה למה המובייל «חלקי»: רצועת הלו״ז מעולם לא הפכה
+   אופקית (‎.wl‎ הבסיסי הוא column והכלל מ-4.8 לא דרס), כפתור «שלח הודעה
+   למאמן» קפץ לראש המסך (בלי order), לוח המאמן נשאר 4 בשורה, כרטיס
+   «האימון הקרוב» נשאר בשפה הישנה, ופס הציטוט העליון התנגש בלוח.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* ---- (1) רצועת הלו״ז של השחקן — סוף סוף אופקית, מקצה לקצה ---- */
+@media (max-width:640px){
+  .plh-o-week .wl{
+    flex-direction:row;
+    margin-inline:-16px;
+    padding-inline:16px;
+  }
+  /* הרצועה הקומפקטית היא תצוגה בלבד, כמו בפרוטוטייפ —
+     אישור הגעה נשאר בבאנר ובלו״ז המלא */
+  .plh-o-week .wl-extra{ display:none; }
+  /* מונה «מועד אחד» נדחס לשורה שנייה בכרטיס של 150px */
+  .plh-o-week .wl-day-n{ display:none; }
+}
+
+/* ---- (2) «שלח הודעה למאמן» חוזר לסוף המסך במובייל ---- */
+.plh-o-msg{ order:8; }
+@media (min-width:1000px){ .plh-o-msg{ order:0; } }
+
+/* ---- (3) ריווח בין כרטיסי הסרגל כשהם נערמים ---- */
+@media (max-width:999px){
+  .plh-o-goals, .plh-o-coach{ margin-block-start:18px; }
+}
+
+/* ---- (4) כפתורי הגעה בתוך כרטיס בהיר — לא צבעי הבאנר ---- */
+.pl-home-rich .wl-rsvp .plh-rsvp-btn.no{
+  color:var(--tx);
+  border-color:var(--ln);
+}
+.pl-home-rich .wl-rsvp .plh-rsvp-btn.no.on{
+  background:var(--surface-alt);
+  border-color:var(--text-muted);
+}
+
+/* ---- (5) לוח השחקן בטאבלט (641–900) — הראש נערם כמו בפרוטוטייפ ---- */
+@media (max-width:900px){
+  .plh-board-top{ flex-direction:column; gap:14px; }
+  /* (9) ובאותו חלון — לוח המאמן חוזר לעמודה אחת (הכלל הכללי דרס את 12373) */
+  .home .home-hero{ grid-template-columns:minmax(0,1fr); }
+}
+
+/* ---- (6) לוח המספרים של המאמן — באמת 2×2 במובייל ---- */
+@media (max-width:640px){
+  .home .home-hero .home-stats{ grid-template-columns:repeat(2,1fr); }
+}
+
+/* ---- (7) «האימון הקרוב» במובייל — שפת הלוח, גם בטעינה ---- */
+.home-next-mobile .np-card{
+  background:linear-gradient(160deg,#152238 0%,#0B1524 62%,#080F1B 100%);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;
+}
+.home-next-mobile .np-skeleton{
+  background:linear-gradient(160deg,#152238,#0B1524);
+  border-color:rgba(255,255,255,.10);
+  min-height:150px;
+}
+
+/* ---- (8) פס הציטוט העליון ירד מהבית — הלוח נושא את הציטוט שלו ---- */
+@media (max-width:640px){
+  /* חגורת ביטחון ל-JSX (Dashboard.jsx כבר לא מרנדר את הפס בבית) */
+  .main-inner[data-view='home'] > .quote-strip{ display:none; }
+  /* מבטל את ההסתרה מ-20639 — בלוח המעוגל יש מקום לציטוט גם במובייל */
+  .home .home-hero .home-hero-quote{ display:flex; }
+  /* ובשאר המסכים: הפס נמתח בדיוק כרוחב ריפוד המובייל, לא ב-8px יותר */
+  .main-inner > .quote-strip{
+    margin:calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
+  }
+}

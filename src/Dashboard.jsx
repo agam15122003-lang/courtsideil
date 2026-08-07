@@ -255,15 +255,8 @@ export default function Dashboard({ session }) {
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
   const [workTab, setWorkTab] = useState('plans') // 'plans' | 'drills' במסך «אימונים ותרגילים»
-  // מובייל: ההירו של הבית מקוצר והציטוט יורד ממנו — ולכן פס הציטוט העליון
-  // חוזר גם בבית. מאזין ל-matchMedia ולא ל-resize (אפס עבודה בין מעברים).
-  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)')
-    const onChange = (e) => setIsNarrow(e.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
+  // (7.8) isNarrow ירד: הלוח המעוגל נושא את הציטוט שלו בכל רוחב מסך,
+  // ולכן פס הציטוט העליון כבר לא נחוץ בבית — גם לא במובייל.
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
 
   const [loadError, setLoadError] = useState(false)
@@ -656,11 +649,9 @@ export default function Dashboard({ session }) {
             רחב. ההרחבה חלה רק על המסך הזה ורק מעל נקודת השבירה. */}
         <div className="main-inner" data-view={view} ref={mainInnerRef}>
           {/* פס הציטוט — חלק מה-chrome הגלובלי, בכל עמוד (handoff §Global-2).
-              חוץ מדף הבית: שם הציטוט יושב בתוך ההירו ומסונכרן להחלפת התמונה,
+              חוץ מדף הבית: שם הציטוט יושב בתוך הלוח (בכל רוחב מסך, 7.8),
               והצגתו פעמיים באותו מסך נראית כמו תקלה. */}
-          {/* בבית הציטוט יושב בתוך ההירו — חוץ ממובייל, שם ההירו מקוצר
-              והציטוט חוזר לפס העליון (index.css: .home-hero-quote מוסתר). */}
-          {!loading && !showForm && (view !== 'home' || isNarrow) && <QuoteStrip />}
+          {!loading && !showForm && view !== 'home' && <QuoteStrip />}
           {/* גדר בטיחות: קריסה במסך בודד לא מוחקת את כל האפליקציה.
               ה-key ירד מ-.main-inner ולכן הוא יושב כאן — בלעדיו מסך שקרס
               היה משאיר את הודעת השגיאה גם אחרי מעבר למסך אחר. */}
