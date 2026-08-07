@@ -3096,7 +3096,9 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
             onRecheck={onProfileReload}
           />
         )}
-        <div className="main-inner" key={editing ? 'edit' : view}>
+        {/* data-view (7.8) — מאפשר ל-CSS לשחרר את תקרת הרוחב בבית בלבד,
+            באותו מנגנון כמו אצל המאמן */}
+        <div className="main-inner" data-view={view} key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
           {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}

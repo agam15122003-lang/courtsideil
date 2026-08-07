@@ -24247,6 +24247,9 @@ html.a11y-motion .plh-scale button{ transition:none; }
 
 /* ---- בית השחקן: העיתון מתרחב עד 1560 ---- */
 @media (min-width:1000px){
+  /* המכולה של עולם השחקן כלאה את הבית ב-1040 — משוחררת בבית בלבד.
+     חל על שני העולמות: גם ל-Dashboard של המאמן יש data-view='home'. */
+  .main-inner[data-view='home']{ max-width:1600px; }
   .pl-home-rich{
     max-width:1560px;
     grid-template-columns:minmax(0,1fr) 360px;
