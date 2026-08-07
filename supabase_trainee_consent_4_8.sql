@@ -57,10 +57,10 @@ begin
 
   -- טוקן חד-פעמי. נשמר כ-sha256 בלבד — אותה תפיסה כמו במסלול הראשי:
   -- מי שמשיג את המסד לא מקבל קישורים פעילים.
-  v_token := encode(gen_random_bytes(24), 'hex');
+  v_token := translate(encode(gen_random_bytes(24), 'base64'), '+/=', '-_');
 
   insert into public.consent_requests (minor_id, guardian_id, token_hash, purpose, subject_id, expires_at)
-  values (v_me, v_guardian, encode(digest(v_token, 'sha256'), 'hex'), 'trainee', p_coach,
+  values (v_me, v_guardian, encode(sha256(convert_to(v_token, 'utf8')), 'hex'), 'trainee', p_coach,
           now() + interval '14 days');
 
   return jsonb_build_object('ok', true, 'token', v_token);
@@ -92,7 +92,7 @@ declare
   v_status   text;
 begin
   select cr.* into r from public.consent_requests cr
-   where cr.token_hash = encode(digest(coalesce(p_token, ''), 'sha256'), 'hex')
+   where cr.token_hash = encode(sha256(convert_to(coalesce(p_token, ''), 'utf8')), 'hex')
      and cr.purpose = 'trainee';
 
   if r.id is null then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
@@ -138,7 +138,7 @@ as $$
 declare r record;
 begin
   select cr.* into r from public.consent_requests cr
-   where cr.token_hash = encode(digest(coalesce(p_token, ''), 'sha256'), 'hex')
+   where cr.token_hash = encode(sha256(convert_to(coalesce(p_token, ''), 'utf8')), 'hex')
      and cr.purpose = 'trainee';
 
   if r.id is null then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;

@@ -553,13 +553,22 @@ function ParentLinkButton({ coachId, coachName }) {
     setBusy(false)
     if (error || !data?.ok) {
       const reason = data?.reason
+      // ⚠ רק PGRST202 פירושו «ה-RPC אינו קיים». התאמה רחבה על
+      // /function .* does not exist/ תפסה גם שגיאה **מתוך** הפונקציה —
+      // קריאה לפונקציה חסרה בגוף שלה — והציגה «הפיצ׳ר לא הופעל» על מסד
+      // שהמיגרציה בו רצה בהצלחה. זה הסתיר את התקלה האמיתית (digest של
+      // pgcrypto שאינו בנתיב החיפוש) וכיוון אותנו למקום הלא נכון.
+      const rpcMissing = error?.code === 'PGRST202'
       toast.error(
-        error && /function .* does not exist|PGRST202/i.test(error.message || '')
+        rpcMissing
           ? L('הפיצ׳ר עוד לא הופעל. פנה למאמן.', 'Not enabled yet. Ask your coach.')
           : reason === 'need_guardian'
             ? L('אין הורה רשום בחשבון שלך. השלם קודם את אישור ההורה בהגדרות.',
                 'No guardian on file. Complete the parent approval in settings first.')
-            : L('לא הצלחנו לייצר קישור. נסה שוב.', 'Could not create a link. Try again.'),
+            : reason === 'no_bond'
+              ? L('אין קשר פעיל עם המאמן הזה.', 'No pending connection with this coach.')
+              // כל השאר: מציגים את מה שהשרת אמר. הודעה גנרית עולה זמן.
+              : L('לא הצלחנו לייצר קישור: ', 'Could not create a link: ') + (error?.message || reason || ''),
       )
       return
     }
