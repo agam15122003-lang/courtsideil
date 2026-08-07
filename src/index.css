@@ -23413,3 +23413,8 @@ html.a11y-motion .csx-quick-row { transition: none; }
   padding-block-end: 12px;
   border-block-end: 1px solid var(--border);
 }
+
+/* --- 4.8.2026 (ז) · יישור כרטיס המאמן האישי לעמודת המשימות שמתחתיו.
+       בלי margin-inline הכרטיס נצמד לקצה בעוד .pl-narrow שמתחתיו ממורכז,
+       והפער ביניהם נראה כמו תקלה. --- */
+.pl-pcoach { max-width: 680px; margin-inline: auto; }

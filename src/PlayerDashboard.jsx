@@ -560,7 +560,10 @@ function MyPersonalCoaches({ session }) {
       if (!alive) return
       // טבלה חסרה = המיגרציה טרם רצה. לא מציגים כלום, לא מקפיצים שגיאה.
       setRows(error ? [] : data || [])
-    })()
+    })().catch(() => { if (alive) setRows([]) })
+    // ה-catch אינו קישוט: rows===null הוא המצב היחיד שבו הכרטיס אינו
+    // מרונדר בכלל, ובקשה שלא נפתרת הייתה משאירה אותו שם לנצח — בדיוק
+    // סוג התקיעה השקטה שהפילה את מסך הטעינה הראשי (App.jsx).
     return () => { alive = false }
   }, [session.user.id, tick])
 
