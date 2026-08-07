@@ -24214,3 +24214,100 @@ html.a11y-motion .plh-scale button{ transition:none; }
     margin:calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
   }
 }
+
+/* ==========================================================================
+   7.8.2026 (ד) · העיתון ממלא את המסך — בשני העולמות
+   --------------------------------------------------------------------------
+   «לא הגיוני שחצי מסך ריק» (הבעלים, על 1920px). שני שורשים תוקנו:
+   (1) תקרות רוחב צרות — בית השחקן היה כלוא ב-1180px ובית המאמן ב-1040px;
+   (2) מקטעים שנעלמו כשאין נתונים (משימות, יעדים, מאמן אישי, סיכום) —
+       עכשיו יש להם מצב ריק עם כיוון (plh-empty) והעמודות תמיד מלאות.
+   בית המאמן מקבל את אותו עיתון: טור ראשי (מה דורש אותי) + סרגל צד דביק
+   (מה מתוכנן ומי סביבי), עוטפי hp-main/hp-side בדיוק כמו plh-main/plh-side.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* ---- מצב ריק עם כיוון — שני העולמות ---- */
+.plh-empty{
+  margin:2px 0 4px;
+  font-size:13.5px;
+  line-height:1.6;
+  color:var(--text-muted);
+}
+.plh-empty-cta{
+  padding:0;
+  border:none;
+  background:none;
+  cursor:pointer;
+  font:inherit;
+  font-weight:700;
+  color:var(--accent-strong);
+}
+.plh-empty-cta:hover{ text-decoration:underline; }
+
+/* ---- בית השחקן: העיתון מתרחב עד 1560 ---- */
+@media (min-width:1000px){
+  .pl-home-rich{
+    max-width:1560px;
+    grid-template-columns:minmax(0,1fr) 360px;
+    gap:18px 22px;
+  }
+  /* רצועת הסרטונים הופכת לרשת עיתון — ממלאת את הרוחב במקום לגלול */
+  .plhv-strip{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:12px;
+    overflow:visible;
+    padding:0;
+    margin:0;
+  }
+}
+
+/* ---- בית המאמן: אותו עיתון ---- */
+/* מובייל: העוטפים שקופים והסדר ההיסטורי נשמר דרך order — בדיוק כמו
+   שנעשה בבית השחקן בבלוק (יא) */
+.hp-main, .hp-side{ display:contents; }
+.home{ display:flex; flex-direction:column; }
+.hp-o-todo{ order:1; }
+.hp-o-today{ order:2; }
+.hp-o-week{ order:3; }
+.hp-o-att{ order:4; }
+.hp-o-comm{ order:5; }
+.hp-o-cow{ order:6; }
+.hp-o-links{ order:7; }
+.hp-o-news{ order:8; }
+
+@media (min-width:1100px){
+  .main-inner[data-view='home']{ max-width:1560px; }
+  .home{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 360px;
+    column-gap:22px;
+    align-items:start;
+  }
+  /* הלוח, האונבורדינג והחדשות חוצים את שני הטורים */
+  .home > :not(.hp-main):not(.hp-side){ grid-column:1 / -1; }
+  .hp-main, .hp-side{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .hp-main{ grid-column:1; }
+  .hp-side{ grid-column:2; position:sticky; inset-block-start:16px; }
+  .hp-o-todo, .hp-o-today, .hp-o-week, .hp-o-att,
+  .hp-o-comm, .hp-o-cow, .hp-o-links, .hp-o-news{ order:0; }
+  .hp-o-news{ grid-column:1 / -1; }
+  /* בסרגל הצר: קישורי התוכן נערמים לטור, וכרטיסי הקהילה בטור הראשי
+     נשארים רשת של שניים */
+  .hp-side .home-grid{ grid-template-columns:1fr; }
+  .hp-side .section-title{ font-size:20px; }
+  /* הכתבות ברוחב המלא: ארבעה טורים קבועים, תמונה בגובה קבוע —
+     בלי זה התמונות מתנפחות לרוחב אלף פיקסלים */
+  .home .news-grid{ grid-template-columns:repeat(4,1fr); }
+  .home .news-card .news-thumb{ height:160px; }
+  /* כרטיס-העל של 6633 תוכנן לרשת של 3 (2×2 מתוך 6 תאים). ברשת של 4
+     עם ארבע כתבות — פס אחיד: כל כרטיס תא אחד, אותה תמונה, שורה שלמה. */
+  .home .news-grid .news-card:nth-child(1){ grid-row:span 1; grid-column:span 1; }
+  .home .news-grid .news-card:nth-child(1) .news-thumb{ height:160px; min-height:0; flex:none; }
+  .home .news-grid .news-card:nth-child(1) .news-title{ font-size:15px; }
+}

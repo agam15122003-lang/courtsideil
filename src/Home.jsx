@@ -543,69 +543,77 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </div>
       )}
 
-      {/* ===== מסך 3a — ארבעת הסקשנים של מסמך המסירה =====
-          רשת «קיצורי הדרך» הוסרה: היא לא מופיעה במוקאפ, וכל ארבעת היעדים
-          שלה נמצאים עכשיו בסרגל התחתון בן שבעת הטאבים. המסמך מציין
-          במפורש שהביקורת פירקה את המסך מ-7 סקשנים שווי-משקל לשלושה
-          עם היררכיה — זה מה שקורה כאן. */}
-      {/* 1.4 — «דברים לביצוע»: מחליף את באנר «האימון עוד פתוח» ומרחיב אותו לשש בדיקות */}
-      <CoachTodo session={session} onNavigate={onNavigate} />
-      <TodayPlanCard session={session} profile={profile} schedule={sched} onNavigate={onNavigate} />
-      <WeekSchedule session={session} schedule={sched} onNavigate={onNavigate} />
-      <NeedsAttention session={session} onNavigate={onNavigate} />
+      {/* ===== העיתון (7.8) =====
+          דסקטופ: טור ראשי (מה דורש אותי) + סרגל צד דביק (מה מתוכנן ומי סביבי),
+          כמו בבית השחקן. במובייל שני העוטפים display:contents והסדר נשמר
+          בדיוק כשהיה, דרך מחלקות hp-o-* עם order. */}
+      <div className="hp-main">
+        {/* 1.4 — «דברים לביצוע»: מחליף את באנר «האימון עוד פתוח» ומרחיב אותו לשש בדיקות */}
+        <div className="hp-o-todo"><CoachTodo session={session} onNavigate={onNavigate} /></div>
+        <div className="hp-o-today"><TodayPlanCard session={session} profile={profile} schedule={sched} onNavigate={onNavigate} /></div>
+        <div className="hp-o-att"><NeedsAttention session={session} onNavigate={onNavigate} /></div>
 
-      {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
-      {communityPosts.length > 0 && (
-        <>
-          <span className="sec-kicker">{L('קהילה', 'Community')}</span>
-          <div className="home-community-head">
-            <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
-            <button type="button" className="link-button" onClick={() => onNavigate('community')}>
-              {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} />
-            </button>
+        {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
+        {communityPosts.length > 0 && (
+          <div className="hp-o-comm">
+            <span className="sec-kicker">{L('קהילה', 'Community')}</span>
+            <div className="home-community-head">
+              <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
+              <button type="button" className="link-button" onClick={() => onNavigate('community')}>
+                {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} />
+              </button>
+            </div>
+            <div className="home-community-grid reveal-up">
+              {communityPosts.map((p) => {
+                const author = p.author
+                  ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
+                  : L('מאמן', 'Coach')
+                const img = safeUrl(p.thumbUrl)
+                return (
+                  <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
+                    {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}
+                    <span className="hc-body">
+                      <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
+                      <span className="hc-text">{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div className="home-community-grid reveal-up">
-            {communityPosts.map((p) => {
-              const author = p.author
-                ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
-                : L('מאמן', 'Coach')
-              const img = safeUrl(p.thumbUrl)
-              return (
-                <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
-                  {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}
-                  <span className="hc-body">
-                    <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
-                    <span className="hc-text">{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</span>
-                  </span>
-                </button>
-              )
-            })}
+        )}
+      </div>
+
+      <div className="hp-side">
+        <div className="hp-o-week"><WeekSchedule session={session} schedule={sched} onNavigate={onNavigate} /></div>
+
+        {netSmall === false && (
+          <div className="hp-o-cow">
+            <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
           </div>
-        </>
-      )}
+        )}
 
-      {netSmall === false && (
-        <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
-      )}
-
-      <h2 className="section-title" style={{ marginTop: 32 }}>
-        {L('תוכן והשראה', 'Content & inspiration')}
-      </h2>
-      <div className="home-grid reveal-up">
-        {CONTENT_LINKS.map((l) => (
-          <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
-            <span className="home-card-title link-row">
-              {l.title}
-              <ExternalLink size={15} />
-            </span>
-            <span className="home-card-desc">{l.desc}</span>
-          </a>
-        ))}
+        <div className="hp-o-links">
+          <h2 className="section-title" style={{ marginTop: 32 }}>
+            {L('תוכן והשראה', 'Content & inspiration')}
+          </h2>
+          <div className="home-grid reveal-up">
+            {CONTENT_LINKS.map((l) => (
+              <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
+                <span className="home-card-title link-row">
+                  {l.title}
+                  <ExternalLink size={15} />
+                </span>
+                <span className="home-card-desc">{l.desc}</span>
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 2.2 — כתבות בתחתית הבית: 4 כתבות ממדורי כדורסל ישראליים,
           כותרת + תמונה + קישור החוצה למקור. לא מעתיקים תוכן. */}
-      {SHOW_NEWS && <>
+      {SHOW_NEWS && <div className="hp-o-news">
       <span className="sec-kicker" style={{ marginTop: 24 }}>{L('מהתקשורת', 'From the press')}</span>
       <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
@@ -656,7 +664,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           {L('לא הצלחנו לטעון כתבות כרגע — ננסה שוב בכניסה הבאה.', "We couldn't load articles right now — we'll retry next visit.")}
         </p>
       )}
-      </>}
+      </div>}
     </div>
   )
 }

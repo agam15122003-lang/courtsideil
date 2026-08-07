@@ -560,8 +560,7 @@ function HomeGoals({ session, setView }) {
     return () => { alive = false }
   }, [session.user.id])
 
-  if (goals.length === 0) return null
-
+  // מצב ריק עם כיוון (7.8) — מקטע שנעלם השאיר חצי מסך ריק בדסקטופ
   return (
     <section className="plh-side-card">
       <div className="plh-side-head">
@@ -570,6 +569,13 @@ function HomeGoals({ session, setView }) {
           {L('לכל היעדים', 'All goals')}
         </button>
       </div>
+      {goals.length === 0 && (
+        <p className="plh-empty">
+          {L('עוד אין יעדים פעילים. יעד טוב הוא ספציפי — «חמש שלשות באימון».', 'No active goals yet. A good goal is specific — "five threes per practice".')}
+          {' '}
+          <button type="button" className="plh-empty-cta" onClick={() => setView('goals')}>{L('קבעו יעד ראשון ←', 'Set your first goal')}</button>
+        </p>
+      )}
       <ul className="plh-goals">
         {goals.map((g) => {
           const tgt = Number(g.target_value) || 0
@@ -616,8 +622,7 @@ function HomePersonalCoach({ session, setView }) {
     return () => { alive = false }
   }, [session.user.id])
 
-  if (rows.length === 0) return null
-
+  // מצב ריק עם כיוון (7.8) — הדלת לאימון האישי נשארת על המסך
   return (
     <section className="plh-side-card">
       <div className="plh-side-head">
@@ -626,6 +631,13 @@ function HomePersonalCoach({ session, setView }) {
           {L('למסך', 'Open')}
         </button>
       </div>
+      {rows.length === 0 && (
+        <p className="plh-empty">
+          {L('מתאמנים גם אחד-על-אחד? מצטרפים למאמן האישי עם קוד ממנו.', 'Training one-on-one too? Join your personal coach with their code.')}
+          {' '}
+          <button type="button" className="plh-empty-cta" onClick={() => setView('pcoach')}>{L('הזנת קוד ←', 'Enter a code')}</button>
+        </p>
+      )}
       {rows.map((r) => {
         const c = r.coach || {}
         return (
@@ -1956,7 +1968,17 @@ function LastTeamReview({ membership, me }) {
       setRev((data && data[0]) || null)
     })()
   }, [membership])
-  if (!rev) return null
+  // מצב ריק עם כיוון (7.8) — הכרטיס הקר נשאר, מסביר מה יגיע אליו
+  if (!rev) {
+    return (
+      <section className="pl-block plr-card">
+        <p className="pl-section-label">{L('סיכום האימון האחרון', 'Last practice recap')}</p>
+        <p className="plr-note">
+          {L('אחרי כל אימון המאמן כותב סיכום קצר לקבוצה — מה עבד, על מה ממשיכים. הסיכום הבא יופיע כאן.', 'After every practice your coach writes a short team recap — what worked, what comes next. The next one shows up here.')}
+        </p>
+      </section>
+    )
+  }
   const when = rev.session_date ? new Date(rev.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''
   return (
     <section className="pl-block plr-card">
@@ -2011,7 +2033,23 @@ function HomeTasks({ session, setView }) {
     load()
   }
 
-  if (rows === null || rows.length === 0) return null
+  if (rows === null) return null
+  // מצב ריק עם כיוון (7.8) — «מה עליי לעשות» הוא לב המסך גם כשאין משימות
+  if (rows.length === 0) {
+    return (
+      <section className="pl-block plht">
+        <div className="plhg-head">
+          <p className="pl-section-label"><Dumbbell size={15} /> {L('משימות לתרגול', 'Tasks to practice')}</p>
+          <button className="plhg-all" onClick={() => setView('drills')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
+        </div>
+        <p className="plh-empty">
+          {L('אין משימות פתוחות כרגע — כל תרגיל שהמאמן ישלח ינחת כאן.', "No open tasks right now — every drill your coach sends lands here.")}
+          {' '}
+          <button type="button" className="plh-empty-cta" onClick={() => setView('drills')}>{L('לספריית התרגילים ←', 'Browse the drill library')}</button>
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="pl-block plht">
       <div className="plhg-head">
@@ -2078,7 +2116,8 @@ function LastPracticeFeedback({ session, membership, setView }) {
     })()
   }, [membership, me])
 
-  if (!membership || !data || (!data.eff && !data.fb)) return null
+  // (7.8) המקטע נשאר גם בלי נתונים — plfb2-none נותן את הכיוון
+  if (!membership || !data) return null
   const { eff, fb, marks } = data
   const mood = eff?.mood ? MOOD_BY_KEY[eff.mood] : null
   const dateStr = eff?.session_date ? new Date(eff.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : null
