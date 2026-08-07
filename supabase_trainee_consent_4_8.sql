@@ -55,9 +55,13 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'need_guardian');
   end if;
 
-  -- טוקן חד-פעמי. נשמר כ-sha256 בלבד — אותה תפיסה כמו במסלול הראשי:
-  -- מי שמשיג את המסד לא מקבל קישורים פעילים.
-  v_token := translate(encode(gen_random_bytes(24), 'base64'), '+/=', '-_');
+  -- טוקן חד-פעמי, דרך העוזר הקיים. ⚠ לא לייצר כאן טוקן ידנית:
+  -- gen_random_bytes מגיע מ-pgcrypto, שאינו בנתיב החיפוש של פונקציה עם
+  -- `set search_path = public` — וזה בדיוק מה שהפיל את הגרסה הראשונה
+  -- כאן. new_consent_token() כבר מטפלת בזה: היא רצה עם
+  -- `search_path = public, extensions` **וגם** עם נפילה לאחור אם התוסף
+  -- חסר לגמרי. הטוקן נשמר כ-sha256 בלבד, כמו במסלול הראשי.
+  v_token := public.new_consent_token();
 
   insert into public.consent_requests (minor_id, guardian_id, token_hash, purpose, subject_id, expires_at)
   values (v_me, v_guardian, encode(sha256(convert_to(v_token, 'utf8')), 'hex'), 'trainee', p_coach,
