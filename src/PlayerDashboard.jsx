@@ -575,6 +575,13 @@ function MyPersonalCoaches({ session }) {
 
 
   return (
+    <div className="pl-screen pl-narrow">
+      <h2 className="pl-h2">{L('המאמן האישי', 'Personal coach')}</h2>
+      <p className="muted small" style={{ marginTop: -6 }}>
+        {L('מאמן שעובד איתך אחד על אחד, בנפרד מהקבוצה. המשימות שהוא שולח מופיעות ב«המשימות שלי».',
+           'A coach who works with you one-on-one, separately from the team. Tasks they send appear under “My tasks”.')}
+      </p>
+
     <div className="pl-pcoach">
       <div className="pl-pcoach-top">
         <span className="pl-pcoach-hd">{L('המאמן האישי שלי', 'My personal coach')}</span>
@@ -627,6 +634,7 @@ function MyPersonalCoaches({ session }) {
              'To start, your parent needs to approve this coach. No tasks arrive until then.')}
         </p>
       )}
+    </div>
     </div>
   )
 }
@@ -2561,6 +2569,10 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
   { id: 'drills', label: ['המשימות שלי', 'My tasks'], Icon: Dumbbell },
+  // יעד משלו ולא כרטיס בתוך «המשימות שלי»: זה ערוץ נפרד מהקבוצה, ובלי
+  // שורה משלו בתפריט אין דרך למצוא אותו. בלי team:true — הוא זמין גם
+  // לשחקן בלי קבוצה, וזה בדיוק מי שמגיע לאפליקציה בשביל מאמן אישי.
+  { id: 'pcoach', label: ['המאמן האישי', 'Personal coach'], Icon: UserPlus },
   { id: 'goals', label: ['היעדים שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
@@ -2663,12 +2675,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // הקצה שדרכו הבעלים שלהם משבית את הפקד עצמו.
   const renderScreen = () => {
     switch (view) {
-      case 'drills': return (
-        <>
-          <MyPersonalCoaches session={session} />
-          <MyAssignments session={session} />
-        </>
-      )
+      case 'drills': return <MyAssignments session={session} />
+      case 'pcoach': return <MyPersonalCoaches session={session} />
       case 'coach':
         return hasTeam
           ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach"
