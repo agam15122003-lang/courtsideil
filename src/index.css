@@ -24472,7 +24472,10 @@ html.a11y-motion .plh-scale button{ transition:none; }
 @media (min-width:1000px){
   .plh-card, .plh-row3 .plht{ margin-top:0; }
 }
-/* הרכיבים הפנימיים מאבדים את הקליפה — הכרטיס העוטף הוא הקליפה */
+/* הרכיבים הפנימיים מאבדים את הקליפה — הכרטיס העוטף הוא הקליפה.
+   flex-column מכריח ערימה אנכית: בלי זה שני ה-section נדחסו זה-לצד-זה. */
+.plh-card{ display:flex; flex-direction:column; align-items:stretch; }
+.plh-card > section{ width:100%; min-width:0; }
 .plh-fromcoach .pl-block,
 .plh-goalspc .plh-side-card{
   border:0; background:none; box-shadow:none;
