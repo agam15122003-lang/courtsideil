@@ -24374,9 +24374,11 @@ html.a11y-motion .plh-scale button{ transition:none; }
    הישנים שלהם מתים מעצמם. append-only: דריסות, אפס עריכות למעלה.
    ========================================================================== */
 
-/* הבית חוזר לזרימה אחת של שורות מלאות — הרשת חיה רק בתוך plh-row3 */
+/* הבית חוזר לזרימה אחת של שורות מלאות — הרשת חיה רק בתוך plh-row3.
+   align-items:stretch חובה: ה-grid הישן (23481) השאיר align-items:start,
+   ובפלקס זה מכווץ כל שורה לרוחב התוכן שלה. */
 @media (min-width:1000px){
-  .pl-home-rich{ display:flex; flex-direction:column; gap:0; }
+  .pl-home-rich{ display:flex; flex-direction:column; gap:0; align-items:stretch; }
 }
 /* איפוס ה-order הישן במובייל (23469-75, block ד) — הסדר הוא סדר ה-DOM */
 .plh-o-week, .plh-o-tasks, .plh-o-videos, .plh-o-msg{ order:0; }
