@@ -1609,6 +1609,7 @@ function HeroStats({ stats, setView }) {
 // ---------- בית: «השבוע שלי» — שלושת האירועים הבאים (מסך 3b) ----------
 // 1.12 — הלו"ז השבועי הגדול בבית: רכיב הרשימה המשותף (1.2) לשבוע הנוכחי,
 // כולל כפתורי אישור הגעה על אימונים קרובים.
+const hmShort = (t) => (t ? String(t).slice(0, 5) : '')
 function HomeWeek({ session, membership, setView }) {
   const [days, setDays] = useState(null)
   useEffect(() => {
@@ -1650,21 +1651,43 @@ function HomeWeek({ session, membership, setView }) {
   }, [membership])
 
   if (!membership || !days) return null
+  // רצועת שבעה ימים (9.8, «הגרסה הנקייה») — לוח שידורים במקום רשימה:
+  // היום בכתום עם תגית, אימון = שבב חם, משחק = שבב לילה, יום ריק = נקודה.
+  // אישור ההגעה נשאר בבאנר ובלו״ז המלא — הרצועה היא תצוגה בלבד.
+  const todayStr = wkYmd(new Date())
   return (
-    <section className="pl-block">
+    <section className="plh-weekband-sec">
       <div className="plhg-head">
         <p className="pl-section-label"><CalendarDays size={15} /> {L('הלו״ז השבועי', 'This week')}</p>
         <button className="plhg-all" onClick={() => setView('schedule')}>{L('ללו״ז המלא', 'Full schedule')} <ArrowFwd size={14} /></button>
       </div>
-      <WeekList
-        days={days}
-        isCoach={false}
-        renderActions={(ev) =>
-          ev.kind === 'practice' && ev.date >= wkYmd(new Date()) ? (
-            <RsvpButtons session={session} membership={membership} sessionId={ev.session_id} sessionDate={ev.date} />
-          ) : null
-        }
-      />
+      <div className="pwb">
+        {days.map((d) => {
+          const dt = new Date(d.date + 'T00:00')
+          const isToday = d.date === todayStr
+          const sorted = [...d.items].sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+          return (
+            <div key={d.date} className={'pwb-day' + (isToday ? ' today' : '')}>
+              {isToday && <span className="pwb-tag">{L('היום', 'Today')}</span>}
+              <p className="pwb-name">
+                {dt.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short' })}
+                <b><bdi dir="ltr">{`${dt.getDate()}.${dt.getMonth() + 1}`}</bdi></b>
+              </p>
+              {sorted.length === 0 && <span className="pwb-none" aria-hidden="true" />}
+              {sorted.map((ev) => (
+                <button key={ev.key} type="button"
+                  className={'pwb-ev' + (ev.kind === 'game' ? ' gm' : '')}
+                  onClick={() => setView('schedule')}>
+                  {ev.kind === 'game'
+                    ? <>{L('משחק', 'Game')}{ev.opponent ? ` · ${ev.opponent}` : ''}</>
+                    : (ev.team || L('אימון', 'Practice'))}
+                  <small dir="ltr">{hmShort(ev.start_time) || ''}{ev.end_time ? `–${hmShort(ev.end_time)}` : ''}</small>
+                </button>
+              ))}
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -1683,7 +1706,7 @@ function HomeVideos({ setView }) {
       }
       const rows = data || []
       const featured = rows.filter((v) => v.featured)
-      setVids((featured.length >= 4 ? featured : rows).slice(0, 6))
+      setVids((featured.length >= 4 ? featured : rows).slice(0, 4))
     })()
   }, [])
   if (!vids || vids.length === 0) return null
@@ -2225,18 +2248,29 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
           אישי בטור הצר. שני העוטפים הם display:contents במובייל — כלומר
           הם נעלמים לגמרי, והילדים חוזרים לזרימה אחת. הסדר במובייל נשמר
           בדיוק כשהיה, דרך order ב-CSS, כדי שהמסך שהשחקנים מכירים לא יזוז. */}
+      {/* ===== «הגרסה הנקייה» (9.8, אישור הבעלים) =====
+          חמישה אזורים בלבד: לוח → רצועת שבוע → שלושה כרטיסים
+          (משימות · מהמאמן · יעדים+מאמן אישי) → סרטונים → הודעה.
+          במובייל הכול נערם באותו סדר; plh-row3 הופך לרשת רק בדסקטופ. */}
       {membership && (
         <>
-          <div className="plh-main">
-            <div className="pl-stagger plh-o-tasks"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>
-            <div className="pl-stagger plh-o-fb"><LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} /></div>
-            <div className="pl-stagger plh-o-review"><LastTeamReview membership={membership} me={session.user.id} /></div>
-          </div>
+          <div className="pl-stagger plh-o-week"><HomeWeek session={session} membership={membership} setView={setView} /></div>
 
-          <div className="plh-side">
-            <div className="pl-stagger plh-o-week"><HomeWeek session={session} membership={membership} setView={setView} /></div>
-            <div className="pl-stagger plh-o-goals"><HomeGoals session={session} setView={setView} /></div>
-            <div className="pl-stagger plh-o-coach"><HomePersonalCoach session={session} setView={setView} /></div>
+          <div className="plh-row3">
+            <div className="pl-stagger plh-o-tasks"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>
+            <div className="pl-stagger plh-card plh-fromcoach">
+              <p className="pl-section-label">{L('מהמאמן', 'From your coach')}</p>
+              <LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} />
+              <LastTeamReview membership={membership} me={session.user.id} />
+            </div>
+            <div className="pl-stagger plh-card plh-goalspc">
+              <div className="plh-side-head">
+                <span className="pl-section-label plh-cool">{L('היעדים שלי', 'My goals')}</span>
+                <button type="button" className="link-button" onClick={() => setView('goals')}>{L('לכל היעדים', 'All goals')}</button>
+              </div>
+              <HomeGoals session={session} setView={setView} />
+              <HomePersonalCoach session={session} setView={setView} />
+            </div>
           </div>
         </>
       )}

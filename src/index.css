@@ -24365,3 +24365,152 @@ html.a11y-motion .plh-scale button{ transition:none; }
 @media (min-width: 1100px){
   .hp-side{ position: static; }
 }
+
+/* ==========================================================================
+   9.8.2026 (ג) · בית השחקן — «הגרסה הנקייה» (אישור הבעלים)
+   --------------------------------------------------------------------------
+   חמישה אזורים: לוח → רצועת שבוע (pwb) → שלושה כרטיסים (plh-row3) →
+   סרטונים → הודעה. עוטפי plh-main/plh-side ירדו מה-JSX — הכללים
+   הישנים שלהם מתים מעצמם. append-only: דריסות, אפס עריכות למעלה.
+   ========================================================================== */
+
+/* הבית חוזר לזרימה אחת של שורות מלאות — הרשת חיה רק בתוך plh-row3 */
+@media (min-width:1000px){
+  .pl-home-rich{ display:flex; flex-direction:column; gap:0; }
+}
+/* איפוס ה-order הישן במובייל (23469-75, block ד) — הסדר הוא סדר ה-DOM */
+.plh-o-week, .plh-o-tasks, .plh-o-videos, .plh-o-msg{ order:0; }
+
+/* ---- רצועת השבוע ---- */
+.plh-weekband-sec{ margin-top:24px; }
+.pwb{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:18px 16px 16px;
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.pwb-day{
+  flex:1 0 122px;
+  min-width:0;
+  border-radius:14px;
+  padding:12px 10px;
+  min-height:124px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  position:relative;
+}
+.pwb-name{ font-size:11.5px; font-weight:800; color:var(--text-muted); }
+.pwb-name b{ display:block; font-size:16px; font-weight:900; color:var(--tx); margin-top:1px; }
+.pwb-day.today{
+  background:rgba(232,118,58,.07);
+  border:1px solid rgba(232,118,58,.35);
+}
+.pwb-tag{
+  position:absolute;
+  top:-9px;
+  inset-inline-start:10px;
+  background:var(--accent);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  border-radius:999px;
+  padding:2px 9px;
+}
+.pwb-ev{
+  border:1px solid rgba(232,118,58,.22);
+  background:rgba(232,118,58,.10);
+  color:var(--accent-strong);
+  border-radius:10px;
+  padding:7px 9px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.35;
+  text-align:start;
+  cursor:pointer;
+}
+.pwb-ev small{ display:block; font-weight:600; font-size:11px; opacity:.75; }
+.pwb-ev.gm{
+  background:linear-gradient(160deg,#152238,#0B1524);
+  border-color:transparent;
+  color:#fff;
+}
+.pwb-ev.gm small{ color:#F5B896; opacity:1; }
+.pwb-none{ margin:auto; width:6px; height:6px; border-radius:50%; background:var(--border); }
+@media (min-width:1000px){
+  .pwb{ display:grid; grid-template-columns:repeat(7,1fr); overflow:visible; }
+  .pwb-day{ flex:none; }
+}
+
+/* ---- שלושת הכרטיסים ---- */
+.plh-row3{ display:flex; flex-direction:column; }
+@media (min-width:1000px){
+  .plh-row3{
+    display:grid;
+    grid-template-columns:1.25fr 1fr 1fr;
+    gap:18px;
+    align-items:start;
+    margin-top:24px;
+  }
+  .plh-row3 > *{ margin-top:0; }
+}
+.plh-card, .plh-row3 .plht{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:20px 22px;
+  margin-top:18px;
+}
+@media (min-width:1000px){
+  .plh-card, .plh-row3 .plht{ margin-top:0; }
+}
+/* הרכיבים הפנימיים מאבדים את הקליפה — הכרטיס העוטף הוא הקליפה */
+.plh-fromcoach .pl-block,
+.plh-goalspc .plh-side-card{
+  border:0; background:none; box-shadow:none;
+  padding:0; margin:0;
+}
+.plh-fromcoach section .pl-section-label,
+.plh-fromcoach section .plhg-head,
+.plh-goalspc section .plh-side-head{ display:none; }
+.plh-fromcoach section + section{
+  border-top:1px dashed var(--border);
+  margin-top:12px; padding-top:12px;
+}
+.plh-goalspc section + section{
+  border-top:1px solid var(--border);
+  margin-top:14px; padding-top:14px;
+}
+
+/* ---- סרטונים: רשת של 4 עם תמונה 16:9 ומשולש נגינה ---- */
+@media (min-width:1000px){
+  .plhv-strip{ grid-template-columns:repeat(4,1fr); }
+}
+.plhv-card{ flex:1 0 150px; }
+.plhv-thumb{
+  width:100%; height:auto; aspect-ratio:16/9;
+  position:relative; border-radius:14px;
+}
+.plhv-thumb::after{
+  content:''; position:absolute; inset:0; margin:auto;
+  width:0; height:0;
+  border-block:10px solid transparent;
+  border-inline-start:16px solid rgba(255,255,255,.85);
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+
+/* ---- «שלח הודעה למאמן» — פס חם מלא ---- */
+.plh-msg-cta{
+  width:100%;
+  background:linear-gradient(135deg,#E8763A,#C2410C);
+  border:0; border-radius:16px;
+  color:#fff;
+  padding:16px;
+  font-size:15px; font-weight:800;
+}
