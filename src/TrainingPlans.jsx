@@ -72,7 +72,7 @@ function escapeHtml(s) {
 // ולחיצה על תרגיל חושפת את כל הפרטים שלו.
 // props:
 //   session - המשתמש המחובר
-export default function TrainingPlans({ session, initialPlanId, onConsumeInitialPlan }) {
+export default function TrainingPlans({ session, initialPlanId, onConsumeInitialPlan, initialSource }) {
   // שתי רשימות נפרדות עם עימוד משלהן. עד היום נשלף עמוד אחד מאוחד (שלי +
   // קהילה יחד, ממוין לפי created_at) והפיצול נעשה בלקוח — כך שדי ב-24
   // תוכניות קהילה חדשות כדי שהתוכניות של המאמן עצמו ייעלמו מהמסך שלו.
@@ -86,7 +86,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [error, setError] = useState(null)
   const [comError, setComError] = useState(null) // כשל בשליפת הקהילה בלבד — לא מפיל את המסך
   const [activePlanId, setActivePlanId] = useState(null)
-  const [source, setSource] = useState('') // מקור התוכניות: '' הכול | 'mine' | 'community'
+  const [source, setSource] = useState(initialSource || '') // מקור התוכניות: '' הכול | 'mine' | 'community'
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id

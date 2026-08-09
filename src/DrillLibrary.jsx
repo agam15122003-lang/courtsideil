@@ -51,7 +51,7 @@ const DrillCardRow = memo(function DrillCardRow({ drill, userId, onDelete, ...re
 // הוספה, דירוג בכוכבים, שמירה למועדפים, ומחיקת תרגיל שלי.
 // props:
 //   session - המשתמש המחובר
-export default function DrillLibrary({ session, profile, embedded }) {
+export default function DrillLibrary({ session, profile, embedded, initialSource }) {
   // מלכודת פוקוס לבוררי "הוסף לתוכנית" / "שלח לשחקנים"
   const [drills, setDrills] = useState([])
   const [loading, setLoading] = useState(true)
@@ -67,7 +67,7 @@ export default function DrillLibrary({ session, profile, embedded }) {
   const [ageFilter, setAgeFilter] = useState([])
   const [tagFilter, setTagFilter] = useState('') // סינון לפי תגית
   const [onlySaved, setOnlySaved] = useState(false) // הצג רק מועדפים
-  const [source, setSource] = useState('') // מקור התרגיל: '' הכול | 'mine' | 'community'
+  const [source, setSource] = useState(initialSource || '') // מקור התרגיל: '' הכול | 'mine' | 'community'
   const [sortBy, setSortBy] = useState('new') // 'new' = חדשים, 'rating' = מדורגים
 
   // בורר "הוספה לתוכנית"

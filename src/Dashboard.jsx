@@ -196,7 +196,9 @@ const PAGE_META = {
     title: L('בניית אימון', 'Build a practice'),
     subtitle: tab === 'drills'
       ? L('מאגר התרגילים של הקהילה — חיפוש, דירוג ושליחה לשחקנים.', "The community's drill collection — search, rate and send to players.")
-      : L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
+      : tab === 'community'
+        ? L('תוכניות ותרגילים שמאמנים אחרים שיתפו — צופים, מעתיקים אליכם וממשיכים משם.', "Plans and drills other coaches shared — browse, copy to your library and build on them.")
+        : L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
   }),
   schedule: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
@@ -254,7 +256,8 @@ export default function Dashboard({ session }) {
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
-  const [workTab, setWorkTab] = useState('plans') // 'plans' | 'drills' במסך «אימונים ותרגילים»
+  const [workTab, setWorkTab] = useState('plans') // 'plans' | 'drills' | 'community' במסך «אימונים ותרגילים»
+  const [communityKind, setCommunityKind] = useState('plans') // בטאב «מהקהילה»: 'plans' | 'drills'
   // (7.8) isNarrow ירד: הלוח המעוגל נושא את הציטוט שלו בכל רוחב מסך,
   // ולכן פס הציטוט העליון כבר לא נחוץ בבית — גם לא במובייל.
   // עורך הווידאו נשאר חי ברקע אחרי הביקור הראשון — יציאה מהעמוד לא מוחקת את העבודה
@@ -737,8 +740,32 @@ export default function Dashboard({ session }) {
                 <button className={workTab === 'drills' ? 'tab active' : 'tab'} onClick={() => setWorkTab('drills')}>
                   <Dumbbell size={15} aria-hidden="true" /> {L('בניית תרגיל', 'Build a drill')}
                 </button>
+                <button className={workTab === 'community' ? 'tab active' : 'tab'} onClick={() => setWorkTab('community')}>
+                  <Users size={15} aria-hidden="true" /> {L('מהקהילה', 'From the community')}
+                </button>
               </div>
-              {workTab === 'drills'
+              {workTab === 'community' ? (
+                /* תוכן מהקהילה (9.8) — אותם שני מסכים, פתוחים ישר על סינון
+                   «קהילה»: רואים מה מאמנים אחרים שיתפו, צופים ומעתיקים.
+                   ה-key מרענן את המסך במעבר תוכניות⇄תרגילים. */
+                <>
+                  <div className="cw-kind" role="tablist" aria-label={L('סוג תוכן', 'Content kind')}>
+                    <button role="tab" aria-selected={communityKind === 'plans'}
+                      className={communityKind === 'plans' ? 'cw-kind-btn active' : 'cw-kind-btn'}
+                      onClick={() => setCommunityKind('plans')}>
+                      <ClipboardList size={14} aria-hidden="true" /> {L('תוכניות', 'Plans')}
+                    </button>
+                    <button role="tab" aria-selected={communityKind === 'drills'}
+                      className={communityKind === 'drills' ? 'cw-kind-btn active' : 'cw-kind-btn'}
+                      onClick={() => setCommunityKind('drills')}>
+                      <Dumbbell size={14} aria-hidden="true" /> {L('תרגילים', 'Drills')}
+                    </button>
+                  </div>
+                  {communityKind === 'drills'
+                    ? <DrillLibrary key="community-drills" session={session} profile={profile} embedded initialSource="community" />
+                    : <TrainingPlans key="community-plans" session={session} initialSource="community" />}
+                </>
+              ) : workTab === 'drills'
                 ? <DrillLibrary session={session} profile={profile} embedded />
                 : <TrainingPlans session={session} initialPlanId={planToOpen} onConsumeInitialPlan={() => setPlanToOpen(null)} />}
             </Page>
