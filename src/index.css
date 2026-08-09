@@ -24492,6 +24492,16 @@ html.a11y-motion .plh-scale button{ transition:none; }
   border-top:1px solid var(--border);
   margin-top:14px; padding-top:14px;
 }
+/* היעדים והמאמן האישי עוצבו במקור לרקע כהה — על הכרטיס הלבן הטקסט
+   היה לבן-על-לבן (נמדד חי: color #fff). צביעה מקומית לתוך הקליפה. */
+.plh-goalspc .plh-goals,
+.plh-goalspc .plh-goals b,
+.plh-goalspc .plh-goal-top,
+.plh-goalspc .plh-pc-row,
+.plh-goalspc .plh-pc-row b{ color:var(--tx); }
+.plh-goalspc .plh-goal-top span,
+.plh-goalspc .plh-pc-row small{ color:var(--text-muted); }
+.plh-goalspc .plh-goal-bar{ background:var(--surface-alt); }
 
 /* ---- סרטונים: רשת של 4 עם תמונה 16:9 ומשולש נגינה ---- */
 @media (min-width:1000px){
