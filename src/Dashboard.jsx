@@ -13,6 +13,7 @@ import PendingApproval from './PendingApproval'
 import AdultConfirm from './AdultConfirm'
 import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
+import PocketNav from './PocketNav'
 import { useLang, L } from './i18n'
 // isAdultPlayer עבר ל-consent.js: גם מסך ההמתנה צריך אותו כדי לזהות שחקן
 // שהגיע ל-18 בזמן שחיכה לאישור הורה.
@@ -166,14 +167,18 @@ const NAV = [
 // (היחיד עם badge חי). מדיה, תרגילים, לו״ז, מאתר המאמנים והפרופיל נשארים
 // במגירה — ולפרופיל יש גם כרטיס משתמש בתחתית המגירה.
 // הרוחב מונע ע"י --bn-count על .layout.
-const BOTTOM_NAV = [
+// ניווט־הכיס (11.8, מסמך העיצוב 3a): ארבעה יעדים בגלולה — בית, קהילה,
+// הקבוצה, הודעות — והכפתור הכתום שביניהם פותח את כל השאר בגיליון.
+// «אימונים ותרגילים» ירד מהארבעה כי הוא בגיליון וגם בכפתור הראשי של הבית.
+const POCKET_NAV = [
   { id: 'home', key: 'nav.home', Icon: HomeIcon },
   { id: 'community', key: 'nav.community', Icon: MessagesSquare },
-  { id: 'work', key: 'nav.workShort', Icon: ClipboardList },
   { id: 'teams', key: 'nav.teamsShort', Icon: Shield },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
+// הפרופיל לא ב-NAV (הוא כרטיס המשתמש בסרגל) — בגיליון הוא פריט ככל השאר
+const PROFILE_NAV = { id: 'profile', key: 'nav.profile', Icon: User }
 
 // כותרות הבאנר לכל מסך (החלטת הבעלים: באנר נייבי בכל מסך).
 // פונקציות ולא אובייקט קפוא — L() חייב להיקרא בזמן רינדור כדי שהחלפת
@@ -534,7 +539,7 @@ export default function Dashboard({ session }) {
   }
 
   return (
-    <div className="layout" style={{ '--bn-count': BOTTOM_NAV.length }}>
+    <div className="layout" data-view={view} style={{ '--bn-count': POCKET_NAV.length }}>
       <a href="#main" className="skip-link">
         {t('skip.toContent')}
       </a>
@@ -911,28 +916,53 @@ export default function Dashboard({ session }) {
         </div>
       </main>
 
-      {/* תפריט תחתון — מובייל בלבד. שבעה יעדים לפי מוקאפ מסמך המסירה.
-          התווית עטופה ב-.bn-lbl כדי שתוכל להיעלם במסכים צרים; aria-label על
-          הכפתור שומר על השם הנגיש גם כשהיא מוסתרת. */}
-      <nav className="bottom-nav" aria-label={L('ניווט תחתון', 'Bottom navigation')}>
-        {BOTTOM_NAV.map((item) => (
-          <button
-            key={item.id}
-            className={view === item.id ? 'bn-item active' : 'bn-item'}
-            aria-label={t(item.key)}
-            aria-current={view === item.id ? 'page' : undefined}
-            onClick={() => { setEditing(false); setView(item.id); setDrawerOpen(false) }}
-          >
-            <span className="bn-ic">
-              <item.Icon size={20} />
-              {item.id === 'messages' && unread > 0 && (
-                <span className="bn-badge" dir="ltr">{unread > 9 ? '9+' : unread}</span>
-              )}
+      {/* ניווט־הכיס (11.8) — הגלולה הצפה של מסמך העיצוב 3a במקום שורת
+          הניווט התחתונה: ארבעה יעדים יומיים וכפתור מרכזי שפותח גיליון
+          עם כל הפיצ׳רים (כולל מה שהיה רק במגירת הסרגל). */}
+      <PocketNav
+        activeId={editing ? null : view}
+        onNavigate={(id) => { setEditing(false); setView(id); setDrawerOpen(false) }}
+        label={L('ניווט תחתון', 'Bottom navigation')}
+        items={POCKET_NAV.map((item) => ({
+          id: item.id,
+          label: t(item.key),
+          Icon: item.Icon,
+          badge: item.id === 'messages' ? unread : 0,
+        }))}
+        all={[...NAV, ...(profile?.is_admin ? [ADMIN_NAV] : []), PROFILE_NAV].map((item) => ({
+          id: item.id,
+          label: t(item.key),
+          Icon: item.Icon,
+          badge: item.id === 'messages' ? unread : 0,
+        }))}
+        footer={
+          <>
+            {profile?.first_name && (
+              <span className="pkn-who">
+                <Avatar
+                  name={`${profile.first_name} ${profile.last_name || ''}`}
+                  url={profile.avatar_url}
+                  size={34}
+                />
+                <span>
+                  <span className="pkn-who-nm">{profile.first_name} {profile.last_name}</span>
+                  <span className="pkn-who-sub">
+                    {L('מאמן', 'Coach')}
+                    {(profile.age_groups?.[0] || profile.club) ? ` · ${profile.age_groups?.[0] || profile.club}` : ''}
+                  </span>
+                </span>
+              </span>
+            )}
+            <span className="pkn-tools">
+              <LanguageToggle />
+              <ThemeToggle />
+              <button className="btn-ghost" onClick={handleSignOut} aria-label={t('action.signout')}>
+                <LogOut size={15} aria-hidden="true" />
+              </button>
             </span>
-            <span className="bn-lbl">{t(item.key)}</span>
-          </button>
-        ))}
-      </nav>
+          </>
+        }
+      />
     </div>
   )
 }

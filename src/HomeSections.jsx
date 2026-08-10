@@ -208,7 +208,7 @@ export function TodayPlanCard({ session, profile, schedule, onNavigate }) {
 // ---------------------------------------------------------------
 // 3. «השבוע · לו״ז»
 // ---------------------------------------------------------------
-export function WeekSchedule({ session, schedule, onNavigate }) {
+export function WeekSchedule({ session, schedule, onNavigate, variant }) {
   const me = session?.user?.id
   const [rows, setRows] = useState(null)
   const ready = !!schedule?.ready
@@ -246,6 +246,14 @@ export function WeekSchedule({ session, schedule, onNavigate }) {
   // rows === null זה «עוד טוען», ולא «אין אימונים השבוע» — עד היום שניהם
   // נראו זהה, והסקשן פשוט קפץ פנימה כשהנתונים הגיעו.
   if (rows === null) {
+    if (variant === 'card') {
+      return (
+        <section className="nh-card nh-week">
+          <div className="nh-card-head"><h2 className="nh-card-title">{L('הלו״ז השבוע', 'This week')}</h2></div>
+          <SkeletonCards count={3} lines={1} />
+        </section>
+      )
+    }
     return (
       <>
         <SecHead tone="cool" eyebrow={L('לו״ז', 'Schedule')} title={L('השבוע', 'This week')} />
@@ -253,6 +261,54 @@ export function WeekSchedule({ session, schedule, onNavigate }) {
       </>
     )
   }
+
+  // ---- גרסת «כרטיס» (11.8, מסמך העיצוב 3a) ----
+  if (variant === 'card') {
+    return (
+      <section className="nh-card nh-week">
+        <div className="nh-card-head">
+          <h2 className="nh-card-title">{L('הלו״ז השבוע', 'This week')}</h2>
+          <button type="button" className="nh-link" onClick={() => onNavigate('schedule')}>
+            {L('כל הלו״ז', 'Full schedule')} <ChevronFwd size={14} aria-hidden="true" />
+          </button>
+        </div>
+        {!rows.length ? (
+          <p className="nh-empty">{L('אין אימונים בשבוע הקרוב — אפשר לקבוע ימי אימון בקבוצות שלי.', 'No practices in the coming week — you can set practice days in My teams.')}</p>
+        ) : (
+          <div className="nh-week-rows">
+            {rows.map((r, i) => {
+              const d = new Date(`${r.date}T00:00`)
+              const day = isNaN(d) ? '' : L(DAYS[d.getDay()][0], DAYS[d.getDay()][1])
+              const sub = r._game
+                ? [L('משחק חוץ', 'Away game'), r.opponent].filter(Boolean).join(' · ')
+                : r.plan?.name
+                  ? L(`תוכנית מוכנה · ${r.plan.name}`, `Plan ready · ${r.plan.name}`)
+                  : L('אין תוכנית — לבנות', 'No plan yet — build one')
+              return (
+                <button
+                  key={`${r.id}-${i}`}
+                  type="button"
+                  className={i === 0 ? 'nh-week-row is-next' : 'nh-week-row'}
+                  onClick={() => onNavigate(r._game ? 'teams' : 'schedule')}
+                >
+                  <span className="nh-week-day">
+                    <b>{day}׳</b>
+                    <span dir="ltr">{isNaN(d) ? '' : pad(d.getDate())}</span>
+                  </span>
+                  <span className="nh-week-tx">
+                    <b>{r.team ? trTeam(r.team) : L('אימון', 'Practice')}</b>
+                    <span className={!r._game && !r.plan?.name ? 'is-warn' : undefined}>{sub}</span>
+                  </span>
+                  <span className="nh-week-time" dir="ltr">{hm(r.start_time)}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    )
+  }
+
   if (!rows.length) return null
 
   return (

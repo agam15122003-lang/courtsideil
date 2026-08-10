@@ -102,7 +102,7 @@ export function RsvpBreakdown({ coachId, team, sessionId }) {
   )
 }
 
-export default function PracticeRsvp({ session, practice }) {
+export default function PracticeRsvp({ session, practice, variant }) {
   const [state, setState] = useState(null) // { total, yes, yesNames, pending, no }
   const [sending, setSending] = useState(false)
   const [showLists, setShowLists] = useState(false) // שמות בלחיצה (1.3)
@@ -138,6 +138,31 @@ export default function PracticeRsvp({ session, practice }) {
     )
     setSending(false)
     toast.success(L('התזכורת נשלחה', 'Reminder sent'))
+  }
+
+  // ---- גרסת «לוח» (11.8, מסמך העיצוב 3a) ----
+  // שורה אחת בתחתית כרטיס האימון: כמה אישרו, כמה לא, כמה טרם ענו,
+  // ו«שלח תזכורת». השמות המלאים נשארים במסך הלו״ז (RsvpBreakdown).
+  if (variant === 'board') {
+    return (
+      <div className="nh-rsvp">
+        <span className="nh-rsvp-chip yes"><Check size={11} aria-hidden="true" /><bdi dir="ltr">{state.yes}</bdi></span>
+        {state.no.length > 0 && (
+          <span className="nh-rsvp-chip no"><X size={10} aria-hidden="true" /><bdi dir="ltr">{state.no.length}</bdi></span>
+        )}
+        <span className="nh-rsvp-rest">
+          {state.pending.length > 0
+            ? <><bdi dir="ltr">{state.pending.length}</bdi> {L('טרם ענו', 'have not replied')}</>
+            : L('כולם ענו', 'everyone replied')}
+        </span>
+        {state.pending.length > 0 && (
+          <button type="button" className="nh-rsvp-remind" onClick={remind} disabled={sending}>
+            {sending ? L('שולח...', 'Sending...') : L('שלח תזכורת', 'Send a reminder')}
+            <BellRing size={12} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    )
   }
 
   return (

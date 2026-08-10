@@ -1,16 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Dumbbell,
-  ClipboardList,
-  Users,
-  ExternalLink,
-  Newspaper,
-  X,
-  CalendarDays,
-  Plus,
-  Bookmark,
-  UserCheck,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import {
   NEWS_SOURCES,
   NEWS_COUNT,
@@ -18,21 +7,21 @@ import {
   NEWS_CACHE_MINUTES,
   NEWS_CACHE_KEY,
   NEWS_FALLBACK_IMAGES,
-  CONTENT_LINKS, COACHING_QUOTES, safeUrl } from './constants'
+  COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { signedThumbUrls } from './storage'
 import { L } from './i18n'
 import { ChevronFwd } from './DirIcon'
 import CourtArt from './CourtArt'
+import Avatar from './Avatar'
+import Notifications from './Notifications'
 import { motionOff } from './anim'
 import useReveal from './useReveal'
-import CoachOfWeek from './CoachOfWeek'
-import { useNetworkSmall } from './network'
 import NextPractice from './NextPractice'
 import PracticeRsvp from './PracticeRsvp'
-import { TodayPlanCard, WeekSchedule, NeedsAttention } from './HomeSections'
+import HomeVideos from './HomeVideos'
+import { WeekSchedule } from './HomeSections'
 import CoachTodo from './CoachTodo'
-import { expandSlotsRange } from './sessionId'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
@@ -41,41 +30,11 @@ const ymdLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.g
 // נשמר כאן כדי שהתחושה של ההירו לא תשתנה.
 const QUOTE_HOLD_MS = 7000
 
-// ספירה-למעלה של מספר סטטיסטיקה (לוח תוצאות, לא אקסל). מכבד reduced-motion.
-function useCountUp(target, dur = 700) {
-  const [val, setVal] = useState(target)
-  useEffect(() => {
-    if (typeof target !== 'number' || !isFinite(target)) { setVal(target); return }
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      || document.documentElement.classList.contains('a11y-motion')) { setVal(target); return }
-    let raf
-    const t0 = performance.now()
-    const step = (t) => {
-      const p = Math.min(1, (t - t0) / dur)
-      setVal(target * (1 - Math.pow(1 - p, 3))) // ease-out cubic
-      if (p < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [target, dur])
-  return val
-}
-
-function StatNum({ value, decimals = 0 }) {
-  const v = useCountUp(typeof value === 'number' ? value : null)
-  if (typeof value !== 'number') return '—'
-  return Number(v).toFixed(decimals)
-}
-
 // חלון הלו"ז המשותף לכל דף הבית — מכיל את כל מה שכל אחד מהמקטעים צריך:
 // היום (תוכנית היום) · השבוע הקלנדרי (מונה האימונים) · +7 (השבוע) · +14 (האימון הבא)
 // ו-10 ימים אחורה (האימון האחרון שנגמר, בדוח של NextPractice).
 const HOME_PAST_DAYS = 10
 const HOME_FUTURE_DAYS = 14
-// חלון הנוכחות לחישוב האחוז. בלי תיחום נשלפה כל היסטוריית הנוכחות
-// מאז ומעולם בכל טעינה של דף הבית — אלפי שורות אחרי שתי עונות.
-const ATT_WINDOW_DAYS = 90
-
 // שליפה אחת של הלו"ז והמשבצות הקבועות לכל דף הבית.
 // עד היום team_practice_slots נשלפה שלוש פעמים ו-schedule_entries שלוש
 // פעמים באותו רינדור — אותם נתונים בדיוק, שישה round-trips מיותרים.
@@ -111,57 +70,6 @@ function useHomeSchedule(userId) {
     return () => { alive = false }
   }, [userId])
   return sched
-}
-
-// סטטיסטיקות דף הבית — נשלפות פעם אחת, עם ברירת מחדל 0 אם אין נתונים.
-// הלו"ז מגיע מ-useHomeSchedule ולא נשלף כאן שוב.
-function useHomeStats(userId, sched) {
-  // null = עדיין נטען / לא זמין (מוצג כ-"—"), מספר = ערך אמיתי.
-  // כך שגיאת רשת חולפת לא מציגה אפסים מזויפים כאילו אין נתונים.
-  const [s, setS] = useState({ attendance: null, plans: null, saved: null })
-  useEffect(() => {
-    if (!userId) return
-    let alive = true
-    ;(async () => {
-      const attFrom = new Date(Date.now() - ATT_WINDOW_DAYS * 86400000)
-      const [saved, plans, att] = await Promise.all([
-        supabase.from('saved_drills').select('drill_id', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('training_plans').select('id', { count: 'exact', head: true }).eq('created_by', userId),
-        // אחוז הנוכחות הקבוצתי — אותה נוסחה כמו ב-Attendance.jsx:
-        // כל מה שאינו 'absent' נספר כנוכחות. מתוחם לחלון האחרון.
-        supabase.from('practice_attendance').select('status')
-          .eq('coach_id', userId).gte('session_date', ymdLocal(attFrom)),
-      ])
-      if (!alive) return
-
-      const rows = att.error ? null : (att.data || [])
-      const attendance = rows && rows.length
-        ? Math.round((rows.filter((r) => r.status !== 'absent').length / rows.length) * 100)
-        : null
-
-      setS({
-        attendance,
-        // בשגיאה משאירים null (—) במקום 0 מזויף
-        plans: plans.error ? null : (plans.count || 0),
-        saved: saved.error ? null : (saved.count || 0),
-      })
-    })()
-    return () => { alive = false }
-  }, [userId])
-
-  // מונה האימונים בשבוע הקלנדרי — נגזר מהלו"ז המשותף, בלי שליפה נוספת
-  const week = useMemo(() => {
-    if (!sched.ready) return null
-    if (sched.entriesError && sched.slotsError) return null
-    const now = new Date()
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()) // 0=ראשון
-    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6)
-    const a = ymdLocal(weekStart), b = ymdLocal(weekEnd)
-    const inWeek = sched.entries.filter((e) => e.date >= a && e.date <= b).length
-    return inWeek + expandSlotsRange(sched.slots, weekStart, weekEnd).length
-  }, [sched])
-
-  return { ...s, week }
 }
 
 // שלושת הפוסטים האחרונים מהקהילה — לטיזר בדף הבית.
@@ -354,14 +262,11 @@ function formatDate(d) {
 // props:
 //   profile    - פרטי המאמן (לברכה אישית)
 //   onNavigate - (viewId) => מעבר לטאב אחר
-export default function Home({ session, profile, onNavigate, onOpenCoach }) {
-  const netSmall = useNetworkSmall() // פיצ'רי רשת מוסתרים כשיש מעט מאמנים
-
+export default function Home({ session, profile, onNavigate }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   // הלו"ז נשלף פעם אחת כאן ויורד כ-prop לכל מי שצריך אותו
   const sched = useHomeSchedule(profile?.id)
-  const stats = useHomeStats(profile?.id, sched)
   const communityPosts = useCommunityTeaser()
 
   // פעימת הציטוט בהירו. קודם היא הגיעה מ-onTick של מחליף התמונות; מאז
@@ -387,16 +292,6 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
   const hour = today.getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
-  // ארבעת המספרים לפי מסך 3a. ב-RTL הפריט הראשון ב-DOM הוא הימני ביותר,
-  // ובעיצוב הימני הוא «נוכחות הקבוצה» והשמאלי «שמורים» (נמדד מהפרוטוטייפ:
-  // 24 שמורים · 11 תוכניות · 3 אימונים · 87% נוכחות, משמאל לימין).
-  const STAT_TILES = [
-    { key: 'attendance', Icon: UserCheck, value: stats.attendance, dec: 0, label: L('נוכחות הקבוצה', 'Team attendance'), pct: true, c: 'green' },
-    { key: 'week', Icon: CalendarDays, value: stats.week, dec: 0, label: L('אימונים', 'Practices'), c: 'blue' },
-    { key: 'plans', Icon: ClipboardList, value: stats.plans, dec: 0, label: L('תוכניות', 'Plans'), c: 'purple' },
-    { key: 'saved', Icon: Bookmark, value: stats.saved, dec: 0, label: L('שמורים', 'Saved'), c: 'orange' },
-  ]
-
   // אונבורדינג — מוצג למשתמש חדש עד שסוגר
   const [showOnboarding, setShowOnboarding] = useState(() => {
     try {
@@ -416,217 +311,156 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
   // חשיפה בגלילה. התלויות הן מה שמוסיף מקטעים ל-DOM אחרי הרינדור הראשון —
   // בלעדיהן ה-observer לא היה רואה את הכתבות ואת טיזר הקהילה שהגיעו מאוחר יותר.
-  useReveal(homeRef, [loading, communityPosts.length, showOnboarding, netSmall])
+  useReveal(homeRef, [loading, communityPosts.length, showOnboarding])
 
+  // ---------------------------------------------------------------------
+  // 11.8.2026 — דף הבית נבנה מחדש לפי מסמך העיצוב «דפי בית», כיוון 3a
+  // («מגרש מלא · מזוקק», בחירת הבעלים). מרחב שמות חדש nh-* במכוון:
+  // ראה את ההסבר בראש הבלוק המקביל ב-index.css.
+  //
+  // סדר המסמך — מובייל: לוח → דברים לביצוע → חדש בקהילה → סרטונים →
+  // כתבות. דסקטופ: לוח, ואז טור ראשי (דברים לביצוע + כתבות) וטור צד
+  // (הלו״ז השבוע + חדש בקהילה + סרטונים). העוטפים nh-main/nh-side הם
+  // display:contents במובייל, והסדר שם נקבע במחלקות nh-o-*.
+  // ---------------------------------------------------------------------
   return (
-    <div className="home" ref={homeRef}>
-      {/* הירו נייבי — ברכה + האימון הבא בכרטיס זכוכית (handoff).
-          הצילום מהמאגר הוסר; חזרנו לדפוס הבית מ-DESIGN.md §2ב — סימן-מים
-          של מגרש (CourtArt) על הגרדיאנט הנייבי, מתחת לאותו scrim.
-          הגובה, הרדיוס והפריסה לא זזו: זו החלפת שכבת רקע בלבד. */}
-      <header className="home-hero home-art-hero">
-        <span className="home-hero-bg home-art-fill" aria-hidden="true">
-          <CourtArt variant="home" />
-        </span>
-        <span className="home-hero-glow" aria-hidden="true" />
-        {/* שתי הקשתות של הלוח — אותו סימן כמו בבית השחקן (7.8) */}
-        <span className="plh-arc" aria-hidden="true" />
-        <span className="plh-arc b" aria-hidden="true" />
-        <div className="home-hero-text">
-          <span className="home-greet-date">{dateLabel}</span>
-          <h1 className="home-greet-title">
-            {greet}, <span className="hero-title-accent">{name}</span>{' '}
-            {/* דקורטיבי — aria-hidden כדי שקורא מסך לא יקרא "אימוג'י כדורסל" בכותרת */}
-            
-          </h1>
-          <p className="home-hero-sub">
-            {stats.week != null && stats.week > 0
-              ? L(`${stats.week} אימונים בלו"ז השבוע — והקהילה מחכה לשמוע ממך.`, `${stats.week} practices this week — and the community wants to hear from you.`)
-              : L('השבוע עוד פתוח — תכנן אימון והקהילה כבר מחכה לשמוע ממך.', 'The week is wide open — plan a practice; the community is waiting to hear from you.')}
-          </p>
-          <div className="home-greet-actions">
-            <button className="btn-primary" onClick={() => onNavigate('plans')}>
-              <Plus size={17} /> {L('תוכנית חדשה', 'New plan')}
-            </button>
-            {/* בעיצוב (3a) הכפתור השני הוא «הסגל שלי» — הלו״ז כבר יעד
-                בסרגל, והסגל הוא מה שהבאנר מפנה אליו («שני שחקנים דורשים
-                תשומת לב»). */}
-            <button className="btn-heroghost" onClick={() => onNavigate('teams')}>
-              <Users size={17} /> {L('הסגל שלי', 'My roster')}
-            </button>
+    <div className="nh nh-coach" ref={homeRef}>
+      <header className="nh-hero">
+        <span className="nh-hero-art" aria-hidden="true"><CourtArt variant="home" /></span>
+
+        <div className="nh-hero-top">
+          <Avatar name={`${profile?.first_name || ''} ${profile?.last_name || ''}`} url={profile?.avatar_url} size={42} />
+          <div className="nh-hero-who">
+            <span className="nh-hero-date">{dateLabel}</span>
+            <h1 className="nh-hero-greet">{greet}, {name}</h1>
           </div>
+          {/* הפעמון של המסמך — במובייל הבאנר הוא הכותרת של המסך, ולכן
+              ההתראות עוברות לכאן (הסרגל העליון מוסתר בבית) */}
+          <span className="nh-hero-bell"><Notifications session={session} onNavigate={onNavigate} /></span>
         </div>
-        {/* «ריבוע אחד» (10.8): כרטיס האימון חי בתוך הבאנר בכל הרוחבים —
-            בטלפון הוא נערם מתחת לברכה, והמספרים סוגרים את הריבוע מלמטה. */}
-        <div className="home-hero-card">
-          <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
-        </div>
-        {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
-            או אם אין אימון קרוב עם קבוצה. */}
-        {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
-        {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מתחלף לפי QUOTE_HOLD_MS.
-            key={beat} — מרנדר מחדש כדי שאנימציית ההחלפה תתנגן. */}
-        <p className="home-hero-quote" key={beat}>
-          <span className="hhq-mark" aria-hidden="true">"</span>
-          <span className="hhq-text">{L(quote.text, quote.text_en)}</span>
-          <span className="hhq-author">— {L(quote.author, quote.author_en)}</span>
+
+        <p className="nh-quote" key={beat}>
+          <span className="nh-quote-mark" aria-hidden="true">״</span>
+          <span className="nh-quote-tx">
+            {L(quote.text, quote.text_en)}
+            <span className="nh-quote-by"> — {L(quote.author, quote.author_en)}</span>
+          </span>
         </p>
 
-        {/* לוח המספרים — בתוך הלוח, כשורת תוצאות עם קווים מפרידים (7.8).
-            עד עכשיו ישב מתחת לבאנר ככרטיס לבן נפרד. */}
-        <div className="home-stats">
-          {STAT_TILES.map((t) => (
-            <div key={t.key} className="stat-tile" data-c={t.c}>
-              <span className="stat-tile-ic"><t.Icon size={17} /></span>
-              {/* dir="ltr" — בלעדיו סימן האחוז נדחף לשמאל המספר ומתקבל «%87» */}
-              <span className="stat-tile-num" dir="ltr">
-                <StatNum value={t.value} decimals={t.dec} />
-                {t.pct && typeof t.value === 'number' && <span className="stat-tile-pct">%</span>}
-              </span>
-              <span className="stat-tile-label">{t.label}</span>
-            </div>
-          ))}
-        </div>
+        {/* כרטיס האימון הקרוב חי בתוך הבאנר, עם שורת אישורי ההגעה בתחתיתו */}
+        <NextPractice
+          session={session}
+          schedule={sched}
+          onNavigate={onNavigate}
+          onEntry={setNextEntry}
+          variant="board"
+          rsvp={nextEntry?.team
+            ? <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} variant="board" />
+            : null}
+        />
       </header>
 
-      {/* ברוכים הבאים (10.8) — שורה קטנה ונעימה בלבד; שלושת צעדי
-          ההדרכה ירדו לבקשת הבעלים («סתם תופס מקום»). */}
       {showOnboarding && (
-        <div className="onboard-card onboard-slim">
-          <h3 className="onboard-title">{L(`ברוכים הבאים, ${name}! טוב לראות אותך כאן.`, `Welcome, ${name}! Good to see you here.`)}</h3>
-          <button
-            type="button"
-            className="onboard-close"
-            onClick={dismissOnboarding}
-            aria-label={L('סגירת ההדרכה', 'Close the tutorial')}
-          >
-            <X size={16} />
+        <div className="nh-welcome">
+          <span>{L(`ברוכים הבאים, ${name}! טוב לראות אותך כאן.`, `Welcome, ${name}! Good to see you here.`)}</span>
+          <button type="button" className="nh-welcome-x" onClick={dismissOnboarding} aria-label={L('סגירה', 'Close')}>
+            <X size={15} aria-hidden="true" />
           </button>
         </div>
       )}
 
-      {/* ===== העיתון (7.8) =====
-          דסקטופ: טור ראשי (מה דורש אותי) + סרגל צד דביק (מה מתוכנן ומי סביבי),
-          כמו בבית השחקן. במובייל שני העוטפים display:contents והסדר נשמר
-          בדיוק כשהיה, דרך מחלקות hp-o-* עם order. */}
-      <div className="hp-main">
-        {/* 1.4 — «דברים לביצוע»: מחליף את באנר «האימון עוד פתוח» ומרחיב אותו לשש בדיקות */}
-        <div className="hp-o-todo"><CoachTodo session={session} onNavigate={onNavigate} /></div>
-        <div className="hp-o-today"><TodayPlanCard session={session} profile={profile} schedule={sched} onNavigate={onNavigate} /></div>
-        <div className="hp-o-att"><NeedsAttention session={session} onNavigate={onNavigate} /></div>
+      <div className="nh-cols">
+        <div className="nh-main">
+          <div className="nh-o-todo"><CoachTodo session={session} onNavigate={onNavigate} variant="card" /></div>
 
-        {/* חדש בקהילה — טיזר לפיד (מוצג רק כשיש פוסטים) */}
-        {communityPosts.length > 0 && (
-          <div className="hp-o-comm">
-            <span className="sec-kicker">{L('קהילה', 'Community')}</span>
-            <div className="home-community-head">
-              <h2 className="section-title" style={{ margin: 0 }}>{L('חדש בקהילה', 'New in the community')}</h2>
-              <button type="button" className="link-button" onClick={() => onNavigate('community')}>
-                {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} />
+          {SHOW_NEWS && (
+            <section className="nh-card nh-news nh-o-news">
+              <div className="nh-card-head">
+                <h2 className="nh-card-title">{L('כתבות כדורסל ישראלי', 'Israeli basketball news')}</h2>
+                <span className="nh-card-note">{L('לחיצה פותחת את הכתבה במקור', 'Tap to open at the source')}</span>
+              </div>
+
+              {loading && (
+                <div className="nh-news-grid">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="nh-news is-skeleton">
+                      <span className="nh-news-thumb skeleton" />
+                      <span className="skeleton skeleton-line" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && !error && items.length > 0 && (
+                <div className="nh-news-grid">
+                  {items.slice(0, NEWS_HOME_COUNT).map((a, i) => (
+                    <a key={i} className="nh-news" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
+                      <span className="nh-news-thumb" style={{ backgroundImage: `url("${newsImage(a)}")` }}>
+                        {a.source && <span className="nh-news-src">{a.source}</span>}
+                      </span>
+                      <span className="nh-news-title"><bdi>{a.title}</bdi></span>
+                      <span className="nh-news-meta">{a.date ? formatDate(a.date) : a.source}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {!loading && (error || items.length === 0) && (
+                <p className="nh-empty">
+                  {L('לא הצלחנו לטעון כתבות כרגע — ננסה שוב בכניסה הבאה.', "We couldn't load articles right now — we'll retry next visit.")}
+                </p>
+              )}
+            </section>
+          )}
+        </div>
+
+        <div className="nh-side">
+          <div className="nh-o-week"><WeekSchedule session={session} schedule={sched} onNavigate={onNavigate} variant="card" /></div>
+
+          <section className="nh-card nh-comm nh-o-comm">
+            <div className="nh-card-head">
+              <h2 className="nh-card-title">{L('חדש בקהילה', 'New in the community')}</h2>
+              <button type="button" className="nh-link" onClick={() => onNavigate('community')}>
+                {L('לכל הפיד', 'Open the feed')} <ChevronFwd size={14} aria-hidden="true" />
               </button>
             </div>
-            <div className="home-community-grid reveal-up">
-              {communityPosts.map((p) => {
-                const author = p.author
-                  ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
-                  : L('מאמן', 'Coach')
-                const img = safeUrl(p.thumbUrl)
-                return (
-                  <button key={p.id} type="button" className="home-community-card" onClick={() => onNavigate('community')}>
-                    {img && <span className="hc-thumb" style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }} />}
-                    <span className="hc-body">
-                      <span className="hc-author">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
-                      <span className="hc-text">{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+            {communityPosts.length === 0 ? (
+              <p className="nh-empty">
+                {L('עוד לא פורסם כלום היום — אתה מוזמן להיות הראשון.', 'Nothing posted yet today — you are welcome to be the first.')}
+              </p>
+            ) : (
+              <div className="nh-rows">
+                {communityPosts.slice(0, 2).map((p) => {
+                  const author = p.author
+                    ? `${p.author.first_name || ''} ${p.author.last_name || ''}`.trim() || L('מאמן', 'Coach')
+                    : L('מאמן', 'Coach')
+                  const img = safeUrl(p.thumbUrl)
+                  return (
+                    <button key={p.id} type="button" className="nh-row" onClick={() => onNavigate('community')}>
+                      <span
+                        className="nh-row-thumb"
+                        style={img ? { backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` } : undefined}
+                        aria-hidden="true"
+                      />
+                      <span className="nh-row-tx">
+                        <span className="nh-row-sub">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
+                        <b>{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</b>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
-      <div className="hp-side">
-        <div className="hp-o-week"><WeekSchedule session={session} schedule={sched} onNavigate={onNavigate} /></div>
-
-        {netSmall === false && (
-          <div className="hp-o-cow">
-            <CoachOfWeek onOpenCoach={(coach) => (onOpenCoach ? onOpenCoach(coach) : onNavigate('finder'))} />
-          </div>
-        )}
-
-        <div className="hp-o-links">
-          <h2 className="section-title">
-            {L('תוכן והשראה', 'Content & inspiration')}
-          </h2>
-          <div className="home-grid reveal-up">
-            {CONTENT_LINKS.map((l) => (
-              <a key={l.url} className="home-card" href={l.url} target="_blank" rel="noreferrer">
-                <span className="home-card-title link-row">
-                  {l.title}
-                  <ExternalLink size={15} />
-                </span>
-                <span className="home-card-desc">{l.desc}</span>
-              </a>
-            ))}
+          <div className="nh-o-videos">
+            <HomeVideos onOpen={() => onNavigate('media')} heading={L('סרטונים מהמדיה', 'From the media')} />
           </div>
         </div>
       </div>
 
-      {/* 2.2 — כתבות בתחתית הבית: 4 כתבות ממדורי כדורסל ישראליים,
-          כותרת + תמונה + קישור החוצה למקור. לא מעתיקים תוכן. */}
-      {SHOW_NEWS && <div className="hp-o-news">
-      <span className="sec-kicker">{L('מהתקשורת', 'From the press')}</span>
-      <h2 className="section-title section-title--icon">
-        <Newspaper size={18} />
-        {L('כתבות כדורסל ישראלי', 'Israeli basketball news')}
-      </h2>
-      <p className="muted small" style={{ marginTop: -2, marginBottom: 4 }}>
-        {L('ממדורי הכדורסל של אתרי הספורט הישראליים — לחיצה פותחת את הכתבה המלאה במקור.', 'From the basketball sections of Israeli sports sites — tap to open the full article at its source.')}
-      </p>
-
-      {loading && (
-        <div className="news-grid">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="news-card is-skeleton">
-              <div className="news-thumb skeleton" />
-              <div className="news-body">
-                <div className="skeleton skeleton-line" />
-                <div className="skeleton skeleton-line short" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loading && !error && items.length > 0 && (
-        <div className="news-grid reveal-up">
-          {items.slice(0, NEWS_HOME_COUNT).map((a, i) => (
-            <a key={i} className="news-card" href={safeUrl(a.link) || '#'} target="_blank" rel="noopener noreferrer">
-              <div
-                className="news-thumb"
-                style={{ backgroundImage: `url("${newsImage(a)}")` }}
-              >
-                {a.source && <span className="news-source">{a.source}</span>}
-              </div>
-              <div className="news-body">
-                {/* bdi — כותרות עם תוצאות ("79:66") מתהפכות בלי בידוד כיוון */}
-                <span className="news-title"><bdi>{a.title}</bdi></span>
-                <span className="news-meta">
-                  {a.date ? formatDate(a.date) : a.source}
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
-
-      {!loading && (error || items.length === 0) && (
-        <p className="muted small" style={{ marginTop: 8 }}>
-          {L('לא הצלחנו לטעון כתבות כרגע — ננסה שוב בכניסה הבאה.', "We couldn't load articles right now — we'll retry next visit.")}
-        </p>
-      )}
-      </div>}
+      {/* מרווח לגלולת הניווט הצפה במובייל */}
+      <div className="nh-spacer" aria-hidden="true" />
     </div>
   )
 }

@@ -18,7 +18,7 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 const dm = (dateStr) => { const d = new Date(dateStr + 'T00:00'); return `${d.getDate()}.${d.getMonth() + 1}` }
 
-export default function CoachTodo({ session, onNavigate }) {
+export default function CoachTodo({ session, onNavigate, variant }) {
   const me = session?.user?.id
   const [rows, setRows] = useState(null) // null=טוען, []=הכול סגור
 
@@ -183,6 +183,41 @@ export default function CoachTodo({ session, onNavigate }) {
   }, [me])
 
   if (rows === null) return null
+
+  // ---- גרסת «כרטיס» (11.8, מסמך העיצוב 3a): כותרת + תג מונה בתוך קליפה ----
+  if (variant === 'card') {
+    return (
+      <section className="nh-card nh-todo">
+        <div className="nh-card-head">
+          <h2 className="nh-card-title">{L('דברים לביצוע', 'To do')}</h2>
+          {rows.length > 0 && (
+            <span className="nh-chip warn">
+              <bdi dir="ltr">{rows.length}</bdi> {L('פתוחים', 'open')}
+            </span>
+          )}
+        </div>
+        {rows.length === 0 ? (
+          <div className="ctd-clear">
+            <CheckCircle2 size={18} aria-hidden="true" />
+            {L('הכול סגור, מאמן 🏀', 'All done, coach 🏀')}
+          </div>
+        ) : (
+          <div className="nh-rows">
+            {rows.map((r) => (
+              <button key={r.key} type="button" className="nh-row" onClick={() => onNavigate && onNavigate(r.nav)}>
+                <span className={'nh-row-ic ' + r.tone} aria-hidden="true"><r.Icon size={16} /></span>
+                <span className="nh-row-tx">
+                  <b>{r.title}</b>
+                  {r.sub && <span>{r.sub}</span>}
+                </span>
+                <ChevronFwd size={15} className="nh-row-go" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    )
+  }
 
   return (
     <section className="ctd">

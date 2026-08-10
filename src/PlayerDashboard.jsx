@@ -13,6 +13,9 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
 import useNavMarker from './useNavMarker'
+import PocketNav from './PocketNav'
+import HomeVideos from './HomeVideos'
+import CourtArt from './CourtArt'
 import { ArrowFwd, ChevronFwd, ChevronBack } from './DirIcon'
 import ThemeToggle from './ThemeToggle'
 import LanguageToggle from './LanguageToggle'
@@ -535,122 +538,6 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
         </RestrictedNote>
       )}
     </article>
-  )
-}
-
-// ---------- מסך: התרגילים שלי (עם סינון והתקדמות, כולל התקדמות חלקית) ----------
-// ---------- כרטיס יעדים לסרגל הצד של הבית ----------
-// גרסה מכווצת של «היעדים שלי»: שלושה יעדים פעילים עם בר התקדמות,
-// וקישור למסך המלא. לא מחליף אותו — נותן הצצה.
-function HomeGoals({ session, setView }) {
-  const [goals, setGoals] = useState([])
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data, error } = await supabase
-        .from('player_goals')
-        .select('id, title, metric_type, target_value, progress_value, unit, status')
-        .eq('player_id', session.user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(3)
-      if (alive) setGoals(error ? [] : data || [])
-    })().catch(() => { if (alive) setGoals([]) })
-    return () => { alive = false }
-  }, [session.user.id])
-
-  // מצב ריק עם כיוון (7.8) — מקטע שנעלם השאיר חצי מסך ריק בדסקטופ
-  return (
-    <section className="plh-side-card">
-      <div className="plh-side-head">
-        <span className="pl-section-label"><Target size={15} /> {L('היעדים שלי', 'My goals')}</span>
-        <button type="button" className="link-button" onClick={() => setView('goals')}>
-          {L('לכל היעדים', 'All goals')}
-        </button>
-      </div>
-      {goals.length === 0 && (
-        <p className="plh-empty">
-          {L('עוד אין יעדים פעילים. יעד טוב הוא ספציפי — «חמש שלשות באימון».', 'No active goals yet. A good goal is specific — "five threes per practice".')}
-          {' '}
-          <button type="button" className="plh-empty-cta" onClick={() => setView('goals')}>{L('קבעו יעד ראשון ←', 'Set your first goal')}</button>
-        </p>
-      )}
-      <ul className="plh-goals">
-        {goals.map((g) => {
-          const tgt = Number(g.target_value) || 0
-          const cur = Number(g.progress_value) || 0
-          const pct = g.metric_type === 'count' && tgt > 0
-            ? Math.min(100, Math.round((cur / tgt) * 100))
-            : null
-          return (
-            <li key={g.id}>
-              <div className="plh-goal-top">
-                <b>{g.title}</b>
-                {pct !== null && (
-                  <span className="muted small" dir="ltr">{cur}/{tgt}{g.unit ? ' ' + g.unit : ''}</span>
-                )}
-              </div>
-              {pct !== null && (
-                <div className="plh-goal-bar" role="img"
-                  aria-label={L(`התקדמות ${pct} אחוז`, `${pct} percent complete`)}>
-                  <span style={{ width: pct + '%' }} />
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
-
-// ---------- כרטיס המאמן האישי לסרגל הצד ----------
-function HomePersonalCoach({ session, setView }) {
-  const [rows, setRows] = useState([])
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data, error } = await supabase
-        .from('personal_trainees')
-        .select('id, status, coach:profiles!personal_trainees_coach_id_fkey(first_name, last_name)')
-        .eq('player_id', session.user.id)
-        .neq('status', 'ended')
-      if (alive) setRows(error ? [] : data || [])
-    })().catch(() => { if (alive) setRows([]) })
-    return () => { alive = false }
-  }, [session.user.id])
-
-  // מצב ריק עם כיוון (7.8) — הדלת לאימון האישי נשארת על המסך
-  return (
-    <section className="plh-side-card">
-      <div className="plh-side-head">
-        <span className="pl-section-label"><UserPlus size={15} /> {L('המאמן האישי', 'Personal coach')}</span>
-        <button type="button" className="link-button" onClick={() => setView('pcoach')}>
-          {L('למסך', 'Open')}
-        </button>
-      </div>
-      {rows.length === 0 && (
-        <p className="plh-empty">
-          {L('מתאמנים גם אחד-על-אחד? מצטרפים למאמן האישי עם קוד ממנו.', 'Training one-on-one too? Join your personal coach with their code.')}
-          {' '}
-          <button type="button" className="plh-empty-cta" onClick={() => setView('pcoach')}>{L('הזנת קוד ←', 'Enter a code')}</button>
-        </p>
-      )}
-      {rows.map((r) => {
-        const c = r.coach || {}
-        return (
-          <div key={r.id} className="plh-pc-row">
-            <span className="pl-pcoach-av" aria-hidden="true">{(c.first_name || '?').slice(0, 1)}</span>
-            <b>{`${c.first_name || ''} ${c.last_name || ''}`.trim() || L('מאמן', 'Coach')}</b>
-            {r.status !== 'active' && (
-              <span className="status-pill adm-cv cv-revoked">{L('ממתין', 'Pending')}</span>
-            )}
-          </div>
-        )
-      })}
-    </section>
   )
 }
 
@@ -1493,7 +1380,7 @@ function PrePracticeGoals({ session, membership }) {
 // ---------- בית: כרטיס-הירו עם ספירה לאחור לאימון הבא + CTA לסיכום ----------
 // ---------- בית: אישור הגעה לאימון הבא (מסך 3b) ----------
 // כותב ל-practice_rsvp: היעדר שורה = «טרם ענה», ולכן אין מה ליצור מראש.
-function HomeRsvp({ session, membership, next }) {
+function HomeRsvp({ session, membership, next, variant }) {
   const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
   const [busy, setBusy] = useState(false)
   // §6 — «לא אוכל» פותח שדה סיבה במלל חופשי שהמאמן רואה
@@ -1540,6 +1427,65 @@ function HomeRsvp({ session, membership, next }) {
   }
 
   if (!membership || !sessionId || mine === undefined) return null
+
+  // ---- גרסת «לוח» (11.8, מסמך העיצוב 3a) ----
+  // שני כפתורים גדולים בתוך הבאנר, ומתחתיהם שורת אישור אחת שמשקפת
+  // את מה שנשמר. פאנל הסיבה נשאר — הוא הדרך היחידה לומר «למה לא».
+  if (variant === 'board') {
+    return (
+      <div className="nh-rsvp-ask">
+        <div className="nh-rsvp-btns">
+          <button
+            type="button"
+            className={mine === 'yes' ? 'nh-btn nh-btn-primary on' : 'nh-btn nh-btn-primary'}
+            onClick={() => answer('yes')}
+            disabled={busy || restricted}
+            aria-pressed={mine === 'yes'}
+          >
+            <Check size={16} aria-hidden="true" /> {L('אני מגיע', "I'm coming")}
+          </button>
+          <button
+            type="button"
+            className={mine === 'no' ? 'nh-btn nh-btn-ghost on' : 'nh-btn nh-btn-ghost'}
+            onClick={() => setAskReason((v) => !v)}
+            disabled={busy || restricted}
+            aria-pressed={mine === 'no'}
+          >
+            {L('לא אגיע', "Can't make it")}
+          </button>
+        </div>
+        <p className="nh-rsvp-note">
+          {mine === 'yes'
+            ? L('רשמנו שאתה מגיע — המאמן רואה', "You're marked as coming — your coach sees it")
+            : mine === 'no'
+              ? L('רשמנו שלא תגיע — המאמן רואה', "You're marked as not coming — your coach sees it")
+              : L(`מגיע ${dayLabel(next.date)}? המאמן רואה את התשובה מיד`, `Coming ${dayLabel(next.date)}? Your coach sees the answer right away`)}
+        </p>
+        {restricted && (
+          <RestrictedNote>
+            {L('אישור הגעה נשמר אצל המאמן, ולכן הוא נפתח רק אחרי אישור ההורה.',
+               'Your attendance answer is saved with your coach, so it opens only after your parent approves.')}
+          </RestrictedNote>
+        )}
+        {askReason && (
+          <div className="nh-rsvp-reason">
+            <input
+              type="text"
+              value={reason}
+              maxLength={200}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
+              onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+            />
+            <button type="button" className="nh-btn nh-btn-ghost" disabled={busy} onClick={() => answer('no', reason.trim())}>
+              {L('שליחה', 'Send')}
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="plh-rsvp">
       <div className="plh-rsvp-tx">
@@ -1583,34 +1529,11 @@ function HomeRsvp({ session, membership, next }) {
   )
 }
 
-// ---------- בית: ארבעת המספרים בתוך הבאנר (מסך 3b) ----------
-function HeroStats({ stats, setView }) {
-  // ב-RTL הפריט הראשון ב-DOM הוא הימני ביותר. בעיצוב הימני הוא «נוכחות»
-  // והשמאלי «משובים» — לכן הסדר כאן הפוך מסדר הקריאה במסך.
-  const tiles = [
-    { k: 'att', num: stats?.attendancePct != null ? stats.attendancePct + '%' : '—', lbl: L('נוכחות', 'Attendance'), go: 'schedule' },
-    { k: 'load', num: stats?.avgLoad ?? '—', lbl: L('עומס ממוצע', 'Avg load'), go: 'feedback' },
-    { k: 'open', num: stats?.open ?? 0, lbl: L('משימות', 'Tasks'), go: 'drills', hot: true },
-    { k: 'fb', num: stats?.fbCount ?? 0, lbl: L('משובים', 'Feedback'), go: 'feedback' },
-  ]
-  return (
-    <div className="plh-stats">
-      {/* data-k — צבע לכל מספר לפי הפרוטוטייפ (ירוק/אפרסק/לבן/תכלת) */}
-      {tiles.map((t) => (
-        <button key={t.k} type="button" className="plh-stat" data-k={t.k} onClick={() => setView(t.go)}>
-          <b className={t.hot ? 'hot' : ''} dir="ltr">{t.num}</b>
-          <span>{t.lbl}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // ---------- בית: «השבוע שלי» — שלושת האירועים הבאים (מסך 3b) ----------
 // 1.12 — הלו"ז השבועי הגדול בבית: רכיב הרשימה המשותף (1.2) לשבוע הנוכחי,
 // כולל כפתורי אישור הגעה על אימונים קרובים.
 const hmShort = (t) => (t ? String(t).slice(0, 5) : '')
-function HomeWeek({ session, membership, setView }) {
+function HomeWeek({ session, membership, setView, variant }) {
   const [days, setDays] = useState(null)
   useEffect(() => {
     if (!membership) return
@@ -1651,6 +1574,58 @@ function HomeWeek({ session, membership, setView }) {
   }, [membership])
 
   if (!membership || !days) return null
+
+  // ---- גרסת «הלו״ז להמשך» (11.8, מסמך העיצוב 3a) ----
+  // רשימה קדימה של שלושת המועדים הבאים, לא רצועת שבעה ימים: המסמך
+  // שם את הכרטיס בטור הצדדי, שם אין רוחב לשבע עמודות.
+  if (variant === 'card') {
+    const todayY = wkYmd(new Date())
+    const upcoming = days
+      .flatMap((d) => d.items.map((ev) => ({ ...ev, date: d.date })))
+      .filter((ev) => ev.date >= todayY)
+      .sort((a, b) => (a.date + String(a.start_time || '')).localeCompare(b.date + String(b.start_time || '')))
+      .slice(0, 3)
+    return (
+      <section className="nh-card nh-week">
+        <div className="nh-card-head">
+          <h2 className="nh-card-title">{L('הלו״ז להמשך', 'What’s next')}</h2>
+          <button type="button" className="nh-link" onClick={() => setView('schedule')}>
+            {L('ללו״ז המלא', 'Full schedule')} <ChevronFwd size={14} aria-hidden="true" />
+          </button>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="nh-empty">{L('אין אימונים או משחקים בשבוע הזה.', 'No practices or games this week.')}</p>
+        ) : (
+          <div className="nh-week-rows">
+            {upcoming.map((ev, i) => {
+              const dt = new Date(ev.date + 'T00:00')
+              return (
+                <button
+                  key={ev.key}
+                  type="button"
+                  className={i === 0 ? 'nh-week-row is-next' : 'nh-week-row'}
+                  onClick={() => setView('schedule')}
+                >
+                  <span className="nh-week-day">
+                    <b>{dt.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short' })}</b>
+                    <span dir="ltr">{dt.getDate()}</span>
+                  </span>
+                  <span className="nh-week-tx">
+                    <b>{ev.kind === 'game'
+                      ? <>{L('משחק', 'Game')}{ev.opponent ? ` · ${ev.opponent}` : ''}</>
+                      : (ev.team ? trTeam(ev.team) : L('אימון', 'Practice'))}</b>
+                    <span>{ev.location || (ev.plan?.name ? L(`תוכנית: ${ev.plan.name}`, `Plan: ${ev.plan.name}`) : L('אולם הקבוצה', 'Team venue'))}</span>
+                  </span>
+                  <span className="nh-week-time" dir="ltr">{hmShort(ev.start_time) || ''}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    )
+  }
+
   // רצועת שבעה ימים (9.8, «הגרסה הנקייה») — לוח שידורים במקום רשימה:
   // היום בכתום עם תגית, אימון = שבב חם, משחק = שבב לילה, יום ריק = נקודה.
   // אישור ההגעה נשאר בבאנר ובלו״ז המלא — הרצועה היא תצוגה בלבד.
@@ -1685,45 +1660,6 @@ function HomeWeek({ session, membership, setView }) {
                 </button>
               ))}
             </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-// 1.12 — רצועת סרטונים בתחתית הבית: 4–6 מובילים מהמדיה, לחיצה מובילה למדיה
-function HomeVideos({ setView }) {
-  const [vids, setVids] = useState(null)
-  useEffect(() => {
-    ;(async () => {
-      let { data, error } = await supabase.from('drill_videos')
-        .select('id, title, url, featured').order('created_at', { ascending: false }).limit(30)
-      if (error) {
-        const legacy = await supabase.from('drill_videos')
-          .select('id, title, url').order('created_at', { ascending: false }).limit(30)
-        data = legacy.data
-      }
-      const rows = data || []
-      const featured = rows.filter((v) => v.featured)
-      setVids((featured.length >= 4 ? featured : rows).slice(0, 4))
-    })()
-  }, [])
-  if (!vids || vids.length === 0) return null
-  return (
-    <section className="pl-block">
-      <div className="plhg-head">
-        <p className="pl-section-label"><MonitorPlay size={15} /> {L('סרטונים', 'Videos')}</p>
-        <button className="plhg-all" onClick={() => setView('videos')}>{L('לכל המדיה', 'All media')} <ArrowFwd size={14} /></button>
-      </div>
-      <div className="plhv-strip">
-        {vids.map((v) => {
-          const yt = getYouTubeId(v.url)
-          return (
-            <button key={v.id} type="button" className="plhv-card" onClick={() => setView('videos')}>
-              <span className="plhv-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined} aria-hidden="true" />
-              <span className="plhv-title" dir="auto">{cleanVideoTitle(v.title)}</span>
-            </button>
           )
         })}
       </div>
@@ -1813,9 +1749,10 @@ function EffortScale({ session, sessionId, sessionDate }) {
   )
 }
 
-function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats, setView }) {
+function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNotification }) {
   const [next, setNext] = useState(undefined)
   const [now, setNow] = useState(Date.now())
+  const [quoteIdx] = useState(() => Math.floor(Math.random() * COACHING_QUOTES.length))
   // סיכום האימון נכתב ל-session_effort ו-session_goal_marks — שתיהן ברשימת
   // השערים, ולכן ה-CTA לא נפתח לחשבון מוגבל במקום להיכשל בתוך הגיליון.
   const { restricted } = useRestricted()
@@ -1884,100 +1821,93 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, stats,
   }
   const isGame = next?.kind === 'game'
 
-  // הלוח שאושר (v4): הכרטיס מציג שעה גדולה, והיום+המקום בשורה הקטנה
-  const timeBig = next?.start_time ? next.start_time.slice(0, 5) : (next ? dayLabel(next.date) : '')
-  const whenSmall = next
-    ? [next.start_time ? dayLabel(next.date) : null, next.location].filter(Boolean).join(' · ')
-    : ''
+  // הציטוט בבאנר (מסמך העיצוב 3a) — מתוך אותה רשימה של שאר האפליקציה,
+  // נבחר פעם אחת לכל טעינה כדי שלא יתחלף מתחת לאצבע.
+  const quote = COACHING_QUOTES[quoteIdx % COACHING_QUOTES.length]
 
+  // ---------------------------------------------------------------------
+  // 11.8.2026 — הבאנר נבנה מחדש לפי מסמך העיצוב «דפי בית», כיוון 3a.
+  // מרחב שמות חדש nh-* (ראה את ההסבר בראש הבלוק המקביל ב-index.css).
+  // סדר המסמך: ברכה ופעמון → ציטוט → «האימון הקרוב» ענק → אישור הגעה →
+  // שורת האישורים. כשאין אימון קרוב אבל יש אימון שהסתיים היום בלי סיכום,
+  // אותו מקום מציג את «איך היה האימון היום?» — הלולאה שהמסמך לא צייר
+  // אבל היא הסיבה שנער פותח את האפליקציה.
+  // ---------------------------------------------------------------------
   return (
-    <div className={isGame ? 'plh-hero game pl-stagger' : 'plh-hero pl-stagger'}>
-      {/* שתי הקשתות — הסימן של הלוח, כמו קווי הצבע על הפרקט.
-          עד עכשיו הקשת השנייה נבנתה מ-plh-hero-court שישב בתוך
-          plh-hero-media המוסתר — ולכן לא נראתה בכלל. */}
-      <span className="plh-arc" aria-hidden="true" />
-      <span className="plh-arc b" aria-hidden="true" />
+    <header className={isGame ? 'nh-hero nh-hero-game' : 'nh-hero'}>
+      <span className="nh-hero-art" aria-hidden="true"><CourtArt variant="home" /></span>
 
-      {/* ראש הלוח: ברכה מימין, כרטיס «האימון הבא» זכוכיתי משמאל (v4).
-          המבנה הקודם קינן את כל זה בתוך plh-hero-media — שבלוק (יד)
-          הסתיר, וכך הבאנר עלה לאוויר בלי שם, בלי כותרת ובלי האימון הבא. */}
-      <div className="plh-board-top">
-        <div className="plh-board-greet">
-          <span className="plh-board-eyebrow">
-            {greet}{profile.first_name ? L(`, ${profile.first_name}`, `, ${profile.first_name}`) : ''}
+      <div className="nh-hero-top">
+        <Avatar name={`${profile.first_name || ''} ${profile.last_name || ''}`} url={profile.avatar_url} size={42} />
+        <div className="nh-hero-who">
+          <span className="nh-hero-date">{greet}</span>
+          <h1 className="nh-hero-greet">{profile.first_name || L('שחקן', 'Player')}</h1>
+        </div>
+        <span className="nh-hero-bell"><Notifications session={session} onNavigate={onNotification} /></span>
+      </div>
+
+      <p className="nh-quote">
+        <span className="nh-quote-mark" aria-hidden="true">״</span>
+        <span className="nh-quote-tx">
+          {L(quote.text, quote.text_en)}
+          <span className="nh-quote-by"> — {L(quote.author, quote.author_en)}</span>
+        </span>
+      </p>
+
+      {next ? (
+        <div className="nh-pnext">
+          <span className="nh-next-tag">
+            <Clock size={12} aria-hidden="true" />
+            {started
+              ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
+              : (isGame ? L('המשחק הקרוב', 'Next game') : L('האימון הקרוב', 'Next practice'))}
           </span>
-          <h1 className="plh-hero-title-big">
-            {L('מחכים לך על ', 'See you on the ')}
-            <em className="plh-hero-name">{L('הפרקט', 'hardwood')}</em>
-          </h1>
-          {/* שורה אחת שאומרת מה מחכה לך — במקום שם הקבוצה והמאמן, שכבר
-              מופיעים בפס למעלה ובסרגל הניווט. */}
-          <p className="plh-hero-sub">
-            {!membership
-              ? L('מצטרפים לקבוצה עם קוד מהמאמן ומתחילים', 'Join your team with a code from your coach')
-              : [
-                  stats?.open > 0 ? L(cnt(stats.open, 'משימה פתוחה אחת', 'משימות פתוחות'), stats.open + ' open tasks') : null,
-                  summary?.state === 'ask' ? L('נשאר לסכם את האימון של היום', "today's practice still needs a summary") : null,
-                  next ? (isGame ? L('ומשחק בדרך', 'and a game coming up') : null) : L('אין אימון קרוב בלו״ז', 'no upcoming practice'),
-                ].filter(Boolean).join(' · ') || L('הכול מסודר — נתראה באימון', "You're all set — see you at practice")}
+          <h2 className="nh-pnext-time">
+            {dayLabel(next.date)}{next.start_time ? <> · <span dir="ltr">{next.start_time.slice(0, 5)}</span></> : null}
+          </h2>
+          <p className="nh-pnext-meta">
+            {[next.location, next.title].filter(Boolean).join(' · ')}
+          </p>
+          {membership && !isGame && <NextPracticeGoal session={session} membership={membership} />}
+          {session && <HomeRsvp session={session} membership={membership} next={next} variant="board" />}
+        </div>
+      ) : (
+        <div className="nh-pnext nh-pnext-empty">
+          <span className="nh-next-tag"><Clock size={12} aria-hidden="true" /> {L('האימון הקרוב', 'Next practice')}</span>
+          <h2 className="nh-pnext-time">{L('אין אימון בלו״ז', 'Nothing scheduled')}</h2>
+          <p className="nh-pnext-meta">
+            {membership
+              ? L('ברגע שהמאמן יקבע אימון הוא יופיע כאן.', 'As soon as your coach schedules a practice it shows up here.')
+              : L('מצטרפים לקבוצה עם קוד מהמאמן ומתחילים.', 'Join your team with a code from your coach.')}
           </p>
         </div>
+      )}
 
-        {next && (
-          <div className={started ? 'plh-next live' : 'plh-next'}>
-            <span className="plh-next-tag">
-              {started
-                ? (isGame ? L('עכשיו', 'Now') : L('האימון עכשיו', 'Practice now'))
-                : (isGame ? L('המשחק הבא', 'Next game') : L('האימון הבא', 'Next practice'))}
-            </span>
-            <b className="plh-next-time" dir="ltr">{timeBig}</b>
-            <span className="plh-next-when">{whenSmall}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="plh-hero-foot">
-        {summary?.state === 'ask' && (
-          /* היה אימון היום ואין סיכום — זה הרגע היחיד שנער באמת פותח את האפליקציה */
-          <div className="plh-ask">
-            <strong className="plh-ask-title">{summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}</strong>
-            {/* סולם מהיר לפני הכפתור: תשובה אחת בלחיצה אחת. מי שרוצה
-                לכתוב יותר ממשיך לגיליון המלא — הוא לא הוחלף. */}
-            {!restricted && summary.sessionId && (
-              <EffortScale
-                session={session}
-                sessionId={summary.sessionId}
-                sessionDate={summary.date}
-              />
-            )}
-            <button className="plh-hero-cta plh-ask-cta" onClick={onFeedback} disabled={restricted}>
-              <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
-            </button>
-            {restricted && (
-              <RestrictedNote>
-                {L('הסיכום נשלח למאמן, ולכן הוא נפתח אחרי אישור ההורה.',
-                   'The summary goes to your coach, so it opens after your parent approves.')}
-              </RestrictedNote>
-            )}
-          </div>
-        )}
-        {summary?.state === 'done' && (
-          <span className="plh-done"><Check size={14} /> {L('הסיכום של היום אצל המאמן', "Today's summary is with your coach")}</span>
-        )}
-        {!membership && (
-          <strong className="plh-hero-title">{L('הצטרפו לקבוצה', 'Join a team')}</strong>
-        )}
-        {/* 1.12 — יעד האימון הקרוב חי בתוך כרטיס האימון */}
-        {next && membership && !isGame && <NextPracticeGoal session={session} membership={membership} />}
-        {/* אישור הגעה — הפעולה היחידה בבאנר, לפי מסך 3b */}
-        {next && session && <HomeRsvp session={session} membership={membership} next={next} />}
-      </div>
-      {/* ארבעת המספרים חיים בתוך הבאנר (מסך 3b), ולא כשלישייה צבעונית בהמשך */}
-      {membership && <HeroStats stats={stats} setView={setView} />}
-    </div>
+      {summary?.state === 'ask' && (
+        <div className="nh-ask">
+          <strong className="nh-ask-title">
+            {summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}
+          </strong>
+          {!restricted && summary.sessionId && (
+            <EffortScale session={session} sessionId={summary.sessionId} sessionDate={summary.date} />
+          )}
+          <button type="button" className="nh-btn nh-btn-primary nh-ask-cta" onClick={onFeedback} disabled={restricted}>
+            <Send size={16} aria-hidden="true" /> {L('מלא סיכום אימון', 'Log session summary')}
+          </button>
+          {restricted && (
+            <RestrictedNote>
+              {L('הסיכום נשלח למאמן, ולכן הוא נפתח אחרי אישור ההורה.',
+                 'The summary goes to your coach, so it opens after your parent approves.')}
+            </RestrictedNote>
+          )}
+        </div>
+      )}
+      {summary?.state === 'done' && (
+        <span className="nh-done"><Check size={14} aria-hidden="true" /> {L('הסיכום של היום אצל המאמן', "Today's summary is with your coach")}</span>
+      )}
+    </header>
   )
 }
-
 // הסיכום הקבוצתי האחרון מהמאמן — מוצג בבית במקום החדשות (sr_member_read קיימת)
 function LastTeamReview({ membership, me }) {
   const [rev, setRev] = useState(null)
@@ -2022,7 +1952,7 @@ function LastTeamReview({ membership, me }) {
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 // §7 — «המשימות שלי» בבית: עד שלוש משימות פתוחות אמיתיות מהמאמן, עם פס
 // התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק יעדים.
-function HomeTasks({ session, setView }) {
+function HomeTasks({ session, setView, variant }) {
   const me = session.user.id
   const [rows, setRows] = useState(null)
   // אותה טבלה כמו במסך המשימות (assignment_completions) — ולכן אותו שער
@@ -2057,6 +1987,71 @@ function HomeTasks({ session, setView }) {
   }
 
   if (rows === null) return null
+
+  // ---- גרסת «כרטיס» (11.8, מסמך העיצוב 3a) ----
+  // כותרת כתומה, שורה לכל משימה עם עיגול סימון, פס התקדמות ומונה,
+  // וקישור «לכל המשימות שלי». המסמך קורא לכרטיס «המשימות לאימון הקרוב»,
+  // אבל למשימה אין שיוך לאימון בבסיס הנתונים — ולכן הכותרת נשארת
+  // «המשימות שלי», מה שהיא באמת.
+  if (variant === 'card') {
+    const done = rows.filter(({ a, prog }) => Number(a.target_value) > 0 && prog >= Number(a.target_value)).length
+    return (
+      <section className="nh-card nh-tasks">
+        <div className="nh-card-head nh-tasks-head">
+          <h2 className="nh-card-title">{L('המשימות שלי', 'My tasks')}</h2>
+          {rows.length > 0 && <span className="nh-chip" dir="ltr">{done}/{rows.length}</span>}
+        </div>
+        {rows.length === 0 ? (
+          <p className="nh-empty">
+            {L('אין משימות פתוחות כרגע — כל תרגיל שהמאמן ישלח ינחת כאן.', "No open tasks right now — every drill your coach sends lands here.")}
+            {' '}
+            <button type="button" className="nh-empty-cta" onClick={() => setView('drills')}>{L('לספריית התרגילים ←', 'Browse the drill library')}</button>
+          </p>
+        ) : (
+          <div className="nh-task-rows">
+            {rows.map(({ a, prog }) => {
+              const target = Number(a.target_value)
+              const title = a.drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
+              const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : 0
+              const isDone = target > 0 && prog >= target
+              return (
+                <div key={a.id} className={isDone ? 'nh-task done' : 'nh-task'}>
+                  <button
+                    type="button"
+                    className="nh-task-tick"
+                    onClick={() => target > 0 && quick(a, prog)}
+                    disabled={restricted || !(target > 0) || isDone}
+                    aria-label={L('רישום התקדמות', 'Log progress')}
+                  >
+                    {isDone && <Check size={14} aria-hidden="true" />}
+                  </button>
+                  <button type="button" className="nh-task-body" onClick={() => setView('drills')}>
+                    <span className="nh-task-top">
+                      <b>{title}</b>
+                      {target > 0 && <span className="nh-task-num" dir="ltr">{prog}/{target}{a.unit ? ` ${a.unit}` : ''}</span>}
+                    </span>
+                    {target > 0
+                      ? <span className="nh-task-bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
+                      : <span className="nh-task-sub">{a.note || L('משימה מהמאמן', 'Task from your coach')}</span>}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <button type="button" className="nh-card-foot" onClick={() => setView('drills')}>
+          {L('לכל המשימות שלי', 'All my tasks')} <ChevronFwd size={14} aria-hidden="true" />
+        </button>
+        {restricted && (
+          <RestrictedNote>
+            {L('רישום ההתקדמות נשמר אצל המאמן, ולכן הוא נפתח אחרי אישור ההורה.',
+               'Your progress is saved with your coach, so logging it opens after your parent approves.')}
+          </RestrictedNote>
+        )}
+      </section>
+    )
+  }
+
   // מצב ריק עם כיוון (7.8) — «מה עליי לעשות» הוא לב המסך גם כשאין משימות
   if (rows.length === 0) {
     return (
@@ -2229,69 +2224,53 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
   }, [session.user.id])
   useEffect(() => { loadStats() }, [loadStats])
 
-  // סדר הבית לפי הבעלים: טיימר → יעדים בגדול → המשוב האחרון → סיכום המאמן
-  // → הודעות מהמאמן → סטטיסטיקות → כתבות. הציטוט מגיע מה-shell לכל המסכים.
+  // ---------------------------------------------------------------------
+  // 11.8.2026 — בית השחקן לפי מסמך העיצוב «דפי בית», כיוון 3a:
+  // לוח → המשימות שלי → המשוב האחרון → סרטונים בשבילך. בדסקטופ שני
+  // טורים: הראשי נושא את המשימות והמשוב, והצדדי את הלו״ז והסרטונים.
+  // ---------------------------------------------------------------------
   return (
-    <div className="pl-screen pl-home-rich">
-      <HomeHero profile={profile} membership={membership} session={session} stats={stats} setView={setView}
-        onFeedback={() => setFbOpen(true)} refreshKey={fbRefresh} />
+    <div className="nh nh-player">
+      <HomeHero
+        profile={profile}
+        membership={membership}
+        session={session}
+        onFeedback={() => setFbOpen(true)}
+        refreshKey={fbRefresh}
+        onNotification={(v) => setView(v)}
+      />
 
-      {!membership && (
-        <div className="pl-stagger"><JoinTeam session={session} onJoined={onJoined} compact /></div>
-      )}
+      {!membership && <JoinTeam session={session} onJoined={onJoined} compact />}
 
-      {/* סדר 1.12: משוב אחרון → משימות לתרגול → הלו"ז השבועי הגדול →
-          סיכום המאמן → רצועת סרטונים. היעדים ירדו מהבית — חוץ מיעד
-          האימון הקרוב שחי בתוך כרטיס האימון בבאנר. */}
-      {/* ===== מבנה «עיתון» במסך רחב: טור ראשי + סרגל צד =====
-          הסדר בבחירת הבעלים: משימות ומשוב בטור הרחב, ולו״ז/יעדים/מאמן
-          אישי בטור הצר. שני העוטפים הם display:contents במובייל — כלומר
-          הם נעלמים לגמרי, והילדים חוזרים לזרימה אחת. הסדר במובייל נשמר
-          בדיוק כשהיה, דרך order ב-CSS, כדי שהמסך שהשחקנים מכירים לא יזוז. */}
-      {/* ===== «הגרסה הנקייה» (9.8, אישור הבעלים) =====
-          חמישה אזורים בלבד: לוח → רצועת שבוע → שלושה כרטיסים
-          (משימות · מהמאמן · יעדים+מאמן אישי) → סרטונים → הודעה.
-          במובייל הכול נערם באותו סדר; plh-row3 הופך לרשת רק בדסקטופ. */}
       {membership && (
-        <>
-          <div className="pl-stagger plh-o-week"><HomeWeek session={session} membership={membership} setView={setView} /></div>
-
-          <div className="plh-row3">
-            <div className="pl-stagger plh-o-tasks"><HomeTasks session={session} setView={setView} key={`t${fbRefresh}`} /></div>
-            <div className="pl-stagger plh-card plh-fromcoach">
-              <p className="pl-section-label">{L('מהמאמן', 'From your coach')}</p>
-              <LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} />
-              <LastTeamReview membership={membership} me={session.user.id} />
-            </div>
-            <div className="pl-stagger plh-card plh-goalspc">
-              <div className="plh-side-head">
-                <span className="pl-section-label plh-cool">{L('היעדים שלי', 'My goals')}</span>
-                <button type="button" className="link-button" onClick={() => setView('goals')}>{L('לכל היעדים', 'All goals')}</button>
-              </div>
-              <HomeGoals session={session} setView={setView} />
-              <HomePersonalCoach session={session} setView={setView} />
+        <div className="nh-cols">
+          <div className="nh-main">
+            <div className="nh-o-tasks"><HomeTasks session={session} setView={setView} variant="card" key={`t${fbRefresh}`} /></div>
+            <div className="nh-o-fb">
+              <section className="nh-card nh-fb">
+                <div className="nh-card-head">
+                  <h2 className="nh-card-title">{L('המשוב האחרון', 'Latest feedback')}</h2>
+                  <button type="button" className="nh-link" onClick={() => setView('feedback')}>
+                    {L('לכל המשובים', 'All feedback')} <ChevronFwd size={14} aria-hidden="true" />
+                  </button>
+                </div>
+                <LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} />
+                <LastTeamReview membership={membership} me={session.user.id} />
+              </section>
             </div>
           </div>
-        </>
-      )}
 
-      {membership && <div className="pl-stagger plh-o-videos"><HomeVideos setView={setView} /></div>}
-
-      {membership && (
-        /* plh-o-msg (7.8) — בלי מחלקת order הכפתור קיבל order:0 וקפץ
-           לראש המסך במובייל, מעל כל המקטעים */
-        <div className="pl-stagger plh-o-msg">
-          <button type="button" className="plh-msg-cta" onClick={() => setView('coach')} disabled={restricted}>
-            <Send size={18} /> {L('שלח הודעה למאמן', 'Message your coach')}
-          </button>
-          {restricted && (
-            <RestrictedNote>
-              {L('שליחת הודעות נפתחת אחרי אישור ההורה. את מה שהמאמן כתב לך אפשר לקרוא בכל רגע.',
-                 'Sending messages opens after your parent approves. You can read what your coach wrote you at any time.')}
-            </RestrictedNote>
-          )}
+          <div className="nh-side">
+            <div className="nh-o-week"><HomeWeek session={session} membership={membership} setView={setView} variant="card" /></div>
+            <div className="nh-o-videos">
+              <HomeVideos onOpen={() => setView('videos')} heading={L('סרטונים בשבילך', 'Videos for you')} cta={L('לכל המדיה', 'All media')} />
+            </div>
+          </div>
         </div>
       )}
+
+      {/* מרווח לגלולת הניווט הצפה במובייל */}
+      <div className="nh-spacer" aria-hidden="true" />
 
       {/* הגיליון לא נפתח כלל לחשבון מוגבל: session_effort חסומה בשרת,
           ומילוי טופס שלם שנדחה בשליחה גרוע מכפתור מושבת עם הסבר. */}
@@ -2923,7 +2902,9 @@ const PLAYER_NAV = [
 // חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·
 // האימונים שלי · הקבוצה · פרופיל. עד היום ישבו כאן שני יעדי צ׳אט
 // (coach + teamchat) שתפסו 40% מהסרגל, בעוד היעדים והלו״ז היו במגירה בלבד.
-const PLAYER_BOTTOM = ['home', 'drills', 'feedback', 'schedule', 'profile']
+// ניווט־הכיס (11.8, מסמך העיצוב 3a): ארבעה יעדים בגלולה — והכפתור
+// הכתום שביניהם פותח את שמונת הפיצ׳רים בגיליון (כולל פרופיל ויעדים).
+const POCKET_NAV = ['home', 'drills', 'feedback', 'schedule']
 
 export default function PlayerDashboard({ session, profile, onProfileReload, restricted: restrictedProp, canSelfConfirm = false }) {
   const [view, setView] = useState('home')
@@ -3069,7 +3050,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
 
   return (
     <RestrictedCtx.Provider value={restrictedCtx}>
-    <div className="layout pl-layout">
+    <div className="layout pl-layout" data-view={editing ? 'edit' : view}>
       <header className="mobile-topbar">
         <button className="drawer-toggle" onClick={() => setDrawer(true)} aria-label={L('תפריט', 'Menu')}><Menu size={22} /></button>
         <div className="sidebar-brand">
@@ -3141,23 +3122,35 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         </div>
       </main>
 
-      <nav className="bottom-nav" aria-label={L('ניווט', 'Navigation')}>
-        {PLAYER_BOTTOM.map((id) => {
+      {/* ניווט־הכיס (11.8, מסמך העיצוב 3a) — גלולה צפה עם ארבעה יעדים
+          וכפתור מרכזי שפותח את כל הפיצ׳רים, במקום שורת הניווט הישנה */}
+      <PocketNav
+        activeId={editing ? null : view}
+        onNavigate={(id) => { setEditing(false); setView(id); setDrawer(false) }}
+        items={POCKET_NAV.map((id) => {
           const item = nav.find((n) => n.id === id)
-          return (
-            <button
-              key={id}
-              className={view === id && !editing ? 'bn-item active' : 'bn-item'}
-              aria-label={label(item)}
-              aria-current={view === id && !editing ? 'page' : undefined}
-              onClick={() => { setEditing(false); setView(id) }}
-            >
-              <span className="bn-ic"><item.Icon size={20} /></span>
-              <span className="bn-lbl">{item.short ? L(item.short[0], item.short[1]) : label(item)}</span>
-            </button>
-          )
+          return { id, label: item.short ? L(item.short[0], item.short[1]) : label(item), Icon: item.Icon }
         })}
-      </nav>
+        all={nav.map((item) => ({ id: item.id, label: label(item), Icon: item.Icon }))}
+        footer={
+          <>
+            <span className="pkn-who">
+              <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={34} />
+              <span>
+                <span className="pkn-who-nm">{profile.first_name} {profile.last_name}</span>
+                <span className="pkn-who-sub">{membership ? trTeam(membership.team) : L('שחקן', 'Player')}</span>
+              </span>
+            </span>
+            <span className="pkn-tools">
+              <LanguageToggle />
+              <ThemeToggle />
+              <button className="btn-ghost" onClick={signOut} aria-label={L('התנתקות', 'Sign out')}>
+                <LogOut size={15} aria-hidden="true" />
+              </button>
+            </span>
+          </>
+        }
+      />
     </div>
     </RestrictedCtx.Provider>
   )

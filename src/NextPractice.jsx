@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy } from 'lucide-react'
+import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy, Check as CheckLine } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { downloadIcs } from './ics'
 import SessionDetail from './SessionDetail'
@@ -21,7 +21,7 @@ const hm = (t) => (t ? String(t).slice(0, 5) : '')
 // schedule — הלו"ז המשותף שנשלף פעם אחת ב-Home ({ ready, entries, slots }).
 // עד היום schedule_entries ו-team_practice_slots נשלפו כאן שוב, למרות
 // שאותן שתי שאילתות בדיוק כבר רצו במקטעים האחרים של אותו מסך.
-export default function NextPractice({ session, schedule, onNavigate, onEntry }) {
+export default function NextPractice({ session, schedule, onNavigate, onEntry, variant, rsvp = null }) {
   const me = session?.user?.id
   const schedReady = !!schedule?.ready
   const schedEntries = schedule?.entries
@@ -135,7 +135,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry })
   }, [entry])
 
   if (loading) {
-    return <div className="np-card np-skeleton" aria-hidden="true" />
+    return <div className={variant === 'board' ? 'nh-next nh-next-skeleton' : 'np-card np-skeleton'} aria-hidden="true" />
   }
 
   // דוח האימון האחרון — מוצג בשני המצבים
@@ -169,6 +169,22 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry })
   )
 
   if (!entry) {
+    if (variant === 'board') {
+      return (
+        <div className="nh-next nh-next-empty">
+          <span className="nh-next-tag"><CalendarClock size={12} aria-hidden="true" /> {L('האימון הקרוב', 'Next practice')}</span>
+          <h2 className="nh-next-title">{L('אין אימון קרוב בלו״ז', 'No upcoming practice')}</h2>
+          <p className="nh-next-meta">{L('קבעו ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ואצל השחקנים.', 'Set fixed practice days in My teams — they show up here and for your players.')}</p>
+          <div className="nh-next-acts">
+            <button type="button" className="nh-btn nh-btn-primary" onClick={() => onNavigate('teams')}>
+              <CalendarPlus size={16} aria-hidden="true" /> {L('קביעת ימי אימון', 'Set practice days')}
+            </button>
+          </div>
+          {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
+          {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+        </div>
+      )
+    }
     return (
       <div className="np-card np-empty">
         <span className="np-eyebrow"><CalendarClock size={15} /> {L('האימון הבא', 'Next practice')}</span>
@@ -207,6 +223,63 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry })
         ? L(`בעוד ${hh} שעות`, `in ${hh} hours`)
         : L(`בעוד ${mm} דקות`, `in ${mm} min`)
   const dayLabel = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
+
+  // ---- גרסת «לוח» (11.8, מסמך העיצוב 3a) ----
+  // אותה שליפה ואותם חישובים; מה שמשתנה הוא הקליפה: כרטיס זכוכית בתוך
+  // הבאנר עם שם הקבוצה והשעה בשורה אחת, מצב התוכנית, שני כפתורים,
+  // ושורת אישורי ההגעה (מגיעה מבחוץ כדי לא לשלוף את הסגל פעמיים).
+  if (variant === 'board') {
+    const timeText = hm(entry.start_time)
+    const mins = entry.end_time && entry.start_time
+      ? Math.round((new Date(`${entry.date}T${entry.end_time}`) - start) / 60000)
+      : null
+    return (
+      <div className={isGame ? 'nh-next game' : 'nh-next'}>
+        <div className="nh-next-top">
+          <span className="nh-next-tag">
+            <Clock size={12} aria-hidden="true" />
+            {isGame ? L('המשחק הקרוב', 'Next game') : L('האימון הקרוב', 'Next practice')}
+          </span>
+          <span className="nh-next-when">{started ? L('מתקיים עכשיו', 'Happening now') : whenTag}</span>
+        </div>
+
+        <h2 className="nh-next-title">
+          {isGame ? title : (entry.team ? trTeam(entry.team) : L('אימון', 'Practice'))}
+          {timeText && <> · <span dir="ltr">{timeText}</span></>}
+        </h2>
+        <p className="nh-next-meta">
+          {[entry.location, mins ? L(`${mins} דק׳`, `${mins} min`) : null, dayLabel].filter(Boolean).join(' · ')}
+        </p>
+
+        <p className={entry.plan ? 'nh-next-plan ready' : 'nh-next-plan'}>
+          {entry.plan
+            ? <><CheckLine size={13} aria-hidden="true" /> {L('תוכנית מוכנה', 'Plan ready')} · {entry.plan.name}</>
+            : <><CalendarPlus size={13} aria-hidden="true" /> {L('עוד אין תוכנית לאימון הזה', 'No plan for this practice yet')}</>}
+        </p>
+
+        <div className="nh-next-acts">
+          <button
+            type="button"
+            className="nh-btn nh-btn-primary"
+            onClick={() => onNavigate(entry.team && !entry.is_personal ? 'teams' : 'schedule')}
+          >
+            <UserCheck size={16} aria-hidden="true" /> {L('סימון נוכחות', 'Mark attendance')}
+          </button>
+          <button
+            type="button"
+            className="nh-btn nh-btn-ghost"
+            onClick={() => onNavigate(entry.plan ? `plans:${entry.plan.id}` : 'work')}
+          >
+            {entry.plan ? L('לתוכנית', 'Open plan') : L('לבניית תוכנית', 'Build a plan')}
+          </button>
+        </div>
+
+        {rsvp}
+        {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
+        {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+      </div>
+    )
+  }
 
   return (
     <div className={isGame ? 'np-card game' : 'np-card'}>
