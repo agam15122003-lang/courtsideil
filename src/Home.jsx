@@ -479,8 +479,9 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           </div>
         )}
         {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
-            או אם אין אימון קרוב עם קבוצה. */}
-        {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
+            או אם אין אימון קרוב עם קבוצה. בטלפון (10.8) הבאנר מצטמצם
+            לברכה + לוח, והפס יורד לגור מתחת לכרטיס «האימון הבא». */}
+        {!narrow && nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
         {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מתחלף לפי QUOTE_HOLD_MS.
             key={beat} — מרנדר מחדש כדי שאנימציית ההחלפה תתנגן. */}
         <p className="home-hero-quote" key={beat}>
@@ -511,6 +512,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
       {narrow && (
         <div className="home-next-mobile">
           <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
+          {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
         </div>
       )}
 
