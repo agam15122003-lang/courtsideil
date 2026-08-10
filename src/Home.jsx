@@ -231,18 +231,8 @@ function parseDate(d) {
 // 4 כתבות ממדורי כדורסל ישראליים בלבד, קישור החוצה למקור.
 const SHOW_NEWS = true
 
-// במובייל כרטיס «האימון הקרוב» יורד מתוך הבאנר הנייבי אל הגלולה הלבנה:
-// בתוך הבאנר הוא הוסיף 415px של נייבי לפני שהתחיל תוכן כלשהו.
-function useNarrow(query = '(max-width: 640px)') {
-  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(query)
-    const on = (e) => setNarrow(e.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [query])
-  return narrow
-}
+// (useNarrow ירד ב-10.8 — «ריבוע אחד»: כרטיס האימון חי בתוך הבאנר
+// בכל הרוחבים, אז אין יותר פיצול JSX לפי רוחב המסך.)
 
 function useNews() {
   const [state, setState] = useState({ items: [], loading: true, error: false })
@@ -369,7 +359,6 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
 
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
-  const narrow = useNarrow()
   // הלו"ז נשלף פעם אחת כאן ויורד כ-prop לכל מי שצריך אותו
   const sched = useHomeSchedule(profile?.id)
   const stats = useHomeStats(profile?.id, sched)
@@ -425,12 +414,6 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
     }
   }
 
-  const onboardSteps = [
-    { id: 'community', Icon: Users, title: L('הצטרף לקהילה', 'Join the community'), desc: L('שתף, שאל והעלה צילומים מהאימונים', 'Share, ask and post practice photos') },
-    { id: 'drills', Icon: Dumbbell, title: L('גלה תרגילים', 'Discover drills'), desc: L('חפש ושמור את התרגיל הראשון שלך', 'Search and save your first drill') },
-    { id: 'plans', Icon: ClipboardList, title: L('בנה תוכנית אימון', 'Build a practice plan'), desc: L('בנה אימון מלא על דף המחברת, חלק אחר חלק','Build a full practice on the notebook page, part by part') },
-  ]
-
   // חשיפה בגלילה. התלויות הן מה שמוסיף מקטעים ל-DOM אחרי הרינדור הראשון —
   // בלעדיהן ה-observer לא היה רואה את הכתבות ואת טיזר הקהילה שהגיעו מאוחר יותר.
   useReveal(homeRef, [loading, communityPosts.length, showOnboarding, netSmall])
@@ -473,15 +456,14 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
             </button>
           </div>
         </div>
-        {!narrow && (
-          <div className="home-hero-card">
-            <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
-          </div>
-        )}
+        {/* «ריבוע אחד» (10.8): כרטיס האימון חי בתוך הבאנר בכל הרוחבים —
+            בטלפון הוא נערם מתחת לברכה, והמספרים סוגרים את הריבוע מלמטה. */}
+        <div className="home-hero-card">
+          <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
+        </div>
         {/* רצועת אישורי ההגעה (מסך 3a) — נעלמת בשקט אם הטבלה טרם נוצרה
-            או אם אין אימון קרוב עם קבוצה. בטלפון (10.8) הבאנר מצטמצם
-            לברכה + לוח, והפס יורד לגור מתחת לכרטיס «האימון הבא». */}
-        {!narrow && nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
+            או אם אין אימון קרוב עם קבוצה. */}
+        {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
         {/* הציטוט ממערכת הפתגמים הקיימת (COACHING_QUOTES), מתחלף לפי QUOTE_HOLD_MS.
             key={beat} — מרנדר מחדש כדי שאנימציית ההחלפה תתנגן. */}
         <p className="home-hero-quote" key={beat}>
@@ -507,17 +489,11 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         </div>
       </header>
 
-      {/* סדר המוקאפ (עמוד 3): באנר → אישורי הגעה → ארבעת המספרים →
-          האימון הקרוב. בדסקטופ הכרטיס יושב בתוך הבאנר, לצד הברכה. */}
-      {narrow && (
-        <div className="home-next-mobile">
-          <NextPractice session={session} schedule={sched} onNavigate={onNavigate} onEntry={setNextEntry} />
-          {nextEntry?.team && <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} />}
-        </div>
-      )}
-
+      {/* ברוכים הבאים (10.8) — שורה קטנה ונעימה בלבד; שלושת צעדי
+          ההדרכה ירדו לבקשת הבעלים («סתם תופס מקום»). */}
       {showOnboarding && (
-        <div className="onboard-card">
+        <div className="onboard-card onboard-slim">
+          <h3 className="onboard-title">{L(`ברוכים הבאים, ${name}! טוב לראות אותך כאן.`, `Welcome, ${name}! Good to see you here.`)}</h3>
           <button
             type="button"
             className="onboard-close"
@@ -526,22 +502,6 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
           >
             <X size={16} />
           </button>
-          <h3 className="onboard-title">{L(`ברוכים הבאים, ${name}!`, `Welcome, ${name}!`)}</h3>
-          <p className="muted small">{L('שלושה צעדים קצרים כדי להתחיל:', 'Three quick steps to get started:')}</p>
-          <div className="onboard-steps">
-            {onboardSteps.map((s, i) => (
-              <button key={s.id} className="onboard-step" onClick={() => onNavigate(s.id)}>
-                <span className="onboard-num">{i + 1}</span>
-                <span className="onboard-ic">
-                  <s.Icon size={18} />
-                </span>
-                <span className="onboard-step-body">
-                  <strong>{s.title}</strong>
-                  <span className="muted small">{s.desc}</span>
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -596,7 +556,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
         )}
 
         <div className="hp-o-links">
-          <h2 className="section-title" style={{ marginTop: 32 }}>
+          <h2 className="section-title">
             {L('תוכן והשראה', 'Content & inspiration')}
           </h2>
           <div className="home-grid reveal-up">
@@ -616,7 +576,7 @@ export default function Home({ session, profile, onNavigate, onOpenCoach }) {
       {/* 2.2 — כתבות בתחתית הבית: 4 כתבות ממדורי כדורסל ישראליים,
           כותרת + תמונה + קישור החוצה למקור. לא מעתיקים תוכן. */}
       {SHOW_NEWS && <div className="hp-o-news">
-      <span className="sec-kicker" style={{ marginTop: 24 }}>{L('מהתקשורת', 'From the press')}</span>
+      <span className="sec-kicker">{L('מהתקשורת', 'From the press')}</span>
       <h2 className="section-title section-title--icon">
         <Newspaper size={18} />
         {L('כתבות כדורסל ישראלי', 'Israeli basketball news')}

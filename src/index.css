@@ -24639,3 +24639,100 @@ html.a11y-motion .plh-scale button{ transition:none; }
   .pl-home-rich .plh-stats .plh-stat{ padding:10px 4px 12px; }
   .pl-home-rich .plh-stat b{ font-size:22px; }
 }
+
+/* ==========================================================================
+   10.8.2026 (ב) · משוב הבעלים על סבב הבוקר
+   --------------------------------------------------------------------------
+   1) המסגרת הכחולה מתעבה ל-2px («טיפה יותר בולט»).
+   2) שורת המספרים — «פס אחד ארוך, קטן, בהכי למטה של הבאנר, לא הדבר
+      הראשון שרואים»: בשני הבתים, בכל הרוחבים — 4 מספרים בשורה דקה
+      אחת (לא 2×2), מספרים 16-17px, בלי אייקונים. אצל השחקן במובייל
+      הלוח יורד מסדר 2 לסוף הבאנר: ברכה ← האימון הבא ← רגל ← מספרים.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* ---- (1) הקו מתעבה ---- */
+.home .hp-o-todo, .home .hp-o-today, .home .hp-o-att, .home .hp-o-comm,
+.home .hp-o-week, .home .hp-o-cow, .home .hp-o-links, .home .hp-o-news,
+.pl-home-rich .plh-weekband-sec, .pl-home-rich .plh-o-videos > .pl-block,
+.pl-home-rich .plh-card, .pl-home-rich .plh-row3 .plht{ border-width:2px; }
+
+/* ---- (2) שורת המספרים של המאמן — דקה ושקטה, בכל הרוחבים ---- */
+.home .home-hero .home-stats{ margin-top:12px; }
+.home .home-hero .stat-tile{ padding:9px 6px 11px; gap:2px; }
+.home .home-hero .stat-tile-ic{ display:none; }
+.home .home-hero .stat-tile-num{ font-size:17px; }
+/* 11px — הרצפה שהאודיט של 24.7 קבע (חריג ה-bn-item), לא יורדים מתחתיה */
+.home .home-hero .stat-tile-label{ font-size:11px; }
+
+/* ---- (2) שורת המספרים של השחקן — דקה ושקטה, בכל הרוחבים ---- */
+.pl-home-rich .plh-stats .plh-stat{ padding:8px 4px 10px; }
+.pl-home-rich .plh-stat b{ font-size:17px; }
+.pl-home-rich .plh-stats .plh-stat span{ font-size:11px; }
+
+@media (max-width:640px){
+  /* המאמן: חזרה מ-2×2 (24191) לשורה אחת של ארבעה */
+  .home .home-hero .home-stats{ grid-template-columns:repeat(4,1fr); }
+  .home .home-hero .stat-tile:nth-child(n+3){ border-top:none; }
+  .home .home-hero .stat-tile:nth-child(3){ border-inline-start:1px solid rgba(255,255,255,.07); }
+  .home .home-hero .stat-tile-num{ font-size:16px; }
+
+  /* השחקן: חזרה מ-2×2 (23648) לשורה אחת, והלוח יורד לסוף הבאנר */
+  .pl-home-rich .plh-stats{ grid-template-columns:repeat(4,1fr); order:4; margin:14px 0 0; }
+  .pl-home-rich .plh-next{ order:2; }
+  .pl-home-rich .plh-hero > .plh-hero-foot{ order:3; }
+  .pl-home-rich .plh-hero{ padding-bottom:0; }
+  /* ביטול קווי ה-2×2 (23978-81) והחזרת המפרידים האנכיים — באותו
+     אלפא (.07) כמו המפרידים הקיימים, שהשורה תיראה רצף אחד */
+  .pl-home-rich .plh-stats .plh-stat:nth-child(-n+2){ border-block-end:none; }
+  .pl-home-rich .plh-stats .plh-stat:nth-child(odd){ border-inline-start:1px solid rgba(255,255,255,.07); }
+  .pl-home-rich .plh-stats .plh-stat:first-child{ border-inline-start:0; }
+  .pl-home-rich .plh-stat b{ font-size:16px; }
+}
+
+/* ==========================================================================
+   10.8.2026 (ג) · «ריבוע אחד» בטלפון + ברוכים-הבאים בשורה + תיקוני הסקירה
+   --------------------------------------------------------------------------
+   1) דף מאמן בטלפון: כרטיס «האימון הבא» חזר לתוך הבאנר (JSX — הבלוק
+      home-next-mobile ירד; useNarrow נמחק). הסדר בריבוע האחד:
+      ברכה ← האימון ← פס ההגעה ← שורת המספרים בתחתית.
+   2) כרטיס הברוכים-הבאים ירד לשורה אחת נעימה בלי שלושת הצעדים.
+   3) מהסקירה הרב-סוכנית: cow-card («מאמן השבוע») מתפשט בתוך הקופסה;
+      שני inline styles שניצחו את איפוסי הכותרות נמחקו ב-JSX.
+   append-only: אפס עריכות בכללים שמעל.
+   ========================================================================== */
+
+/* «מאמן השבוע» בתוך הקופסה — בלי המרווח העקום ובלי צל כפול */
+.home .hp-o-cow .cow-card{ margin-top:0; box-shadow:none; }
+
+/* ברוכים הבאים — שורה קטנה ונעימה */
+.home .onboard-card.onboard-slim{
+  display:flex; align-items:center; gap:10px;
+  margin-top:0;
+  padding:12px 16px;
+  border-radius:8px;
+  background:linear-gradient(90deg, rgba(232,118,58,.10), rgba(232,118,58,.02)), var(--sf);
+  border:1px solid rgba(232,118,58,.38);
+  box-shadow:none;
+}
+.home .onboard-slim .onboard-title{ margin:0; font-size:15.5px; padding-inline-end:0; }
+.home .onboard-slim .onboard-close{ position:static; margin-inline-start:auto; flex:none; }
+
+/* טלפון: הכרטיס נערם מתחת לברכה בתוך הריבוע האחד */
+@media (max-width:640px){
+  .home .home-hero .home-hero-card{ margin:14px 0 0; width:100%; }
+  .home .home-hero .cs-rsvp{ margin-top:10px; }
+}
+
+/* המסגרת הסופית (בחירת הבעלים אחרי השוואת שלוש הצעות):
+   «קצת עבה יותר אבל לא כזאת חדה, יותר עגולה» — 2.5px, פינות 14,
+   וצל עדין שמרכך את הקו על הרקע הבהיר */
+.home .hp-o-todo, .home .hp-o-today, .home .hp-o-att, .home .hp-o-comm,
+.home .hp-o-week, .home .hp-o-cow, .home .hp-o-links, .home .hp-o-news,
+.pl-home-rich .plh-weekband-sec, .pl-home-rich .plh-o-videos > .pl-block,
+.pl-home-rich .plh-card, .pl-home-rich .plh-row3 .plht{
+  border-width:2.5px;
+  border-radius:14px;
+  box-shadow:0 2px 10px rgba(23,38,74,.05);
+}
+.home .onboard-card.onboard-slim{ border-radius:12px; }
