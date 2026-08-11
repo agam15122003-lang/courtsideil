@@ -192,7 +192,8 @@ export default function CoachTodo({ session, onNavigate, variant }) {
           <h2 className="nh-card-title">{L('דברים לביצוע', 'To do')}</h2>
           {rows.length > 0 && (
             <span className="nh-chip warn">
-              <bdi dir="ltr">{rows.length}</bdi> {L('פתוחים', 'open')}
+              {/* cnt מחזיר גם את המספר — «אחד פתוח» / «4 פתוחים» */}
+              <bdi>{cnt(rows.length, L('אחד פתוח', 'one open'), L('פתוחים', 'open'))}</bdi>
             </span>
           )}
         </div>

@@ -24,7 +24,13 @@ export default function PocketNav({ items, all, activeId, onNavigate, footer = n
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     document.body.classList.add('pkn-open')
+    // סיבוב לרוחב מסתיר את הגיליון ב-CSS (מעל 768px) — בלי הסגירה הזאת
+    // המצב נשאר פתוח, הגלילה נעולה ואין כפתור סגירה על המסך
+    const mq = window.matchMedia('(min-width:769px)')
+    const onWide = (e) => { if (e.matches) setOpen(false) }
+    mq.addEventListener('change', onWide)
     return () => {
+      mq.removeEventListener('change', onWide)
       document.body.style.overflow = prev
       document.body.classList.remove('pkn-open')
     }

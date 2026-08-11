@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, MessagesSquare } from 'lucide-react'
 import {
   NEWS_SOURCES,
   NEWS_COUNT,
@@ -288,7 +288,7 @@ export default function Home({ session, profile, onNavigate }) {
   }, [])
 
   const today = new Date()
-  const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
+  const dateLabel = today.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'long' })
   const hour = today.getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
 
@@ -332,7 +332,7 @@ export default function Home({ session, profile, onNavigate }) {
           <Avatar name={`${profile?.first_name || ''} ${profile?.last_name || ''}`} url={profile?.avatar_url} size={42} />
           <div className="nh-hero-who">
             <span className="nh-hero-date">{dateLabel}</span>
-            <h1 className="nh-hero-greet">{greet}, {name}</h1>
+            <h1 className="nh-hero-greet">{greet}, <span className="nh-hero-name">{name}</span></h1>
           </div>
           {/* הפעמון של המסמך — במובייל הבאנר הוא הכותרת של המסך, ולכן
               ההתראות עוברות לכאן (הסרגל העליון מוסתר בבית) */}
@@ -437,11 +437,17 @@ export default function Home({ session, profile, onNavigate }) {
                   const img = safeUrl(p.thumbUrl)
                   return (
                     <button key={p.id} type="button" className="nh-row" onClick={() => onNavigate('community')}>
-                      <span
-                        className="nh-row-thumb"
-                        style={img ? { backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` } : undefined}
-                        aria-hidden="true"
-                      />
+                      {/* פוסט טקסט בלי תמונה קיבל ריבוע אפור ריק — אריח
+                          אייקון במקומו (סקירה 11.8) */}
+                      {img ? (
+                        <span
+                          className="nh-row-thumb"
+                          style={{ backgroundImage: `url("${img.replace(/["\\)]/g, '')}")` }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <span className="nh-row-ic" aria-hidden="true"><MessagesSquare size={16} /></span>
+                      )}
                       <span className="nh-row-tx">
                         <span className="nh-row-sub">{author}{p.author?.club ? ` · ${p.author.club}` : ''}</span>
                         <b>{p.content || L('שיתף צילומים מהאימון', 'Shared practice photos')}</b>

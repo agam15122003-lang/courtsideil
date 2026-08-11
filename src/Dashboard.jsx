@@ -538,8 +538,15 @@ export default function Dashboard({ session }) {
     )
   }
 
+  // data-view על המעטפת מכבה את הסרגל העליון בבית במובייל (11.8).
+  // showForm/loading רצים כש-view עדיין 'home' — ובלי ההבחנה הזאת גם
+  // טופס השלמת הפרופיל היה נשאר בלי סרגל ובלי ריפוד עליון.
   return (
-    <div className="layout" data-view={view} style={{ '--bn-count': POCKET_NAV.length }}>
+    <div
+      className="layout"
+      data-view={showForm || loading || loadError ? 'form' : view}
+      style={{ '--bn-count': POCKET_NAV.length }}
+    >
       <a href="#main" className="skip-link">
         {t('skip.toContent')}
       </a>

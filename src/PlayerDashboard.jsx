@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L, trTeam, cnt } from './i18n'
+import { L, trTeam } from './i18n'
 import useNavMarker from './useNavMarker'
 import PocketNav from './PocketNav'
 import HomeVideos from './HomeVideos'
@@ -43,7 +43,6 @@ import {
   exportToJsonText, exportToCsvText, exportFileName, downloadTextFile,
   siteUrl,
 } from './consent'
-import { computeStreak } from './gamify'
 import { burstConfetti } from './confetti'
 import { expandSlots, expandSlotsRange } from './sessionId'
 import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES, PODCASTS } from './constants'
@@ -1803,7 +1802,9 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
       // ל-session_effort בלי לפתוח את הגיליון המלא.
       setSummary(eff && eff.length
         ? { state: 'done' }
-        : { state: 'ask', kind: endedToday.kind, sessionId: endedToday.id, date: endedToday.date })
+        // session_id ולא id — המועמדים נבנים ב-1780 עם session_id בלבד,
+        // ולכן הסולם המהיר מעולם לא עבר את התנאי שלו (סקירה 11.8)
+        : { state: 'ask', kind: endedToday.kind, sessionId: endedToday.session_id, date: endedToday.date })
     })()
   }, [membership, profile.id, refreshKey])
 
@@ -1964,11 +1965,15 @@ function HomeTasks({ session, setView, variant }) {
       supabase.from('assignment_completions').select('assignment_id, progress_value, done_at').eq('player_id', me),
     ])
     const by = new Map((compl || []).map((c) => [c.assignment_id, c]))
+    // משימות שנסגרו היום נשארות ברשימה (מסמך העיצוב מראה שורה מסומנת
+    // עם קו חוצה, והמונה «1/3» סופר אותן) — מה שנסגר לפני היום יורד.
+    const doneToday = (c) => c?.done_at && withinDays(c.done_at, 1)
     setRows(
       (asg || [])
-        .filter((a) => !by.get(a.id)?.done_at && (a.status || 'active') !== 'archived')
+        .filter((a) => (a.status || 'active') !== 'archived')
+        .filter((a) => { const c = by.get(a.id); return !c?.done_at || doneToday(c) })
         .slice(0, 3)
-        .map((a) => ({ a, prog: Number(by.get(a.id)?.progress_value) || 0 })),
+        .map((a) => ({ a, prog: Number(by.get(a.id)?.progress_value) || 0, done: !!by.get(a.id)?.done_at })),
     )
   }, [me])
   useEffect(() => { load() }, [load])
@@ -1986,6 +1991,18 @@ function HomeTasks({ session, setView, variant }) {
     load()
   }
 
+  // סימון «בוצע» מהעיגול שבמסמך — עובד גם למשימה בלי יעד מספרי,
+  // שבה הרישום ההדרגתי לא רלוונטי בכלל.
+  const complete = async (a) => {
+    const target = Number(a.target_value) || null
+    const { error } = await supabase.from('assignment_completions')
+      .upsert({ assignment_id: a.id, player_id: me, progress_value: target, done_at: new Date().toISOString() })
+    if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); return }
+    toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉'))
+    burstConfetti()
+    load()
+  }
+
   if (rows === null) return null
 
   // ---- גרסת «כרטיס» (11.8, מסמך העיצוב 3a) ----
@@ -1994,7 +2011,7 @@ function HomeTasks({ session, setView, variant }) {
   // אבל למשימה אין שיוך לאימון בבסיס הנתונים — ולכן הכותרת נשארת
   // «המשימות שלי», מה שהיא באמת.
   if (variant === 'card') {
-    const done = rows.filter(({ a, prog }) => Number(a.target_value) > 0 && prog >= Number(a.target_value)).length
+    const done = rows.filter((r) => r.done).length
     return (
       <section className="nh-card nh-tasks">
         <div className="nh-card-head nh-tasks-head">
@@ -2009,19 +2026,19 @@ function HomeTasks({ session, setView, variant }) {
           </p>
         ) : (
           <div className="nh-task-rows">
-            {rows.map(({ a, prog }) => {
+            {rows.map(({ a, prog, done: isDone }) => {
               const target = Number(a.target_value)
               const title = a.drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
               const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : 0
-              const isDone = target > 0 && prog >= target
               return (
                 <div key={a.id} className={isDone ? 'nh-task done' : 'nh-task'}>
                   <button
                     type="button"
                     className="nh-task-tick"
-                    onClick={() => target > 0 && quick(a, prog)}
-                    disabled={restricted || !(target > 0) || isDone}
-                    aria-label={L('רישום התקדמות', 'Log progress')}
+                    onClick={() => complete(a)}
+                    disabled={restricted || isDone}
+                    aria-label={isDone ? L('בוצע', 'Done') : L('סימון כבוצע', 'Mark as done')}
+                    title={L('סימון כבוצע', 'Mark as done')}
                   >
                     {isDone && <Check size={14} aria-hidden="true" />}
                   </button>
@@ -2030,9 +2047,11 @@ function HomeTasks({ session, setView, variant }) {
                       <b>{title}</b>
                       {target > 0 && <span className="nh-task-num" dir="ltr">{prog}/{target}{a.unit ? ` ${a.unit}` : ''}</span>}
                     </span>
-                    {target > 0
-                      ? <span className="nh-task-bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
-                      : <span className="nh-task-sub">{a.note || L('משימה מהמאמן', 'Task from your coach')}</span>}
+                    {isDone
+                      ? <span className="nh-task-sub done"><Check size={12} aria-hidden="true" /> {L('הושלם · המאמן רואה', 'Done · your coach sees it')}</span>
+                      : target > 0
+                        ? <span className="nh-task-bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
+                        : <span className="nh-task-sub">{a.note || L('משימה מהמאמן', 'Task from your coach')}</span>}
                   </button>
                 </div>
               )
@@ -2184,45 +2203,12 @@ function LastPracticeFeedback({ session, membership, setView }) {
   )
 }
 
-function PlayerHome({ session, profile, membership, setView, onJoined }) {
-  const [stats, setStats] = useState(null)
+function PlayerHome({ session, profile, membership, setView, onJoined, onNotification }) {
   const { restricted } = useRestricted()
   const [fbOpen, setFbOpen] = useState(false)
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
-
-  const loadStats = useCallback(async () => {
-    const [asg, compl, att, gatt, eff, glogs, fbc] = await Promise.all([
-      supabase.from('player_assignments').select('id'),
-      supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
-      supabase.from('practice_attendance').select('status'),
-      supabase.from('game_attendance').select('status'),
-      supabase.from('session_effort').select('effort, created_at').eq('player_id', session.user.id),
-      supabase.from('player_goal_logs').select('created_at').eq('player_id', session.user.id),
-      supabase.from('player_feedback').select('id', { count: 'exact', head: true }).eq('player_id', session.user.id),
-    ])
-    const doneRows = compl.data || []
-    // בוצע = done_at מלא; שורה בלי done_at היא רק התקדמות חלקית
-    const doneIds = new Set(doneRows.filter((c) => c.done_at).map((c) => c.assignment_id))
-    const open = (asg.data || []).filter((a) => !doneIds.has(a.id)).length
-    const attRows = [...(att.data || []), ...(gatt.data || [])]
-    const attTotal = attRows.length
-    const attPresent = attRows.filter((r) => r.status && r.status !== 'absent').length
-    const attendancePct = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : null
-    const weekly = doneRows.filter((c) => c.done_at && withinDays(c.done_at, 7)).length
-    const effVals = (eff.data || []).map((r) => r.effort).filter((v) => v != null)
-    const avgLoad = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length).toFixed(1) : null
-    setStats({
-      open, attendancePct, weekly, avgLoad, fbCount: fbc?.count ?? 0,
-      // הרצף סופר כל פעילות באפליקציה — ביצוע תרגיל, סיכום אימון ותיעוד מטרה.
-      // קודם נספרו רק תרגילים ששלח המאמן, ועם תרגיל אחד במסד הרצף היה תקוע על 0.
-      streak: computeStreak([
-        ...doneRows.map((c) => c.done_at),
-        ...(eff.data || []).map((r) => r.created_at),
-        ...(glogs.data || []).map((r) => r.created_at),
-      ].filter(Boolean)),
-    })
-  }, [session.user.id])
-  useEffect(() => { loadStats() }, [loadStats])
+  // (11.8) לוח המספרים ירד מהבית עם מסמך העיצוב, ואיתו שבע השאילתות
+  // ששירתו אותו בלבד — הן רצו בכל כניסה לבית והתוצאה לא הוצגה בשום מקום.
 
   // ---------------------------------------------------------------------
   // 11.8.2026 — בית השחקן לפי מסמך העיצוב «דפי בית», כיוון 3a:
@@ -2237,7 +2223,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         session={session}
         onFeedback={() => setFbOpen(true)}
         refreshKey={fbRefresh}
-        onNotification={(v) => setView(v)}
+        onNotification={onNotification}
       />
 
       {!membership && <JoinTeam session={session} onJoined={onJoined} compact />}
@@ -2269,14 +2255,11 @@ function PlayerHome({ session, profile, membership, setView, onJoined }) {
         </div>
       )}
 
-      {/* מרווח לגלולת הניווט הצפה במובייל */}
-      <div className="nh-spacer" aria-hidden="true" />
-
       {/* הגיליון לא נפתח כלל לחשבון מוגבל: session_effort חסומה בשרת,
           ומילוי טופס שלם שנדחה בשליחה גרוע מכפתור מושבת עם הסבר. */}
       {membership && !restricted && (
         <FeedbackSheet session={session} membership={membership} open={fbOpen}
-          onClose={() => setFbOpen(false)} onSent={() => { loadStats(); setFbRefresh((k) => k + 1) }} />
+          onClose={() => setFbOpen(false)} onSent={() => setFbRefresh((k) => k + 1)} />
       )}
     </div>
   )
@@ -2888,14 +2871,14 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 // הנפרדים שלהם ירדו מהניווט. יעדי עומק ישנים (coach/teamchat) עדיין עובדים.
 const PLAYER_NAV = [
   { id: 'home', label: ['בית', 'Home'], Icon: HomeIcon },
-  { id: 'drills', label: ['המשימות שלי', 'My tasks'], Icon: Dumbbell },
+  { id: 'drills', label: ['המשימות שלי', 'My tasks'], short: ['המשימות', 'Tasks'], Icon: Dumbbell },
   // יעד משלו ולא כרטיס בתוך «המשימות שלי»: זה ערוץ נפרד מהקבוצה, ובלי
   // שורה משלו בתפריט אין דרך למצוא אותו. בלי team:true — הוא זמין גם
   // לשחקן בלי קבוצה, וזה בדיוק מי שמגיע לאפליקציה בשביל מאמן אישי.
   { id: 'pcoach', label: ['המאמן האישי', 'Personal coach'], Icon: UserPlus },
   { id: 'goals', label: ['היעדים שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
-  { id: 'feedback', label: ['האימונים שלי', 'My sessions'], Icon: MessageSquareHeart, team: true },
+  { id: 'feedback', label: ['האימונים שלי', 'My sessions'], short: ['האימונים', 'Sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['מדיה', 'Media'], Icon: MonitorPlay },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
@@ -3044,7 +3027,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />
-      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} />
+      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} />
     }
   }
 

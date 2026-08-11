@@ -34,6 +34,8 @@ export default function HomeVideos({ onOpen, heading, cta, limit = 4 }) {
   if (!vids || vids.length === 0) return null
 
   return (
+    // במסמך העיצוב רצועת הסרטונים בטלפון היא מקטע חשוף, ובדסקטופ כרטיס
+    // בטור הצדדי — nh-vids נושא את ההבדל ב-CSS
     <section className="nh-card nh-vids">
       <div className="nh-card-head">
         <h2 className="nh-card-title">{heading || L('סרטונים מהמדיה', 'From the media')}</h2>
