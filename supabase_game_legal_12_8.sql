@@ -95,8 +95,14 @@ end $ck$;
 --     ⚠ הטריגר פועל רק כשהפרופיל **מושלם עכשיו** — פרופילי מאמן קיימים
 --     בלי תאריך לידה אינם נוגעים ואינם נשברים בעריכה.
 -- ---------------------------------------------------------------------
-alter table public.game_settings
-  add column if not exists require_coach_birthdate boolean not null default false;
+-- עטוף: אם 38 טרם רץ, ALTER על טבלה שאינה קיימת מפיל את **כל** הקובץ.
+do $rq$
+begin
+  if to_regclass('public.game_settings') is not null then
+    alter table public.game_settings
+      add column if not exists require_coach_birthdate boolean not null default false;
+  end if;
+end $rq$;
 
 create or replace function public.game_block_minor_coach()
 returns trigger
@@ -107,8 +113,17 @@ as $$
 declare v_completing boolean; v_age int; v_require boolean;
 begin
   -- «הפרופיל מושלם עכשיו»: יצירה, או המעבר הראשון משם ריק לשם מלא.
-  v_completing := (tg_op = 'INSERT')
-               or (coalesce(old.first_name, '') = '' and coalesce(new.first_name, '') <> '');
+  --
+  -- ⚠ חייב להיות IF ולא ביטוי אחד עם OR: ב-INSERT הרשומה OLD אינה
+  -- מוקצית כלל, ו-plpgsql מעריך את הביטוי **כולו** כשאילתה אחת — כלומר
+  -- `tg_op='INSERT' or old.first_name...` היה זורק «record old is not
+  -- assigned yet» ומפיל כל יצירת פרופיל במערכת. אין קיצור מסלול ב-OR.
+  if tg_op = 'INSERT' then
+    v_completing := true;
+  else
+    v_completing := coalesce(old.first_name, '') = ''
+                and coalesce(new.first_name, '') <> '';
+  end if;
 
   if not v_completing or new.role is distinct from 'coach' then
     return new;

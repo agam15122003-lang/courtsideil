@@ -571,6 +571,10 @@ stable
 security definer
 set search_path = public
 as $$
+-- שמות עמודות הפלט (rank, points…) הם גם משתני plpgsql. ההנחיה הזו קובעת
+-- שבתוך שאילתה מנצח **העמודה**, ולא המשתנה — אחרת rank() over(...) והפניות
+-- לעמודות זהות-שם עלולות לחזור כ«column reference is ambiguous».
+#variable_conflict use_column
 declare v_key text; v_lim int; v_off int;
 begin
   if public.game_wall_blocks() then return; end if;
@@ -639,6 +643,7 @@ stable
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare v_key text; v_me uuid := auth.uid();
 begin
   if v_me is null then return; end if;
