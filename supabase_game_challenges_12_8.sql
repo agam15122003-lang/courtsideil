@@ -384,6 +384,70 @@ $$;
 
 
 -- ---------------------------------------------------------------------
+-- 4ד) game_reschedule_challenge — שינוי תאריכים **תוך כדי**
+--
+--     דרישת הבעלים: לבחור יום, שעה ומועד הכרזה, ולשנות אותם גם אחרי
+--     שהאתגר כבר רץ. שולחים רק את מה שרוצים לשנות; NULL = «אל תיגע».
+--
+--     ⚠ למה RPC ולא UPDATE ישיר מהמסך: שינוי תאריכים באתגר חי הוא בדיוק
+--     המקום שבו נוצרות סתירות (סגירה לפני פתיחה, הכרזה לפני סגירה,
+--     הארכה של אתגר שכבר הוכרע). כאן זה נבדק פעם אחת, ומוחזרת הודעה
+--     בעברית במקום שגיאת CHECK שאיש לא מבין.
+-- ---------------------------------------------------------------------
+create or replace function public.game_reschedule_challenge(
+  p_challenge uuid,
+  p_opens     timestamptz default null,
+  p_closes    timestamptz default null,
+  p_decide    timestamptz default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare c record; v_o timestamptz; v_c timestamptz; v_d timestamptz;
+begin
+  if not public.is_admin() then
+    return jsonb_build_object('ok', false, 'reason', 'not_admin');
+  end if;
+
+  select * into c from public.game_challenges where id = p_challenge for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+
+  v_o := coalesce(p_opens,  c.opens_at);
+  v_c := coalesce(p_closes, c.closes_at);
+  v_d := coalesce(p_decide, c.decide_at);
+
+  if v_o is not null and v_c is not null and v_c <= v_o then
+    return jsonb_build_object('ok', false, 'reason', 'closes_before_opens',
+      'message', 'מועד הסגירה חייב להיות אחרי מועד הפתיחה.');
+  end if;
+  if v_c is not null and v_d is not null and v_d < v_c then
+    return jsonb_build_object('ok', false, 'reason', 'decide_before_closes',
+      'message', 'מועד ההכרזה לא יכול להיות לפני מועד הסגירה.');
+  end if;
+
+  -- אתגר שכבר הוכרע: הארכה תבלבל את מי שכבר ראה מנצח. נדרשת הכרעה
+  -- חוזרת מפורשת (game_decide_challenge עם p_redecide), שגם מתועדת.
+  if c.status = 'decided' then
+    return jsonb_build_object('ok', false, 'reason', 'already_decided',
+      'message', 'האתגר כבר הוכרע. להארכה — בטל את ההכרעה תחילה.');
+  end if;
+
+  update public.game_challenges
+     set opens_at = v_o, closes_at = v_c, decide_at = v_d,
+         -- הארכה של אתגר שנסגר מחזירה אותו לאוויר, וזה בדיוק מה שרוצים
+         -- כשמאריכים בגלל מזג אוויר או חג.
+         status = case when c.status = 'closed' and v_c > now() then 'open' else c.status end
+   where id = p_challenge;
+
+  return jsonb_build_object('ok', true, 'opens_at', v_o, 'closes_at', v_c, 'decide_at', v_d,
+    'reopened', c.status = 'closed' and v_c > now());
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 5) שומר ההגשה — כופה את מה שהשחקן לא אמור לקבוע
 -- ---------------------------------------------------------------------
 create or replace function public.game_submissions_guard()
@@ -749,6 +813,13 @@ $$;
 -- ---------------------------------------------------------------------
 -- 11) הרשאות
 -- ---------------------------------------------------------------------
+revoke all on function public.game_default_window(timestamptz)                 from public, anon;
+revoke all on function public.game_open_challenge(uuid,timestamptz,timestamptz,timestamptz)       from public, anon;
+revoke all on function public.game_reschedule_challenge(uuid,timestamptz,timestamptz,timestamptz) from public, anon;
+grant execute on function public.game_default_window(timestamptz)                 to authenticated;
+grant execute on function public.game_open_challenge(uuid,timestamptz,timestamptz,timestamptz)       to authenticated;
+grant execute on function public.game_reschedule_challenge(uuid,timestamptz,timestamptz,timestamptz) to authenticated;
+
 revoke all on function public.game_challenge_open(uuid)                        from public, anon;
 revoke all on function public.game_media_locked(text, uuid)                    from public, anon;
 revoke all on function public.game_submissions_guard()                         from public, anon, authenticated;
