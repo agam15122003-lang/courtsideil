@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import {
   ShieldCheck, Flag, Users, BarChart3, Search, Check, Ban,
   AlertTriangle, X, RefreshCw, UserCheck, Trash2, Clock, FileText,
-  Inbox, UserCog, Eye, ShieldAlert,
+  Inbox, UserCog, Eye, ShieldAlert, Trophy,
 } from 'lucide-react'
+import AdminChallenges from './AdminChallenges'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { NEWS_CACHE_KEY } from './constants'
@@ -504,6 +505,11 @@ export default function Admin({ session, profile }) {
         <button className={tab === 'consent' ? 'tab active' : 'tab'} onClick={() => setTab('consent')}>
           <UserCheck size={15} /> {L('הסכמות ומחיקות', 'Consents & deletions')}
         </button>
+        {/* עולם המשחק — האתגר השבועי. מסך נפרד לגמרי: הוא ניהול תוכן
+            ותור אישור, ולא ניהול משתמשים כמו שאר הלשוניות. */}
+        <button className={tab === 'game' ? 'tab active' : 'tab'} onClick={() => setTab('game')}>
+          <Trophy size={15} /> {L('המגרש', 'The Court')}
+        </button>
         <button
           className="icon-btn"
           style={{ marginInlineStart: 'auto' }}
@@ -594,6 +600,10 @@ export default function Admin({ session, profile }) {
             ))}
             {filtered.length === 0 && <p className="muted small">{L('לא נמצאו מאמנים.', 'No coaches found.')}</p>}
           </ul>
+        </div>
+      ) : tab === 'game' ? (
+        <div className="team-section">
+          <AdminChallenges />
         </div>
       ) : tab === 'consent' ? (
         <div className="team-section adm-consent">

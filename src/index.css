@@ -25730,3 +25730,98 @@ body.pkn-open .a11y-fab{ display:none; }
 .gm-locked svg{ flex:none; margin-block-start:2px; }
 
 .gm-stamp{ margin:0; text-align:start; }
+
+/* ==========================================================================
+   12.8.2026 (ב) · עולם המשחק — מסך הניהול (AdminChallenges.jsx)
+   --------------------------------------------------------------------------
+   שלושת הרגעים של הבעלים בשבוע: פרסום אתגר · תור אישור · ייצוא טופ-5.
+   תור האישור מעוצב למובייל לפני הכל — הוא נעשה מהנייד, בין אימונים.
+   ========================================================================== */
+
+.gm-admin{ display:flex; flex-direction:column; gap:14px; }
+.gm-adm-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.gm-adm-top h2{ display:flex; align-items:center; gap:8px; margin:0; font-size:1.15rem; }
+
+.gm-count{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-inline-size:20px; padding:0 6px; margin-inline-start:6px;
+  border-radius:999px; background:var(--accent-strong); color:#fff;
+  font-size:.75rem; font-weight:700;
+}
+
+.gm-adm-list{ display:flex; flex-direction:column; gap:12px; }
+
+.gm-adm-card{
+  display:flex; flex-direction:column; gap:10px;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:var(--r-card, 14px);
+  background:var(--surface);
+}
+
+.gm-adm-head{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; }
+.gm-adm-title{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.gm-adm-seq{
+  display:inline-flex; align-items:center; justify-content:center;
+  inline-size:26px; block-size:26px; border-radius:8px;
+  background:var(--night); color:#fff; font-size:.82rem; font-weight:700; flex:none;
+}
+
+.gm-badge{ padding:2px 9px; border-radius:999px; font-size:.75rem; border:1px solid var(--line); }
+.gm-badge--draft{ color:var(--ink-2); }
+.gm-badge--open{ background:var(--ok-bg, #e8f5ec); color:var(--ok, #1c7a3e); border-color:transparent; }
+.gm-badge--closed{ color:var(--ink-2); }
+.gm-badge--decided{ background:var(--night); color:#fff; border-color:transparent; }
+
+.gm-adm-dates{ margin:0; }
+
+.gm-adm-form{ display:flex; flex-direction:column; gap:10px; }
+.gm-adm-form label{ display:flex; flex-direction:column; gap:5px; font-size:.9rem; }
+.gm-adm-form input[type="datetime-local"]{
+  font:inherit; padding:10px; min-block-size:44px;
+  border:1px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+}
+
+.gm-adm-actions{ display:flex; flex-wrap:wrap; gap:8px; }
+.gm-adm-actions button{ display:inline-flex; align-items:center; gap:6px; min-block-size:44px; }
+
+/* התוצאה שהשחקן דיווח — המספר הוא מה שמשווים אליו בסרטון, ולכן גדול */
+.gm-adm-reported{ display:flex; align-items:center; gap:10px; }
+.gm-adm-num{ font-size:2rem; font-weight:800; line-height:1; color:var(--accent-strong); }
+
+.gm-adm-warn{
+  display:flex; align-items:flex-start; gap:8px; margin:0;
+  padding:10px 12px; border-radius:10px;
+  background:var(--warn-bg, #fff4e5); color:var(--warn-ink, #8a5200);
+  font-size:.9rem;
+}
+.gm-adm-warn svg{ flex:none; margin-block-start:2px; }
+
+.gm-adm-reasons{ display:flex; flex-direction:column; gap:8px; }
+.gm-adm-reasons .gm-chip{ text-align:start; }
+.gm-adm-free{ display:flex; gap:8px; }
+.gm-adm-free input{
+  flex:1; font:inherit; padding:10px; min-block-size:44px;
+  border:1px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+}
+
+.gm-adm-confirm{ display:flex; align-items:flex-start; gap:8px; font-size:.92rem; }
+.gm-adm-confirm input{ inline-size:20px; block-size:20px; flex:none; margin-block-start:2px; }
+
+.gm-adm-pick{ display:flex; flex-direction:column; gap:6px; font-size:.9rem; }
+.gm-adm-pick select{
+  font:inherit; padding:10px; min-block-size:44px;
+  border:1px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+}
+
+.gm-danger{ color:var(--danger, #b3261e); }
+
+/* נגן הקליפ */
+.gm-video{ inline-size:100%; max-block-size:60vh; border-radius:12px; background:#000; }
+.gm-video-missing{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:26px; border:1px dashed var(--line); border-radius:12px; color:var(--ink-2);
+}
