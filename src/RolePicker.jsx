@@ -9,10 +9,24 @@ import { L } from './i18n'
 // שני תפקידים בלבד (החלטת הבעלים: "הורה" ירד מהמסך). שחקן שנרשם בלי קוד קבוצה
 // הוא משתמש מלא בלי קבוצה — אין מצב "ממתין לאישור".
 export default function RolePicker({ onPick, onBack, onSignIn }) {
-  // מאמן מסומן מראש — הקהל העיקרי, וגם ברירת מחדל אם המשתמש רק מסתכל
-  const [role, setRole] = useState('coach')
+  // ⚠ אף תפקיד אינו מסומן מראש — וזו הכרעת בטיחות, לא העדפה עיצובית.
+  // «מאמן» היה מסומן כברירת מחדל, ו«שחקן» תויג «צריך קוד מהמאמן» (תגית
+  // שגם לא הייתה נכונה — שחקן בלי קוד הוא משתמש מלא). התוצאה: ילד בן 14
+  // שמגיע מקישור חיצוני נדחף לדלת של מאמן, וכל שער הקטינים במסד יושב
+  // בתוך `if role = 'player'` — כלומר הוא עוקף אותו לגמרי.
+  // התפקיד ננעל לצמיתות אחרי ההרשמה, ואין הזדמנות שנייה לתקן.
+  const [role, setRole] = useState(null)
 
   const roles = [
+    {
+      id: 'player',
+      Icon: BasketballIcon,
+      name: L('שחקן', 'Player'),
+      desc: L(
+        'מתחרה במגרש, מקבל משימות ועוקב אחרי היעדים שלו',
+        'Competes on the court, gets assignments and tracks their own goals',
+      ),
+    },
     {
       id: 'coach',
       Icon: ClipboardList,
@@ -21,16 +35,7 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
         'בונה תוכניות אימון, מנהל קבוצות, שולח לשחקנים',
         'Builds training plans, manages teams, sends work to players',
       ),
-    },
-    {
-      id: 'player',
-      Icon: BasketballIcon,
-      name: L('שחקן', 'Player'),
-      desc: L(
-        'מקבל משימות מהמאמן ועוקב אחרי היעדים שלו',
-        'Gets assignments from the coach and tracks their own goals',
-      ),
-      tag: L('צריך קוד מהמאמן', 'Needs a code from the coach'),
+      tag: L('לבגירים בלבד (18+)', 'Adults only (18+)'),
     },
   ]
 
