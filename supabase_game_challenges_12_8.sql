@@ -251,6 +251,139 @@ $$;
 
 
 -- ---------------------------------------------------------------------
+-- 4ב) חלון ברירת המחדל — ראשון בערב עד חמישי בערב
+--
+--     הכרעת הבעלים (12.8): הוא מעלה אתגר **ידנית בכל שבוע** ובוחר בעצמו
+--     את היום והשעה. לכן אין כאן שום תאריך קשיח — רק **ברירות מחדל
+--     שיושבות בהגדרות**, וכל אחת מהן ניתנת לשינוי בלי לגעת בקוד:
+--
+--       update public.game_settings
+--          set default_close_dow = 4, default_close_time = '20:00',   -- חמישי בערב
+--              default_decide_dow = 6, default_decide_time = '20:30'; -- מוצ"ש
+--
+--     ‎(0=ראשון · 1=שני · 2=שלישי · 3=רביעי · 4=חמישי · 5=שישי · 6=שבת)
+--
+--     וגם זה רק ברירת מחדל: מסך הפרסום מאפשר לבחור תאריך ושעה חופשיים
+--     לכל אתגר בנפרד, והם גוברים תמיד.
+--
+--     ⚠ ההכרעה כברירת מחדל היא במוצ"ש ולא ברגע הסגירה, ובכוונה: זה נותן
+--     יומיים לאשר סרטונים ולערוך את הריל בלי לחץ, ומוצ"ש הוא הזמן שבו
+--     אנשים באמת בטלפון. רוצה הכרזה מיד בסגירה — שווה את שני ה-dow.
+-- ---------------------------------------------------------------------
+alter table public.game_settings add column if not exists default_close_dow   int  not null default 4;
+alter table public.game_settings add column if not exists default_close_time  time not null default '20:00';
+alter table public.game_settings add column if not exists default_decide_dow  int  not null default 6;
+alter table public.game_settings add column if not exists default_decide_time time not null default '20:30';
+
+do $dw$
+begin
+  if not exists (select 1 from pg_constraint
+                  where conrelid = 'public.game_settings'::regclass
+                    and conname  = 'game_settings_dow_range') then
+    alter table public.game_settings add constraint game_settings_dow_range
+      check (default_close_dow between 0 and 6 and default_decide_dow between 0 and 6);
+  end if;
+end $dw$;
+
+create or replace function public.game_default_window(p_from timestamptz default now())
+returns table (opens_at timestamptz, closes_at timestamptz, decide_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_tz text; v_loc timestamp; v_today date;
+  v_cdow int; v_ctime time; v_ddow int; v_dtime time;
+  v_close_d date; v_decide_d date;
+  v_close timestamptz; v_decide timestamptz;
+begin
+  select coalesce(g.tz, 'Asia/Jerusalem'), coalesce(g.default_close_dow, 4),
+         coalesce(g.default_close_time, time '20:00'), coalesce(g.default_decide_dow, 6),
+         coalesce(g.default_decide_time, time '20:30')
+    into v_tz, v_cdow, v_ctime, v_ddow, v_dtime
+    from public.game_settings g where g.id;
+
+  v_tz    := coalesce(v_tz, 'Asia/Jerusalem');
+  v_cdow  := coalesce(v_cdow, 4);  v_ctime := coalesce(v_ctime, time '20:00');
+  v_ddow  := coalesce(v_ddow, 6);  v_dtime := coalesce(v_dtime, time '20:30');
+
+  v_loc   := p_from at time zone v_tz;
+  v_today := v_loc::date;
+
+  -- יום הסגירה הקרוב; אם הוא היום והשעה כבר עברה — השבוע הבא
+  v_close_d := v_today + ((v_cdow - extract(dow from v_today)::int + 7) % 7);
+  if v_close_d = v_today and v_loc::time >= v_ctime then
+    v_close_d := v_close_d + 7;
+  end if;
+
+  -- יום ההכרעה — היום הראשון מסוגו **אחרי** יום הסגירה (0 = אותו יום)
+  v_decide_d := v_close_d + ((v_ddow - extract(dow from v_close_d)::int + 7) % 7);
+
+  v_close  := (v_close_d  + v_ctime) at time zone v_tz;
+  v_decide := (v_decide_d + v_dtime) at time zone v_tz;
+
+  -- אותו יום ושעה מוקדמת יותר — ההכרעה נדחפת לרגע הסגירה, אחרת
+  -- ה-CHECK על decide_at >= closes_at היה מפיל את הפרסום.
+  if v_decide < v_close then v_decide := v_close; end if;
+
+  return query select p_from, v_close, v_decide;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 4ג) game_open_challenge — פרסום ידני, לחיצה אחת
+--
+--     האתגרים נשמרים כטיוטה בבנק, והבעלים בוחר מהם ומפרסם בכל ראשון.
+--     הבנק אינו לוח זמנים — הוא ספרייה: הוא שומר על «עשר דקות בראשון»
+--     במקום «לכתוב אתגר מאפס», ומשאיר את ההחלטה מה מתאים השבוע אצלו.
+-- ---------------------------------------------------------------------
+create or replace function public.game_open_challenge(
+  p_challenge uuid,
+  p_opens     timestamptz default null,
+  p_closes    timestamptz default null,
+  p_decide    timestamptz default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare w record; v_open uuid;
+begin
+  if not public.is_admin() then
+    return jsonb_build_object('ok', false, 'reason', 'not_admin');
+  end if;
+
+  select * into w from public.game_default_window(coalesce(p_opens, now()));
+
+  -- אתגר פתוח קודם נסגר — האינדקס מרשה אחד בלבד, ועדיף לסגור מסודר
+  -- מאשר להחזיר שגיאה שהבעלים צריך לפענח בערב ראשון.
+  select id into v_open from public.game_challenges where status = 'open' and id <> p_challenge;
+  if v_open is not null then
+    update public.game_challenges set status = 'closed' where id = v_open;
+  end if;
+
+  update public.game_challenges
+     set status    = 'open',
+         opens_at  = coalesce(p_opens,  w.opens_at),
+         closes_at = coalesce(p_closes, w.closes_at),
+         decide_at = coalesce(p_decide, w.decide_at)
+   where id = p_challenge;
+
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+
+  return jsonb_build_object('ok', true,
+    'closes_at', coalesce(p_closes, w.closes_at),
+    'decide_at', coalesce(p_decide, w.decide_at),
+    'closed_previous', v_open is not null);
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 5) שומר ההגשה — כופה את מה שהשחקן לא אמור לקבוע
 -- ---------------------------------------------------------------------
 create or replace function public.game_submissions_guard()
