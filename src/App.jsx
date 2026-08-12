@@ -36,6 +36,24 @@ function captureJoinCode() {
   return true
 }
 
+// לינק המגרש: #/court (ו-#/r/<קוד> עם ייחוס) — זה הקישור שנשלח בקבוצת
+// הוואטסאפ ובאינסטגרם. מי שמגיע ממנו כבר הצהיר לאיזה עולם הוא שייך, ולכן
+// מדלגים על בחירת התפקיד **וגם** על מסך קוד-הקבוצה: שחקן שמגיע לאתגר לא
+// בהכרח שייך לאיזו קבוצה, ומסך קוד באמצע הוא בדיוק המקום שבו ילד נושר.
+// pending_view גורם ל-PlayerDashboard לפתוח את המגרש ולא את הבית הכללי.
+function captureCourtEntry() {
+  const h = window.location.hash
+  const ref = h.match(/^#\/r\/([A-Za-z0-9_-]{1,40})/)
+  const court = /^#\/court\b/.test(h)
+  if (!ref && !court) return false
+  try {
+    localStorage.setItem('pending_view', 'boards')
+    if (ref) localStorage.setItem('pending_ref', ref[1])
+  } catch { /* ignore */ }
+  window.location.hash = ''
+  return true
+}
+
 // תפקיד ההרשמה (מסך בחירת התפקיד) — שני תפקידים בלבד, "הורה" הוסר מהמסך.
 // נשמר ב-localStorage כדי שרענון באמצע ההרשמה לא יאבד את הבחירה.
 const ROLES = ['coach', 'player']
@@ -98,7 +116,11 @@ export default function App() {
   // הגעה מלינק הצטרפות: הקוד כבר נשמר, והמשתמש כבר הוכיח לאיזה צינור הוא שייך —
   // מדלגים על בחירת התפקיד ועל מסך הקוד ונכנסים ישר להרשמה כשחקן
   useEffect(() => {
-    if (captureJoinCode() && !session) {
+    // שני הקישורים נבדקים בנפרד — #/join מצרף לקבוצה, #/court רק למגרש —
+    // אבל שניהם מובילים לאותה נחיתה: הרשמה כשחקן, בלי מסכי ביניים.
+    const fromJoin  = captureJoinCode()
+    const fromCourt = captureCourtEntry()
+    if ((fromJoin || fromCourt) && !session) {
       saveRole('player')
       setRole('player')
       setAuthMode('signup')

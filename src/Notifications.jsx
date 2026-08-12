@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check } from 'lucide-react'
+import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import { SkeletonConvos } from './Skeleton'
@@ -11,6 +11,14 @@ const TYPE_ICON = {
   message: MessageSquare,
   event: CalendarDays,
   poll: BarChart3,
+  // עולם המשחק — שידורי מערכת, בלי actor
+  challenge_open: Trophy,
+  challenge_lock: Trophy,
+  challenge_decided: Trophy,
+  submission_approved: Trophy,
+  submission_rejected: Trophy,
+  rank_changed: Trophy,
+  award: Trophy,
 }
 
 // קיבוץ לפי יום — «היום» / «אתמול» / התאריך עצמו
@@ -133,8 +141,17 @@ export default function Notifications({ session, onNavigate }) {
     if (n.nav && onNavigate) onNavigate(n.nav)
   }
 
-  const actorName = (n) =>
-    n.actor ? `${n.actor.first_name || ''} ${n.actor.last_name || ''}`.trim() || L('מאמן', 'A coach') : L('מאמן', 'A coach')
+  // ⚠ התראה בלי actor אינה בהכרח «מאמן». שידורי המערכת (אתגר נפתח, מנצח
+  // הוכרז, המקום שלך השתנה) נשלחים מהשרת עם actor_id ריק — ובלי הענף הזה
+  // הן נקראו «מאמן האתגר השבועי נפתח», כלומר שם של אדם שלא עשה כלום.
+  const SYSTEM_TYPES = /^(challenge_|submission_|round_|rank_|award)/
+  const actorName = (n) => {
+    if (n.actor) {
+      return `${n.actor.first_name || ''} ${n.actor.last_name || ''}`.trim() || L('מאמן', 'A coach')
+    }
+    if (SYSTEM_TYPES.test(String(n.type || ''))) return 'CourtSide'
+    return L('מאמן', 'A coach')
+  }
 
   if (!available) return null
 

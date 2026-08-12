@@ -28,6 +28,7 @@ import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import PlayerTeamHub from './PlayerTeamHub'
+import GameBoards from './GameBoards'
 import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
@@ -2876,6 +2877,10 @@ const PLAYER_NAV = [
   // שורה משלו בתפריט אין דרך למצוא אותו. בלי team:true — הוא זמין גם
   // לשחקן בלי קבוצה, וזה בדיוק מי שמגיע לאפליקציה בשביל מאמן אישי.
   { id: 'pcoach', label: ['המאמן האישי', 'Personal coach'], Icon: UserPlus },
+  // «המגרש» — העולם התחרותי. במכוון **בלי team:true**: כל שחקן רשום
+  // מוזמן, גם מי שאין לו מאמן ואין לו קבוצה. זה בדיוק הקהל שמגיע מהלינק
+  // בוואטסאפ ומהאינסטגרם, והוא לא אמור להיתקל במנעול בשנייה הראשונה.
+  { id: 'boards', label: ['המגרש', 'The Court'], Icon: Trophy },
   { id: 'goals', label: ['היעדים שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], short: ['האימונים', 'Sessions'], Icon: MessageSquareHeart, team: true },
@@ -2887,10 +2892,29 @@ const PLAYER_NAV = [
 // (coach + teamchat) שתפסו 40% מהסרגל, בעוד היעדים והלו״ז היו במגירה בלבד.
 // ניווט־הכיס (11.8, מסמך העיצוב 3a): ארבעה יעדים בגלולה — והכפתור
 // הכתום שביניהם פותח את שמונת הפיצ׳רים בגיליון (כולל פרופיל ויעדים).
-const POCKET_NAV = ['home', 'drills', 'feedback', 'schedule']
+// ⚠ בדיוק ארבעה. PocketNav מפצל את הרשימה לשניים (Math.ceil(n/2)) משני
+// צדי הכפתור המרכזי, ופריט חמישי שובר את הסימטריה של מסמך העיצוב 3a.
+// לכן «המגרש» נכנס לגלולה רק אצל מי שאין לו קבוצה — אצלו «הקבוצה והלו״ז»
+// ממילא נעול, וכיסא בגלולה מתפנה.
+const pocketNavFor = (hasTeam) =>
+  hasTeam
+    ? ['home', 'drills', 'feedback', 'schedule']
+    : ['home', 'boards', 'drills', 'feedback']
 
 export default function PlayerDashboard({ session, profile, onProfileReload, restricted: restrictedProp, canSelfConfirm = false }) {
-  const [view, setView] = useState('home')
+  // נחיתה מכוונת: מי שהגיע מלינק המגרש (#/court) נוחת על המגרש ולא על
+  // הבית הכללי. בלי זה כל לינק שנשלח בוואטסאפ מפיל את השחקן במסך הבית
+  // והוא צריך למצוא לבד את מה שהובטח לו בהודעה.
+  const [view, setView] = useState(() => {
+    try {
+      const v = localStorage.getItem('pending_view')
+      if (v) {
+        localStorage.removeItem('pending_view')
+        if (['boards', 'drills', 'home'].includes(v)) return v
+      }
+    } catch { /* ignore */ }
+    return 'home'
+  })
   const [drawer, setDrawer] = useState(false)
   const [editing, setEditing] = useState(false)
   const [memberships, setMemberships] = useState(null)
@@ -2931,8 +2955,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
 
   // יעד ההתראה נגזר במקום אחד — עד היום הפעמון בטופבר ובמגירה שלחו
   // לשני מקומות שונים לאותה התראה עצמה.
+  // ⚠ יעד שאינו ברשימה נופל ל«המשימות שלי» — ולכן התראת «זכית באתגר»
+  // הייתה פותחת את מסך המשימות. כל יעד חדש חייב להיכנס לכאן.
   const navFromNotification = (v) => setView(
-    ['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat', 'schedule'].includes(v)
+    ['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat', 'schedule', 'boards'].includes(v)
       ? v
       : v === 'messages' ? 'coach' : 'drills'
   )
@@ -3025,6 +3051,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
+      case 'boards':
+        return <GameBoards />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />
       default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} />
@@ -3110,7 +3138,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
       <PocketNav
         activeId={editing ? null : view}
         onNavigate={(id) => { setEditing(false); setView(id); setDrawer(false) }}
-        items={POCKET_NAV.map((id) => {
+        items={pocketNavFor(hasTeam).map((id) => {
           const item = nav.find((n) => n.id === id)
           return { id, label: item.short ? L(item.short[0], item.short[1]) : label(item), Icon: item.Icon }
         })}

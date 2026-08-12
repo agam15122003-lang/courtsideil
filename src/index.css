@@ -25666,3 +25666,67 @@ body.pkn-open .a11y-fab{ display:none; }
   .a11y-fab{ inset-block-end:calc(var(--bn-h) + 14px + env(safe-area-inset-bottom)); }
   .toaster{ inset-block-end:calc(var(--bn-h) + 14px + env(safe-area-inset-bottom)); }
 }
+
+/* ==========================================================================
+   12.8.2026 · עולם המשחק — הטבלאות (GameBoards.jsx)
+   --------------------------------------------------------------------------
+   מרחב שמות gm-*. הטבלה עצמה חוזרת על lt-* של LeagueTable במכוון — שתי
+   שפות טבלה באפליקציה אחת הן בדיוק איך שמוצר מתחיל להיראות מורכב.
+   מה שנוסף כאן הוא רק מה ש-lt-* לא נותן: כרטיס «המיקום שלי», שורת היריב,
+   ושורת «עודכן לאחרונה».
+   ========================================================================== */
+
+.gm-boards{ display:flex; flex-direction:column; gap:12px; }
+
+.gm-tabs{ margin-block-start:2px; }
+
+.gm-periods{ display:flex; gap:8px; flex-wrap:wrap; }
+.gm-chip{
+  border:1px solid var(--line);
+  background:var(--surface);
+  color:var(--ink-2);
+  border-radius:999px;
+  padding:7px 14px;
+  font:inherit;
+  font-size:.9rem;
+  cursor:pointer;
+  min-block-size:36px;
+}
+.gm-chip.is-on{
+  background:var(--night);
+  color:#fff;
+  border-color:var(--night);
+}
+
+/* «המיקום שלי» — הכרטיס שהמשתמש מחפש בעיניים לפני כל דבר אחר בטבלה */
+.gm-me{
+  display:flex; flex-direction:column; gap:8px;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:var(--r-card, 14px);
+  background:var(--surface-2, var(--surface));
+}
+.gm-me-main{ display:flex; align-items:center; gap:12px; }
+.gm-me-rank{
+  font-size:1.6rem; font-weight:800; line-height:1;
+  color:var(--accent-strong);
+  min-inline-size:3ch;
+}
+.gm-me-tx{ display:flex; flex-direction:column; gap:2px; }
+
+.gm-rival{ margin:0; color:var(--ink-2); font-size:.92rem; }
+
+.gm-share{ align-self:flex-start; display:inline-flex; align-items:center; gap:6px; min-block-size:44px; }
+
+/* קטין שממתין לאישור הורה — הסבר במקום טבלה ריקה בלי סיבה */
+.gm-locked{
+  display:flex; align-items:flex-start; gap:10px;
+  padding:12px 14px;
+  border:1px dashed var(--line);
+  border-radius:var(--r-card, 14px);
+  color:var(--ink-2);
+}
+.gm-locked p{ margin:0; font-size:.92rem; }
+.gm-locked svg{ flex:none; margin-block-start:2px; }
+
+.gm-stamp{ margin:0; text-align:start; }
