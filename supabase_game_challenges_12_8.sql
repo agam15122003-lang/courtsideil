@@ -174,11 +174,25 @@ drop policy if exists "game_sub_admin"      on public.game_challenge_submissions
 drop policy if exists "game_sub_gate_ins"   on public.game_challenge_submissions;
 drop policy if exists "game_sub_gate_upd"   on public.game_challenge_submissions;
 
--- ⚠ שחקן רואה **רק את ההגשה של עצמו**. הגשה של אחר לפני אישור היא סרטון
---   של קטין שטרם עבר שום בדיקה — אין שום מסך שצריך אותה.
+-- הפיד חי (הכרעת הבעלים 13.8, אחרי שאושרו רשתות הביטחון): הגשה נראית
+-- לכל השחקנים מיד, בלי שער אישור. מה שכן מסונן: נדחו/נחסמו נראות רק
+-- לבעליהן ולאדמין; אתגר בטיוטה אינו נראה; וחומת ההפרדה חלה.
+-- ⚠ השורה כאן חושפת שם ותוצאה בלבד — **הקובץ** מוגן בנפרד במדיניות
+--   ה-Storage (game_clip_visible, קובץ 41): וידאו של קטין נראה לאחרים
+--   רק אם הורהו אישר «מדיה פנימית», והחסימה שלך מסתירה מיידית.
 create policy "game_sub_select_own" on public.game_challenge_submissions
   for select to authenticated
   using (user_id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists "game_sub_select_feed" on public.game_challenge_submissions;
+create policy "game_sub_select_feed" on public.game_challenge_submissions
+  for select to authenticated
+  using (
+    status in ('pending', 'approved')
+    and not public.game_wall_blocks()
+    and exists (select 1 from public.game_challenges c
+                 where c.id = challenge_id and c.status in ('open', 'closed', 'decided'))
+  );
 
 create policy "game_sub_insert_own" on public.game_challenge_submissions
   for insert to authenticated
@@ -204,7 +218,9 @@ create policy "game_sub_gate_upd" on public.game_challenge_submissions
   as restrictive for update to authenticated
   using (public.game_can_play()) with check (public.game_can_play());
 
--- אין מחיקה לשחקן: הגשה שנמחקת מוחקת גם את הראיה למה נדחתה.
+-- מחיקה — רק דרך game_delete_my_submission (סעיף 5ב): היא מוחקת גם את
+-- הקובץ מהמחסן וגם את הנקודות, ומסרבת אחרי הכרעה. DELETE ישיר היה
+-- משאיר קובץ יתום ונקודות רפאים.
 revoke delete on public.game_challenge_submissions from authenticated;
 
 
@@ -504,6 +520,71 @@ create trigger game_submissions_guard_trg
 
 
 -- ---------------------------------------------------------------------
+-- 5ב) מחיקת הגשה בידי השחקן — «התחרטתי»
+--
+--     RPC ולא DELETE ישיר: המחיקה חייבת לגרור איתה את הקובץ מהמחסן
+--     ואת הנקודות מהפנקס, ולסרב אחרי שהאתגר הוכרע — תוצאות שפורסמו
+--     אינן משתנות למפרע כי מישהו התחרט.
+-- ---------------------------------------------------------------------
+create or replace function public.game_delete_my_submission(p_challenge uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare s record; c record;
+begin
+  select * into s from public.game_challenge_submissions
+   where challenge_id = p_challenge and user_id = auth.uid() for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+
+  select * into c from public.game_challenges where id = p_challenge;
+  if c.status = 'decided' then
+    return jsonb_build_object('ok', false, 'reason', 'decided',
+      'message', 'האתגר כבר הוכרע — התוצאות סופיות ואי אפשר למחוק.');
+  end if;
+  if s.status = 'blocked' then
+    -- קליפ חסום נשמר כראיה. מחיקתו — רק דרך האדמין.
+    return jsonb_build_object('ok', false, 'reason', 'blocked');
+  end if;
+
+  if s.media_path is not null then
+    delete from storage.objects where bucket_id = 'media' and name = s.media_path;
+  end if;
+  delete from public.game_challenge_submissions where id = s.id;
+  -- הניקוד מתעדכן דרך טריגר ה-rescore (סעיף 5ג)
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 5ג) ניקוד חי — כל שינוי בהגשות מחשב מחדש את האתגר
+--
+--     בלי שער אישור אין רגע «אישור» שמפעיל ניקוד, ולכן הטריגר. הוא
+--     בטוח לריצה מרובה (מחק-בטווח-וכתוב-מחדש + נעילה), והנפח בפיילוט
+--     זעיר. AFTER, כדי שהחישוב יראה את המצב החדש.
+-- ---------------------------------------------------------------------
+create or replace function public.game_rescore_on_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.game_score_challenge(coalesce(new.challenge_id, old.challenge_id));
+  return null;
+end;
+$$;
+
+drop trigger if exists game_rescore_trg on public.game_challenge_submissions;
+create trigger game_rescore_trg
+  after insert or update or delete on public.game_challenge_submissions
+  for each row execute function public.game_rescore_on_change();
+
+
+-- ---------------------------------------------------------------------
 -- 6) game_score_challenge — כותבת לפנקס
 --
 --     דפוס מחק-בטווח-וכתוב-מחדש: רק מחיקה פותרת שורה שצריכה **להיעלם**
@@ -522,9 +603,9 @@ declare
   v_month text; v_season text; v_day date;
   v_part int; v_top int; v_win int;
 begin
-  if auth.uid() is not null and not public.is_admin() then
-    return jsonb_build_object('ok', false, 'reason', 'not_admin');
-  end if;
+  -- ⚠ בכוונה בלי בדיקת אדמין: אין ללקוח grant execute (רק revoke),
+  --   והפונקציה מופעלת מטריגר ה-rescore שנורה גם מפעולת שחקן.
+  --   בדיקת אדמין כאן הייתה משתיקה את הניקוד החי בדיוק כשצריך אותו.
 
   select * into c from public.game_challenges where id = p_challenge;
   if not found then return jsonb_build_object('ok', false, 'reason', 'no_challenge'); end if;
@@ -536,7 +617,7 @@ begin
     from public.game_period_keys(coalesce(c.closes_at, now())) k;
 
   select count(*) into v_n from public.game_challenge_submissions
-   where challenge_id = p_challenge and status = 'approved';
+   where challenge_id = p_challenge and status in ('pending', 'approved');
 
   select coalesce(min_entries, 8) into v_top5_min
     from public.game_scoring_rules where key = 'chal_top5';
@@ -557,7 +638,7 @@ begin
                            else  coalesce(s.approved_score, s.reported_score) end asc,
                       s.submitted_at asc) as place
       from public.game_challenge_submissions s
-     where s.challenge_id = p_challenge and s.status = 'approved'
+     where s.challenge_id = p_challenge and s.status in ('pending', 'approved')
   ),
   rows_to_write as (
     -- השתתפות
@@ -627,13 +708,13 @@ begin
            'שלושה אתגרים ברצף', coalesce(r.closes_at, now()), v_day, v_month, v_season, r.id
       from public.game_challenge_submissions s
       join public.game_challenges c2 on c2.id = s.challenge_id and c2.seq = r.seq
-     where s.status = 'approved'
+     where s.status in ('pending', 'approved')
        and exists (select 1 from public.game_challenge_submissions s1
                      join public.game_challenges c1 on c1.id = s1.challenge_id
-                    where c1.seq = r.seq - 1 and s1.user_id = s.user_id and s1.status = 'approved')
+                    where c1.seq = r.seq - 1 and s1.user_id = s.user_id and s1.status in ('pending', 'approved'))
        and exists (select 1 from public.game_challenge_submissions s2
                      join public.game_challenges c0 on c0.id = s2.challenge_id
-                    where c0.seq = r.seq - 2 and s2.user_id = s.user_id and s2.status = 'approved');
+                    where c0.seq = r.seq - 2 and s2.user_id = s.user_id and s2.status in ('pending', 'approved'));
   end loop;
 end;
 $$;
@@ -758,7 +839,7 @@ begin
          false,
          public.game_publish_ok(s.user_id)
     from public.game_challenge_submissions s
-   where s.challenge_id = p_challenge and s.status = 'approved';
+   where s.challenge_id = p_challenge and s.status in ('pending', 'approved');
 
   update public.game_challenge_results set is_winner = true
    where challenge_id = p_challenge and place = 1;
@@ -831,6 +912,9 @@ grant execute on function public.game_reschedule_challenge(uuid,timestamptz,time
 
 revoke all on function public.game_challenge_open(uuid)                        from public, anon;
 revoke all on function public.game_media_locked(text, uuid)                    from public, anon;
+revoke all on function public.game_delete_my_submission(uuid)                  from public, anon;
+grant  execute on function public.game_delete_my_submission(uuid)              to authenticated;
+revoke all on function public.game_rescore_on_change()                         from public, anon, authenticated;
 revoke all on function public.game_submissions_guard()                         from public, anon, authenticated;
 revoke all on function public.game_score_challenge(uuid)                       from public, anon, authenticated;
 revoke all on function public.game_score_streaks(int, int)                     from public, anon, authenticated;

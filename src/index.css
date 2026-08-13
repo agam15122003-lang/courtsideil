@@ -25892,3 +25892,143 @@ body.pkn-open .a11y-fab{ display:none; }
 
 .gm-chal-actions{ display:flex; gap:8px; }
 .gm-chal-actions button{ display:inline-flex; align-items:center; gap:6px; min-block-size:46px; }
+
+/* ==========================================================================
+   13.8.2026 · עולם המשחק — הפיד החי (ChallengeFeed) והחידון (QuizPlay)
+   --------------------------------------------------------------------------
+   הפיד: דירוג חי שממנו נפתחים הקליפים בלחיצה. החידון: טבעת זמן, ארבע
+   תשובות גדולות, חשיפה עם הסבר. הכל טוקנים, הכל ≥44px למגע.
+   ========================================================================== */
+
+/* ---- הפיד ---- */
+.gm-feed{ display:flex; flex-direction:column; gap:8px; margin-block-start:6px; }
+.gm-feed-title{ margin:0; font-size:.95rem; color:var(--ink-2); font-weight:700; }
+.gm-feed-empty{ margin:4px 0 0; }
+
+.gm-feed-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.gm-feed-row{
+  border:1px solid var(--line); border-radius:12px; background:var(--surface);
+  overflow:hidden;
+}
+.gm-feed-row.is-mine{ border-color:var(--accent-strong); }
+.gm-feed-row.is-winner{ border-width:2px; border-color:var(--accent-strong); }
+
+.gm-feed-main{ display:flex; align-items:center; gap:10px; padding:10px 12px; min-block-size:48px; }
+.gm-feed-rank{
+  min-inline-size:28px; text-align:center; font-weight:800;
+  font-variant-numeric:tabular-nums; color:var(--ink-2);
+}
+.gm-feed-who{ display:flex; align-items:center; gap:6px; flex:1; min-inline-size:0; }
+.gm-feed-who b{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gm-feed-champ{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:.75rem; font-weight:700; color:var(--accent-strong);
+}
+.gm-feed-verified{ display:inline-flex; color:var(--ok, #1c7a3e); }
+.gm-feed-score{ font-weight:800; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+
+.gm-feed-clip{ padding:0 12px 12px; display:flex; flex-direction:column; gap:8px; }
+.gm-feed-clip-foot{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+
+/* ---- החידון: כרטיסי פתיחה ---- */
+.qz-cards{ display:flex; flex-direction:column; gap:12px; }
+.qz-meta{ display:inline-flex; align-items:center; gap:4px; color:var(--ink-2); font-size:.85rem; }
+.qz-duel-actions{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.qz-duel-actions > button{ display:inline-flex; align-items:center; gap:6px; min-block-size:44px; }
+.qz-join{ display:flex; gap:6px; }
+.qz-join input{
+  inline-size:110px; font:inherit; padding:9px 10px; min-block-size:44px;
+  border:1px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+  font-weight:700; letter-spacing:.12em; text-transform:uppercase; text-align:center;
+}
+.qz-duel-row{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:8px 10px; border:1px dashed var(--line); border-radius:10px;
+}
+.qz-duel-row.is-done{ border-style:solid; }
+.qz-duel-row button{ display:inline-flex; align-items:center; gap:5px; min-block-size:36px; }
+
+/* ---- החידון: מסך המשחק ---- */
+.qz-play{
+  display:flex; flex-direction:column; gap:14px;
+  padding:16px; border:1px solid var(--line);
+  border-radius:var(--r-card, 14px); background:var(--surface);
+}
+.qz-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.qz-progress{ font-size:.9rem; color:var(--ink-2); font-weight:600; }
+.qz-score{
+  display:inline-flex; align-items:center; gap:5px;
+  font-weight:800; font-variant-numeric:tabular-nums; color:var(--accent-strong);
+}
+
+/* טבעת הזמן — הסטופר */
+.qz-ring{ position:relative; inline-size:64px; block-size:64px; flex:none; }
+.qz-ring svg{ inline-size:100%; block-size:100%; transform:rotate(-90deg); }
+.qz-ring-bg{ fill:none; stroke:var(--line); stroke-width:7; }
+.qz-ring-fg{
+  fill:none; stroke:var(--night); stroke-width:7; stroke-linecap:round;
+  transition:stroke-dashoffset .12s linear, stroke .3s;
+}
+.qz-ring.is-warn .qz-ring-fg{ stroke:var(--accent-strong); }
+.qz-ring.is-out  .qz-ring-fg{ stroke:var(--danger, #b3261e); }
+.qz-ring-num{
+  position:absolute; inset:0; display:grid; place-items:center;
+  font-weight:800; font-size:1.15rem; font-variant-numeric:tabular-nums;
+}
+.qz-ring.is-warn .qz-ring-num{ color:var(--accent-strong); }
+
+.qz-question{ margin:0; font-size:1.15rem; line-height:1.45; }
+
+.qz-answers{ display:flex; flex-direction:column; gap:8px; }
+.qz-answer{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  inline-size:100%; text-align:start;
+  padding:13px 14px; min-block-size:50px;
+  font:inherit; font-size:1rem;
+  border:1.5px solid var(--line); border-radius:12px;
+  background:var(--surface); color:var(--ink); cursor:pointer;
+}
+.qz-answer:disabled{ cursor:default; }
+.qz-answer.is-picked{ border-color:var(--night); }
+.qz-answer.is-right{
+  border-color:var(--ok, #1c7a3e); background:var(--ok-bg, #e8f5ec);
+  color:var(--ok-ink, #14532d); font-weight:700;
+}
+.qz-answer.is-wrong{
+  border-color:var(--danger, #b3261e); background:var(--warn-bg, #fdecea);
+}
+.qz-answer.is-dim{ opacity:.55; }
+.qz-answer svg{ flex:none; }
+
+.qz-reveal{
+  border-radius:12px; padding:12px 14px;
+  border:1px solid var(--line);
+  display:flex; flex-direction:column; gap:8px;
+}
+.qz-reveal.is-good{ border-color:var(--ok, #1c7a3e); background:var(--ok-bg, #e8f5ec); }
+.qz-reveal-head b{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.qz-pts{ color:var(--accent-strong); font-size:1.1rem; }
+.qz-speed{ font-weight:400; font-size:.82rem; color:var(--ink-2); }
+.qz-explain{ margin:0; font-size:.92rem; color:var(--ink-2); }
+.qz-next{ align-self:flex-start; display:inline-flex; align-items:center; gap:6px; min-block-size:46px; }
+
+/* ---- מסך הסיום ---- */
+.qz-done{
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  padding:26px 16px; text-align:center;
+  border:1px solid var(--line); border-radius:var(--r-card, 14px);
+  background:var(--surface);
+}
+.qz-done svg{ color:var(--accent-strong); }
+.qz-done h3{ margin:0; }
+.qz-done-score{
+  margin:0; font-size:2.6rem; font-weight:800; line-height:1;
+  color:var(--accent-strong); font-variant-numeric:tabular-nums;
+}
+
+/* כיבוד העדפת תנועה מופחתת — הטבעת קופצת במקום לזרום */
+@media (prefers-reduced-motion: reduce){
+  .qz-ring-fg{ transition:none; }
+}
+html.a11y-motion .qz-ring-fg{ transition:none; }

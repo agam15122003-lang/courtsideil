@@ -290,16 +290,30 @@ export async function recordPublication({ submissionId, challengeId, userId, url
 
 // ===== שחקן: האתגר הפעיל =====
 
+const CHALLENGE_COLS = 'id, title, subtitle, metric_label, metric_unit, metric_dir, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status'
+
+// האתגר להצגה: הפתוח אם יש; אחרת האחרון שהוכרע — כדי שהפודיום
+// והתוצאות יישארו על המסך גם אחרי ההכרזה, עד שנפתח אתגר חדש.
 export async function activeChallenge() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('game_challenges')
-    .select('id, title, subtitle, metric_label, metric_unit, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status')
+    .select(CHALLENGE_COLS)
     .eq('status', 'open')
     .limit(1)
     .maybeSingle()
   if (error) {
     if (isNotDeployed(error)) return { ok: false, notDeployed: true }
     return { ok: false, reason: 'error', message: error.message }
+  }
+  if (!data) {
+    const last = await supabase
+      .from('game_challenges')
+      .select(CHALLENGE_COLS)
+      .in('status', ['decided', 'closed'])
+      .order('closes_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle()
+    if (!last.error) data = last.data
   }
   return { ok: true, challenge: data || null }
 }
@@ -342,5 +356,140 @@ export async function submitChallenge({ challengeId, uid, mediaPath, score, allo
     }
     return { ok: false, reason: 'error', message: e.message }
   }
+  return { ok: true }
+}
+
+// ===== הפיד החי =====
+// כל ההגשות של האתגר, לכולם, ממוינות כדירוג חי. ה-RLS כבר מסנן נדחות
+// וחסומות; הסרטון עצמו נפתח רק אם מדיניות המחסן מרשה (רשת הביטחון).
+export async function challengeFeed(challengeId) {
+  const { data, error } = await supabase
+    .from('game_challenge_submissions')
+    .select('id, user_id, media_path, reported_score, approved_score, status, submitted_at')
+    .eq('challenge_id', challengeId)
+    .order('submitted_at', { ascending: true })
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  return { ok: true, rows: data || [] }
+}
+
+// שמות תצוגה לפיד — דרך game_display_name בשרת, בלי לגעת ב-profiles
+export async function displayNames(userIds) {
+  const out = {}
+  await Promise.all([...new Set(userIds)].map(async (id) => {
+    const r = await callRpc('game_display_name', { p_user: id })
+    out[id] = r.ok ? (r.data || 'שחקן') : 'שחקן'
+  }))
+  return out
+}
+
+export async function deleteMySubmission(challengeId) {
+  return callRpc('game_delete_my_submission', { p_challenge: challengeId })
+}
+
+// ===== חידונים =====
+
+export async function weeklyQuiz() {
+  const { data, error } = await supabase
+    .from('game_quizzes')
+    .select('id, title, kind, seconds_per_q, status, question_ids')
+    .eq('kind', 'weekly')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  return { ok: true, quiz: data || null }
+}
+
+export async function myAttempt(quizId) {
+  const { data: u } = await supabase.auth.getUser()
+  const uid = u?.user?.id
+  if (!uid) return { ok: false, reason: 'no_session' }
+  const { data, error } = await supabase
+    .from('game_quiz_attempts')
+    .select('id, score, correct_count, finished_at')
+    .eq('quiz_id', quizId).eq('user_id', uid)
+    .maybeSingle()
+  if (error) return { ok: false, reason: 'error', message: error.message }
+  return { ok: true, attempt: data || null }
+}
+
+export async function quizStart(quizId, duelId) {
+  return callRpc('game_quiz_start', { p_quiz: quizId, p_duel: duelId || null })
+}
+export async function quizNext(attemptId) {
+  return callRpc('game_quiz_next', { p_attempt: attemptId })
+}
+export async function quizAnswer(attemptId, questionId, chosen) {
+  return callRpc('game_quiz_answer', { p_attempt: attemptId, p_question: questionId, p_chosen: chosen })
+}
+export async function quizFinish(attemptId) {
+  return callRpc('game_quiz_finish', { p_attempt: attemptId })
+}
+
+// ===== דו-קרב =====
+export async function duelCreate(count, seconds) {
+  return callRpc('game_duel_create', { p_count: count || 6, p_seconds: seconds || 20 })
+}
+export async function duelJoin(code) {
+  return callRpc('game_duel_join', { p_code: code })
+}
+export async function myDuels() {
+  const { data: u } = await supabase.auth.getUser()
+  const uid = u?.user?.id
+  if (!uid) return { ok: false, reason: 'no_session' }
+  const { data, error } = await supabase
+    .from('game_duels')
+    .select('id, quiz_id, challenger_id, opponent_id, invite_code, status, winner_id, is_draw, created_at')
+    .or(`challenger_id.eq.${uid},opponent_id.eq.${uid}`)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  return { ok: true, rows: data || [], uid }
+}
+
+export const duelInvite = (code) =>
+  L(
+    `🏀 דו-קרב כדורסל! אותן שאלות, טיימר רץ — מי חכם יותר?\n` +
+      `הקוד שלך: *${code}*\n` +
+      `נכנסים למגרש ב-CourtSide, לוחצים «דו-קרב», מזינים את הקוד:\n${courtLink()}`,
+    `🏀 Basketball duel! Same questions, clock running — who knows more?\n` +
+      `Your code: *${code}*\n` +
+      `Open the Court on CourtSide, tap "Duel", enter the code:\n${courtLink()}`,
+  )
+
+// ===== אדמין: חידונים =====
+export async function adminQuizzes() {
+  const { data, error } = await supabase
+    .from('game_quizzes')
+    .select('id, title, kind, status, seconds_per_q, question_ids, created_at')
+    .eq('kind', 'weekly')
+    .order('created_at', { ascending: false })
+    .limit(12)
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  return { ok: true, rows: data || [] }
+}
+export async function buildQuiz({ title, count, categories, difficulty, seconds }) {
+  return callRpc('game_build_quiz', {
+    p_title: title, p_count: count || 8,
+    p_categories: categories || null, p_difficulty: difficulty || null,
+    p_seconds: seconds || 20, p_kind: 'weekly',
+  })
+}
+export async function setQuizStatus(id, status) {
+  const { error } = await supabase.from('game_quizzes').update({ status }).eq('id', id)
+  if (error) return { ok: false, message: error.message }
   return { ok: true }
 }

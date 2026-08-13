@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Trophy, CalendarClock, Check, X, ShieldAlert, Ban, Send, RefreshCw, Download, Play,
+  Trophy, CalendarClock, Check, X, ShieldAlert, Ban, Send, RefreshCw, Download, Play, Brain,
 } from 'lucide-react'
 import { L } from './i18n'
 import { toast } from './toast'
@@ -9,6 +9,7 @@ import SignedVideo from './SignedVideo'
 import {
   adminChallenges, defaultWindow, openChallenge, rescheduleChallenge, decideChallenge,
   reviewQueue, reviewSubmission, challengeTop5, recordPublication, messageKit,
+  adminQuizzes, buildQuiz, setQuizStatus,
 } from './game'
 
 // AdminChallenges — מסך הניהול של האתגר השבועי.
@@ -208,8 +209,8 @@ function QueueTab({ rows, onReload }) {
     return (
       <div className="empty-state">
         <Check size={26} />
-        <b>{L('אין הגשות שממתינות', 'Nothing waiting')}</b>
-        <p>{L('כל הקליפים טופלו. יופיע כאן ברגע שמישהו יגיש.', 'All clips handled. New ones show up here.')}</p>
+        <b>{L('אין הגשות חדשות לבקרה', 'Nothing new to review')}</b>
+        <p>{L('ההגשות עולות לפיד מיד; כאן עוברים עליהן אחרי — מאמתים תוצאה, מסירים מה שלא תקין.', 'Entries go live instantly; here you spot-check after — verify scores, remove what breaks the rules.')}</p>
       </div>
     )
   }
@@ -235,11 +236,11 @@ function QueueTab({ rows, onReload }) {
           <div className="gm-adm-actions">
             <button type="button" className="btn-primary" disabled={busy === s.id}
               onClick={() => act(s, 'approve')}>
-              <Check size={16} /> {L('אשר', 'Approve')}
+              <Check size={16} /> {L('אמת תוצאה ✓', 'Verify score ✓')}
             </button>
             <button type="button" className="btn-secondary" disabled={busy === s.id}
               onClick={() => setReasonFor(reasonFor === s.id ? null : s.id)}>
-              <X size={16} /> {L('דחה', 'Reject')}
+              <X size={16} /> {L('הסר מהפיד', 'Remove from feed')}
             </button>
             <button type="button" className="btn-ghost" disabled={busy === s.id}
               onClick={() => act(s, 'flag_age')} title={L('נראה צעיר מהגיל המוצהר', 'Looks younger than declared')}>
@@ -363,6 +364,110 @@ function ExportTab({ rows }) {
   )
 }
 
+// ===== לשונית 4: חידונים =====
+// בניית חידון שבועי: המערכת מגרילה שאלות מהמאגר (320 מאומתות), האדמין
+// פותח וסוגר. שאלה שכבר שיחקו עליה לא «נשרפת» — ההגרלה אקראית בכל בנייה.
+function QuizTab() {
+  const [rows, setRows] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ title: '', count: 8, difficulty: '', seconds: 20 })
+
+  const load = useCallback(async () => {
+    const r = await adminQuizzes()
+    setRows(r.ok ? (r.rows || []) : [])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const create = async () => {
+    setBusy(true)
+    const r = await buildQuiz({
+      title: form.title.trim() || L('החידון השבועי', 'Weekly quiz'),
+      count: Number(form.count) || 8,
+      difficulty: form.difficulty || null,
+      seconds: Number(form.seconds) || 20,
+    })
+    setBusy(false)
+    const d = r.data || {}
+    if (!r.ok || d.ok === false) { toast.error(d.message || L('הבנייה נכשלה', 'Build failed')); return }
+    toast.success(L(`נבנה חידון עם ${d.questions} שאלות — עכשיו פתח אותו`, `Built with ${d.questions} questions — now open it`))
+    setForm({ ...form, title: '' })
+    load()
+  }
+
+  const setStatus = async (id, status) => {
+    const r = await setQuizStatus(id, status)
+    if (!r.ok) { toast.error(r.message || L('נכשל', 'Failed')); return }
+    toast.success(status === 'open' ? L('החידון פתוח לשחקנים', 'Quiz is live') : L('החידון נסגר', 'Quiz closed'))
+    load()
+  }
+
+  return (
+    <div className="gm-adm-list">
+      <div className="gm-adm-card">
+        <b>{L('חידון שבועי חדש', 'New weekly quiz')}</b>
+        <div className="gm-adm-form">
+          <label>
+            {L('שם (לא חובה)', 'Title (optional)')}
+            <input type="text" value={form.title} maxLength={60}
+              placeholder={L('החידון השבועי', 'Weekly quiz')}
+              onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </label>
+          <label>
+            {L('מספר שאלות', 'Questions')}
+            <input type="number" min="3" max="15" dir="ltr" value={form.count}
+              onChange={(e) => setForm({ ...form, count: e.target.value })} />
+          </label>
+          <label>
+            {L('קושי', 'Difficulty')}
+            <select value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })}>
+              <option value="">{L('מעורב (מומלץ)', 'Mixed (recommended)')}</option>
+              <option value="easy">{L('קל', 'Easy')}</option>
+              <option value="medium">{L('בינוני', 'Medium')}</option>
+              <option value="hard">{L('קשה', 'Hard')}</option>
+            </select>
+          </label>
+          <label>
+            {L('שניות לשאלה', 'Seconds per question')}
+            <input type="number" min="5" max="120" dir="ltr" value={form.seconds}
+              onChange={(e) => setForm({ ...form, seconds: e.target.value })} />
+          </label>
+          <div className="gm-adm-actions">
+            <button type="button" className="btn-primary" disabled={busy} onClick={create}>
+              <Brain size={15} /> {L('בנה חידון', 'Build quiz')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {rows.map((z) => (
+        <div key={z.id} className="gm-adm-card">
+          <div className="gm-adm-head">
+            <span className="gm-adm-title">
+              <b>{z.title}</b>
+              <span className={`gm-badge gm-badge--${z.status === 'open' ? 'open' : z.status === 'closed' ? 'closed' : 'draft'}`}>
+                {z.status === 'open' ? L('פתוח', 'Open') : z.status === 'closed' ? L('נסגר', 'Closed') : L('טיוטה', 'Draft')}
+              </span>
+            </span>
+            <span className="muted small" dir="ltr">{(z.question_ids || []).length} · {z.seconds_per_q}s</span>
+          </div>
+          <div className="gm-adm-actions">
+            {z.status !== 'open' && (
+              <button type="button" className="btn-primary" onClick={() => setStatus(z.id, 'open')}>
+                <Play size={14} /> {L('פתח לשחקנים', 'Open to players')}
+              </button>
+            )}
+            {z.status === 'open' && (
+              <button type="button" className="btn-secondary" onClick={() => setStatus(z.id, 'closed')}>
+                {L('סגור', 'Close')}
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ===== המסך =====
 export default function AdminChallenges() {
   const [tab, setTab] = useState('bank')
@@ -417,18 +522,23 @@ export default function AdminChallenges() {
         </button>
         <button type="button" role="tab" aria-selected={tab === 'queue'}
           className={tab === 'queue' ? 'tab active' : 'tab'} onClick={() => setTab('queue')}>
-          <Play size={13} /> {L('תור האישור', 'Approval queue')}
+          <Play size={13} /> {L('בקרה', 'Review')}
           {queue.length > 0 && <span className="gm-count" dir="ltr">{queue.length}</span>}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'export'}
           className={tab === 'export' ? 'tab active' : 'tab'} onClick={() => setTab('export')}>
           {L('טופ-5', 'Top 5')}
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'quiz'}
+          className={tab === 'quiz' ? 'tab active' : 'tab'} onClick={() => setTab('quiz')}>
+          <Brain size={13} /> {L('חידונים', 'Quizzes')}
+        </button>
       </div>
 
       {tab === 'bank'   && <BankTab rows={rows} onReload={load} />}
       {tab === 'queue'  && <QueueTab rows={queue} onReload={load} />}
       {tab === 'export' && <ExportTab rows={rows} />}
+      {tab === 'quiz'   && <QuizTab />}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { L } from './i18n'
 import { toast } from './toast'
 import { burstConfetti } from './confetti'
 import { uploadVideo } from './storage'
+import ChallengeFeed from './ChallengeFeed'
 import {
   activeChallenge, gameMe, gameSettings, mySubmission, submitChallenge,
   joinCourt, serverNow, syncServerClock,
@@ -43,10 +44,12 @@ function CountdownLabel({ closesAt }) {
   )
 }
 
+// «pending» בפיד החי פירושו באוויר — אין שער אישור. «approved» = המאמן
+// אימת את התוצאה (תג ✓ בפיד), «rejected» = הוסרה עם סיבה.
 const STATUS_TAG = {
-  pending:  ['ממתין לאישור המאמן', 'Waiting for approval', Hourglass],
-  approved: ['ההגשה אושרה!', 'Approved!', Check],
-  rejected: ['ההגשה נדחתה', 'Rejected', X],
+  pending:  ['ההגשה שלך באוויר! 🔥', "You're on the feed! 🔥", Check],
+  approved: ['התוצאה אומתה ✓', 'Score verified ✓', Check],
+  rejected: ['ההגשה הוסרה', 'Entry removed', X],
 }
 
 export default function ChallengeCard() {
@@ -246,6 +249,9 @@ export default function ChallengeCard() {
           </div>
         </div>
       )}
+
+      {/* הפיד החי — כולם רואים את כולם, בלי תגובות. מחיקה עצמית מהשורה שלי. */}
+      <ChallengeFeed challenge={ch} myUid={uid} metricDir={ch.metric_dir || 'desc'} onChanged={load} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { L } from './i18n'
 import { waShare } from './share'
 import { board, myStanding, periodKeys, messageKit } from './game'
 import ChallengeCard from './ChallengeCard'
+import QuizPlay from './QuizPlay'
 
 // GameBoards — הטבלאות של המגרש.
 //
@@ -60,8 +61,10 @@ export default function GameBoards() {
 
   return (
     <div className="gm-boards">
-      {/* האתגר הפעיל — למעלה, לפי האפיון: «למעלה האתגר, למטה המיקום שלך» */}
+      {/* סדר המסך לפי האפיון: למעלה האתגר (עם הפיד החי בפנים), באמצע
+          החידון והדו-קרב, למטה הטבלאות והמיקום שלך */}
       <ChallengeCard />
+      <QuizPlay />
 
       <div className="lt-head">
         <span className="lt-title">

@@ -89,11 +89,42 @@ end $ins$;
 
 
 -- ---------------------------------------------------------------------
--- 2) קריאה — שלוש מדיניות שמשלימות זו את זו:
---    permissive לבעלים ולאדמין (פותחת את תור האישור),
---    restrictive ל-authenticated (סוגרת את חור ה-media_team),
---    restrictive ל-anon (קליפ אתגר לעולם אינו אנונימי).
+-- 2) קריאה — הפיד החי (הכרעת הבעלים 13.8) עם רשת הביטחון:
+--
+--    game_clip_visible קובעת מתי קליפ נראה **לשחקנים אחרים**:
+--      · ההגשה חיה (pending/approved) — נדחתה או נחסמה ⇒ נעלמת מיד;
+--      · האתגר אינו טיוטה;
+--      · והמגיש רשאי להיראות: בגיר — כן; קטין — רק אם הורהו העניק
+--        הסכמת «מדיה פנימית» (media_team). זו הסכמה שכבר קיימת במערכת
+--        ורוב ההורים מעניקים בהרשמה — אפס חיכוך, בלי תור.
+--    הבעלים והאדמין רואים תמיד. השם והתוצאה גלויים תמיד בפיד —
+--    הפונקציה הזו שולטת רק על הקובץ.
 -- ---------------------------------------------------------------------
+create or replace function public.game_clip_visible(p_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.game_challenge_submissions s
+      join public.game_challenges c on c.id = s.challenge_id
+      join public.profiles p on p.id = s.user_id
+     where s.media_path = p_name
+       and s.status in ('pending', 'approved')
+       and c.status in ('open', 'closed', 'decided')
+       and (
+         coalesce(public.minor_age(p.birth_date, p.birth_year) >= 18, false)
+         or public.has_consent(s.user_id, 'media_team')
+       )
+  );
+$$;
+
+revoke all on function public.game_clip_visible(text) from public, anon;
+grant execute on function public.game_clip_visible(text) to authenticated;
+
 do $sel$
 begin
   execute 'drop policy if exists "media_select_challenges" on storage.objects';
@@ -104,10 +135,11 @@ begin
         bucket_id = 'media'
         and (storage.foldername(name))[1] = 'challenges'
         and (public.media_path_owner(name) = (select auth.uid())
-             or (select public.is_admin()))
+             or (select public.is_admin())
+             or public.game_clip_visible(name))
       )
   $pol$;
-  raise notice '✔ media_select_challenges נוצרה.';
+  raise notice '✔ media_select_challenges נוצרה (פיד חי + רשת ביטחון).';
 
   execute 'drop policy if exists "media_challenges_private" on storage.objects';
   execute $pol$
@@ -118,6 +150,7 @@ begin
         or (storage.foldername(name))[1] <> 'challenges'
         or public.media_path_owner(name) = (select auth.uid())
         or (select public.is_admin())
+        or public.game_clip_visible(name)
       )
   $pol$;
   raise notice '✔ media_challenges_private נוצרה.';
