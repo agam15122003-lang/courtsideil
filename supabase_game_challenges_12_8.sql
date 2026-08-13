@@ -103,6 +103,27 @@ create policy "game_chal_admin" on public.game_challenges
 
 
 -- ---------------------------------------------------------------------
+-- 1ב) game_challenge_open — חייבת להיווצר **לפני** מדיניות ההגשות,
+--     שמשתמשת בה. פונקציית SQL נבדקת בזמן היצירה, ומדיניות שמפנה
+--     לפונקציה שאינה קיימת מפילה את כל הקובץ (42883 — קרה בפרוד 12.8).
+--     fail-closed: אתגר שלא נמצא, שאינו פתוח, או שחלונו נגמר — סגור.
+-- ---------------------------------------------------------------------
+create or replace function public.game_challenge_open(p_challenge uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((
+    select c.status = 'open'
+       and (c.opens_at  is null or now() >= c.opens_at)
+       and (c.closes_at is null or now() <  c.closes_at)
+      from public.game_challenges c where c.id = p_challenge), false);
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 2) game_challenge_submissions — ההגשה
 -- ---------------------------------------------------------------------
 create table if not exists public.game_challenge_submissions (
@@ -218,24 +239,12 @@ grant select on public.game_challenge_results to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 4) עזרים
+--    (game_challenge_open הועברה לסעיף 1ב — לפני המדיניות שמשתמשת בה)
 -- ---------------------------------------------------------------------
 
--- fail-closed: אתגר שלא נמצא, או שאינו פתוח, או שהחלון נגמר — סגור.
-create or replace function public.game_challenge_open(p_challenge uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce((
-    select c.status = 'open'
-       and (c.opens_at  is null or now() >= c.opens_at)
-       and (c.closes_at is null or now() <  c.closes_at)
-      from public.game_challenges c where c.id = p_challenge), false);
-$$;
-
--- האם הקובץ נעול לשינוי (הגשה שאושרה או נחסמה)
+-- האם הקובץ נעול לשינוי (הגשה שאושרה או נחסמה).
+-- כאן ולא בסעיף 1ב: פונקציית SQL נבדקת ביצירה, והיא קוראת מטבלת
+-- ההגשות — שקיימת רק מסעיף 2 והלאה.
 create or replace function public.game_media_locked(p_path text, p_owner uuid)
 returns boolean
 language sql
