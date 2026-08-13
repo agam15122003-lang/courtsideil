@@ -367,6 +367,9 @@ function ExportTab({ rows }) {
 // ===== לשונית 4: חידונים =====
 // בניית חידון שבועי: המערכת מגרילה שאלות מהמאגר (320 מאומתות), האדמין
 // פותח וסוגר. שאלה שכבר שיחקו עליה לא «נשרפת» — ההגרלה אקראית בכל בנייה.
+// לשונית החידונים — **אופציונלית מאז 13.8**: השחקנים בונים לעצמם חידון
+// בלחיצה (game_quiz_solo), ואינם ממתינים לאיש. מה שנשאר כאן הוא «חידון
+// שבועי» רשמי — אחד בשבוע שנספר בלי תקרה יומית, למי שרוצה אירוע.
 function QuizTab() {
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
@@ -404,7 +407,11 @@ function QuizTab() {
   return (
     <div className="gm-adm-list">
       <div className="gm-adm-card">
-        <b>{L('חידון שבועי חדש', 'New weekly quiz')}</b>
+        <b>{L('חידון שבועי רשמי', 'Official weekly quiz')}</b>
+        <p className="muted small">
+          {L('לא חובה — השחקנים בונים לעצמם חידון בכל רגע. זה כאן בשביל אירוע שבועי שנספר בלי תקרה.',
+             "Optional — players build their own any time. This is for a weekly event that counts without a daily cap.")}
+        </p>
         <div className="gm-adm-form">
           <label>
             {L('שם (לא חובה)', 'Title (optional)')}
@@ -509,7 +516,7 @@ export default function AdminChallenges() {
   return (
     <div className="gm-admin">
       <div className="gm-adm-top">
-        <h2><Trophy size={19} aria-hidden="true" /> {L('האתגר השבועי', 'Weekly challenge')}</h2>
+        <h2><Trophy size={19} aria-hidden="true" /> {L('עולם הכדורסל', 'Basketball world')}</h2>
         <button type="button" className="icon-btn" onClick={load} aria-label={L('רענון', 'Refresh')}>
           <RefreshCw size={15} />
         </button>

@@ -160,7 +160,7 @@ export default function GameBoards() {
       {state === 'notDeployed' && (
         <div className="empty-state">
           <CalendarClock size={26} />
-          <b>{L('המגרש עוד לא נפתח', 'The Court is not open yet')}</b>
+          <b>{L('עולם הכדורסל עוד לא נפתח', 'The basketball world is not open yet')}</b>
           <p>{L('הטבלאות ייפתחו עם האתגר הראשון.', 'Standings open with the first challenge.')}</p>
         </div>
       )}

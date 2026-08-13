@@ -2877,14 +2877,15 @@ const PLAYER_NAV = [
   // שורה משלו בתפריט אין דרך למצוא אותו. בלי team:true — הוא זמין גם
   // לשחקן בלי קבוצה, וזה בדיוק מי שמגיע לאפליקציה בשביל מאמן אישי.
   { id: 'pcoach', label: ['המאמן האישי', 'Personal coach'], Icon: UserPlus },
-  // «המגרש» — העולם התחרותי. במכוון **בלי team:true**: כל שחקן רשום
-  // מוזמן, גם מי שאין לו מאמן ואין לו קבוצה. זה בדיוק הקהל שמגיע מהלינק
-  // בוואטסאפ ומהאינסטגרם, והוא לא אמור להיתקל במנעול בשנייה הראשונה.
-  { id: 'boards', label: ['המגרש', 'The Court'], Icon: Trophy },
   { id: 'goals', label: ['היעדים שלי', 'My goals'], Icon: Target, team: true },
   { id: 'schedule', label: ['הקבוצה והלו״ז', 'Team & schedule'], short: ['הקבוצה', 'Team'], Icon: CalendarDays, team: true },
   { id: 'feedback', label: ['האימונים שלי', 'My sessions'], short: ['האימונים', 'Sessions'], Icon: MessageSquareHeart, team: true },
   { id: 'videos', label: ['מדיה', 'Media'], Icon: MonitorPlay },
+  // «עולם הכדורסל» — העולם התחרותי. אחרון לפני «פרופיל» (בקשת הבעלים):
+  // הוא יעד שחוזרים אליו בכוונה, לא משהו שנתקלים בו בדרך למשימות.
+  // במכוון **בלי team:true**: כל שחקן רשום מוזמן, גם בלי מאמן ובלי קבוצה
+  // — זה בדיוק הקהל שמגיע מהלינק בוואטסאפ ומהאינסטגרם.
+  { id: 'boards', label: ['עולם הכדורסל', 'Basketball world'], short: ['הכדורסל', 'World'], Icon: Trophy },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
 // חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·

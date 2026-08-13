@@ -147,7 +147,7 @@ export const messageKit = {
   // הודעת הפתיחה לקבוצת הקבוצה
   invite: (ref) =>
     L(
-      '🏀 פתחתי לנו משהו חדש ב-CourtSide — *המגרש*.\n\n' +
+      '🏀 פתחתי לנו משהו חדש ב-CourtSide — *עולם הכדורסל*.\n\n' +
         'כל שבוע אתגר כדורסל אחד: מצלמים, מעלים, ומי שהכי טוב עולה לעמוד האינסטגרם.\n' +
         'ההרשמה לוקחת דקה, וזה חינם:\n' +
         `${courtLink(ref)}\n\n` +
@@ -170,11 +170,11 @@ export const messageKit = {
         }).format(new Date(closesAt))
       : null
     return L(
-      `🔥 אתגר חדש במגרש: *${title}*\n` +
+      `🔥 אתגר חדש: *${title}*\n` +
         (when ? `החלון פתוח עד ${when}.\n` : '') +
         'הגשה אחת, טייק אחד, והטיימר חייב להיראות בפריים.\n' +
         `${courtLink(ref)}`,
-      `🔥 New challenge on the Court: *${title}*\n` +
+      `🔥 New challenge: *${title}*\n` +
         (when ? `Open until ${when}.\n` : '') +
         'One submission, one take, timer visible in frame.\n' +
         `${courtLink(ref)}`,
@@ -195,8 +195,8 @@ export const messageKit = {
   // שיתוף מקום בטבלה — מנוע הצמיחה של הלולאה
   standing: (rank, ref) =>
     L(
-      `אני במקום ${rank} במגרש של CourtSide החודש 🏀\nנראה אותך עוקף:\n${courtLink(ref)}`,
-      `I'm ranked ${rank} on the CourtSide Court this month 🏀\nSee if you can pass me:\n${courtLink(ref)}`,
+      `אני במקום ${rank} בעולם הכדורסל של CourtSide החודש 🏀\nנראה אותך עוקף:\n${courtLink(ref)}`,
+      `I'm ranked ${rank} in the CourtSide basketball world this month 🏀\nSee if you can pass me:\n${courtLink(ref)}`,
     ),
 }
 
@@ -424,6 +424,15 @@ export async function myAttempt(quizId) {
   return { ok: true, attempt: data || null }
 }
 
+// חידון אישי שנבנה לבד — בחירת קושי ומשחקים. אין המתנה לאדמין.
+export async function quizSolo(difficulty, count, seconds) {
+  return callRpc('game_quiz_solo', {
+    p_difficulty: difficulty || null,
+    p_count: count || 8,
+    p_seconds: seconds || 20,
+  })
+}
+
 export async function quizStart(quizId, duelId) {
   return callRpc('game_quiz_start', { p_quiz: quizId, p_duel: duelId || null })
 }
@@ -465,10 +474,10 @@ export const duelInvite = (code) =>
   L(
     `🏀 דו-קרב כדורסל! אותן שאלות, טיימר רץ — מי חכם יותר?\n` +
       `הקוד שלך: *${code}*\n` +
-      `נכנסים למגרש ב-CourtSide, לוחצים «דו-קרב», מזינים את הקוד:\n${courtLink()}`,
+      `נכנסים לעולם הכדורסל ב-CourtSide, לוחצים «דו-קרב», מזינים את הקוד:\n${courtLink()}`,
     `🏀 Basketball duel! Same questions, clock running — who knows more?\n` +
       `Your code: *${code}*\n` +
-      `Open the Court on CourtSide, tap "Duel", enter the code:\n${courtLink()}`,
+      `Open the basketball world on CourtSide, tap "Duel", enter the code:\n${courtLink()}`,
   )
 
 // ===== אדמין: חידונים =====

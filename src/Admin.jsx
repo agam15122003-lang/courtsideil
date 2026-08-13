@@ -508,7 +508,7 @@ export default function Admin({ session, profile }) {
         {/* עולם המשחק — האתגר השבועי. מסך נפרד לגמרי: הוא ניהול תוכן
             ותור אישור, ולא ניהול משתמשים כמו שאר הלשוניות. */}
         <button className={tab === 'game' ? 'tab active' : 'tab'} onClick={() => setTab('game')}>
-          <Trophy size={15} /> {L('המגרש', 'The Court')}
+          <Trophy size={15} /> {L('עולם הכדורסל', 'Basketball world')}
         </button>
         <button
           className="icon-btn"
