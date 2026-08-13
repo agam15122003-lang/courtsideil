@@ -3,6 +3,7 @@ import { Trophy, Share2, RefreshCw, Medal, Lock, CalendarClock } from 'lucide-re
 import { L } from './i18n'
 import { waShare } from './share'
 import { board, myStanding, periodKeys, messageKit } from './game'
+import ChallengeCard from './ChallengeCard'
 
 // GameBoards — הטבלאות של המגרש.
 //
@@ -59,6 +60,9 @@ export default function GameBoards() {
 
   return (
     <div className="gm-boards">
+      {/* האתגר הפעיל — למעלה, לפי האפיון: «למעלה האתגר, למטה המיקום שלך» */}
+      <ChallengeCard />
+
       <div className="lt-head">
         <span className="lt-title">
           <Trophy size={15} /> {L('הטבלאות', 'Standings')}

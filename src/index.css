@@ -25825,3 +25825,70 @@ body.pkn-open .a11y-fab{ display:none; }
   display:flex; align-items:center; justify-content:center; gap:8px;
   padding:26px; border:1px dashed var(--line); border-radius:12px; color:var(--ink-2);
 }
+
+/* ==========================================================================
+   12.8.2026 (ג) · עולם המשחק — כרטיס האתגר של השחקן (ChallengeCard.jsx)
+   ========================================================================== */
+
+.gm-chal{
+  display:flex; flex-direction:column; gap:8px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:var(--r-card, 14px);
+  background:var(--surface);
+}
+.gm-chal--none{ flex-direction:row; align-items:center; gap:12px; color:var(--ink-2); }
+.gm-chal--none b{ color:var(--ink); }
+.gm-chal--none p{ margin:2px 0 0; }
+
+.gm-chal-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.gm-chal-title{ display:flex; align-items:center; gap:8px; font-size:1.05rem; }
+.gm-chal-title svg{ color:var(--accent-strong); }
+
+.gm-chal-timer{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:999px;
+  background:var(--night); color:#fff;
+  font-size:.85rem; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.gm-chal-closed-tag{
+  padding:4px 10px; border-radius:999px;
+  border:1px solid var(--line); color:var(--ink-2); font-size:.85rem;
+}
+
+.gm-chal-sub{ margin:0; color:var(--ink-2); }
+.gm-chal-metric{ margin:0; font-weight:700; }
+.gm-chal-rules{ margin:0; }
+.gm-chal-prize{ margin:0; font-size:.92rem; }
+
+.gm-chal-status{
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 12px; border-radius:10px;
+  border:1px solid var(--line);
+}
+.gm-chal-status svg{ flex:none; margin-block-start:3px; }
+.gm-chal-status.is-approved{ background:var(--ok-bg, #e8f5ec); border-color:transparent; }
+.gm-chal-status.is-rejected{ background:var(--warn-bg, #fff4e5); border-color:transparent; }
+.gm-chal-status button{ margin-inline-start:auto; min-block-size:36px; }
+.gm-chal-reason{ margin:3px 0 0; }
+
+.gm-chal-join{ align-self:flex-start; min-block-size:46px; }
+.gm-chal-locked{ margin:0; }
+
+.gm-chal-form{ display:flex; flex-direction:column; gap:10px; }
+.gm-chal-form > button{ align-self:flex-start; display:inline-flex; align-items:center; gap:6px; min-block-size:44px; }
+.gm-chal-form p{ margin:0; }
+
+.gm-chal-score{ display:flex; flex-direction:column; gap:5px; font-size:.92rem; font-weight:600; }
+.gm-chal-score input{
+  font:inherit; padding:10px; min-block-size:44px; max-inline-size:180px;
+  border:1px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+  font-size:1.2rem; font-weight:700;
+}
+
+.gm-chal-chk{ display:flex; align-items:flex-start; gap:8px; font-size:.92rem; }
+.gm-chal-chk input{ inline-size:20px; block-size:20px; flex:none; margin-block-start:1px; }
+
+.gm-chal-actions{ display:flex; gap:8px; }
+.gm-chal-actions button{ display:inline-flex; align-items:center; gap:6px; min-block-size:46px; }
