@@ -216,11 +216,13 @@ alter table public.game_quiz_attempts enable row level security;
 drop policy if exists "game_att_own"   on public.game_quiz_attempts;
 drop policy if exists "game_att_admin" on public.game_quiz_attempts;
 
+-- הזרוע הצולבת (היריב רואה את הניסיון שלי) נפתחת **רק אחרי ההכרעה** —
+-- אחרת היריב מציץ בתוצאה שלי לפני שהוא משחק ויודע בדיוק כמה הוא צריך.
 create policy "game_att_own" on public.game_quiz_attempts
   for select to authenticated
   using (user_id = (select auth.uid()) or (select public.is_admin())
          or exists (select 1 from public.game_duels d
-                     where d.id = duel_id
+                     where d.id = duel_id and d.status = 'done'
                        and (d.challenger_id = (select auth.uid()) or d.opponent_id = (select auth.uid()))));
 create policy "game_att_admin" on public.game_quiz_attempts
   for all to authenticated
@@ -320,6 +322,14 @@ begin
   if q.kind = 'weekly' and q.status <> 'open' then
     return jsonb_build_object('ok', false, 'reason', 'not_open');
   end if;
+  -- חידון של דו-קרב שמור למשתתפיו: בלי הבדיקה אפשר היה למנות חידוני
+  -- דו-קרב של אחרים (הם open וגלויים ב-RLS) ולשחק בהם.
+  if q.kind = 'duel' and not exists (
+    select 1 from public.game_duels dd
+     where dd.quiz_id = q.id
+       and (dd.challenger_id = auth.uid() or dd.opponent_id = auth.uid())) then
+    return jsonb_build_object('ok', false, 'reason', 'not_your_duel');
+  end if;
 
   select * into a from public.game_quiz_attempts
    where quiz_id = p_quiz and user_id = auth.uid();
@@ -381,9 +391,16 @@ begin
   select id, q, options, category, difficulty into v_q
     from public.game_questions where id = v_qid;
 
-  -- חותמת ההגשה — ממנה נמדד הזמן, בשרת
+  -- חותמת ההגשה — ממנה נמדד הזמן, בשרת.
+  -- ⚠ מתאפסת **רק כשמוגשת שאלה חדשה**. הסקירה האדוורסרית (13.8) תפסה
+  --   שאיפוס בכל קריאה מאפשר לחשוב בלי הגבלה ואז לקרוא שוב ל-next כדי
+  --   לאפס את השעון — בונוס מהירות מלא תמיד, ושובר-השוויון בדו-קרב
+  --   מזויף. רענון עמוד לגיטימי מקבל את אותה שאלה בלי להזיז את השעון.
   update public.game_quiz_attempts
-     set current_qid = v_qid, current_served_at = now()
+     set current_qid = v_qid,
+         current_served_at = case
+           when current_qid is distinct from v_qid or current_served_at is null
+           then now() else current_served_at end
    where id = p_attempt;
 
   return jsonb_build_object(
@@ -511,19 +528,26 @@ begin
          current_qid = null, current_served_at = null
    where id = p_attempt;
 
-  select k.d, k.month, k.season into v_day, v_month, v_season
-    from public.game_period_keys(now()) k;
+  -- ⚠ הפנקס מזוכה **רק על חידון שבועי** — כזה שהאדמין בנה ופתח.
+  --   הסקירה האדוורסרית (13.8) תפסה חוות נקודות: כל דו-קרב יוצר חידון
+  --   חדש עם source_key ייחודי, ושחקן שפותח דו-קרבות לעצמו בלולאה היה
+  --   צובר נקודות בלי סוף. נקודות דו-קרב מגיעות אך ורק מההכרעה
+  --   (duel_win/duel_draw ב-game_duel_settle), ששם היריב חייב להיות אמיתי.
+  if z.kind = 'weekly' then
+    select k.d, k.month, k.season into v_day, v_month, v_season
+      from public.game_period_keys(now()) k;
 
-  delete from public.game_points_ledger
-   where scope = 'quiz' and user_id = a.user_id and source_key = 'quiz:' || a.quiz_id::text;
+    delete from public.game_points_ledger
+     where scope = 'quiz' and user_id = a.user_id and source_key = 'quiz:' || a.quiz_id::text;
 
-  insert into public.game_points_ledger
-    (user_id, scope, source_key, rule_key, points, reason,
-     occurred_at, occurred_on, period_month, period_season)
-  values (a.user_id, 'quiz', 'quiz:' || a.quiz_id::text, 'quiz_correct',
-          a.score + v_bonus,
-          'חידון: ' || z.title || ' — ' || a.correct_count || '/' || v_n,
-          now(), v_day, v_month, v_season);
+    insert into public.game_points_ledger
+      (user_id, scope, source_key, rule_key, points, reason,
+       occurred_at, occurred_on, period_month, period_season)
+    values (a.user_id, 'quiz', 'quiz:' || a.quiz_id::text, 'quiz_correct',
+            a.score + v_bonus,
+            'חידון: ' || z.title || ' — ' || a.correct_count || '/' || v_n,
+            now(), v_day, v_month, v_season);
+  end if;
 
   -- דו-קרב: אם שני הצדדים סיימו — מכריעים
   if a.duel_id is not null then
@@ -549,6 +573,13 @@ declare v_ids uuid[]; v_quiz uuid; v_duel uuid; v_code text;
 begin
   if not public.game_can_play() then
     return jsonb_build_object('ok', false, 'reason', 'not_allowed');
+  end if;
+
+  -- תקרת הזמנות פתוחות — בלעדיה אפשר להציף את המערכת בדו-קרבות
+  if (select count(*) from public.game_duels
+       where challenger_id = auth.uid() and status = 'pending' and expires_at > now()) >= 5 then
+    return jsonb_build_object('ok', false, 'reason', 'too_many_open',
+      'message', 'יש לך כבר 5 הזמנות פתוחות — חכה שמישהו יצטרף, או שההזמנות יפוגו.');
   end if;
 
   select array_agg(id) into v_ids from (

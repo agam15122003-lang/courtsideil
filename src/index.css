@@ -25690,12 +25690,12 @@ body.pkn-open .a11y-fab{ display:none; }
   font:inherit;
   font-size:.9rem;
   cursor:pointer;
-  min-block-size:36px;
+  min-block-size:44px;
 }
 .gm-chip.is-on{
-  background:var(--night);
+  background:var(--navy-900);
   color:#fff;
-  border-color:var(--night);
+  border-color:var(--navy-900);
 }
 
 /* «המיקום שלי» — הכרטיס שהמשתמש מחפש בעיניים לפני כל דבר אחר בטבלה */
@@ -25764,14 +25764,14 @@ body.pkn-open .a11y-fab{ display:none; }
 .gm-adm-seq{
   display:inline-flex; align-items:center; justify-content:center;
   inline-size:26px; block-size:26px; border-radius:8px;
-  background:var(--night); color:#fff; font-size:.82rem; font-weight:700; flex:none;
+  background:var(--navy-900); color:#fff; font-size:.82rem; font-weight:700; flex:none;
 }
 
 .gm-badge{ padding:2px 9px; border-radius:999px; font-size:.75rem; border:1px solid var(--line); }
 .gm-badge--draft{ color:var(--ink-2); }
-.gm-badge--open{ background:var(--ok-bg, #e8f5ec); color:var(--ok, #1c7a3e); border-color:transparent; }
+.gm-badge--open{ background:var(--ok-soft); color:var(--ok); border-color:transparent; }
 .gm-badge--closed{ color:var(--ink-2); }
-.gm-badge--decided{ background:var(--night); color:#fff; border-color:transparent; }
+.gm-badge--decided{ background:var(--navy-900); color:#fff; border-color:transparent; }
 
 .gm-adm-dates{ margin:0; }
 
@@ -25793,7 +25793,7 @@ body.pkn-open .a11y-fab{ display:none; }
 .gm-adm-warn{
   display:flex; align-items:flex-start; gap:8px; margin:0;
   padding:10px 12px; border-radius:10px;
-  background:var(--warn-bg, #fff4e5); color:var(--warn-ink, #8a5200);
+  background:var(--warn-soft); color:var(--warn);
   font-size:.9rem;
 }
 .gm-adm-warn svg{ flex:none; margin-block-start:2px; }
@@ -25817,7 +25817,7 @@ body.pkn-open .a11y-fab{ display:none; }
   background:var(--surface); color:var(--ink);
 }
 
-.gm-danger{ color:var(--danger, #b3261e); }
+.gm-danger{ color:var(--danger); }
 
 /* נגן הקליפ */
 .gm-video{ inline-size:100%; max-block-size:60vh; border-radius:12px; background:#000; }
@@ -25848,7 +25848,7 @@ body.pkn-open .a11y-fab{ display:none; }
 .gm-chal-timer{
   display:inline-flex; align-items:center; gap:5px;
   padding:4px 10px; border-radius:999px;
-  background:var(--night); color:#fff;
+  background:var(--navy-900); color:#fff;
   font-size:.85rem; font-weight:700; font-variant-numeric:tabular-nums;
 }
 .gm-chal-closed-tag{
@@ -25867,9 +25867,9 @@ body.pkn-open .a11y-fab{ display:none; }
   border:1px solid var(--line);
 }
 .gm-chal-status svg{ flex:none; margin-block-start:3px; }
-.gm-chal-status.is-approved{ background:var(--ok-bg, #e8f5ec); border-color:transparent; }
-.gm-chal-status.is-rejected{ background:var(--warn-bg, #fff4e5); border-color:transparent; }
-.gm-chal-status button{ margin-inline-start:auto; min-block-size:36px; }
+.gm-chal-status.is-approved{ background:var(--ok-soft); border-color:transparent; }
+.gm-chal-status.is-rejected{ background:var(--warn-soft); border-color:transparent; }
+.gm-chal-status button{ margin-inline-start:auto; min-block-size:44px; }
 .gm-chal-reason{ margin:3px 0 0; }
 
 .gm-chal-join{ align-self:flex-start; min-block-size:46px; }
@@ -25924,7 +25924,7 @@ body.pkn-open .a11y-fab{ display:none; }
   display:inline-flex; align-items:center; gap:4px;
   font-size:.75rem; font-weight:700; color:var(--accent-strong);
 }
-.gm-feed-verified{ display:inline-flex; color:var(--ok, #1c7a3e); }
+.gm-feed-verified{ display:inline-flex; color:var(--ok); }
 .gm-feed-score{ font-weight:800; font-size:1.05rem; font-variant-numeric:tabular-nums; }
 
 .gm-feed-clip{ padding:0 12px 12px; display:flex; flex-direction:column; gap:8px; }
@@ -25947,7 +25947,7 @@ body.pkn-open .a11y-fab{ display:none; }
   padding:8px 10px; border:1px dashed var(--line); border-radius:10px;
 }
 .qz-duel-row.is-done{ border-style:solid; }
-.qz-duel-row button{ display:inline-flex; align-items:center; gap:5px; min-block-size:36px; }
+.qz-duel-row button{ display:inline-flex; align-items:center; gap:5px; min-block-size:44px; }
 
 /* ---- החידון: מסך המשחק ---- */
 .qz-play{
@@ -25967,11 +25967,11 @@ body.pkn-open .a11y-fab{ display:none; }
 .qz-ring svg{ inline-size:100%; block-size:100%; transform:rotate(-90deg); }
 .qz-ring-bg{ fill:none; stroke:var(--line); stroke-width:7; }
 .qz-ring-fg{
-  fill:none; stroke:var(--night); stroke-width:7; stroke-linecap:round;
+  fill:none; stroke:var(--navy-900); stroke-width:7; stroke-linecap:round;
   transition:stroke-dashoffset .12s linear, stroke .3s;
 }
 .qz-ring.is-warn .qz-ring-fg{ stroke:var(--accent-strong); }
-.qz-ring.is-out  .qz-ring-fg{ stroke:var(--danger, #b3261e); }
+.qz-ring.is-out  .qz-ring-fg{ stroke:var(--danger); }
 .qz-ring-num{
   position:absolute; inset:0; display:grid; place-items:center;
   font-weight:800; font-size:1.15rem; font-variant-numeric:tabular-nums;
@@ -25990,13 +25990,13 @@ body.pkn-open .a11y-fab{ display:none; }
   background:var(--surface); color:var(--ink); cursor:pointer;
 }
 .qz-answer:disabled{ cursor:default; }
-.qz-answer.is-picked{ border-color:var(--night); }
+.qz-answer.is-picked{ border-color:var(--navy-900); }
 .qz-answer.is-right{
-  border-color:var(--ok, #1c7a3e); background:var(--ok-bg, #e8f5ec);
-  color:var(--ok-ink, #14532d); font-weight:700;
+  border-color:var(--ok); background:var(--ok-soft);
+  color:var(--ok); font-weight:700;
 }
 .qz-answer.is-wrong{
-  border-color:var(--danger, #b3261e); background:var(--warn-bg, #fdecea);
+  border-color:var(--danger); background:var(--danger-soft);
 }
 .qz-answer.is-dim{ opacity:.55; }
 .qz-answer svg{ flex:none; }
@@ -26006,7 +26006,7 @@ body.pkn-open .a11y-fab{ display:none; }
   border:1px solid var(--line);
   display:flex; flex-direction:column; gap:8px;
 }
-.qz-reveal.is-good{ border-color:var(--ok, #1c7a3e); background:var(--ok-bg, #e8f5ec); }
+.qz-reveal.is-good{ border-color:var(--ok); background:var(--ok-soft); }
 .qz-reveal-head b{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
 .qz-pts{ color:var(--accent-strong); font-size:1.1rem; }
 .qz-speed{ font-weight:400; font-size:.82rem; color:var(--ink-2); }

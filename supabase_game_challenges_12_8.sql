@@ -184,15 +184,12 @@ create policy "game_sub_select_own" on public.game_challenge_submissions
   for select to authenticated
   using (user_id = (select auth.uid()) or (select public.is_admin()));
 
+-- ⚠ אין מדיניות SELECT רחבה על הטבלה — הסקירה האדוורסרית (13.8) תפסה
+--   שמדיניות כזו חושפת את **כל** העמודות: age_flagged (החלטת מודרציה
+--   על קטין!), allow_publish (העדפת ההורה), reviewed_by. RLS הוא ברמת
+--   שורה, ו-PostgREST מכבד כל select= שהקורא שולח. הפיד מוגש דרך
+--   game_challenge_feed (סעיף 4ה) שמחזירה עמודות בטוחות בלבד.
 drop policy if exists "game_sub_select_feed" on public.game_challenge_submissions;
-create policy "game_sub_select_feed" on public.game_challenge_submissions
-  for select to authenticated
-  using (
-    status in ('pending', 'approved')
-    and not public.game_wall_blocks()
-    and exists (select 1 from public.game_challenges c
-                 where c.id = challenge_id and c.status in ('open', 'closed', 'decided'))
-  );
 
 create policy "game_sub_insert_own" on public.game_challenge_submissions
   for insert to authenticated
@@ -473,6 +470,54 @@ $$;
 
 
 -- ---------------------------------------------------------------------
+-- 4ה) game_challenge_feed — הפיד החי, בעמודות בטוחות בלבד
+--
+--     מחליף מדיניות SELECT רחבה: מחזיר שם תצוגה (לא user_id — שאינו
+--     ניתן להצלבה אצל שחקנים, אבל אין סיבה לחשוף), תוצאה, תג אימות,
+--     is_mine, ונתיב הקליפ (חסר ערך בלי הרשאת ה-Storage). לא חוזרים:
+--     age_flagged, allow_publish, no_others_in_frame, reviewed_by, version.
+-- ---------------------------------------------------------------------
+create or replace function public.game_challenge_feed(p_challenge uuid)
+returns table (
+  id uuid, place int, display_name text, score numeric,
+  verified boolean, is_mine boolean, media_path text, submitted_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+#variable_conflict use_column
+declare v_dir text;
+begin
+  if public.game_wall_blocks() then return; end if;
+
+  select c.metric_dir into v_dir from public.game_challenges c
+   where c.id = p_challenge and c.status in ('open', 'closed', 'decided');
+  if not found then return; end if;
+
+  return query
+  select s.id,
+         row_number() over (
+           order by case when v_dir = 'asc'
+                         then  coalesce(s.approved_score, s.reported_score)
+                         else -coalesce(s.approved_score, s.reported_score) end asc,
+                    s.submitted_at asc)::int,
+         public.game_display_name(s.user_id),
+         coalesce(s.approved_score, s.reported_score),
+         s.status = 'approved',
+         s.user_id = auth.uid(),
+         s.media_path,
+         s.submitted_at
+    from public.game_challenge_submissions s
+   where s.challenge_id = p_challenge
+     and s.status in ('pending', 'approved')
+   order by 2;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
 -- 5) שומר ההגשה — כופה את מה שהשחקן לא אמור לקבוע
 -- ---------------------------------------------------------------------
 create or replace function public.game_submissions_guard()
@@ -548,13 +593,14 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'blocked');
   end if;
 
-  if s.media_path is not null then
-    delete from storage.objects where bucket_id = 'media' and name = s.media_path;
-  end if;
   delete from public.game_challenge_submissions where id = s.id;
-  -- הניקוד מתעדכן דרך טריגר ה-rescore (סעיף 5ג)
-
-  return jsonb_build_object('ok', true);
+  -- הניקוד מתעדכן דרך טריגר ה-rescore (סעיף 5ג).
+  -- ⚠ הקובץ עצמו נמחק **בלקוח** דרך Storage API (הסקירה תפסה שמחיקת
+  --   שורה מ-storage.objects ב-SQL אינה מוחקת את הקובץ הפיזי):
+  --   מחזירים את הנתיב, ו-game.js קורא storage.remove() בטוקן של
+  --   המשתמש — media_delete_own_folder מרשה, והנעילה כבר לא חלה כי
+  --   שורת ההגשה נמחקה.
+  return jsonb_build_object('ok', true, 'media_path', s.media_path);
 end;
 $$;
 
@@ -914,6 +960,8 @@ revoke all on function public.game_challenge_open(uuid)                        f
 revoke all on function public.game_media_locked(text, uuid)                    from public, anon;
 revoke all on function public.game_delete_my_submission(uuid)                  from public, anon;
 grant  execute on function public.game_delete_my_submission(uuid)              to authenticated;
+revoke all on function public.game_challenge_feed(uuid)                        from public, anon;
+grant  execute on function public.game_challenge_feed(uuid)                    to authenticated;
 revoke all on function public.game_rescore_on_change()                         from public, anon, authenticated;
 revoke all on function public.game_submissions_guard()                         from public, anon, authenticated;
 revoke all on function public.game_score_challenge(uuid)                       from public, anon, authenticated;

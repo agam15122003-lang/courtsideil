@@ -360,33 +360,37 @@ export async function submitChallenge({ challengeId, uid, mediaPath, score, allo
 }
 
 // ===== הפיד החי =====
-// כל ההגשות של האתגר, לכולם, ממוינות כדירוג חי. ה-RLS כבר מסנן נדחות
-// וחסומות; הסרטון עצמו נפתח רק אם מדיניות המחסן מרשה (רשת הביטחון).
+// דרך RPC בלבד — לא קריאת טבלה. הסקירה האדוורסרית תפסה שמדיניות SELECT
+// רחבה חושפת את כל העמודות (כולל age_flagged — החלטת מודרציה על קטין),
+// כי PostgREST מכבד כל select= שהקורא שולח. ה-RPC מחזירה עמודות בטוחות
+// בלבד, כבר ממוינות ועם שם התצוגה מוכן — גם אין יותר N+1 על השמות.
 export async function challengeFeed(challengeId) {
-  const { data, error } = await supabase
-    .from('game_challenge_submissions')
-    .select('id, user_id, media_path, reported_score, approved_score, status, submitted_at')
-    .eq('challenge_id', challengeId)
-    .order('submitted_at', { ascending: true })
-  if (error) {
-    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
-    return { ok: false, reason: 'error', message: error.message }
-  }
-  return { ok: true, rows: data || [] }
+  return callRpc('game_challenge_feed', { p_challenge: challengeId })
 }
 
 // שמות תצוגה לפיד — דרך game_display_name בשרת, בלי לגעת ב-profiles
+const NAME_CACHE = new Map()
 export async function displayNames(userIds) {
   const out = {}
   await Promise.all([...new Set(userIds)].map(async (id) => {
+    if (NAME_CACHE.has(id)) { out[id] = NAME_CACHE.get(id); return }
     const r = await callRpc('game_display_name', { p_user: id })
-    out[id] = r.ok ? (r.data || 'שחקן') : 'שחקן'
+    const name = r.ok ? (r.data || 'שחקן') : 'שחקן'
+    NAME_CACHE.set(id, name)
+    out[id] = name
   }))
   return out
 }
 
 export async function deleteMySubmission(challengeId) {
-  return callRpc('game_delete_my_submission', { p_challenge: challengeId })
+  const r = await callRpc('game_delete_my_submission', { p_challenge: challengeId })
+  const d = r.data || {}
+  // מחיקת הקובץ הפיזי — מחיקת שורה מ-storage.objects ב-SQL אינה מוחקת
+  // את הקובץ עצמו. best-effort: כישלון משאיר בלוב יתום, לא באג פונקציונלי.
+  if (r.ok && d.ok !== false && d.media_path) {
+    try { await supabase.storage.from('media').remove([d.media_path]) } catch { /* ignore */ }
+  }
+  return r
 }
 
 // ===== חידונים =====
@@ -446,7 +450,7 @@ export async function myDuels() {
   if (!uid) return { ok: false, reason: 'no_session' }
   const { data, error } = await supabase
     .from('game_duels')
-    .select('id, quiz_id, challenger_id, opponent_id, invite_code, status, winner_id, is_draw, created_at')
+    .select('id, quiz_id, challenger_id, opponent_id, invite_code, status, winner_id, is_draw, created_at, expires_at')
     .or(`challenger_id.eq.${uid},opponent_id.eq.${uid}`)
     .order('created_at', { ascending: false })
     .limit(10)

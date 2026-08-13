@@ -50,6 +50,7 @@ const STATUS_TAG = {
   pending:  ['ההגשה שלך באוויר! 🔥', "You're on the feed! 🔥", Check],
   approved: ['התוצאה אומתה ✓', 'Score verified ✓', Check],
   rejected: ['ההגשה הוסרה', 'Entry removed', X],
+  blocked:  ['ההגשה הוסרה על ידי המאמן', 'Removed by the coach', X],
 }
 
 export default function ChallengeCard() {
@@ -251,7 +252,7 @@ export default function ChallengeCard() {
       )}
 
       {/* הפיד החי — כולם רואים את כולם, בלי תגובות. מחיקה עצמית מהשורה שלי. */}
-      <ChallengeFeed challenge={ch} myUid={uid} metricDir={ch.metric_dir || 'desc'} onChanged={load} />
+      <ChallengeFeed challenge={ch} myUid={uid} onChanged={load} />
     </div>
   )
 }

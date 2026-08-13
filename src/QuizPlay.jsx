@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Brain, Swords, Play, Check, X, Share2, ChevronLeft, Timer, Trophy, Sparkles,
+  Brain, Swords, Play, Check, X, Share2, Timer, Trophy, Sparkles, RefreshCw,
 } from 'lucide-react'
+import { ChevronFwd } from './DirIcon'
 import { L } from './i18n'
 import { toast } from './toast'
 import { burstConfetti } from './confetti'
@@ -54,8 +55,14 @@ function TimerRing({ deadline, seconds, frozen }) {
 }
 
 // מסך המשחק עצמו — משותף לחידון השבועי ולדו-קרב
-function PlayScreen({ attemptId, total, seconds, onDone }) {
+function PlayScreen({ attemptId, total, seconds, onDone, onExit }) {
+  // ⚠ onDone ב-ref: אילו הוא היה בתלויות של pull, כל רינדור של ההורה היה
+  // יורה את ה-effect מחדש, מושך שאלה שוב, ומאפס את מסך החשיפה באמצע.
+  const onDoneRef = useRef(onDone)
+  useEffect(() => { onDoneRef.current = onDone }, [onDone])
+
   const [q, setQ] = useState(null)          // השאלה הנוכחית מהשרת
+  const [failed, setFailed] = useState(false)
   const [deadline, setDeadline] = useState(0)
   const [picked, setPicked] = useState(null)
   const [reveal, setReveal] = useState(null) // תשובת השרת אחרי מענה
@@ -65,16 +72,30 @@ function PlayScreen({ attemptId, total, seconds, onDone }) {
   const pull = useCallback(async () => {
     const r = await quizNext(attemptId)
     const d = r.data || {}
-    if (!r.ok || d.ok === false) { toast.error(L('משהו השתבש', 'Something broke')); return }
-    if (d.done) { onDone(); return }
+    if (!r.ok || d.ok === false) { setFailed(true); return }
+    if (d.done) { onDoneRef.current?.(); return }
+    setFailed(false)
     setQ(d)
     setPicked(null)
     setReveal(null)
     setDeadline(Date.now() + (d.seconds || seconds) * 1000)
-  }, [attemptId, seconds, onDone])
+  }, [attemptId, seconds])
 
   useEffect(() => { pull() }, [pull])
 
+  if (failed) {
+    return (
+      <div className="qz-play">
+        <p>{L('החידון נתקע — כנראה החיבור. הניקוד שלך נשמר.', 'The quiz stalled — likely the connection. Your score is saved.')}</p>
+        <div className="gm-adm-actions">
+          <button type="button" className="btn-primary" onClick={pull}>
+            <RefreshCw size={15} aria-hidden="true" /> {L('נסה שוב', 'Try again')}
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => onExit?.()}>{L('יציאה', 'Exit')}</button>
+        </div>
+      </div>
+    )
+  }
   if (!q) return <div className="loader" role="status" aria-label={L('טוען', 'Loading')} />
 
   const answer = async (i) => {
@@ -139,7 +160,7 @@ function PlayScreen({ attemptId, total, seconds, onDone }) {
           </div>
           {reveal.explain && <p className="qz-explain">{reveal.explain}</p>}
           <button type="button" className="btn-primary qz-next" onClick={pull}>
-            {L('לשאלה הבאה', 'Next question')} <ChevronLeft size={16} aria-hidden="true" />
+            {L('לשאלה הבאה', 'Next question')} <ChevronFwd size={16} />
           </button>
         </div>
       )}
@@ -184,6 +205,8 @@ export default function QuizPlay() {
   const load = useCallback(async () => {
     const [w, m, d] = await Promise.all([weeklyQuiz(), gameMe(), myDuels()])
     if (w.notDeployed) { setState('notDeployed'); return }
+    // שגיאת רשת אינה «אין חידון» — מסתירים במקום לשקר
+    if (!w.ok) { setState('notDeployed'); return }
     setQuiz(w.ok ? w.quiz : null)
     setMe(m.ok ? m.me : null)
     if (d.ok) {
@@ -214,13 +237,19 @@ export default function QuizPlay() {
     setMode('playing')
   }
 
-  const finish = async () => {
+  const finish = useCallback(async () => {
     const r = await quizFinish(attempt.id)
     const d = r.data || {}
-    setResult(d.ok !== false ? d : null)
+    if (!r.ok || d.ok === false) {
+      // אין מסך סיום שקרי: הניסיון נשאר פתוח בשרת, והכפתור «נסה שוב»
+      // בטוח — game_quiz_finish אידמפוטנטי ומחזיר already:true.
+      toast.error(L('הסיום לא נקלט — נסה שוב', "Couldn't finish — try again"))
+      return
+    }
+    setResult(d)
     setMode('done')
     load()
-  }
+  }, [attempt, load])
 
   const createDuel = async () => {
     setBusy(true)
@@ -248,13 +277,16 @@ export default function QuizPlay() {
   if (!me?.can_play && mode === 'cards' && !quiz) return null
 
   if (mode === 'playing' && attempt) {
-    return <PlayScreen attemptId={attempt.id} total={attempt.total} seconds={attempt.seconds} onDone={finish} />
+    return <PlayScreen attemptId={attempt.id} total={attempt.total} seconds={attempt.seconds} onDone={finish} onExit={() => { setMode('cards'); setAttempt(null); load() }} />
   }
   if (mode === 'done') {
     return <DoneScreen result={result} duel={attempt?.duelId} onBack={() => { setMode('cards'); setAttempt(null) }} />
   }
 
-  const openDuels = duels.filter((d) => d.status !== 'done' && d.status !== 'expired')
+  // הזמנה שפגה אינה «ממתינה ליריב» — הקוד כבר מת בשרת (48 שעות)
+  const openDuels = duels.filter((d) =>
+    d.status !== 'done' && d.status !== 'expired'
+    && !(d.status === 'pending' && d.expires_at && new Date(d.expires_at) < new Date()))
   const doneDuels = duels.filter((d) => d.status === 'done').slice(0, 3)
 
   return (
