@@ -74,6 +74,44 @@ create policy "game_quiz_read" on public.game_quizzes
 
 
 -- ---------------------------------------------------------------------
+-- 2ב) כמה חידוני סולו כבר נספרו היום, וכמה נשארו
+--
+--     מקום אחד לחישוב — נקרא גם מהבנייה, גם מהסיום, וגם מהמסך. שתי
+--     ספירות באותה לוגיקה בשני מקומות זה בדיוק איך שהן מתפצלות.
+-- ---------------------------------------------------------------------
+create or replace function public.game_solo_used_today(p_user uuid default null)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::int
+    from public.game_points_ledger l
+   where l.user_id = coalesce(p_user, auth.uid())
+     and l.scope = 'quiz' and l.rule_key = 'quiz_solo'
+     and l.occurred_on = (select k.d from public.game_period_keys() k);
+$$;
+
+create or replace function public.game_solo_left()
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select greatest(
+    coalesce((select g.solo_scored_per_day from public.game_settings g where g.id), 3)
+      - coalesce(public.game_solo_used_today(auth.uid()), 0), 0);
+$$;
+
+revoke all on function public.game_solo_used_today(uuid) from public, anon;
+revoke all on function public.game_solo_left()           from public, anon;
+grant execute on function public.game_solo_used_today(uuid) to authenticated;
+grant execute on function public.game_solo_left()           to authenticated;
+
+
+-- ---------------------------------------------------------------------
 -- 3) game_quiz_solo — בונה ומתחיל בפעולה אחת
 --
 --    פעולה אחת ולא שתיים (בנה→התחל) כדי שהמסך לא יוכל להיתקע באמצע עם
@@ -131,12 +169,12 @@ begin
   values (v_quiz, auth.uid())
   returning id into v_att;
 
-  -- כמה נשארו היום לניקוד — המסך אומר את זה מראש, בלי הפתעות בסוף
-  select coalesce(g.solo_scored_per_day, 3) into v_cap from public.game_settings g where g.id;
-  select count(*) into v_used
-    from public.game_points_ledger l
-   where l.user_id = auth.uid() and l.scope = 'quiz' and l.rule_key = 'quiz_solo'
-     and l.occurred_on = (select k.d from public.game_period_keys() k);
+  -- כמה נשארו היום לניקוד — המסך אומר את זה מראש, בלי הפתעות בסוף.
+  -- ⚠ ה-coalesce עוטף את תת-השאילתה ולא את העמודה: אם השורה היחידה
+  --   ב-game_settings תיעלם, `select coalesce(col,3) ... where` מחזיר
+  --   NULL ולא 3. זה הדפוס שכבר נהוג בקובץ הליבה.
+  v_cap  := coalesce((select g.solo_scored_per_day from public.game_settings g where g.id), 3);
+  v_used := coalesce(public.game_solo_used_today(auth.uid()), 0);
 
   return jsonb_build_object('ok', true,
     'quiz_id', v_quiz, 'attempt_id', v_att,
@@ -205,13 +243,22 @@ begin
             now(), v_day, v_month, v_season);
 
   elsif z.kind = 'solo' then
-    select coalesce(g.solo_scored_per_day, 3) into v_cap from public.game_settings g where g.id;
-    select count(*) into v_used
-      from public.game_points_ledger l
-     where l.user_id = a.user_id and l.scope = 'quiz' and l.rule_key = 'quiz_solo'
-       and l.occurred_on = v_day;
+    -- ⚠⚠ **הנעילה הזו היא כל התקרה.** בלעדיה: השחקן פותח עשר לשוניות,
+    --   מגיע בכולן לשאלה האחרונה, ויורה עשר קריאות finish במקביל.
+    --   ה-`for update` למעלה נועל את שורת ה-attempt — ולכל קריאה יש
+    --   attempt אחר, כלומר אפס סריאליזציה. תחת READ COMMITTED כולן
+    --   סופרות 0, כולן עוברות את הבדיקה, וכולן כותבות. גם ה-unique
+    --   על (user_id, scope, source_key) לא מציל: כל חידון סולו הוא
+    --   UUID חדש, ולכן ה-on conflict בנתיב הזה הוא קוד מת.
+    --   התקדים בפרויקט: game_score_challenge נועלת בדיוק כך.
+    --   המפתח צר (משתמש+יום) ולכן אינו חוסם שחקנים אחרים.
+    perform pg_advisory_xact_lock(
+      hashtext('game_solo_day:' || a.user_id::text || ':' || v_day::text));
 
-    if coalesce(v_used, 0) < coalesce(v_cap, 3) then
+    v_cap  := coalesce((select g.solo_scored_per_day from public.game_settings g where g.id), 3);
+    v_used := coalesce(public.game_solo_used_today(a.user_id), 0);
+
+    if v_used < v_cap then
       v_scored := true;
       insert into public.game_points_ledger
         (user_id, scope, source_key, rule_key, points, reason,
@@ -220,7 +267,8 @@ begin
               a.score + v_bonus,
               z.title || ' — ' || a.correct_count || '/' || v_n,
               now(), v_day, v_month, v_season)
-      on conflict (user_id, scope, source_key) do nothing;
+      on conflict (user_id, scope, source_key) do nothing;   -- רשת ביטחון בלבד
+      v_used := v_used + 1;
     end if;
   end if;
 
@@ -228,9 +276,14 @@ begin
     perform public.game_duel_settle(a.duel_id);
   end if;
 
+  -- ⚑ המספר המעודכן חוזר **אחרי** הכתיבה, כדי שהמסך לא יפגר בחידון
+  --   אחד ויבטיח «עוד 1 נספר» כשבפועל נשארו 0.
   return jsonb_build_object('ok', true, 'score', a.score + v_bonus,
     'correct', a.correct_count, 'total', v_n, 'perfect', v_perfect,
-    'scored', v_scored, 'kind', z.kind);
+    'scored', v_scored, 'kind', z.kind,
+    'scored_left', case when z.kind = 'solo'
+                        then greatest(coalesce(v_cap, 3) - coalesce(v_used, 0), 0)
+                        else null end);
 end;
 $$;
 

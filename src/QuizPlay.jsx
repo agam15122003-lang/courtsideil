@@ -8,7 +8,7 @@ import { toast } from './toast'
 import { burstConfetti } from './confetti'
 import { waShare } from './share'
 import {
-  quizSolo, quizStart, quizNext, quizAnswer, quizFinish,
+  quizSolo, quizStart, quizNext, quizAnswer, quizFinish, soloLeft,
   duelCreate, duelJoin, myDuels, duelInvite, gameMe, displayNames,
 } from './game'
 
@@ -219,8 +219,9 @@ export default function QuizPlay() {
   const [scoredLeft, setScoredLeft] = useState(null)
 
   const load = useCallback(async () => {
-    const [m, d] = await Promise.all([gameMe(), myDuels()])
+    const [m, d, left] = await Promise.all([gameMe(), myDuels(), soloLeft()])
     setMe(m.ok ? m.me : null)
+    if (left !== null) setScoredLeft(left)
     if (d.ok) {
       setUid(d.uid)
       setDuels(d.rows || [])
@@ -241,7 +242,6 @@ export default function QuizPlay() {
       return
     }
     setLastLevel(level)
-    setScoredLeft(d.scored_left)
     setAttempt({ id: d.attempt_id, total: d.total, seconds: d.seconds_per_q, duelId: null })
     setMode('playing')
   }
@@ -265,6 +265,9 @@ export default function QuizPlay() {
       return
     }
     setResult(d)
+    // המספר שחוזר מהסיום כבר כולל את החידון הזה — בלי זה הכרטיס היה
+    // מבטיח «עוד 1 נספר» כשבפועל נשארו 0.
+    if (typeof d.scored_left === 'number') setScoredLeft(d.scored_left)
     setMode('done')
     load()
   }, [attempt, load])

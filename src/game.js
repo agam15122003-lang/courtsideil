@@ -433,6 +433,13 @@ export async function quizSolo(difficulty, count, seconds) {
   })
 }
 
+// כמה חידוני סולו עוד נספרים היום — נקרא בטעינת המסך, כדי שהמספר
+// יופיע **לפני** הבחירה ולא רק אחרי החידון.
+export async function soloLeft() {
+  const r = await callRpc('game_solo_left')
+  return r.ok ? Number(r.data ?? 0) : null
+}
+
 export async function quizStart(quizId, duelId) {
   return callRpc('game_quiz_start', { p_quiz: quizId, p_duel: duelId || null })
 }
