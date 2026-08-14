@@ -32,11 +32,17 @@ const LEVELS = [
 
 // טבעת הזמן — מתרוקנת עם השניות; מתחת ל-5 נצבעת אזהרה.
 function TimerRing({ deadline, seconds, frozen }) {
-  const [left, setLeft] = useState(seconds)
+  // ⚠ מאותחל מה-deadline ולא מ-seconds, ומתעדכן מיד כשהוא משתנה: אחרת
+  //   בין שאלה לשאלה הטבעת הציגה למשך ~100ms את הערך של השאלה הקודמת
+  //   (ולעיתים כתומה ופועמת) לפני שהאינטרוול הראשון ירה.
+  const calc = () => Math.max(0, (deadline - Date.now()) / 1000)
+  const [left, setLeft] = useState(calc)
   useEffect(() => {
+    setLeft(calc())
     if (frozen) return undefined
-    const t = setInterval(() => setLeft(Math.max(0, (deadline - Date.now()) / 1000)), 100)
+    const t = setInterval(() => setLeft(calc()), 100)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline, frozen])
 
   const frac = seconds > 0 ? Math.max(0, Math.min(1, left / seconds)) : 0
@@ -109,6 +115,11 @@ function PlayScreen({ attemptId, seconds, onDone, onExit }) {
     setBusy(false)
     const d = r.data || {}
     if (!r.ok || d.ok === false) {
+      // ⚠ ייתכן שהתשובה **כן** נכתבה בשרת והתשובה אבדה בדרך; אז
+      //   current_qid כבר התאפס וניסיון שני יחזיר wrong_question לנצח.
+      //   לכן: אם השרת אומר שזו כבר לא השאלה הנוכחית — ממשיכים הלאה
+      //   במקום להשאיר את השחקן תקוע מול מסך שלא מגיב.
+      if (d.reason === 'wrong_question') { pull(); return }
       toast.error(L('התשובה לא נקלטה — נסה שוב', "Answer didn't register — try again"))
       setPicked(null)
       return
@@ -220,7 +231,10 @@ export default function QuizPlay() {
 
   const load = useCallback(async () => {
     const [m, d, left] = await Promise.all([gameMe(), myDuels(), soloLeft()])
-    setMe(m.ok ? m.me : null)
+    // ⚠ רק כשהקריאה הצליחה. `setMe(m.ok ? m.me : null)` היה מאפס את me
+    //   בכל תקלת רשת רגעית — וכיוון שהמסך מוסתר כש-can_play שקרי,
+    //   כל עולם החידונים היה נעלם מהמסך בלי שום הודעה.
+    if (m.ok) setMe(m.me)
     if (left !== null) setScoredLeft(left)
     if (d.ok) {
       setUid(d.uid)
@@ -264,9 +278,9 @@ export default function QuizPlay() {
       toast.error(L('הסיום לא נקלט — נסה שוב', "Couldn't finish — try again"))
       return
     }
-    setResult(d)
-    // המספר שחוזר מהסיום כבר כולל את החידון הזה — בלי זה הכרטיס היה
-    // מבטיח «עוד 1 נספר» כשבפועל נשארו 0.
+    // ⚠ already:true חוזר בלי correct/total, והמסך היה מציג «0 מתוך 0»
+    //   על חידון שנענה במלואו. שומרים את מה שכבר ידוע.
+    setResult((prev) => (d.already && prev ? { ...prev, ...d, correct: prev.correct, total: prev.total } : d))
     if (typeof d.scored_left === 'number') setScoredLeft(d.scored_left)
     setMode('done')
     load()
@@ -306,7 +320,7 @@ export default function QuizPlay() {
       <DoneScreen
         result={result} duel={attempt?.duelId}
         onBack={() => { setMode('cards'); setAttempt(null) }}
-        onAgain={attempt?.duelId ? null : () => playLevel(lastLevel)}
+        onAgain={attempt?.duelId || busy ? null : () => playLevel(lastLevel)}
       />
     )
   }

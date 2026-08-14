@@ -15,8 +15,12 @@ import QuizPlay from './QuizPlay'
 // מרחב השמות של המחלקות החדשות הוא gm-*; הטבלה עצמה חוזרת על lt-*
 // הקיים (LeagueTable) כדי שלא ייווצרו שתי שפות טבלה באפליקציה.
 
+// ⚠ 'quiz' נוסף אחרי שהסקירה תפסה שנקודות החידונים נכתבות לפנקס
+//   ואף מסך אינו קורא אותן — כלומר השחקן צובר לשום מקום, והתקרה
+//   היומית שמרה על טבלה שלא הייתה קיימת.
 const SCOPES = [
   { id: 'challenge',   label: ['האתגר', 'Challenge'] },
+  { id: 'quiz',        label: ['החידונים', 'Quizzes'] },
   { id: 'predictions', label: ['הניחושים', 'Predictions'] },
 ]
 const PERIODS = [
@@ -181,14 +185,19 @@ export default function GameBoards() {
           <b>
             {scope === 'predictions'
               ? L('הניחושים ייפתחו עם פתיחת הליגה', 'Predictions open when the league starts')
-              : L('הטבלה עוד ריקה', 'The board is still empty')}
+              : scope === 'quiz'
+                ? L('עוד לא שיחקת חידון', "You haven't played a quiz yet")
+                : L('הטבלה עוד ריקה', 'The board is still empty')}
           </b>
           <p>
             {scope === 'predictions'
               ? L('עונת המשחקים עוד לא התחילה. עד אז — יש אתגר שבועי.',
                   'The season has not started yet. Until then — there is a weekly challenge.')
-              : L('תהיה הראשון: הגש את האתגר של השבוע ותיכנס לטבלה.',
-                  'Be first: submit this week’s challenge and get on the board.')}
+              : scope === 'quiz'
+                ? L('בחר רמה למעלה ותתחיל — שלושת הראשונים ביום נספרים לטבלה.',
+                    'Pick a level above and start — the first three each day count.')
+                : L('תהיה הראשון: הגש את האתגר של השבוע ותיכנס לטבלה.',
+                    'Be first: submit this week’s challenge and get on the board.')}
           </p>
         </div>
       )}
