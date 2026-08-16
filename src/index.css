@@ -26252,7 +26252,19 @@ html.a11y-motion .qz-ring.is-warn{
 [data-theme='dark'] .bw[data-page='pred']{ --bw-acc-tx:#C4B5FD; }
 
 /* ---- המסך: הבאנר הוא הכותרת (הסרגל העליון יורד במובייל, כמו בבית) ---- */
-.main-inner[data-view='boards']{ max-width:760px; }
+/* ⚠ pan-y pinch-zoom (ולא pan-y לבד): חוסם גרירה אופקית של המסך אבל
+   **משאיר צביטה להגדלה** — האפליקציה לא מבטלת זום, ואסור שנבטל אותו כאן.
+   הרצועות הנגללות לרוחב מחזירות לעצמן pan-x. */
+.bw, .bw-overlay, .bw-sheet-wrap{ touch-action:pan-y pinch-zoom; }
+/* ⚠ pan-x רק למה שבאמת נגלל לרוחב. על אלמנט שאינו נגלל, pan-x היה חוסם
+   גלילה אנכית שמתחילה עליו — כלומר האצבע נתקעת בדיוק במקום שהתלוננו עליו. */
+.bw-scrollrow{ touch-action:pan-x pinch-zoom; }
+@media (max-width:768px){
+  .layout[data-view='boards'] .main-content,
+  .layout[data-view='boards'] .main-inner{ overscroll-behavior-x:none; }
+}
+
+.main-inner[data-view='boards']{ max-width:1100px; }
 .layout[data-view='boards'] .main-content{ background:#F1F5FD; }
 [data-theme='dark'] .layout[data-view='boards'] .main-content{
   background:radial-gradient(120% 55% at 50% -6%,#1E3A8A 0%,#101A38 46%,#0A1226 100%);
@@ -26263,8 +26275,10 @@ html.a11y-motion .qz-ring.is-warn{
   .layout[data-view='boards'] .main-content{ padding-block-start:0; padding-inline:0; }
 }
 .bw-glow{
+  /* ⚠ min(430px,100%) ולא 430px: על מסך 390 הזוהר גלש 20px מכל צד, וזה
+     בדיוק מה שנתן לאצבע מה לגרור הצידה. */
   position:absolute; inset-block-start:-140px; left:50%; transform:translateX(-50%);
-  inline-size:430px; block-size:300px; pointer-events:none; opacity:0;
+  inline-size:min(430px,100%); block-size:300px; pointer-events:none; opacity:0;
   background:radial-gradient(50% 50% at 50% 50%,rgba(96,165,250,.3),transparent 70%);
 }
 @keyframes bw-glow{ 0%,100%{ opacity:.5 } 50%{ opacity:.85 } }
@@ -26920,4 +26934,46 @@ html.a11y-motion .bw-lvl:hover, html.a11y-motion .bw-lvl:active, html.a11y-motio
   .bw-stat-lbl{ font-size:10.5px; }
   .bw-score-big--xl .bw-num{ font-size:38px; }
   .bw-tab{ font-size:10.5px; }
+}
+
+
+/* ==========================================================================
+   16.8.2026 · עולם הכדורסל — פריסת דסקטופ
+   --------------------------------------------------------------------------
+   הבעיה שהבעלים דיווח: «במחשב משתלב לא טוב, צר מדי». עמודה של 760px
+   באמצע מסך רחב נראית כמו טלפון מתוח. מ-1024 ומעלה התוכן זורם **בשתי
+   עמודות**; multicol ולא grid, כי לכרטיסים גבהים שונים ו-grid היה
+   משאיר חורים אנכיים. כרטיס הניקוד ושורת הסטטיסטיקות פורשים על שתי
+   העמודות, והבאנר והלשוניות נשארים ברוחב מלא.
+   ⚠ הבלוק כאן בסוף הקובץ במכוון: `.bw-page{display:flex}` מוגדר בבלוק
+   של 15.8 ומנצח כל כלל באותה ספֶּציפיוּת שיושב לפניו.
+   ========================================================================== */
+@media (min-width:769px){
+  .bw-hero-btns{ flex-direction:row; align-items:center; gap:8px; }
+  .bw-title{ font-size:34px; }
+  .bw-hero{ padding:26px 28px 46px; }
+}
+@media (min-width:1024px){
+  /* חידון · אתגר · ניחושים — זרימת שתי עמודות.
+     ⚠ inline-size:100% על הילדים: <button> מקבל רוחב fit-content גם עם
+     display:flex, ולכן בלי זה שורות המשחק יוצאות ברוחבים שונים. */
+  .bw[data-page='quiz'] .bw-page,
+  .bw[data-page='challenge'] .bw-page,
+  .bw[data-page='pred'] .bw-page{ display:block; columns:2; column-gap:14px; }
+  .bw[data-page='quiz'] .bw-page > *,
+  .bw[data-page='challenge'] .bw-page > *,
+  .bw[data-page='pred'] .bw-page > *{ break-inside:avoid; margin-block-end:14px; inline-size:100%; }
+  .bw[data-page='quiz'] .bw-page > .bw-score,
+  .bw[data-page='challenge'] .bw-page > .bw-score,
+  .bw[data-page='pred'] .bw-page > .bw-score{ column-span:all; }
+
+  /* הבית — לא זרימה אלא פריסה מתוכננת: שלוש שורות המשחק זו לצד זו,
+     וכל השאר (סטטיסטיקות, תוויות, «השבוע במגרש») ברוחב מלא. כך התווית
+     נשארת מעל השורות שהיא מתארת, מה ש-multicol לא מבטיח. */
+  .bw-home{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start; }
+  .bw-home > *{ grid-column:1/-1; }
+  .bw-home > .bw-game{ grid-column:auto; block-size:100%; }
+  .bw-home > .bw-lbl{ padding-block-start:6px; }
+
+  .bw-body{ gap:0; }
 }
