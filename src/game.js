@@ -290,7 +290,7 @@ export async function recordPublication({ submissionId, challengeId, userId, url
 
 // ===== שחקן: האתגר הפעיל =====
 
-const CHALLENGE_COLS = 'id, title, subtitle, metric_label, metric_unit, metric_dir, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status'
+const CHALLENGE_COLS = 'id, seq, title, subtitle, metric_label, metric_unit, metric_dir, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status, min_entries_for_prize'
 
 // האתגר להצגה: הפתוח אם יש; אחרת האחרון שהוכרע — כדי שהפודיום
 // והתוצאות יישארו על המסך גם אחרי ההכרזה, עד שנפתח אתגר חדש.
@@ -344,9 +344,15 @@ export async function submitChallenge({ challengeId, uid, mediaPath, score, allo
     allow_publish: !!allowPublish,
     no_others_in_frame: !!noOthers,
   }
+  // ⚠ .select('id') על העדכון: מדיניות ה-RLS (game_sub_update_own) מסננת
+  //   הגשות approved/blocked — PostgREST מעדכן 0 שורות **בלי שגיאה**, והלקוח
+  //   היה מכריז «ההגשה הוחלפה» על שורה שלא זזה (אחרי שכבר העלה קליפ).
   const res = existingId
-    ? await supabase.from('game_challenge_submissions').update(row).eq('id', existingId)
+    ? await supabase.from('game_challenge_submissions').update(row).eq('id', existingId).select('id')
     : await supabase.from('game_challenge_submissions').insert(row)
+  if (!res.error && existingId && Array.isArray(res.data) && res.data.length === 0) {
+    return { ok: false, reason: 'closed', message: 'אי אפשר להחליף את ההגשה הזו — החלון נסגר או שהיא כבר אומתה/הוסרה.' }
+  }
   if (res.error) {
     const e = res.error
     if (isNotDeployed(e)) return { ok: false, notDeployed: true }
@@ -486,6 +492,73 @@ export const duelInvite = (code) =>
       `Your code: *${code}*\n` +
       `Open the basketball world on CourtSide, tap "Duel", enter the code:\n${courtLink()}`,
   )
+
+// ===== כללי הניקוד — כנתון, לא כקוד =====
+// הטבלה פתוחה לקריאה לכל מחובר. המסך מציג את המספרים שבשרת ולא מספרים
+// שנכתבו ביד — אחרת התקנון על המסך והפנקס בפועל מתפצלים בשקט.
+// מפתחות חסרים נופלים לברירות המחדל שבקבצי ה-SQL.
+const RULE_DEFAULTS = {
+  quiz_correct: 10, quiz_speed: 5, quiz_perfect: 20, duel_win: 25, duel_draw: 10,
+  chal_participate: 15, chal_top5: 15, chal_win: 40, chal_streak3: 15,
+  pred_direction: 3, pred_exact: 5, pred_perfect_round: 10,
+}
+// ספי הכניסה (min_entries) — גם הם נתון בשרת: טופ-5 רק מ-8 הגשות, מחזור מושלם
+// רק מ-3 משחקים. נחשפים כ-<key>_min.
+const MIN_DEFAULTS = { chal_top5_min: 8, pred_perfect_round_min: 3, quiz_perfect_min: 3 }
+let RULES_CACHE = null
+export async function scoringRules() {
+  if (RULES_CACHE) return RULES_CACHE
+  const { data, error } = await supabase.from('game_scoring_rules').select('key, points, min_entries')
+  const out = { ...RULE_DEFAULTS, ...MIN_DEFAULTS, _fromServer: !error }
+  if (!error && Array.isArray(data)) {
+    data.forEach((r) => {
+      if (!r?.key) return
+      out[r.key] = Number(r.points)
+      if (r.min_entries !== null && r.min_entries !== undefined) out[r.key + '_min'] = Number(r.min_entries)
+    })
+  }
+  if (!error) RULES_CACHE = out
+  return out
+}
+
+// הגדרות החידון (כמה נספרים ביום, כמה שאלות, כמה שניות, כמה דו-קרבות) —
+// עמודות שנוספו ב-13.8 (quiz_solo / hardening). קריאה נפרדת ו-best-effort
+// בכוונה: אם המיגרציה עוד לא רצה בפרוד, שאילתה משותפת הייתה מפילה גם את
+// challenge_rules ומגבלות הווידאו. ברירות המחדל זהות לאלה שב-SQL.
+const QUIZ_DEFAULTS = { solo_scored_per_day: 3, solo_questions: 8, solo_seconds: 20, duel_scored_per_day: 5 }
+export async function quizSettings() {
+  const { data, error } = await supabase
+    .from('game_settings')
+    .select('solo_scored_per_day, solo_questions, solo_seconds, duel_scored_per_day')
+    .limit(1)
+    .maybeSingle()
+  if (error || !data) {
+    // מצב ביניים: quiz_solo (13.8) רץ אבל ה-hardening לא — לפחות התקרה
+    // היומית האמיתית, השאר ברירות מחדל ומסומן כלא-מהשרת
+    const r2 = await supabase.from('game_settings').select('solo_scored_per_day').limit(1).maybeSingle()
+    const out = { ...QUIZ_DEFAULTS, _fromServer: false }
+    if (!r2.error && r2.data && r2.data.solo_scored_per_day !== null && Number.isFinite(Number(r2.data.solo_scored_per_day))) out.solo_scored_per_day = Number(r2.data.solo_scored_per_day)
+    return out
+  }
+  const out = { ...QUIZ_DEFAULTS, _fromServer: true }
+  Object.keys(QUIZ_DEFAULTS).forEach((k) => { if (Number.isFinite(Number(data[k])) && data[k] !== null) out[k] = Number(data[k]) })
+  return out
+}
+
+// ===== ארכיון האתגרים — מה שכבר הוכרע =====
+export async function pastChallenges(limit = 4) {
+  const { data, error } = await supabase
+    .from('game_challenges')
+    .select('id, seq, title, metric_unit, closes_at, status')
+    .in('status', ['decided', 'closed'])
+    .order('closes_at', { ascending: false, nullsFirst: false })
+    .limit(limit)
+  if (error) {
+    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  return { ok: true, rows: data || [] }
+}
 
 // ===== אדמין: חידונים =====
 export async function adminQuizzes() {

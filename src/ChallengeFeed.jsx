@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Play, ChevronUp, Trash2, Crown, ShieldCheck } from 'lucide-react'
-import { L } from './i18n'
+import { Play, ChevronDown, ChevronUp, Trash2, Crown, ShieldCheck } from 'lucide-react'
+import { L, cnt } from './i18n'
 import { toast } from './toast'
 import { confirmDialog } from './confirm'
 import ReportButton from './ReportButton'
 import SignedVideo from './SignedVideo'
 import { challengeFeed, deleteMySubmission } from './game'
+import { relTime, initials } from './bwUtil'
 
-// ChallengeFeed — הפיד החי של האתגר.
+// ChallengeFeed — הפיד החי של האתגר (כרטיס «הפיד · N הגשות», מתקפל).
 //
 // הנתונים מגיעים מ-RPC בטוח-עמודות (game_challenge_feed) שכבר ממוין
 // ומחזיר שם תצוגה — לא מהטבלה עצמה: מדיניות SELECT רחבה הייתה חושפת
@@ -16,12 +17,14 @@ import { challengeFeed, deleteMySubmission } from './game'
 // כשהאתגר הוכרע — שלושת הראשונים הופכים לפודיום.
 
 const MEDALS = ['🥇', '🥈', '🥉']
+const AV = ['bw-av--0', 'bw-av--1', 'bw-av--2', 'bw-av--3']
 
 export default function ChallengeFeed({ challenge, myUid, onChanged }) {
   const [rows, setRows] = useState(null)
   const [failed, setFailed] = useState(false)
   const [openClip, setOpenClip] = useState(null)   // submission id
   const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(true)
 
   const load = useCallback(async () => {
     if (!challenge?.id) return
@@ -35,25 +38,8 @@ export default function ChallengeFeed({ challenge, myUid, onChanged }) {
   useEffect(() => { load() }, [load])
 
   if (!challenge) return null
-
-  if (failed && !rows?.length) {
-    return (
-      <div className="gm-feed">
-        <p className="muted small">{L('הפיד לא נטען — בדוק חיבור.', "Feed didn't load — check your connection.")}</p>
-        <button type="button" className="btn-secondary" onClick={load}>{L('נסה שוב', 'Try again')}</button>
-      </div>
-    )
-  }
-  if (rows === null) return null
-  if (!rows.length) {
-    return (
-      <p className="muted small gm-feed-empty">
-        {L('עוד אין הגשות — תהיה הראשון שעולה לפיד 🔥', 'No entries yet — be first on the feed 🔥')}
-      </p>
-    )
-  }
-
   const decided = challenge.status === 'decided'
+  const n = rows?.length || 0
 
   const doDelete = async () => {
     const ok = await confirmDialog({
@@ -74,66 +60,79 @@ export default function ChallengeFeed({ challenge, myUid, onChanged }) {
   }
 
   return (
-    <div className="gm-feed">
-      <h3 className="gm-feed-title">
-        {decided ? L('התוצאות 🏆', 'Results 🏆') : L('הפיד — דירוג חי', 'Live feed')}
-      </h3>
+    <div className="bw-card">
+      {/* הכותרת עוטפת את הכפתור (דפוס disclosure) — כפתור בתוך h2 חוקי, h2 בתוך כפתור לא */}
+      <h2 className="bw-card-title">
+        <button type="button" className="bw-rowbtn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <span>
+            {decided ? L('התוצאות 🏆', 'Results 🏆') : L('הפיד', 'The feed')}
+            {rows !== null && <> · {L(cnt(n, 'הגשה אחת', 'הגשות'), n === 1 ? '1 entry' : `${n} entries`)}</>}
+          </span>
+          <span className="bw-rowbtn-ic" aria-hidden="true">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+        </button>
+      </h2>
 
-      <ul className="gm-feed-list">
-        {rows.map((s) => {
-          const isOpen = openClip === s.id
-          return (
-            <li key={s.id} className={`gm-feed-row${s.is_mine ? ' is-mine' : ''}${decided && s.place === 1 ? ' is-winner' : ''}`}>
-              <div className="gm-feed-main">
-                <span className="gm-feed-rank" dir="ltr">
-                  {decided && s.place <= 3 ? MEDALS[s.place - 1] : s.place}
-                </span>
-                <span className="gm-feed-who">
-                  <b>{s.display_name || 'שחקן'}</b>
-                  {decided && s.place === 1 && <span className="gm-feed-champ"><Crown size={13} /> {L('אלוף האתגר', 'Champion')}</span>}
-                  {s.verified && (
-                    <span className="gm-feed-verified" title={L('התוצאה אומתה על ידי המאמן', 'Score verified by the coach')}>
-                      <ShieldCheck size={13} />
+      {open && (
+        <div className="bw-feed">
+          {failed && !rows?.length && (
+            <>
+              <p className="bw-mut12">{L('הפיד לא נטען — בדוק חיבור.', "Feed didn't load — check your connection.")}</p>
+              <button type="button" className="bw-ghost bw-ghost--ch" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+            </>
+          )}
+          {rows === null && !failed && <div className="loader" role="status" aria-label={L('טוען', 'Loading')} />}
+          {rows && rows.length === 0 && (
+            <p className="bw-mut12">{L('עוד אין הגשות — תהיה הראשון שעולה לפיד 🔥', 'No entries yet — be first on the feed 🔥')}</p>
+          )}
+          {rows && rows.map((s, i) => {
+            const isOpen = openClip === s.id
+            return (
+              <div key={s.id} className={`bw-feedrow${s.is_mine ? ' is-mine' : ''}${decided && s.place === 1 ? ' is-winner' : ''}`}>
+                <div className="bw-feedmain">
+                  <span className={`bw-av ${AV[i % AV.length]}`} aria-hidden="true">
+                    {decided && s.place <= 3 ? MEDALS[s.place - 1] : initials(s.display_name)}
+                  </span>
+                  <span className="bw-feedwho">
+                    <b className="bw-txt13">
+                      {s.display_name || L('שחקן', 'Player')}{s.is_mine ? ` · ${L('אתה', 'you')}` : ''}
+                      {decided && s.place === 1 && <span className="bw-champ"><Crown size={12} aria-hidden="true" /> {L('אלוף האתגר', 'Champion')}</span>}
+                    </b>
+                    <span className="bw-mut11">
+                      <bdi dir="ltr">#{s.place}</bdi> · {relTime(s.submitted_at)}
+                      {s.verified
+                        ? <> · <span className="bw-verified"><ShieldCheck size={11} aria-hidden="true" /> {L('אומת', 'verified')}</span></>
+                        : <> · {L('באוויר', 'live')}</>}
                     </span>
+                  </span>
+                  <b dir="ltr" className="bw-num15">{s.score}</b>
+                  {s.media_path && (
+                    <button type="button" className="bw-ibtn" aria-label={isOpen ? L('סגור סרטון', 'Close video') : L('צפה בסרטון', 'Watch video')}
+                      aria-expanded={isOpen} onClick={() => setOpenClip(isOpen ? null : s.id)}>
+                      {isOpen ? <ChevronUp size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
+                    </button>
                   )}
-                </span>
-                <span className="gm-feed-score" dir="ltr">{s.score}</span>
-                {s.media_path && (
-                  <button
-                    type="button" className="icon-btn"
-                    aria-label={isOpen ? L('סגור סרטון', 'Close video') : L('צפה בסרטון', 'Watch video')}
-                    aria-expanded={isOpen}
-                    onClick={() => setOpenClip(isOpen ? null : s.id)}
-                  >
-                    {isOpen ? <ChevronUp size={16} /> : <Play size={16} />}
-                  </button>
+                </div>
+                {isOpen && (
+                  <div className="bw-feedclip">
+                    <SignedVideo path={s.media_path} />
+                    <div className="bw-feedclip-foot">
+                      {s.is_mine && !decided && (
+                        <button type="button" className="bw-link bw-link--danger" onClick={doDelete} disabled={busy}>
+                          <Trash2 size={13} aria-hidden="true" /> {L('מחק את ההגשה שלי', 'Delete my entry')}
+                        </button>
+                      )}
+                      {!s.is_mine && myUid && (
+                        <ReportButton targetType="challenge_clip" targetId={s.id}
+                          targetLabel={`${s.display_name || ''} · ${challenge.title}`} session={{ user: { id: myUid } }} />
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {isOpen && (
-                <div className="gm-feed-clip">
-                  <SignedVideo path={s.media_path} />
-                  <div className="gm-feed-clip-foot">
-                    {s.is_mine && !decided && (
-                      <button type="button" className="btn-ghost gm-danger" onClick={doDelete} disabled={busy}>
-                        <Trash2 size={14} /> {L('מחק את ההגשה שלי', 'Delete my entry')}
-                      </button>
-                    )}
-                    {!s.is_mine && myUid && (
-                      <ReportButton
-                        targetType="challenge_clip"
-                        targetId={s.id}
-                        targetLabel={`${s.display_name || ''} · ${challenge.title}`}
-                        session={{ user: { id: myUid } }}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

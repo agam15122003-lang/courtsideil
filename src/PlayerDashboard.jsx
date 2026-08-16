@@ -28,7 +28,7 @@ import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import PlayerTeamHub from './PlayerTeamHub'
-import GameBoards from './GameBoards'
+import BasketballWorld from './BasketballWorld'
 import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
@@ -3053,7 +3053,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'boards':
-        return <GameBoards />
+        // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
+        return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromNotification} />} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />
       default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} />
@@ -3125,12 +3126,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         )}
         {/* data-view (7.8) — מאפשר ל-CSS לשחרר את תקרת הרוחב בבית בלבד,
             באותו מנגנון כמו אצל המאמן */}
-        <div className="main-inner" data-view={view} key={editing ? 'edit' : view}>
+        <div className="main-inner" data-view={editing ? 'edit' : view} key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
           {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}
           {/* הציטוט אינו במוקאפ של הבית (3b) — הוא נשאר בשאר המסכים */}
-          {!editing && !['home', 'teamchat', 'coach', 'community'].includes(view) && <PlayerQuote />}
+          {!editing && !['home', 'teamchat', 'coach', 'community', 'boards'].includes(view) && <PlayerQuote />}
         </div>
       </main>
 

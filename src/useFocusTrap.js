@@ -27,7 +27,10 @@ export default function useFocusTrap(open, onClose) {
       )
 
     // פוקוס ראשוני: הפריט הראשון שמסומן autofocus, אחרת הראשון בדיאלוג
-    const first = node?.querySelector('[autofocus]') || focusables()[0]
+    // ⚠ עוגן: יש דיאלוגים שברגע מסוים אין בהם אף פריט מיקוד (טעינה, או כל
+    //   הכפתורים disabled בזמן שליחה). בלי למקד את הדיאלוג עצמו הפוקוס נשאר
+    //   על body, והמלכודת למטה מוותרת — כלומר Tab יוצא אל המסך שמאחור.
+    const first = node?.querySelector('[autofocus]') || focusables()[0] || node
     first?.focus?.()
 
     const onKey = (e) => {
@@ -38,13 +41,16 @@ export default function useFocusTrap(open, onClose) {
       }
       if (e.key !== 'Tab') return
       const list = focusables()
-      if (list.length === 0) return
+      if (list.length === 0) { e.preventDefault(); node?.focus?.(); return }
       const firstEl = list[0]
       const lastEl = list[list.length - 1]
-      if (e.shiftKey && (document.activeElement === firstEl || !node.contains(document.activeElement))) {
+      const inside = node.contains(document.activeElement)
+      if (e.shiftKey && (document.activeElement === firstEl || !inside)) {
         e.preventDefault()
         lastEl.focus()
-      } else if (!e.shiftKey && document.activeElement === lastEl) {
+      } else if (!e.shiftKey && (document.activeElement === lastEl || !inside)) {
+        // ⚠ גם כשהפוקוס **מחוץ** לדיאלוג (למשל אחרי שכפתור נעשה disabled
+        //   והדפדפן העיף את הפוקוס ל-body) — Tab חוזר פנימה ולא בורח למסך.
         e.preventDefault()
         firstEl.focus()
       }
