@@ -26256,14 +26256,14 @@ html.a11y-motion .qz-ring.is-warn{
    **משאיר צביטה להגדלה** — האפליקציה לא מבטלת זום, ואסור שנבטל אותו כאן.
    הרצועות הנגללות לרוחב מחזירות לעצמן pan-x. */
 .bw, .bw-overlay, .bw-sheet-wrap{ touch-action:pan-y pinch-zoom; }
-/* ⚠ pan-x רק למה שבאמת נגלל לרוחב. על אלמנט שאינו נגלל, pan-x היה חוסם
-   גלילה אנכית שמתחילה עליו — כלומר האצבע נתקעת בדיוק במקום שהתלוננו עליו. */
-.bw-scrollrow{ touch-action:pan-x pinch-zoom; }
-@media (max-width:768px){
-  .layout[data-view='boards'] .main-content,
-  .layout[data-view='boards'] .main-inner{ overscroll-behavior-x:none; }
-}
-
+/* ⚠ pan-x **וגם** pan-y. שתי טעויות אפשריות כאן, ושתיהן נתפסו במדידה:
+   (א) לתת pan-x לאלמנט שאינו נגלל לרוחב (.bw-seg/.bw-podium) — האצבע
+       נתקעת עליו ואי אפשר לגלול את העמוד;
+   (ב) לתת pan-x לבד גם לרצועה שכן נגללת — גלילה אנכית שמתחילה על פס
+       בגובה ~28px פשוט מתה. לגרירה אופקית ההצטלבות נעצרת ברצועה עצמה,
+       ולכן pan-x עדיין מפעיל אותה.
+   ⚠ ולא manipulation: הוא מבטל double-tap להגדלה, והאפליקציה לא מבטלת זום. */
+.bw-scrollrow{ touch-action:pan-x pan-y pinch-zoom; overscroll-behavior-x:contain; }
 .main-inner[data-view='boards']{ max-width:1100px; }
 .layout[data-view='boards'] .main-content{ background:#F1F5FD; }
 [data-theme='dark'] .layout[data-view='boards'] .main-content{
@@ -26286,7 +26286,10 @@ html.a11y-motion .qz-ring.is-warn{
 
 /* ---- הבאנר ---- */
 .bw-hero{
-  position:relative; overflow:hidden; z-index:1;
+  /* ⚠ בלי z-index: עם z-index:1 הבאנר יוצר הקשר ערימה, וכל צאצא שלו —
+     כולל פאנל ההתראות (z-index:80) — נכלא מתחת ל-.bw-tabs (z-index:2)
+     שנמשך 24px מעל הבאנר. הפאנל נצבע אז מתחת לגלולת הלשוניות. */
+  position:relative; overflow:hidden;
   margin-inline:-16px;
   padding:calc(18px + env(safe-area-inset-top)) 16px 40px;
   border-radius:0 0 28px 28px;
@@ -26976,4 +26979,39 @@ html.a11y-motion .bw-lvl:hover, html.a11y-motion .bw-lvl:active, html.a11y-motio
   .bw-home > .bw-lbl{ padding-block-start:6px; }
 
   .bw-body{ gap:0; }
+}
+
+/* ==========================================================================
+   16.8.2026 (ב) · עולם הכדורסל — תיקוני הסקירה על פריסת הדסקטופ
+   ========================================================================== */
+
+/* (1) inline-size:100% נועד לכרטיסים. ה-loader הוא עיגול 44px, והכלל
+   הרחב מתח אותו לאליפסה מסתובבת ברוחב עמודה שלמה (נמדד 543px ב-1280).
+   ספֶּציפיוּת (0,4,0) כדי לנצח את הכלל הרחב, ובלי margin אוטומטי —
+   לפני השינוי הוא ישב בתחילת השורה וכך יישאר. */
+@media (min-width:1024px){
+  .bw[data-page='quiz'] .bw-page > .loader,
+  .bw[data-page='challenge'] .bw-page > .loader,
+  .bw[data-page='pred'] .bw-page > .loader{ inline-size:44px; }
+}
+
+/* (2) בדסקטופ הפעמון חי בסרגל הצד (.sidebar-bell), ולכן הפעמון בבאנר הוא
+   גם כפול וגם נחתך על ידי overflow:hidden של הבאנר — 43px מתוך 400.
+   בדיוק ההכרעה שכבר התקבלה בבית ב-11.8 (.nh-hero-bell). */
+@media (min-width:769px){
+  .bw-hero-bell{ display:none; }
+}
+
+/* (3) שלוש שורות המשחק זו לצד זו רק כשיש באמת מקום. ב-1024 רוחב התוכן
+   הוא 744px (פחות סרגל הצד 232 והריפוד), כל תא 238px, ועמודת הטקסט
+   מתכווצת ל-62px — השורה קפצה מ-68px ל-146px בדיוק בנקודת השבירה.
+   נמדד: שתי עמודות נותנות 84.5px כבר ב-744, כמו בטלפון. */
+@media (min-width:1024px){
+  .bw-home{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  /* שלוש שורות בשתי עמודות משאירות תא ריק — השלישית פורשת על שתיהן */
+  .bw-home > .bw-game:last-of-type{ grid-column:1/-1; }
+}
+@media (min-width:1280px){
+  .bw-home{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .bw-home > .bw-game:last-of-type{ grid-column:auto; }
 }
