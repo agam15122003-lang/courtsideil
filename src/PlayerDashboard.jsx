@@ -5,14 +5,15 @@ import {
   Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
   ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
-  MapPin, ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
+  ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
   Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L, trTeam } from './i18n'
+import { L, cnt, trTeam } from './i18n'
 import useNavMarker from './useNavMarker'
+import useFocusTrap from './useFocusTrap'
 import PocketNav from './PocketNav'
 import HomeVideos from './HomeVideos'
 import CourtArt from './CourtArt'
@@ -32,8 +33,8 @@ import BasketballWorld from './BasketballWorld'
 import { MyGoals, GoalChart } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
-import WeekList from './WeekList'
 import BasketballIcon from './BasketballIcon'
+import PlayerScreen, { initialsOf } from './PlayerScreen'
 import { requestJoinByCode, myMemberships } from './players'
 import { waShare, copyText } from './share'
 import {
@@ -435,22 +436,151 @@ function PlayerQuote() {
 // ---------- כרטיס שיגור בודד ----------
 // תרגיל עם target_value מציג פס התקדמות ורישום הדרגתי (100 מתוך 200);
 // תרגיל בלי יעד נשאר בוצע/לא-בוצע. compl = השורה שלי מ-assignment_completions.
+// ערכים משותפים לכרטיס המשימה ולבאנר שלה — שניהם מציגים את אותה שורה
+// מ-player_assignments, רק בשתי צורות.
+function assignmentBits(a, compl) {
+  const drill = a.drill
+  const target = Number(a.target_value) || 0
+  const prog = Number(compl?.progress_value) || 0
+  return {
+    drill,
+    target,
+    prog,
+    hasTarget: target > 0,
+    pct: target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : 0,
+    reached: target > 0 && prog >= target,
+    yt: a.video_url ? getYouTubeId(a.video_url) : null,
+    vidUrl: a.video_url ? safeUrl(a.video_url) : null,
+    title: drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill')),
+    cat: drill?.category,
+    desc: drill?.description || a.note,
+    unitStr: a.unit ? ` ${a.unit}` : '',
+    dueTx: a.due_date
+      ? new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })
+      : null,
+  }
+}
+
+// ---------- משימות: הבאנר של המשימה הקרובה ----------
+// המסמך מצייר משימה אחת גדולה («500 עונשין השבוע») עם מונה, פס התקדמות
+// וצ׳יפים מהירים. כאן זו תמיד משימה **אמיתית**: הפתוחה הראשונה, ומעדיפים
+// כזו עם יעד מספרי — רק לה יש מה למנות.
+function TaskHero({ a, compl, onToggleDone, onProgress }) {
+  const [custom, setCustom] = useState('')
+  // assignment_completions ברשימת השערים בשרת — כל רישום יידחה ב-RLS,
+  // ולכן הפקדים מושבתים ולא «נכשלים».
+  const { restricted } = useRestricted()
+  const { drill, hasTarget, target, prog, pct, reached, yt, vidUrl, title, cat, desc, unitStr, dueTx } =
+    assignmentBits(a, compl)
+
+  const logCustom = () => {
+    const n = Number(custom)
+    if (n > 0) onProgress(a, n)
+    setCustom('')
+  }
+
+  return (
+    <div className="ps-hero">
+      <div className="ps-hero-row">
+        <b className="ps-hero-kick">
+          {dueTx ? L(`המשימה הקרובה · עד ${dueTx}`, `Next task · by ${dueTx}`) : L('המשימה הקרובה', 'Next task')}
+        </b>
+        {hasTarget && <span className="ps-hero-pill" dir="ltr">{pct}%</span>}
+      </div>
+      <b className="ps-hero-title">{title}</b>
+      {hasTarget ? (
+        <>
+          <div className="ps-hero-nums">
+            <b className="ps-hero-num" dir="ltr">{prog}</b>
+            <span className="ps-hero-sub">
+              {L(`מתוך ${target}${unitStr} · `, `of ${target}${unitStr} · `)}
+              {reached ? L('הושלם', 'complete') : L(`נשארו ${target - prog}`, `${target - prog} to go`)}
+            </span>
+          </div>
+          <div className="ps-hero-track">
+            <span className="ps-hero-bar" style={{ inlineSize: `${pct}%` }} />
+          </div>
+          {!reached && (
+            <div className="ps-hero-acts">
+              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
+              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
+              <input
+                className="ps-hero-in" type="number" dir="ltr" min="1" value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') logCustom() }}
+                placeholder={L('כמות', 'How many')}
+                aria-label={L('כמה ביצעת?', 'How many did you do?')}
+                disabled={restricted}
+              />
+              <button type="button" className="ps-hero-btn" onClick={logCustom} disabled={restricted || !custom}>
+                {L('הוסף', 'Add')}
+              </button>
+            </div>
+          )}
+          {reached && (
+            <div className="ps-hero-done">
+              <b className="ps-h">{L('הגעת ליעד — נשאר רק לסמן', 'Target reached — just mark it')}</b>
+              <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+                <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        // המטא (קטגוריה · אישי/קבוצתי · משך) מוצג בבלוק שמתחת — בלי כפילות
+        <div className="ps-hero-acts">
+          <button type="button" className="ps-hero-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+            <Check size={15} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
+          </button>
+        </div>
+      )}
+      {/* ⚠ ההוראות והסרטון חייבים לחיות גם כאן. המשימה שעולה לבאנר יורדת
+          מרשימת הכרטיסים, ובלי הבלוק הזה תרגיל עם תיאור וסרטון הדגמה היה
+          מאבד את שניהם בדיוק כשהוא המשימה הקרובה ביותר. */}
+      {(desc || yt || vidUrl || drill?.duration_minutes) && (
+        <div className="ps-hero-done">
+          {desc && <DrillText text={desc} className="ps-mut" />}
+          <div className="ps-steps">
+            {drill?.duration_minutes && (
+              <span className="ps-chip ps-chip--mut"><Clock size={12} aria-hidden="true" /> {drill.duration_minutes} {L("דק'", 'min')}</span>
+            )}
+            <span className="ps-chip ps-chip--mut">{a.player_id ? L('נשלח אליך אישית', 'Sent to you') : L('לכל הקבוצה', 'Whole team')}</span>
+            {cat && <span className="ps-chip ps-chip--mut">{cat}</span>}
+          </div>
+          {(yt || vidUrl) && (
+            <a
+              className="ps-media" href={vidUrl || '#'} target="_blank" rel="noopener noreferrer"
+              style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}
+            >
+              <span className="ps-play"><Play size={16} fill="currentColor" aria-hidden="true" /></span>
+              <span className="ps-media-tag">{yt ? L('סרטון הדגמה · YouTube', 'Demo · YouTube') : L('לצפייה בסרטון', 'Watch video')}</span>
+            </a>
+          )}
+        </div>
+      )}
+      {/* ⚠ ‏.rstr-note שקוף וצבוע ב---text-muted — על באנר צבעוני הוא לא
+          נקרא. הקופסה הלבנה מחזירה לו את הרקע שלו, וה-CTA לשליחת קישור
+          להורה נשמר (בלעדיו הקטין תקוע בלי דרך לצאת מהמצב). */}
+      {restricted && (
+        <div className="ps-hero-done">
+          <RestrictedNote>
+            {L('אפשר לבצע את התרגיל — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
+               'You can do the drill — logging it in the app opens once your parent approves.')}
+          </RestrictedNote>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
   const [custom, setCustom] = useState('') // קלט "כמה עשיתי?"
   const [customOpen, setCustomOpen] = useState(false)
   // assignment_completions נמצאת ברשימת השערים בשרת — כל רישום ביצוע
   // או התקדמות יידחה ב-RLS, ולכן הכפתורים מושבתים ולא «נכשלים».
   const { restricted } = useRestricted()
-  const done = compl?.done_at != null
-  const prog = Number(compl?.progress_value) || 0
-  const hasTarget = Number(a.target_value) > 0
-  const drill = a.drill
-  const yt = a.video_url ? getYouTubeId(a.video_url) : null
-  const vidUrl = a.video_url ? safeUrl(a.video_url) : null
-  const title = drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
-  const cat = drill?.category
-  const desc = drill?.description || a.note
-  const unitStr = a.unit ? ` ${a.unit}` : ''
+  const { drill, hasTarget, target, prog, pct, reached, yt, vidUrl, title, cat, desc, unitStr, dueTx } =
+    assignmentBits(a, compl)
 
   const logCustom = () => {
     const n = Number(custom)
@@ -458,77 +588,70 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
     setCustom(''); setCustomOpen(false)
   }
 
-  if (done) {
-    return (
-      <button className="pla done" onClick={() => onToggleDone(a.id, true)} aria-pressed="true" disabled={restricted}>
-        <span className="pla-check on"><Check size={16} /></span>
-        <span className="pla-done-body">
-          <span className="pla-done-title">{title}{cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}</span>
-          <span className="muted small">
-            {hasTarget
-              ? L(`בוצע · ${prog}/${a.target_value}${unitStr} · אלוף!`, `Done · ${prog}/${a.target_value}${unitStr} · champ!`)
-              : L('בוצע · כל הכבוד', 'Done · nice work')}
-          </span>
-        </span>
-        <span className="pla-done-badge">{L('בוצע', 'Done')}</span>
-      </button>
-    )
-  }
-
   return (
-    <article className="pla">
-      <div className="pla-head">
-        <h3>{title}</h3>
-        {cat && <span className="cat-badge" data-cat={cat}>{cat}</span>}
+    <article className="ps-card">
+      <div className="ps-card-head">
+        <h2 className="ps-h">{title}</h2>
+        {cat && <span className="ps-chip ps-chip--mut">{cat}</span>}
       </div>
-      {desc && <DrillText text={desc} className="pla-desc" />}
-      <div className="pla-meta">
-        {drill?.duration_minutes && <span><Clock size={13} /> {drill.duration_minutes} {L("דק'", 'min')}</span>}
-        {a.due_date && <span><CalendarDays size={13} /> {L('עד', 'by')} {new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}</span>}
-        <span>{a.player_id ? L('נשלח אליך אישית', 'Sent to you') : L('לכל הקבוצה', 'Whole team')}</span>
+      {desc && <DrillText text={desc} className="ps-mut" />}
+      <div className="ps-steps">
+        {drill?.duration_minutes && (
+          <span className="ps-chip ps-chip--mut"><Clock size={12} aria-hidden="true" /> {drill.duration_minutes} {L("דק'", 'min')}</span>
+        )}
+        {dueTx && (
+          <span className="ps-chip ps-chip--acc"><CalendarDays size={12} aria-hidden="true" /> {L('עד', 'by')} {dueTx}</span>
+        )}
+        <span className="ps-chip ps-chip--mut">{a.player_id ? L('נשלח אליך אישית', 'Sent to you') : L('לכל הקבוצה', 'Whole team')}</span>
       </div>
-      {yt && (
-        <a className="pla-video" href={vidUrl || '#'} target="_blank" rel="noopener noreferrer" style={{ backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` }}>
-          <span className="pla-play"><Play size={22} fill="#fff" /></span>
-          <span className="pla-video-tag">{L('סרטון הדגמה · YouTube', 'Demo · YouTube')}</span>
-        </a>
-      )}
-      {!yt && vidUrl && (
-        <a className="pla-video no-thumb" href={vidUrl} target="_blank" rel="noopener noreferrer">
-          <span className="pla-play"><Play size={22} fill="#fff" /></span>
-          <span className="pla-video-tag">{L('לצפייה בסרטון', 'Watch video')}</span>
+      {(yt || vidUrl) && (
+        <a
+          className="ps-media" href={vidUrl || '#'} target="_blank" rel="noopener noreferrer"
+          style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}
+        >
+          <span className="ps-play"><Play size={16} fill="currentColor" aria-hidden="true" /></span>
+          <span className="ps-media-tag">{yt ? L('סרטון הדגמה · YouTube', 'Demo · YouTube') : L('לצפייה בסרטון', 'Watch video')}</span>
         </a>
       )}
       {hasTarget ? (
-        <div className="pla-prog">
-          <div className="pla-prog-top">
-            <span>{L('ההתקדמות שלך', 'Your progress')}</span>
-            <b dir="ltr">{prog}/{a.target_value}{unitStr}</b>
+        <>
+          <div className="ps-card-head">
+            <span className="ps-lbl">{L('ההתקדמות שלך', 'Your progress')}</span>
+            {/* X/Y בתוך טקסט עברי — dir="ltr" כדי שהסלאש לא יתהפך */}
+            <b className="ps-num ps-end" dir="ltr">{prog}/{target}{unitStr}</b>
           </div>
-          <div className="pla-prog-bar"><span style={{ width: `${Math.min(100, Math.round((prog / a.target_value) * 100))}%` }} /></div>
-          <div className="pla-quick">
-            <button onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
-            <button onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
+          <div className="ps-track"><span style={{ inlineSize: `${pct}%` }} /></div>
+          <div className="ps-steps">
+            <button type="button" className="ps-add" onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
+            <button type="button" className="ps-add" onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
             {customOpen ? (
-              <span className="pla-quick-custom">
-                <input type="number" dir="ltr" min="1" autoFocus value={custom} onChange={(e) => setCustom(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') logCustom() }} placeholder="50" aria-label={L('כמה ביצעת?', 'How many did you do?')} />
-                <button className="on" onClick={logCustom} aria-label={L('שמירת ערך', 'Save value')}><Check size={14} /></button>
-              </span>
+              <>
+                <input
+                  className="ps-in" type="number" dir="ltr" min="1" autoFocus value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') logCustom() }}
+                  placeholder="50" aria-label={L('כמה ביצעת?', 'How many did you do?')}
+                />
+                <button type="button" className="ps-add" onClick={logCustom} aria-label={L('שמירת ערך', 'Save value')}>
+                  <Check size={14} aria-hidden="true" />
+                </button>
+              </>
             ) : (
-              <button onClick={() => setCustomOpen(true)} disabled={restricted}>{L('כמה עשיתי?', 'Log amount')}</button>
+              <button type="button" className="ps-add" onClick={() => setCustomOpen(true)} disabled={restricted}>
+                {L('כמה עשיתי?', 'Log amount')}
+              </button>
             )}
           </div>
           {/* תרגיל שנפתח מחדש כשההתקדמות כבר על היעד — דרך מפורשת לסמן שוב בוצע */}
-          {prog >= Number(a.target_value) && (
-            <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
-              <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
+          {reached && (
+            <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+              <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
             </button>
           )}
-        </div>
+        </>
       ) : (
-        <button className="btn-primary pla-mark" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
-          <Check size={17} /> {L('סמן כבוצע', 'Mark done')}
+        <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+          <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
         </button>
       )}
       {restricted && (
@@ -538,6 +661,30 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
         </RestrictedNote>
       )}
     </article>
+  )
+}
+
+// שורת משימה שבוצעה — במסמך אלה שורות ההיסטוריה בתחתית המסך.
+// לחיצה פותחת אותה מחדש, בדיוק כמו הכרטיס הירוק שהיה כאן קודם.
+function DoneRow({ a, compl, onToggleDone }) {
+  const { restricted } = useRestricted()
+  const { hasTarget, target, prog, title, unitStr } = assignmentBits(a, compl)
+  return (
+    <button
+      type="button" className="ps-linkrow" onClick={() => onToggleDone(a.id, true)}
+      aria-pressed="true" disabled={restricted}
+    >
+      <span className="ps-okdot" aria-hidden="true"><Check size={14} /></span>
+      <span className="ps-row-main">
+        <b className="ps-t13b">{title}</b>
+        <span className="ps-lbl">
+          {hasTarget
+            ? L(`בוצע · ${prog}/${target}${unitStr}`, `Done · ${prog}/${target}${unitStr}`)
+            : L('בוצע · כל הכבוד', 'Done · nice work')}
+        </span>
+      </span>
+      <span className="ps-chip ps-chip--ok">{L('בוצע', 'Done')}</span>
+    </button>
   )
 }
 
@@ -622,7 +769,16 @@ function ParentLinkButton({ coachId, coachName }) {
 // יושב מעל «המשימות שלי» ולא בטאב נפרד: המשימות מהמאמן האישי נוחתות
 // ממילא באותה רשימה (player_assignments), והכרטיס הזה עונה על השאלה
 // «ממי זה הגיע» בלי להוסיף יעד ניווט שמינימנו.
-function MyPersonalCoaches({ session }) {
+// שם המאמן ותיאור הסטטוס — שניהם מוצגים גם בכרטיס וגם בגיליון
+const coachDisplayName = (r) =>
+  `${r.coach?.first_name || ''} ${r.coach?.last_name || ''}`.trim() || L('מאמן', 'Coach')
+const statusTx = (s) =>
+  s === 'active' ? L('מאמן פעיל', 'Active coach')
+    : s === 'pending_parent' ? L('ממתין לאישור ההורה', 'Waiting for a parent')
+      : L('ממתין לאישור המאמן', 'Waiting for the coach')
+
+function MyPersonalCoaches({ session, bell, setView }) {
+  const [cardOf, setCardOf] = useState(null) // השורה שהגיליון פתוח עליה
   // ⚠ מתחיל כמערך ריק ולא כ-null, במכוון.
   // הגרסה הקודמת התחילה ב-null והחזירה null עד שהשאילתה ענתה — כלומר
   // הכרטיס **לא היה קיים** בזמן הטעינה, וכל תקלה בצד השרת (טבלה חסרה,
@@ -654,77 +810,171 @@ function MyPersonalCoaches({ session }) {
   }, [session.user.id, tick])
 
 
+  const active = rows.filter((r) => r.status === 'active')
+  const pending = rows.filter((r) => r.status !== 'active')
+  const band = [
+    { value: rows.length, label: L('מאמנים', 'Coaches') },
+    { value: active.length, label: L('פעילים', 'Active') },
+    { value: pending.length, label: L('ממתינים', 'Pending') },
+  ]
+
   return (
-    <div className="pl-screen pl-narrow">
-      <h2 className="pl-h2">{L('המאמן האישי', 'Personal coach')}</h2>
-      <p className="muted small" style={{ marginTop: -6 }}>
-        {L('מאמן שעובד איתך אחד על אחד, בנפרד מהקבוצה. המשימות שהוא שולח מופיעות ב«המשימות שלי».',
-           'A coach who works with you one-on-one, separately from the team. Tasks they send appear under “My tasks”.')}
-      </p>
-
-    <div className="pl-pcoach">
-      <div className="pl-pcoach-top">
-        <span className="pl-pcoach-hd">{L('המאמן האישי שלי', 'My personal coach')}</span>
-        <button
-          type="button"
-          className="wl-chip"
-          onClick={() => setAdding((v) => !v)}
-          aria-expanded={adding}
-        >
-          {adding ? L('סגירה', 'Close') : rows.length ? L('הוספת מאמן', 'Add a coach') : L('יש לי קוד', 'I have a code')}
-        </button>
-      </div>
-
-      {rows.length === 0 && !adding && (
-        <p className="muted small" style={{ margin: 0 }}>
-          {L('אין לך עדיין מאמן אישי. אם קיבלת קוד ממאמן — לחץ על «יש לי קוד».',
-             'No personal coach yet. If a coach gave you a code, tap “I have a code”.')}
-        </p>
-      )}
-
-      {adding && (
-        <div className="pl-pcoach-add">
-          <PersonalCoachJoin compact onSent={() => { setAdding(false); setTick((n) => n + 1) }} />
-        </div>
-      )}
-
-      {rows.map((r) => {
-        const c = r.coach || {}
-        const name = `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('מאמן', 'Coach')
-        return (
-          <div key={r.id} className="pl-pcoach-row">
-            <span className="pl-pcoach-av" aria-hidden="true">{(c.first_name || '?').slice(0, 1)}</span>
-            <span className="pl-pcoach-main">
-              <b>{name}</b>
-              {c.club && <span className="muted small">{c.club}</span>}
+    <PlayerScreen page="coach" band={rows.length ? band : null} bell={bell}>
+      {/* במסמך הבאנר הוא **כרטיס המאמן** — לחיצה פותחת גיליון עם הפרטים */}
+      {rows.map((r) => (
+        <button key={r.id} type="button" className="ps-coach" onClick={() => setCardOf(r)}>
+          <span className="ps-av-lg" aria-hidden="true">{initialsOf(coachDisplayName(r))}</span>
+          <span className="ps-coach-tx">
+            <span className="ps-hero-kick">{L('המאמן האישי שלי', 'My personal coach')}</span>
+            <b className="ps-hero-title">{coachDisplayName(r)}</b>
+            <span className="ps-hero-sub">
+              {r.coach?.club ? r.coach.club + ' · ' : ''}{statusTx(r.status)}
             </span>
-            {r.status === 'active' ? (
-              <span className="status-pill adm-cv cv-granted">{L('פעיל', 'Active')}</span>
-            ) : r.status === 'pending_parent' ? (
-              <span className="status-pill adm-cv cv-revoked">{L('ממתין להורה', 'Waiting for a parent')}</span>
-            ) : (
-              <span className="status-pill adm-cv cv-denied">{L('ממתין לאישור', 'Pending')}</span>
-            )}
-          </div>
-        )
-      })}
+          </span>
+          <span className="ps-coach-end">
+            <span className="ps-hero-pill">{L('כרטיס מאמן', 'Coach card')}</span>
+            <ChevronFwd size={16} />
+          </span>
+        </button>
+      ))}
+
+      {/* ⚠ אישור ההורה נשאר על המסך עצמו ולא רק בגיליון: בלי אישור לא מגיעות
+          מהמאמן הזה שום משימות, וזו הפעולה היחידה שמוציאה את השחקן מהמצב
+          התקוע. כפתור שמתגלה רק אחרי לחיצה על הכרטיס הוא כפתור שלא נלחץ. */}
       {rows.filter((r) => r.status === 'pending_parent').map((r) => (
-        <div key={'p' + r.id} className="pl-pcoach-note">
-          <p className="muted small" style={{ margin: '0 0 8px' }}>
+        <div key={'p' + r.id} className="ps-card">
+          <div className="ps-card-head">
+            <b className="ps-h">{L('אישור ההורה', 'Parental approval')}</b>
+            <span className="ps-chip ps-chip--acc">{coachDisplayName(r)}</span>
+          </div>
+          <p className="ps-mut">
             {L('כדי להתחיל, ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.',
                'To start, your parent needs to approve this coach. No tasks arrive until then.')}
           </p>
-          <ParentLinkButton coachId={r.coach?.id} coachName={
-            `${r.coach?.first_name || ''} ${r.coach?.last_name || ''}`.trim()
-          } />
+          <ParentLinkButton
+            coachId={r.coach?.id}
+            coachName={`${r.coach?.first_name || ''} ${r.coach?.last_name || ''}`.trim()}
+          />
         </div>
       ))}
-    </div>
-    </div>
+
+      {rows.length === 0 && (
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><UserPlus size={20} aria-hidden="true" /></span>
+            <b>{L('אין לך עדיין מאמן אישי', 'No personal coach yet')}</b>
+            <p>{L('מאמן שעובד איתך אחד על אחד, בנפרד מהקבוצה. המשימות שהוא שולח מופיעות ב«המשימות שלי».',
+                  'A coach who works with you one-on-one, separately from the team. Tasks they send appear under “My tasks”.')}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="ps-cols">
+        <div className="ps-card">
+          <div className="ps-card-head">
+            <b className="ps-h">{rows.length ? L('הוספת מאמן', 'Add a coach') : L('יש לי קוד', 'I have a code')}</b>
+            <button type="button" className="ps-add" onClick={() => setAdding((v) => !v)} aria-expanded={adding}>
+              {adding ? L('סגירה', 'Close') : L('הזנת קוד', 'Enter a code')}
+            </button>
+          </div>
+          {adding
+            ? <PersonalCoachJoin compact onSent={() => { setAdding(false); setTick((n) => n + 1) }} />
+            : <p className="ps-mut">{L('קיבלת קוד ממאמן? הזן אותו כאן והבקשה תישלח אליו.',
+                                       'Got a code from a coach? Enter it here and the request goes to them.')}</p>}
+        </div>
+
+        {/* «מה המאמן נתן לי» מהמסמך — קיצורי דרך אמיתיים, לא נתוני דמה */}
+        {setView && (
+          <div className="ps-card">
+            <b className="ps-h">{L('מה המאמן נתן לי', 'What my coach gave me')}</b>
+            <button type="button" className="ps-linkrow" onClick={() => setView('drills')}>
+              <span className="ps-grow ps-t13">{L('המשימות שלי', 'My tasks')}</span>
+              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
+            </button>
+            <button type="button" className="ps-linkrow" onClick={() => setView('goals')}>
+              <span className="ps-grow ps-t13">{L('היעדים שלי', 'My goals')}</span>
+              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
+            </button>
+            <button type="button" className="ps-linkrow" onClick={() => setView('videos')}>
+              <span className="ps-grow ps-t13">{L('סרטוני לימוד', 'Media')}</span>
+              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {cardOf && <CoachCardSheet row={cardOf} onClose={() => setCardOf(null)} />}
+    </PlayerScreen>
   )
 }
 
-function MyAssignments({ session }) {
+// ---------- גיליון «כרטיס מאמן» ----------
+// ⚠ ‏createPortal ל-body בכוונה: ‎.main-inner מסיים אנימציית view-enter עם
+// transform, וזה הופך אותו ל-containing block לכל position:fixed שבתוכו —
+// השכבה הייתה נכלאת בתוך העמודה ולא מכסה את המסך.
+function CoachCardSheet({ row, onClose }) {
+  const ref = useFocusTrap(true, onClose)
+  // נעילת גלילת הרקע כל עוד הגיליון פתוח — אותה מכניקה כמו AddGoalSheet
+  // ו-FeedbackSheet. בלעדיה המסך שמאחורי הכיסוי נגלל בזמן שהמיקוד לכוד
+  // בדיאלוג, ו-aria-modal מפסיק לתאר את מה שקורה על המסך.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+  const c = row.coach || {}
+  return createPortal(
+    <div className="ps ps-overlay" data-page="coach">
+      <button type="button" className="ps-scrim" onClick={onClose} aria-label={L('סגירה', 'Close')} />
+      <div className="ps-sheet" ref={ref} role="dialog" aria-modal="true" aria-label={L('כרטיס מאמן', 'Coach card')}>
+        <div className="ps-sheet-head">
+          <span className="ps-av-lg ps-av-lg--soft" aria-hidden="true">
+            {initialsOf(coachDisplayName(row))}
+          </span>
+          <span className="ps-sheet-tx">
+            <span className="ps-sheet-kick">{L('כרטיס מאמן', 'Coach card')}</span>
+            <b className="ps-sheet-title">{coachDisplayName(row)}</b>
+            {c.club && <span className="ps-mut">{c.club}</span>}
+          </span>
+          <button type="button" className="ps-x" onClick={onClose} aria-label={L('סגירה', 'Close')}>
+            <X size={15} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="ps-sheet-sec">
+          <b className="ps-h">{L('הסטטוס שלי אצלו', 'My status with them')}</b>
+          <div className={row.status === 'active' ? 'ps-row ps-row--ok' : 'ps-row'}>
+            <span className="ps-grow ps-t13">{statusTx(row.status)}</span>
+            <span className={row.status === 'active' ? 'ps-chip ps-chip--ok' : 'ps-chip ps-chip--acc'}>
+              {row.status === 'active' ? L('פעיל', 'Active') : L('ממתין', 'Pending')}
+            </span>
+          </div>
+        </div>
+
+        {row.status === 'pending_parent' && (
+          <div className="ps-sheet-sec">
+            <b className="ps-h">{L('אישור ההורה', 'Parental approval')}</b>
+            <p className="ps-mut">
+              {L('כדי להתחיל, ההורה שלך צריך לאשר את המאמן הזה. עד אז לא יגיעו ממנו משימות.',
+                 'To start, your parent needs to approve this coach. No tasks arrive until then.')}
+            </p>
+            <ParentLinkButton coachId={c.id} coachName={`${c.first_name || ''} ${c.last_name || ''}`.trim()} />
+          </div>
+        )}
+
+        {row.status === 'pending_coach' && (
+          <p className="ps-mut">
+            {L('הבקשה נשלחה — המאמן צריך לאשר אותה אצלו באפליקציה.',
+               'Request sent — your coach needs to approve it on their side.')}
+          </p>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function MyAssignments({ session, bell, coachName, onCoach }) {
   const [items, setItems] = useState(null)
   const [complBy, setComplBy] = useState({}) // assignment_id -> { progress_value, done_at }
   const [filter, setFilter] = useState('open') // open | all | done
@@ -794,48 +1044,95 @@ function MyAssignments({ session }) {
     else toast.success(L(`נרשם! ${next}/${a.target_value}`, `Logged! ${next}/${a.target_value}`))
   }
 
-  // שלד תואם-צורה במקום ספינר — הרשימה לא קופצת מריק למלא
-  if (items === null) return <SkeletonCards count={3} lines={2} />
-  const openCount = items.filter((a) => !isDone(a)).length
-  const doneCount = items.length - openCount
+  // שלד תואם-צורה במקום ספינר — הרשימה לא קופצת מריק למלא.
+  // ⚠ בתוך PlayerScreen: הקנבס החדש מוריד את הסרגל העליון במובייל, ומסך
+  // בלי באנר היה נשאר בלי כותרת ובלי פעמון בזמן הטעינה.
+  if (items === null) {
+    return (
+      <PlayerScreen page="tasks" bell={bell} coach={coachName} onCoach={onCoach}>
+        <SkeletonCards count={3} lines={2} />
+      </PlayerScreen>
+    )
+  }
+  const openItems = items.filter((a) => !isDone(a))
+  const doneItems = items.filter(isDone)
+  const openCount = openItems.length
+  const doneCount = doneItems.length
   // האחוז מחשיב גם התקדמות חלקית — 100 מתוך 200 שווה חצי תרגיל
   const pct = items.length ? Math.round((items.reduce((s, a) => s + frac(a), 0) / items.length) * 100) : 0
-  const shown = items.filter((a) => filter === 'all' ? true : filter === 'done' ? isDone(a) : !isDone(a))
+
+  // הבאנר הוא המשימה הפתוחה הראשונה, ומעדיפים אחת עם יעד מספרי — היא זו
+  // שהמסמך מצייר (מונה + פס + צ׳יפים). כשאין כזו, הראשונה שיש.
+  const heroItem = filter === 'done' ? null : (openItems.find((a) => Number(a.target_value) > 0) || openItems[0] || null)
+  const cardItems = (filter === 'done' ? [] : openItems).filter((a) => a !== heroItem)
+  // ההיסטוריה מוצגת כשהמשתמש ביקש אותה, או כשאין יותר מה לעשות
+  const showHistory = doneCount > 0 && (filter !== 'open' || openCount === 0)
+
+  const band = [
+    { value: openCount, label: L('פתוחות', 'Open') },
+    { value: `${pct}%`, label: L('התקדמות', 'Progress') },
+    { value: doneCount, label: L('הושלמו', 'Completed') },
+  ]
 
   return (
-    <div className="pl-screen pl-narrow">
-      <PlHead Icon={Dumbbell} tone="green"
-        title={L('המשימות שלי', 'My tasks')}
-        subtitle={L('מה שהמאמן שלח לך · תרגילים, סרטונים ויעדים', 'What your coach sent you · drills, videos and goals')} />
-      {items.length > 0 && (
-        <div className="pla-progress">
-          <div className="pla-progress-top">
-            <span>{L('ההתקדמות שלך', 'Your progress')}</span>
-            {/* X/Y בתוך טקסט עברי — dir="ltr" כדי שהסלאש לא יתהפך (חוק RTL) */}
-            <b dir="ltr">{doneCount}/{items.length}</b>
-          </div>
-          <div className="pla-progress-bar"><span style={{ width: `${pct}%` }} /></div>
-        </div>
-      )}
-      {items.length > 0 && (
-        <div className="pla-tabs">
-          {[['open', L('לביצוע', 'To do'), openCount], ['done', L('בוצעו', 'Done'), doneCount], ['all', L('הכל', 'All'), items.length]].map(([k, lbl, n]) => (
-            <button key={k} className={filter === k ? 'pla-tab active' : 'pla-tab'} onClick={() => setFilter(k)}>{lbl} · {n}</button>
-          ))}
-        </div>
-      )}
+    <PlayerScreen page="tasks" band={items.length ? band : null} bell={bell} coach={coachName} onCoach={onCoach}>
       {items.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><Dumbbell size={26} /></span>
-          <div className="empty-title">{L('עוד לא קיבלת תרגילים', 'No drills yet')}</div>
-          <p className="muted small">{L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><Dumbbell size={20} aria-hidden="true" /></span>
+            <b>{L('עוד לא קיבלת תרגילים', 'No drills yet')}</b>
+            <p>{L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
+          </div>
         </div>
-      ) : shown.length === 0 ? (
-        <p className="muted small" style={{ padding: '10px 2px' }}>{filter === 'done' ? L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.') : L('אין תרגילים פתוחים — כל הכבוד!', 'No open drills — nice!')}</p>
       ) : (
-        shown.map((a) => <AssignmentCard key={a.id} a={a} compl={complBy[a.id]} onToggleDone={toggleDone} onProgress={addProgress} />)
+        <>
+          <div className="ps-steps" role="group" aria-label={L('סינון משימות', 'Filter tasks')}>
+            {[['open', L('לביצוע', 'To do'), openCount], ['done', L('בוצעו', 'Done'), doneCount], ['all', L('הכל', 'All'), items.length]].map(([k, lbl, n]) => (
+              <button key={k} type="button" className={filter === k ? 'ps-filter is-on' : 'ps-filter'}
+                aria-pressed={filter === k} onClick={() => setFilter(k)}>{lbl} · {n}</button>
+            ))}
+          </div>
+
+          {heroItem && (
+            <TaskHero key={heroItem.id} a={heroItem} compl={complBy[heroItem.id]} onToggleDone={toggleDone} onProgress={addProgress} />
+          )}
+
+          {/* «אפס משימות פתוחות» — במסמך זה מצב ריק חוגג, לא הודעת מערכת */}
+          {!heroItem && filter !== 'done' && (
+            <div className="ps-card">
+              <div className="ps-empty">
+                <span className="ps-empty-ic ps-empty-ic--ok"><Check size={22} aria-hidden="true" /></span>
+                <b>{L('אפס משימות פתוחות', 'No open tasks')}</b>
+                <p>{L('סיימת הכול. משימות חדשות יופיעו כאן ברגע שהמאמן ישלח.', 'All done. New tasks appear here the moment your coach sends them.')}</p>
+              </div>
+            </div>
+          )}
+
+          {cardItems.length > 0 && (
+            <div className="ps-cols">
+              {cardItems.map((a) => (
+                <AssignmentCard key={a.id} a={a} compl={complBy[a.id]} onToggleDone={toggleDone} onProgress={addProgress} />
+              ))}
+            </div>
+          )}
+
+          {showHistory && (
+            <div className="ps-card">
+              <b className="ps-h">{L('היסטוריה', 'History')}</b>
+              {doneItems.map((a) => (
+                <DoneRow key={a.id} a={a} compl={complBy[a.id]} onToggleDone={toggleDone} />
+              ))}
+            </div>
+          )}
+
+          {filter === 'done' && doneCount === 0 && (
+            <div className="ps-card">
+              <p className="ps-mut">{L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.')}</p>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </PlayerScreen>
   )
 }
 
@@ -971,7 +1268,7 @@ const wkAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); ret
 
 // 1.3 — אישור הגעה על כרטיס אימון ברשימה השבועית. אותה טבלה (practice_rsvp)
 // כמו הרצועה בבית — היעדר שורה = טרם ענה; 'לא אגיע' פותח שדה סיבה.
-function RsvpButtons({ session, membership, sessionId, sessionDate }) {
+function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false }) {
   const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
   const [busy, setBusy] = useState(false)
   const [askReason, setAskReason] = useState(false)
@@ -1013,6 +1310,54 @@ function RsvpButtons({ session, membership, sessionId, sessionDate }) {
   }
 
   if (!membership || mine === undefined) return null
+
+  // hero — אותה לוגיקה בדיוק, בלבוש של הבאנר במסמך העיצוב.
+  // ⚠ שתי תשובות ולא שלוש: השרת מכיר yes/no בלבד, ו«אאחר» של המסמך אינו
+  //    קיים ב-practice_rsvp. כפתור שלישי כאן היה מבטיח מה שלא נשמר.
+  if (hero) {
+    return (
+      <>
+        <span className="ps-hero-note">
+          {mine === 'yes' ? L('אישרת הגעה', "You're coming")
+            : mine === 'no' ? L('הודעת שלא תגיע', "You're not coming")
+            : L('מגיע לאימון?', 'Coming to practice?')}
+        </span>
+        <div className="ps-rsvp">
+          <button type="button" className={mine === 'yes' ? 'is-on' : undefined}
+            onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
+            {L('מגיע', 'Coming')}
+          </button>
+          <button type="button" className={mine === 'no' ? 'is-on' : undefined}
+            onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
+            {L('לא אגיע', "Can't make it")}
+          </button>
+        </div>
+        {askReason && (
+          <div className="ps-hero-acts">
+            <input
+              className="ps-hero-in ps-hero-in--wide" type="text" value={reason} maxLength={200}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={L('למה? (לא חובה)', 'Why? (optional)')}
+              aria-label={L('סיבה', 'Reason')}
+              onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+            />
+            <button type="button" className="ps-hero-btn" disabled={busy} onClick={() => answer('no', reason.trim())}>
+              {L('שליחה', 'Send')}
+            </button>
+          </div>
+        )}
+        {restricted && (
+          <div className="ps-hero-done">
+            <RestrictedNote>
+              {L('אישור הגעה נשמר אצל המאמן, ולכן הוא נפתח רק אחרי אישור ההורה.',
+                 'Your attendance answer is saved with your coach, so it opens only after your parent approves.')}
+            </RestrictedNote>
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className="wl-rsvp">
       <span className="wl-rsvp-q">
@@ -1060,6 +1405,7 @@ function PlayerSchedule({ session, membership }) {
   const [slotRows, setSlotRows] = useState([])
   const [weekStart, setWeekStart] = useState(() => wkSunday(new Date()))
   const [weekData, setWeekData] = useState({ entries: [], games: [] })
+  const [pickedDay, setPickedDay] = useState(null) // null = «היום», או היום הראשון עם אירוע
   const me = session.user.id
 
   // אירועי השבוע המוצג — נטענים מחדש בניווט בין שבועות
@@ -1084,10 +1430,13 @@ function PlayerSchedule({ session, membership }) {
       supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(40),
       supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(40),
     ])
+    // session_id נשמר בנפרד מ-id: ל-id יש קידומת (s/p/g) שמונעת התנגשות
+    // מפתחות, ואישור ההגעה בבאנר צריך את המזהה הנקי. חיתוך התו הראשון
+    // מ-id היה עובד היום ונשבר בשקט ברגע שמישהו ישנה את הקידומת.
     const list = [
-      ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', id: 's' + o.session_id, date: o.date, time: o.start_time, end: o.end_time, title: L('אימון קבוצתי', 'Team practice'), location: o.location })),
-      ...(pr || []).filter((e) => e.date).map((e) => ({ kind: 'practice', id: 'p' + e.id, date: e.date, time: e.start_time, end: e.end_time, title: e.plan?.name || L('אימון קבוצתי', 'Team practice'), location: e.location })),
-      ...(gm || []).map((g) => ({ kind: 'game', id: 'g' + g.id, date: g.game_date, time: g.game_time, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game'), location: g.location })),
+      ...expandSlots(slots || [], 0, 30).map((o) => ({ kind: 'practice', id: 's' + o.session_id, session_id: o.session_id, date: o.date, time: o.start_time, end: o.end_time, title: L('אימון קבוצתי', 'Team practice'), location: o.location })),
+      ...(pr || []).filter((e) => e.date).map((e) => ({ kind: 'practice', id: 'p' + e.id, session_id: e.id, date: e.date, time: e.start_time, end: e.end_time, title: e.plan?.name || L('אימון קבוצתי', 'Team practice'), location: e.location })),
+      ...(gm || []).map((g) => ({ kind: 'game', id: 'g' + g.id, session_id: g.id, date: g.game_date, time: g.game_time, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game'), location: g.location })),
     ].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
     setItems(list)
     setSlotRows(slots || [])
@@ -1095,6 +1444,7 @@ function PlayerSchedule({ session, membership }) {
 
   useEffect(() => { load() }, [load])
 
+  // הלו״ז יושב בתוך המעטפת של PlayerTeamHub, ולכן כאן שלד בלבד
   if (items === null) return <SkeletonCards count={3} lines={1} />
 
   const next = items[0] || null
@@ -1125,72 +1475,171 @@ function PlayerSchedule({ session, membership }) {
   const wkB = wkAdd(weekStart, 6)
   const weekLabel = `${wkA.getDate()}.${wkA.getMonth() + 1} – ${wkB.getDate()}.${wkB.getMonth() + 1}.${wkB.getFullYear()}`
 
-  return (
-    <div className="pl-screen pl-narrow">
-      <PlHead Icon={CalendarDays} tone="blue"
-        title={L('הלו״ז שלי', 'My schedule')}
-        subtitle={L('אימונים ומשחקים · שבוע אחרי שבוע', 'Practices and games · week by week')} />
+  const todayYmd = wkYmd(new Date())
+  // היום שנבחר ברשת: מה שהמשתמש לחץ, אחרת היום (אם הוא בשבוע המוצג),
+  // אחרת היום הראשון שיש בו אירוע, אחרת ראשון.
+  const fallbackDay = weekDays.find((d) => d.date === todayYmd)?.date
+    || weekDays.find((d) => d.items.length)?.date
+    || weekDays[0].date
+  const activeDay = weekDays.some((d) => d.date === pickedDay) ? pickedDay : fallbackDay
+  const dayRow = weekDays.find((d) => d.date === activeDay)
+  const dayItems = (dayRow?.items || []).slice().sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  const weekCount = weekDays.reduce((n, d) => n + d.items.length, 0)
+  const weekPractices = weekDays.reduce((n, d) => n + d.items.filter((e) => e.kind === 'practice').length, 0)
+  const weekGames = weekCount - weekPractices
+  const dayNames = L(['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'], ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'])
+  const kindTx = (ev) => ev.kind === 'game'
+    ? (ev.opponent ? L(`נגד ${ev.opponent}`, `vs ${ev.opponent}`) : L('משחק', 'Game'))
+    : (ev.plan?.name || L('אימון קבוצה', 'Team practice'))
+  const evTone = (ev) => ev.kind === 'game' ? 'warn' : ev.recurring ? 'ok' : 'acc'
 
+  return (
+    <>
       {items.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><CalendarDays size={26} /></span>
-          <div className="empty-title">{L('אין אירועים קרובים', 'Nothing coming up')}</div>
-          <p className="muted small">{L('ברגע שהמאמן יוסיף אימונים ומשחקים ללו״ז — הם יופיעו כאן אוטומטית.', 'When your coach adds practices and games, they show up here automatically.')}</p>
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><CalendarDays size={20} aria-hidden="true" /></span>
+            <b>{L('אין אירועים קרובים', 'Nothing coming up')}</b>
+            <p>{L('ברגע שהמאמן יוסיף אימונים ומשחקים ללו״ז — הם יופיעו כאן אוטומטית.', 'When your coach adds practices and games, they show up here automatically.')}</p>
+          </div>
         </div>
       ) : (
-        <>
-          {next && (
-            <div className={`pl-next-up ${next.kind}`}>
-              
-              <span className="pl-next-up-label">{next.kind === 'game' ? <BasketballIcon size={13} /> : <Flame size={13} />} {L('הבא בתור', 'Next up')}</span>
-              <h3>{next.title}</h3>
-              <div className="pl-next-up-meta">
-                <span><CalendarDays size={15} /> {dayLabel(next.date)}</span>
-                {next.time && <span><Clock size={15} /> {String(next.time).slice(0, 5)}</span>}
-                {next.location && <span><MapPin size={15} /> {next.location}</span>}
-                <span className="pl-next-up-kind">{next.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
-              </div>
+        next && (
+          <div className="ps-hero">
+            <div className="ps-hero-row">
+              <b className="ps-hero-kick">
+                {next.kind === 'game' ? <BasketballIcon size={13} /> : <Flame size={13} aria-hidden="true" />}{' '}
+                {dayLabel(next.date)}
+              </b>
+              <span className="ps-hero-pill">{next.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}</span>
             </div>
-          )}
-
-          {/* 1.2 — הרשימה השבועית המשותפת, עם ניווט בין שבועות */}
-          <section className="pls-grid-sec">
-            <div className="wl-nav">
-              <button type="button" className="icon-btn" onClick={() => setWeekStart(wkAdd(weekStart, -7))} aria-label={L('שבוע קודם', 'Previous week')}>
-                <ChevronBack size={18} />
-              </button>
-              <button type="button" className="btn-ghost wl-nav-today" onClick={() => setWeekStart(wkSunday(new Date()))}>
-                {L('היום', 'Today')}
-              </button>
-              <button type="button" className="icon-btn" onClick={() => setWeekStart(wkAdd(weekStart, 7))} aria-label={L('שבוע הבא', 'Next week')}>
-                <ChevronFwd size={18} />
-              </button>
-              <span className="wl-nav-label" dir="ltr">{weekLabel}</span>
-            </div>
-            <WeekList
-              days={weekDays}
-              isCoach={false}
-              renderActions={(ev) =>
-                ev.kind === 'practice' && ev.date >= wkYmd(new Date()) ? (
-                  <RsvpButtons session={session} membership={membership} sessionId={ev.session_id} sessionDate={ev.date} />
-                ) : null
-              }
-            />
-          </section>
-
-          {/* 1.8 — «אימונים שהיו» ירד מהלו"ז הפעיל; הארכיון המלא נמצא
-              ב«האימונים שלי» (PlayerTimeline). */}
-        </>
+            <b className="ps-hero-title">
+              {next.title}{next.time ? ` · ${String(next.time).slice(0, 5)}` : ''}
+            </b>
+            {/* ⚠ טווח השעות ב-bdi dir="ltr": המקף הוא תו ניטרלי, ובפסקה
+                RTL הוא הופך את סדר שני המספרים — 17:30–19:00 נצבע 19:00–17:30 */}
+            <span className="ps-hero-sub">
+              {next.location || L('פרטים נוספים אצל המאמן', 'More details from your coach')}
+              {next.end && next.time && (
+                <> · <bdi dir="ltr">{String(next.time).slice(0, 5)}–{String(next.end).slice(0, 5)}</bdi></>
+              )}
+            </span>
+            {/* אישור הגעה יושב בבאנר — במסמך זו הפעולה הראשונה במסך */}
+            {next.kind === 'practice' && next.date >= todayYmd && (
+              <RsvpButtons hero session={session} membership={membership}
+                sessionId={next.session_id} sessionDate={next.date} />
+            )}
+          </div>
+        )
       )}
 
-    </div>
+      {/* 1.2 — שבוע אחד ברשת, במקום רשימה אנכית ארוכה */}
+      <div className="ps-card">
+        <div className="ps-card-head">
+          <b className="ps-h" dir="ltr">{weekLabel}</b>
+          <span className="ps-chip ps-chip--mut">
+            {weekCount === 0
+              ? L('שבוע פנוי', 'Free week')
+              : [weekPractices ? cnt(weekPractices, L('אימון אחד', 'practice'), L('אימונים', 'practices')) : null,
+                 weekGames ? cnt(weekGames, L('משחק אחד', 'game'), L('משחקים', 'games')) : null]
+                .filter(Boolean).join(' · ')}
+          </span>
+          <span className="ps-steps">
+            <button type="button" className="ps-hbtn ps-hbtn--quiet"
+              onClick={() => setWeekStart(wkAdd(weekStart, -7))} aria-label={L('שבוע קודם', 'Previous week')}>
+              <ChevronBack size={16} aria-hidden="true" />
+            </button>
+            <button type="button" className="ps-add" onClick={() => { setWeekStart(wkSunday(new Date())); setPickedDay(null) }}>
+              {L('היום', 'Today')}
+            </button>
+            <button type="button" className="ps-hbtn ps-hbtn--quiet"
+              onClick={() => setWeekStart(wkAdd(weekStart, 7))} aria-label={L('שבוע הבא', 'Next week')}>
+              <ChevronFwd size={16} aria-hidden="true" />
+            </button>
+          </span>
+        </div>
+        <div className="ps-week">
+          {weekDays.map((d, i) => {
+            const dt = new Date(d.date + 'T00:00')
+            const on = d.date === activeDay
+            return (
+              <button key={d.date} type="button" className={on ? 'ps-day is-on' : 'ps-day'}
+                aria-pressed={on} onClick={() => setPickedDay(d.date)}
+                aria-label={`${dayNames[i]} ${dt.getDate()} · ${cnt(d.items.length, L('אירוע אחד', 'event'), L('אירועים', 'events'))}`}>
+                <span className="ps-day-nm">{dayNames[i]}</span>
+                <span className={d.date === todayYmd ? 'ps-day-num is-today' : 'ps-day-num'}>{dt.getDate()}</span>
+                <span className="ps-day-dots" aria-hidden="true">
+                  {d.items.slice(0, 3).map((ev) => (
+                    <span key={ev.key} className={`ps-dot ps-dot--${evTone(ev)}`} />
+                  ))}
+                </span>
+                <span className="ps-day-evs" aria-hidden="true">
+                  {d.items.slice(0, 3).map((ev) => (
+                    <span key={ev.key} className={`ps-day-ev ps-day-ev--${evTone(ev)}`}>
+                      <b dir="ltr">{String(ev.start_time || '').slice(0, 5) || '—'}</b>
+                      {ev.kind === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* היום שנבחר — האירועים שלו, עם אישור ההגעה מתחת לכל אימון עתידי */}
+      <div className="ps-card">
+        <div className="ps-card-head">
+          <b className="ps-h">
+            {activeDay === todayYmd ? L('היום · ', 'Today · ') : ''}
+            {new Date(activeDay + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'long' })}
+          </b>
+          <span className="ps-chip ps-chip--mut">
+            {dayItems.length === 0 ? L('ללא אירועים', 'No events') : cnt(dayItems.length, L('אירוע אחד', 'event'), L('אירועים', 'events'))}
+          </span>
+        </div>
+        {dayItems.length === 0 ? (
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><CalendarDays size={20} aria-hidden="true" /></span>
+            <b>{L('יום חופש', 'Rest day')}</b>
+            <p>{L('אין אימון או משחק. זמן טוב למשימות שקיבלת.', 'No practice or game. A good time for the tasks you were given.')}</p>
+          </div>
+        ) : dayItems.map((ev) => (
+          <div key={ev.key} className="ps-card ps-card--sub">
+            <div className="ps-row ps-row--bare">
+              <span className={`ps-bar-i ps-bar-i--${evTone(ev) === 'acc' ? 'acc' : evTone(ev)}`} aria-hidden="true" />
+              <span className="ps-row-main">
+                <b className="ps-t13b">{kindTx(ev)}</b>
+                <span className="ps-lbl">{ev.location || (ev.kind === 'game' ? L('משחק ליגה', 'League game') : L('אימון קבוצה', 'Team practice'))}</span>
+              </span>
+              <span className="ps-row-end">
+                <b className="ps-num" dir="ltr">{String(ev.start_time || '').slice(0, 5) || '—'}</b>
+                {ev.end_time && <span className="ps-lbl" dir="ltr">{String(ev.end_time).slice(0, 5)}</span>}
+              </span>
+            </div>
+            {/* ⚠ לא פעמיים לאותו אימון. הבאנר כבר מציג אישור הגעה לאירוע
+                הבא, ואם הוא גם היום הנבחר — שני עותקים של RsvpButtons היו
+                מחזיקים state נפרד לאותה שורה ב-practice_rsvp, מציגים
+                תשובות סותרות, ודורסים זה את זה אצל המאמן. */}
+            {ev.kind === 'practice' && ev.date >= todayYmd && ev.session_id !== next?.session_id && (
+              <div className="ps-slot">
+                <RsvpButtons session={session} membership={membership} sessionId={ev.session_id} sessionDate={ev.date} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* 1.8 — «אימונים שהיו» ירד מהלו"ז הפעיל; הארכיון המלא נמצא
+          ב«האימונים שלי» (PlayerTimeline). */}
+    </>
   )
 }
 
 // ---------- מסך: וידאו (סינון לפי קטגוריה + נגן מוטמע) ----------
 const PAGE = 12 // כמה סרטונים מוצגים בכל פעם
 
-function PlayerVideos() {
+function PlayerVideos({ bell, coachName, onCoach }) {
   const [videos, setVideos] = useState(null)
   const [cat, setCat] = useState('all')
   const [playing, setPlaying] = useState(null) // {id(yt), title}
@@ -1222,7 +1671,14 @@ function PlayerVideos() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  if (videos === null) return <SkeletonMedia count={6} />
+  // ⚠ בתוך PlayerScreen — ראה ההערה ב-MyAssignments
+  if (videos === null) {
+    return (
+      <PlayerScreen page="media" bell={bell} coach={coachName} onCoach={onCoach}>
+        <SkeletonMedia count={6} />
+      </PlayerScreen>
+    )
+  }
 
   // מדף "המאמן ממליץ": אם יש סרטונים מסומנים בכוכב, ברירת המחדל היא המדף
   // הקטן — לא קיר של 106 סרטונים. "כל הסרטונים" פותח את הספרייה המלאה.
@@ -1233,87 +1689,126 @@ function PlayerVideos() {
   const shown = cat === 'all' ? pool : pool.filter((v) => v.category === cat)
   const visible = shelfMode ? shown : shown.slice(0, limit)
 
+  // המסמך מסדר את המדיה ב**רצועות** לפי נושא ולא בקיר אחד של כרטיסים.
+  // כשמסננים לקטגוריה אחת יש רצועה אחת; במדף המומלצים — רצועה אחת מסומנת.
+  const strips = shelfMode
+    ? [{ key: 'featured', title: L('המאמן ממליץ', 'Coach recommends'), vids: visible }]
+    : cat !== 'all'
+      ? [{ key: cat, title: cat, vids: visible }]
+      : cats.slice(1)
+        .map((c) => ({ key: c, title: c, vids: visible.filter((v) => v.category === c) }))
+        .filter((r) => r.vids.length > 0)
+        // סרטון בלי קטגוריה (או קטגוריה שאינה ברשימה) לא ייפול בין הכיסאות
+        .concat((() => {
+          const rest = visible.filter((v) => !cats.slice(1).includes(v.category))
+          return rest.length ? [{ key: '__rest', title: L('עוד סרטונים', 'More videos'), vids: rest }] : []
+        })())
+
+  const band = [
+    { value: videos.length, label: L('סרטוני מאמן', 'Coach videos') },
+    { value: cats.length - 1, label: L('נושאים', 'Topics') },
+    { value: PODCASTS.length, label: L('פודקאסטים', 'Podcasts') },
+  ]
+
+  const openVid = (v) => {
+    const yt = getYouTubeId(v.url)
+    if (yt) setPlaying({ id: yt, title: v.title })
+    else window.open(safeUrl(v.url) || '#', '_blank')
+  }
+
   return (
-    <div className="pl-screen pl-narrow">
-      <PlHead Icon={MonitorPlay} tone="blue"
-        title={L('מדיה', 'Media')}
-        subtitle={L('סרטונים ופודקאסטים שנבחרו בשבילך', 'Videos and podcasts picked for you')} />
+    <PlayerScreen page="media" band={band} bell={bell} coach={coachName} onCoach={onCoach}>
       {/* 1.11 — מתג סרטונים/פודקאסטים, אותה פריסה כמו אצל המאמן */}
-      <div className="tabs md-tabs">
-        <button type="button" className={mediaMode === 'videos' ? 'tab active' : 'tab'}
-          aria-pressed={mediaMode === 'videos'} onClick={() => setMediaMode('videos')}>
-          <Play size={15} aria-hidden="true" /> {L('סרטונים', 'Videos')}
-        </button>
-        <button type="button" className={mediaMode === 'podcasts' ? 'tab active' : 'tab'}
-          aria-pressed={mediaMode === 'podcasts'} onClick={() => setMediaMode('podcasts')}>
-          {L('פודקאסטים', 'Podcasts')}
-        </button>
+      <div className="ps-card">
+        <div className="ps-card-head">
+          <b className="ps-h">{L('הסרטונים שהמאמן שיתף', 'What your coach shared')}</b>
+          <span className="ps-chip ps-chip--mut">YouTube</span>
+        </div>
+        <div className="ps-steps" role="group" aria-label={L('סינון מדיה', 'Filter media')}>
+          <button type="button" className={mediaMode === 'videos' && cat === 'all' && !allOpen ? 'ps-filter is-on' : 'ps-filter'}
+            aria-pressed={mediaMode === 'videos' && cat === 'all' && !allOpen}
+            onClick={() => { setMediaMode('videos'); setCat('all'); setAllOpen(false); setLimit(PAGE) }}>
+            {L('הכל', 'All')}
+          </button>
+          {mediaMode === 'videos' && cats.slice(1).map((c) => (
+            <button key={c} type="button" className={cat === c ? 'ps-filter is-on' : 'ps-filter'}
+              aria-pressed={cat === c}
+              onClick={() => { setCat(c); setAllOpen(true); setLimit(PAGE) }}>
+              {c}
+            </button>
+          ))}
+          <button type="button" className={mediaMode === 'podcasts' ? 'ps-filter is-on' : 'ps-filter'}
+            aria-pressed={mediaMode === 'podcasts'} onClick={() => setMediaMode('podcasts')}>
+            {L('פודקאסטים', 'Podcasts')}
+          </button>
+        </div>
       </div>
+
       {mediaMode === 'podcasts' ? (
-        <div className="podcast-grid podcast-grid-full" style={{ marginTop: 12 }}>
+        <div className="ps-card">
+          <b className="ps-h">{L('פודקאסטים', 'Podcasts')}</b>
           {PODCASTS.map((p) => (
-            <a key={p.title} className="podcast-card" href={p.url} target="_blank" rel="noreferrer">
-              <div className="podcast-body">
-                <div className="podcast-top">
-                  <span className="podcast-title">{p.title}</span>
-                  <span className="podcast-lang">{p.lang}</span>
-                </div>
-                <span className="podcast-desc">{p.desc}</span>
-                <span className="podcast-open">{L('פתח בספוטיפיי', 'Open in Spotify')}</span>
-              </div>
+            <a key={p.title} className="ps-linkrow" href={p.url} target="_blank" rel="noreferrer">
+              <span className="ps-row-main">
+                <b className="ps-t13b">{p.title}</b>
+                <span className="ps-lbl">{p.desc}</span>
+              </span>
+              <span className="ps-chip ps-chip--mut">{p.lang}</span>
+              <span className="ps-linkrow-go">{L('פתח', 'Open')}</span>
             </a>
           ))}
         </div>
       ) : videos.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><MonitorPlay size={26} /></span>
-          <div className="empty-title">{L('אין סרטונים כרגע', 'No videos yet')}</div>
-          <p className="muted small">{L('המאמן יוסיף כאן סרטוני תרגול — לפי קטגוריות.', 'Your coach will add training videos here, by category.')}</p>
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><MonitorPlay size={20} aria-hidden="true" /></span>
+            <b>{L('אין סרטונים כרגע', 'No videos yet')}</b>
+            <p>{L('המאמן יוסיף כאן סרטוני תרגול — לפי קטגוריות.', 'Your coach will add training videos here, by category.')}</p>
+          </div>
         </div>
       ) : (
         <>
-          {shelfMode ? (
-            <p className="pl-shelf-label"><Star size={14} fill="currentColor" /> {L('המאמן ממליץ', 'Coach recommends')}</p>
-          ) : (
-            <div className="pl-cat-chips">
-              {cats.map((c) => (
-                <button key={c} className={cat === c ? 'pl-chip active' : 'pl-chip'}
-                  onClick={() => { setCat(c); setLimit(PAGE) }}>
-                  {c === 'all' ? L('הכל', 'All') : c}
-                </button>
-              ))}
+          {strips.map((row) => (
+            <div key={row.key} className="ps-card">
+              <div className="ps-card-head">
+                <b className="ps-h">
+                  {row.key === 'featured' && <Star size={14} fill="currentColor" aria-hidden="true" />} {row.title}
+                </b>
+                <span className="ps-chip ps-chip--mut">
+                  {cnt(row.vids.length, L('סרטון אחד', 'video'), L('סרטונים', 'videos'))}
+                </span>
+              </div>
+              {/* רצועה נגללת בטלפון, רשת בדסקטופ — כמו במסמך */}
+              <div className="ps-strip ps-scrollrow">
+                {row.vids.map((v) => {
+                  const yt = getYouTubeId(v.url)
+                  return (
+                    <button key={v.id} type="button" className="ps-vid" onClick={() => openVid(v)}>
+                      <span className="ps-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}>
+                        <span className="ps-play"><Play size={16} fill="currentColor" aria-hidden="true" /></span>
+                      </span>
+                      {/* dir=auto — כותרות באנגלית בתוך עמוד RTL הציגו סימני פיסוק בצד הלא נכון */}
+                      <b className="ps-vid-tt" dir="auto">{cleanVideoTitle(v.title)}</b>
+                      {v.category && <span className="ps-vid-meta">{v.category}</span>}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          )}
-          <div className="pl-vid-grid">
-            {visible.map((v) => {
-              const yt = getYouTubeId(v.url)
-              return (
-                <button key={v.id} className="pl-vid" onClick={() => yt ? setPlaying({ id: yt, title: v.title }) : window.open(safeUrl(v.url) || '#', '_blank')}>
-                  <span className="pl-vid-thumb" style={yt ? { backgroundImage: `url("https://img.youtube.com/vi/${yt}/hqdefault.jpg")` } : undefined}>
-                    <span className="pl-vid-play"><Play size={18} fill="#fff" /></span>
-                  </span>
-                  <span className="pl-vid-body">
-                    {/* dir=auto — כותרות באנגלית בתוך עמוד RTL הציגו סימני פיסוק בצד הלא נכון */}
-                    <span className="pl-vid-title" dir="auto">{cleanVideoTitle(v.title)}</span>
-                    {v.category && <span className="cat-badge" data-cat={v.category}>{v.category}</span>}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+          ))}
           {shelfMode ? (
-            <button type="button" className="pl-more" onClick={() => setAllOpen(true)}>
+            <button type="button" className="ps-btn-ghost" onClick={() => setAllOpen(true)}>
               {L(`לכל הסרטונים (${videos.length})`, `All videos (${videos.length})`)}
             </button>
           ) : (
             <>
               {featured.length > 0 && (
-                <button type="button" className="pl-more pl-back-shelf" onClick={() => { setAllOpen(false); setCat('all') }}>
-                  <Star size={14} fill="currentColor" /> {L('חזרה למומלצים של המאמן', "Back to coach's picks")}
+                <button type="button" className="ps-btn-ghost" onClick={() => { setAllOpen(false); setCat('all') }}>
+                  <Star size={14} fill="currentColor" aria-hidden="true" /> {L('חזרה למומלצים של המאמן', "Back to coach's picks")}
                 </button>
               )}
               {shown.length > limit && (
-                <button type="button" className="pl-more" onClick={() => setLimit((l) => l + PAGE)}>
+                <button type="button" className="ps-btn-ghost" onClick={() => setLimit((l) => l + PAGE)}>
                   {L(`עוד סרטונים (${shown.length - limit})`, `More videos (${shown.length - limit})`)}
                 </button>
               )}
@@ -1341,7 +1836,7 @@ function PlayerVideos() {
         </div>,
         document.body
       )}
-    </div>
+    </PlayerScreen>
   )
 }
 
@@ -2741,7 +3236,7 @@ function MyDataCard() {
 }
 
 // ---------- מסך: פרופיל (זהות, סטטיסטיקות, קבוצות, הגדרות) ----------
-function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView }) {
+function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView, bell, coachName: coachNameProp, onCoach }) {
   const [st, setSt] = useState(null)
   useEffect(() => {
     ;(async () => {
@@ -2764,82 +3259,92 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
   }, [session.user.id])
 
   const role = [L('שחקן', 'Player'), profile.position, profile.birth_year ? `${L('שנתון', 'b.')} ${profile.birth_year}` : null].filter(Boolean).join(' · ')
+  const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+  const approved = memberships.filter((m) => m.status === 'approved')
+
+  const band = st ? [
+    { value: st.attendancePct != null ? `${st.attendancePct}%` : '—', label: L('נוכחות', 'Attendance') },
+    { value: st.done, label: L('תרגילים בוצעו', 'Drills done') },
+    { value: st.avgLoad ?? '—', label: L('עומס ממוצע', 'Avg load') },
+  ] : null
 
   return (
-    <div className="pl-screen pl-narrow">
-      {/* 18a — הירו הנייבי של הפרופיל: אווטאר בצד, שם ומטא לצדו,
-          כמו בכל שאר מסכי השחקן */}
-      <div className="plp-head">
-        <Avatar name={`${profile.first_name} ${profile.last_name || ''}`} url={profile.avatar_url} size={72} />
-        <div className="plp-head-txt">
-          <span className="plp-eyebrow">{L('הפרופיל שלי', 'My profile')}</span>
-          <h2 className="plp-name" dir="auto">{profile.first_name} {profile.last_name}</h2>
-          <span className="plp-role">{role}</span>
+    <PlayerScreen page="profile" band={band} bell={bell} coach={coachNameProp} onCoach={onCoach}>
+      {/* במסמך הפרופיל נפתח בבאנר זהות — אווטאר גדול, שם, ותפקיד */}
+      <div className="ps-hero">
+        <div className="ps-prof">
+          <span className="ps-prof-av">
+            {profile.avatar_url
+              ? <Avatar name={fullName} url={profile.avatar_url} size={64} />
+              : initialsOf(fullName)}
+          </span>
+          <span className="ps-coach-tx">
+            <span className="ps-hero-kick">
+              {approved.length ? trTeam(approved[0].team) : L('שחקן', 'Player')}
+            </span>
+            <b className="ps-hero-title" dir="auto">{profile.first_name} {profile.last_name}</b>
+            <span className="ps-hero-sub">{role}</span>
+          </span>
+        </div>
+        <div className="ps-hero-acts">
+          <button type="button" className="ps-hero-btn" onClick={onEdit}>
+            <Pencil size={14} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
+          </button>
         </div>
       </div>
 
-      {st && (
-        <div className="plt-trio" style={{ marginTop: 18 }}>
-          <div className="plt-stat"><b className="green">{st.attendancePct != null ? `${st.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attendance')}</span></div>
-          <div className="plt-stat"><b className="brand" dir="ltr">{st.avgLoad ?? '—'}</b><span>{L('עומס ממוצע', 'Avg load')}</span></div>
-          <div className="plt-stat"><b>{st.done}</b><span>{L('תרגילים', 'Drills')}</span></div>
+      <div className="ps-cols">
+        <div className="ps-card">
+          <b className="ps-h">{L('הקבוצות שלי', 'My teams')}</b>
+          {memberships.length === 0 ? (
+            <div className="ps-slot"><JoinTeam session={session} onJoined={onJoined} compact /></div>
+          ) : (
+            <>
+              {memberships.map((m) => (
+                <div key={m.id} className={m.status === 'approved' ? 'ps-row ps-row--acc' : 'ps-row'}>
+                  <span className={m.status === 'approved' ? 'ps-team-av' : 'ps-team-av ps-team-av--mut'} aria-hidden="true">
+                    {(trTeam(m.team) || '?').slice(0, 2)}
+                  </span>
+                  <span className="ps-row-main">
+                    <b className="ps-t13b">{trTeam(m.team)}</b>
+                    <span className="ps-lbl">{coachName(m.coach)}</span>
+                  </span>
+                  <span className={m.status === 'approved' ? 'ps-chip ps-chip--ok' : 'ps-chip ps-chip--mut'}>
+                    {m.status === 'approved' ? L('מאושר', 'Approved') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
+                  </span>
+                </div>
+              ))}
+              <button type="button" className="ps-add" onClick={() => setView('home')}>
+                {L('הצטרפות לקבוצה נוספת', 'Join another team')}
+              </button>
+            </>
+          )}
         </div>
-      )}
 
-      <p className="pl-section-label" style={{ marginTop: 18 }}>{L('הקבוצות שלי', 'My teams')}</p>
-      {memberships.length === 0 ? (
-        <JoinTeam session={session} onJoined={onJoined} compact />
-      ) : (
-        <ul className="plp-teams">
-          {memberships.map((m) => (
-            <li key={m.id} className="plp-team">
-              <span className="plp-team-badge">{(trTeam(m.team) || '?').slice(0, 2)}</span>
-              <div className="plp-team-body">
-                <strong>{trTeam(m.team)}</strong>
-                <span className="muted small">{coachName(m.coach)}</span>
-              </div>
-              <span className={`plp-team-status st-${m.status}`}>
-                {m.status === 'approved' ? L('מאושר', 'Approved') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <button className="plp-edit" onClick={onEdit}><Pencil size={16} /> {L('עריכת פרטים', 'Edit details')}</button>
-      {memberships.length > 0 && (
-        <button className="plp-join-more" onClick={() => setView('home')}>{L('הצטרפות לקבוצה נוספת', 'Join another team')}</button>
-      )}
-
-      {/* לשחקן בגיר אין הורה מאשר — הכרטיס כולו יורד מהמסך */}
-      {!isAdultPlayer(profile) && <ParentConsentCard profile={profile} />}
-
-      {/* זכות עיון — פתוח לכל שחקן, קטין או בגיר */}
-      <MyDataCard />
-
-
-      <p className="pl-section-label" style={{ marginTop: 20 }}>{L('הגדרות', 'Settings')}</p>
-      <div className="plp-settings">
-        <div className="plp-set-row">
-          <span className="plp-set-ic"><Moon size={17} /></span>
-          <span className="plp-set-label">{L('מצב כהה', 'Dark mode')}</span>
-          <DarkSwitch />
-        </div>
-        <div className="plp-set-row">
-          <span className="plp-set-ic"><Globe size={17} /></span>
-          <span className="plp-set-label">{L('שפה', 'Language')}</span>
-          <span className="plp-set-ctrl"><LanguageToggle /></span>
-        </div>
-        {/* שינוי סיסמה מתוך הפרופיל (TODO §13) */}
-        <ChangePassword />
-        <button className="plp-set-row plp-logout" onClick={onSignOut}>
-          <span className="plp-set-ic brand"><LogOut size={17} /></span>
-          <span className="plp-set-label">{L('התנתקות', 'Sign out')}</span>
-        </button>
-        {/* 1.15 — נתיב בקשת מחיקת חשבון (טבלה מ-supabase_legal_launch.sql; fallback למייל) */}
-        <button
-          className="plp-set-row plp-delreq"
-          onClick={async () => {
+        <div className="ps-card">
+          <b className="ps-h">{L('הגדרות', 'Settings')}</b>
+          <div className="ps-set">
+            <span className="ps-set-ic" aria-hidden="true"><Moon size={16} /></span>
+            <span className="ps-grow ps-t13">{L('מצב כהה', 'Dark mode')}</span>
+            <DarkSwitch />
+          </div>
+          <div className="ps-set">
+            <span className="ps-set-ic" aria-hidden="true"><Globe size={16} /></span>
+            <span className="ps-grow ps-t13">{L('שפה', 'Language')}</span>
+            <LanguageToggle />
+          </div>
+          {/* שינוי סיסמה מתוך הפרופיל (TODO §13) */}
+          <div className="ps-slot"><ChangePassword /></div>
+          <button type="button" className="ps-set" onClick={onSignOut}>
+            <span className="ps-set-ic" aria-hidden="true"><LogOut size={16} /></span>
+            <span className="ps-grow ps-t13">{L('התנתקות', 'Sign out')}</span>
+            <span className="ps-set-val">{L('יציאה', 'Out')}</span>
+          </button>
+          {/* 1.15 — נתיב בקשת מחיקת חשבון (טבלה מ-supabase_legal_launch.sql; fallback למייל) */}
+          <button
+            type="button"
+            className="ps-set"
+            onClick={async () => {
             const ok = window.confirm(L(
               'לבקש מחיקת חשבון? נטפל בבקשה בתוך 30 יום, וניצור קשר במייל של החשבון.',
               'Request account deletion? We handle requests within 30 days and reply to your account email.'))
@@ -2849,14 +3354,25 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
               window.location.href = 'mailto:agam15122003@gmail.com?subject=' + encodeURIComponent('בקשת מחיקת חשבון CourtSide')
               return
             }
-            toast.success(L('הבקשה נרשמה — נחזור אליך במייל', 'Request logged — we will reply by email'))
-          }}
-        >
-          <span className="plp-set-ic"><X size={17} /></span>
-          <span className="plp-set-label">{L('בקשת מחיקת חשבון', 'Request account deletion')}</span>
-        </button>
+              toast.success(L('הבקשה נרשמה — נחזור אליך במייל', 'Request logged — we will reply by email'))
+            }}
+          >
+            <span className="ps-set-ic" aria-hidden="true"><X size={16} /></span>
+            <span className="ps-grow ps-t13">{L('בקשת מחיקת חשבון', 'Request account deletion')}</span>
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* לשחקן בגיר אין הורה מאשר — הכרטיס כולו יורד מהמסך.
+          שני הכרטיסים האלה אינם במסמך העיצוב; הם מקבלים את הקנבס
+          החדש דרך ‎.ps-slot ושומרים על המרקאפ המשפטי שלהם. */}
+      {!isAdultPlayer(profile) && (
+        <div className="ps-card"><div className="ps-slot"><ParentConsentCard profile={profile} /></div></div>
+      )}
+
+      {/* זכות עיון — פתוח לכל שחקן, קטין או בגיר */}
+      <div className="ps-card"><div className="ps-slot"><MyDataCard /></div></div>
+    </PlayerScreen>
   )
 }
 
@@ -2901,6 +3417,16 @@ const pocketNavFor = (hasTeam) =>
   hasTeam
     ? ['home', 'drills', 'feedback', 'schedule']
     : ['home', 'boards', 'drills', 'feedback']
+
+// המסכים שעברו לשפה של PlayerScreens.dc.html (17.8). הם חולקים קנבס
+// אחד (#F1F5FD / כהה), הבאנר שלהם הוא הכותרת, ולכן הסרגל העליון יורד
+// אצלם במובייל — בדיוק כמו בבית וב«עולם הכדורסל».
+// ⚠ ‏coach/team/teamchat נמצאים ברשימה כי שלושתם מרנדרים את PlayerTeamHub,
+// כלומר את אותו מסך «הקבוצה והלו״ז» עם לשונית פתוחה אחרת.
+const PS_VIEWS = ['drills', 'goals', 'schedule', 'pcoach', 'videos', 'profile', 'coach', 'team', 'teamchat']
+// אלה שמתחלפים ב-LockedFeature לשחקן בלי קבוצה — ואז אין באנר, ולכן גם
+// אסור להוריד את הסרגל העליון
+const PS_TEAM_VIEWS = ['goals', 'schedule', 'coach', 'team', 'teamchat']
 
 export default function PlayerDashboard({ session, profile, onProfileReload, restricted: restrictedProp, canSelfConfirm = false }) {
   // נחיתה מכוונת: מי שהגיע מלינק המגרש (#/court) נוחת על המגרש ולא על
@@ -2967,6 +3493,19 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const nav = PLAYER_NAV
   const label = (item) => L(item.label[0], item.label[1])
 
+  // ---- המסכים בשפת PlayerScreens ----
+  // ⚠ שתי חריגות, ושתיהן מאותה סיבה: הקנבס החדש מוריד את הסרגל העליון
+  //    במובייל כי הבאנר הוא הכותרת. מסך שאין לו באנר יישאר בלי שום כותרת.
+  //    (א) עריכת הפרופיל היא טופס רגיל.
+  //    (ב) שחקן בלי קבוצה מקבל LockedFeature במקום חמשת מסכי הקבוצה.
+  const isPs = !editing && PS_VIEWS.includes(view) && (hasTeam || !PS_TEAM_VIEWS.includes(view))
+  // הפעמון יורד לתוך הבאנר של המסך (הסרגל העליון מוסתר שם במובייל).
+  // אלמנט חדש בכל רינדור במכוון: ‎.main-inner ממילא ממותג ב-key לפי המסך.
+  const psBell = <Notifications session={session} onNavigate={navFromNotification} />
+  const psCoachName = coach ? coachName(coach) : null
+  // כפתור המאמן בכותרת מוביל ל«המאמן האישי». במסך הזה עצמו אין לאן ללכת.
+  const psOnCoach = view === 'pcoach' ? null : () => setView('pcoach')
+
   const renderView = () => {
     if (editing) {
       return (
@@ -3006,13 +3545,16 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // מלבן הפוסט בקהילה, תיעוד יעד): הקובץ הזה לא רשאי לגעת בהם, וה-prop הוא
   // הקצה שדרכו הבעלים שלהם משבית את הפקד עצמו.
   const renderScreen = () => {
+    // ps — המידע שכל אחד מששת המסכים צריך לבאנר שלו (פעמון, שם המאמן
+    // לכפתור הקיצור, וניווט אליו). מרוכז כאן כדי שלא ישוכפל בשש קריאות.
+    const ps = { bell: psBell, coachName: psCoachName, onCoach: psOnCoach, setView }
     switch (view) {
-      case 'drills': return <MyAssignments session={session} />
-      case 'pcoach': return <MyPersonalCoaches session={session} />
+      case 'drills': return <MyAssignments session={session} {...ps} />
+      case 'pcoach': return <MyPersonalCoaches session={session} {...ps} />
       case 'coach':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach"
-              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach" {...ps}
+              ScheduleView={<PlayerSchedule session={session} membership={membership} restricted={restricted} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('המאמן שלי', 'My coach')}
               desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
@@ -3024,22 +3566,22 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
       case 'goals':
         return hasTeam
-          ? <MyGoals session={session} membership={membership} restricted={restricted} />
+          ? <MyGoals session={session} membership={membership} restricted={restricted} {...ps} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('היעדים שלי', 'My goals')}
               desc={L('המאמן יגדיר לך יעדים ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />
       case 'schedule':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="schedule"
-              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="schedule" {...ps}
+              ScheduleView={<PlayerSchedule session={session} membership={membership} restricted={restricted} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('לוח האימונים והמשחקים', 'Schedule')}
               desc={L('לו״ז האימונים והמשחקים של הקבוצה יופיע כאן. הצטרפו לקבוצה עם קוד מהמאמן.', 'Your team’s practices and games appear here. Join a team with a code from your coach.')} />
-      case 'videos': return <PlayerVideos />
+      case 'videos': return <PlayerVideos {...ps} />
       case 'teamchat':
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="chat"
-              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="chat" {...ps}
+              ScheduleView={<PlayerSchedule session={session} membership={membership} restricted={restricted} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('צ׳אט הקבוצה', 'Team chat')}
               desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
@@ -3047,8 +3589,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
       case 'team':
         // קישורים ישנים ממשיכים לעבוד — נפתח על לשונית «הקבוצה שלי»
         return hasTeam
-          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="team"
-              ScheduleView={<PlayerSchedule session={session} membership={membership} />} />
+          ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="team" {...ps}
+              ScheduleView={<PlayerSchedule session={session} membership={membership} restricted={restricted} />} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
@@ -3056,14 +3598,14 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
         return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromNotification} />} />
       case 'profile':
-        return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} />
+        return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
       default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} />
     }
   }
 
   return (
     <RestrictedCtx.Provider value={restrictedCtx}>
-    <div className="layout pl-layout" data-view={editing ? 'edit' : view}>
+    <div className={isPs ? 'layout pl-layout ps-host' : 'layout pl-layout'} data-view={editing ? 'edit' : view}>
       <header className="mobile-topbar">
         <button className="drawer-toggle" onClick={() => setDrawer(true)} aria-label={L('תפריט', 'Menu')}><Menu size={22} /></button>
         <div className="sidebar-brand">
@@ -3126,12 +3668,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         )}
         {/* data-view (7.8) — מאפשר ל-CSS לשחרר את תקרת הרוחב בבית בלבד,
             באותו מנגנון כמו אצל המאמן */}
-        <div className="main-inner" data-view={editing ? 'edit' : view} key={editing ? 'edit' : view}>
+        <div className={isPs ? 'main-inner ps-view' : 'main-inner'} data-view={editing ? 'edit' : view} key={editing ? 'edit' : view}>
           {/* גדר בטיחות: קריסה במסך אחד לא מוחקת את כל אזור השחקן */}
           <ErrorBoundary screen={`player:${editing ? 'edit' : view}`}>{renderView()}</ErrorBoundary>
           {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}
-          {/* הציטוט אינו במוקאפ של הבית (3b) — הוא נשאר בשאר המסכים */}
-          {!editing && !['home', 'teamchat', 'coach', 'community', 'boards'].includes(view) && <PlayerQuote />}
+          {/* הציטוט אינו במוקאפ של הבית (3b), של «עולם הכדורסל», ולא של
+              ששת מסכי PlayerScreens (17.8) — הם נסגרים בכרטיס משלהם */}
+          {!editing && !isPs && !['home', 'teamchat', 'coach', 'community', 'boards'].includes(view) && <PlayerQuote />}
         </div>
       </main>
 

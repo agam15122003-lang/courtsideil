@@ -17,6 +17,7 @@ import { expandSlots } from './sessionId'
 import TeamChat from './TeamChat'
 import CoachChat from './CoachChat'
 import LeagueTable from './LeagueTable'
+import PlayerScreen from './PlayerScreen'
 
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -223,32 +224,58 @@ function QuickRequests({ session, membership, coach }) {
   )
 }
 
-export default function PlayerTeamHub({ session, membership, coach, initialTab, ScheduleView }) {
+// כותרת לכל לשונית — הבאנר של PlayerScreen מתחלף איתן
+const TAB_HEAD = {
+  schedule: { kicker: ['לו״ז', 'SCHEDULE'], title: ['הלו״ז שלי', 'My schedule'] },
+  team:     { kicker: ['הקבוצה', 'TEAM'], title: ['הקבוצה שלי', 'My team'] },
+  chat:     { kicker: ['צ׳אט', 'CHAT'], title: ['צ׳אט הקבוצה', 'Team chat'] },
+  coach:    { kicker: ['מאמן', 'COACH'], title: ['המאמן שלי', 'My coach'] },
+}
+
+export default function PlayerTeamHub({ session, membership, coach, initialTab, ScheduleView, bell, coachName, onCoach }) {
   const [tab, setTab] = useState(initialTab || 'schedule')
   useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
+  const head = TAB_HEAD[tab] || TAB_HEAD.schedule
+
+  // ⚠ הלשוניות תופסות את מקום שורת המספרים ורוכבות על תחתית הבאנר —
+  //    אותה הכרעה כמו ב«עולם הכדורסל», ומהסיבה הזהה: המסך הזה הוא ארבעה
+  //    מסכים, ובלי הגלולה הזאת שלושה מהם נעלמים.
+  const tabs = (
+    <nav className="ps-seg" aria-label={L('לשוניות הקבוצה', 'Team tabs')}>
+      {TABS.map((t) => (
+        <button key={t.id} type="button" className={tab === t.id ? 'ps-seg-btn is-on' : 'ps-seg-btn'}
+          aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
+          <t.Icon size={15} aria-hidden="true" /> {L(t.label[0], t.label[1])}
+        </button>
+      ))}
+    </nav>
+  )
 
   return (
-    <div className="pl-screen pth">
-      <div className="tabs pth-tabs">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'tab active' : 'tab'}
-            aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
-            <t.Icon size={15} aria-hidden="true" /> {L(t.label[0], t.label[1])}
-          </button>
-        ))}
-      </div>
-
+    <PlayerScreen
+      page="sched"
+      kicker={L(head.kicker[0], head.kicker[1])}
+      title={L(head.title[0], head.title[1])}
+      rider={tabs}
+      bell={bell}
+      coach={coachName}
+      onCoach={onCoach}
+    >
       {tab === 'schedule' && ScheduleView}
-      {tab === 'team' && <MyTeamTab membership={membership} />}
+      {/* שלוש הלשוניות האחרות אינן במסמך העיצוב — הן מקבלות את הקנבס
+          החדש דרך ‎.ps-slot ושומרות על המרקאפ שלהן */}
+      {tab === 'team' && <div className="ps-slot"><MyTeamTab membership={membership} /></div>}
       {tab === 'chat' && (
-        <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
+        <div className="ps-slot">
+          <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
+        </div>
       )}
       {tab === 'coach' && (
-        <>
+        <div className="ps-slot">
           <QuickRequests session={session} membership={membership} coach={coach} />
           <CoachChat session={session} coach={coach} />
-        </>
+        </div>
       )}
-    </div>
+    </PlayerScreen>
   )
 }

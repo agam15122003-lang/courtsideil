@@ -8,6 +8,7 @@ import { L } from './i18n'
 import { burstConfetti } from './confetti'
 import { SkeletonCards } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
+import PlayerScreen from './PlayerScreen'
 
 // מסך שמופנה לקטינים — כישלון שליפה חייב להיראות כשגיאה עם «נסה שוב»,
 // לא כ«אין יעדים». העוזר הזה מרכז את הבדיקה לכל קריאות ה-update/delete.
@@ -172,8 +173,8 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
                       <TrendingUp size={14} />
                     </button>
                   )}
-                  <button className="icon-btn" onClick={() => bump(g, -1)} aria-label="-"><Minus size={14} /></button>
-                  <button className="icon-btn" onClick={() => bump(g, 1)} aria-label="+"><Plus size={14} /></button>
+                  <button className="icon-btn" onClick={() => bump(g, -1)} disabled={restricted} aria-label="-"><Minus size={14} /></button>
+                  <button className="icon-btn" onClick={() => bump(g, 1)} disabled={restricted} aria-label="+"><Plus size={14} /></button>
                 </div>
               ) : (
                 <button className={g.status === 'done' ? 'pg-check on' : 'pg-check'} onClick={() => toggleDone(g)} aria-label={L('הושג', 'Done')}><Check size={14} /></button>
@@ -275,7 +276,7 @@ export function GoalChart({ logs, target, goalId }) {
 }
 
 // ---------- מסך היעדים של השחקן — עם תיעוד עצמי ----------
-export function MyGoals({ session, membership }) {
+export function MyGoals({ session, membership, restricted = false, bell, coachName, onCoach }) {
   const [goals, setGoals] = useState(null)
   const [logsBy, setLogsBy] = useState({})
   const [openId, setOpenId] = useState(null)
@@ -365,153 +366,272 @@ export function MyGoals({ session, membership }) {
     return true
   }
 
-  if (goals === null) return <SkeletonCards count={3} lines={2} />
+  // ⚠ גם הטעינה וגם השגיאה עטופות ב-PlayerScreen: הקנבס החדש מוריד את
+  // הסרגל העליון במובייל, ומסך בלי באנר נשאר בלי כותרת ובלי פעמון.
+  if (goals === null) {
+    return (
+      <PlayerScreen page="goals" bell={bell} coach={coachName} onCoach={onCoach}>
+        <SkeletonCards count={3} lines={2} />
+      </PlayerScreen>
+    )
+  }
 
   // מצב שגיאה — לא «אין יעדים». הסבר מרגיע + «נסה שוב».
   if (loadErr) {
     return (
-      <div className="pl-screen pl-narrow">
-        <div className="empty-state" role="alert">
-          <span className="empty-ic"><Target size={26} /></span>
-          <div className="empty-title">{L('לא הצלחנו לטעון את היעדים', 'Could not load your goals')}</div>
-          <p className="muted small">{L('היעדים שלך לא נמחקו — זו תקלת טעינה. בדקו את החיבור ונסו שוב.', 'Your goals were not deleted — this is a loading error. Check your connection and try again.')}</p>
-          <button type="button" className="btn-primary empty-cta" onClick={() => { setGoals(null); setLoadErr(null); load() }}>
-            {L('נסה שוב', 'Try again')}
-          </button>
+      <PlayerScreen page="goals" bell={bell} coach={coachName} onCoach={onCoach}>
+        <div className="ps-card">
+          <div className="ps-empty" role="alert">
+            <span className="ps-empty-ic"><Target size={20} aria-hidden="true" /></span>
+            <b>{L('לא הצלחנו לטעון את היעדים', 'Could not load your goals')}</b>
+            <p>{L('היעדים שלך לא נמחקו — זו תקלת טעינה. בדקו את החיבור ונסו שוב.', 'Your goals were not deleted — this is a loading error. Check your connection and try again.')}</p>
+            <button type="button" className="ps-btn" onClick={() => { setGoals(null); setLoadErr(null); load() }}>
+              {L('נסה שוב', 'Try again')}
+            </button>
+          </div>
         </div>
-      </div>
+      </PlayerScreen>
     )
   }
 
   const total = goals.length
-  const inProg = goals.filter((g) => goalFrac(g) < 1).length
   const overallPct = total ? Math.round(goals.reduce((a, g) => a + goalFrac(g), 0) / total * 100) : 0
+
+  // מקור היעד — טקסט אחד שמשמש גם בכרטיס וגם בבאנר
+  const originTx = (g) => !g.player_id
+    ? L('קבוצתי', 'Team')
+    : g.created_by === me ? L('אישי', 'Personal') : L('מהמאמן', 'From coach')
+
+  // ⚠ הפילוח לפי status ולא לפי goalFrac, וזה לא ניואנס.
+  //   goalFrac של יעד מספרי נגזר מ-progress_value, ולכן ברגע שהוא נוגע
+  //   ביעד הוא **נעול** על 1. אילו כרטיס «הושג» היה נקבע לפיו, ביטול היה
+  //   כותב status='active' בלי להזיז את המספר — היעד היה נשאר בכרטיס
+  //   ההישגים, הלחיצה הייתה no-op שקט, והספירה אצל המאמן (CoachTodo,
+  //   ‏.neq('status','done')) הייתה מתעדכנת בלי שהשחקן רואה כלום.
+  //   לפי status הביטול מחזיר את היעד לרשימה, שם יש לו מינוס לתיקון.
+  const isAchieved = (g) => g.status === 'done'
+  const doneCount = goals.filter(isAchieved).length
+
+  // הבאנר של המסמך הוא יעד אחד גדול עם מונה ויומן. בוחרים את היעד הפעיל
+  // הקרוב ביותר שהשחקן באמת יכול לתעד: שלו (RLS), מספרי, ולא הושלם.
+  const heroGoal = goals.find((g) => g.player_id && g.target_value && !isAchieved(g)) || null
+  const heroLogs = heroGoal ? (logsBy[heroGoal.id] || []).slice(-5) : []
+  const heroPct = heroGoal ? Math.min(100, Math.round(((heroGoal.progress_value || 0) / heroGoal.target_value) * 100)) : 0
+  const heroPeriod = heroGoal ? PERIODS.find((p) => p.id === heroGoal.period) : null
+
   // 1.5 — סדר קבוע: לאימון הקרוב · חודשי · חצי-שנתי · שנתי (+שבועי ישן אם קיים)
+  // הבאנר יוצא מהרשימה כדי שלא יופיע פעמיים, וההישגים יורדים לכרטיס משלהם.
   const groups = PERIODS
-    .map((p) => ({ ...p, items: goals.filter((g) => g.period === p.id) }))
+    .map((p) => ({
+      ...p,
+      items: goals.filter((g) => g.period === p.id && g !== heroGoal && !isAchieved(g)),
+    }))
     .filter((p) => p.items.length > 0 || !p.legacy)
+  const achieved = goals.filter(isAchieved)
+
+  const band = [
+    { value: total, label: L('יעדים', 'Goals') },
+    { value: `${overallPct}%`, label: L('התקדמות', 'Progress') },
+    { value: doneCount, label: L('הושגו', 'Achieved') },
+  ]
+
+  const amtRow = (g) => (
+    <div className="ps-form">
+      <input
+        className="ps-in" dir="ltr" inputMode="numeric"
+        placeholder={L('כמה ביצעת היום?', 'How much today?')}
+        value={amtInput[g.id] || ''}
+        onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+        onKeyDown={(e) => e.key === 'Enter' && logAmount(g)}
+        aria-label={L('כמה ביצעת היום?', 'How much today?')}
+      />
+      <button type="button" className="ps-add" onClick={() => logAmount(g)} disabled={restricted || !amtInput[g.id]}>
+        <Plus size={14} aria-hidden="true" /> {L('רישום', 'Log')}
+      </button>
+    </div>
+  )
 
   return (
-    <div className="pl-screen pl-narrow">
-      <header className="pl-head tone-orange">
-        <span className="pl-head-ic"><Target size={22} /></span>
-        <div className="pl-head-txt">
-          <h2>{L('היעדים שלי', 'My goals')}</h2>
-          <p>{total === 0 ? L('היעדים שלך — מהמאמן וגם שלך', 'Your goals — from your coach and your own')
-            : inProg > 0 ? L(`${inProg} מתוך ${total} יעדים בתהליך`, `${inProg} of ${total} goals in progress`)
-            : L('כל היעדים הושלמו — כל הכבוד', 'All goals complete — nice work')}</p>
-        </div>
-      </header>
-
-      {total > 0 && (
-        <div className="plg2-hero">
-          <span className="plg2-hero-glow" aria-hidden="true" />
-          <span className="plg2-hero-lbl">{L('התקדמות כללית', 'Overall progress')}</span>
-          <strong className="plg2-hero-pct">{overallPct}%</strong>
-          <div className="plg2-hero-bar"><span style={{ width: `${overallPct}%` }} /></div>
+    <PlayerScreen page="goals" band={total ? band : null} bell={bell} coach={coachName} onCoach={onCoach}>
+      {heroGoal && (
+        <div className="ps-hero">
+          <div className="ps-hero-row">
+            <b className="ps-hero-kick">
+              {heroPeriod ? L(heroPeriod.label[0], heroPeriod.label[1]) : L('יעד', 'Goal')} · {originTx(heroGoal)}
+            </b>
+            {heroGoal.due_date && (
+              <span className="ps-hero-pill">{L('עד ', 'due ')}{dueLabel(heroGoal.due_date)}</span>
+            )}
+          </div>
+          <b className="ps-hero-title">{heroGoal.title}</b>
+          <div className="ps-hero-nums">
+            <b className="ps-hero-num" dir="ltr">{heroGoal.progress_value || 0}</b>
+            <span className="ps-hero-sub">{L(`מתוך ${heroGoal.target_value} · היעד שלך`, `of ${heroGoal.target_value} · your target`)}</span>
+          </div>
+          <div className="ps-hero-track"><span className="ps-hero-bar" style={{ inlineSize: `${heroPct}%` }} /></div>
+          {heroLogs.length > 0 && (
+            <div className="ps-hero-log">
+              {heroLogs.map((r, i) => (
+                <span key={i} className="ps-hero-cell" dir="ltr">{r.value}</span>
+              ))}
+              <span className="ps-hero-note">{L('התיעודים האחרונים', 'Your latest logs')}</span>
+            </div>
+          )}
+          <div className="ps-hero-acts">
+            <input
+              className="ps-hero-in" dir="ltr" inputMode="numeric"
+              placeholder={L('כמה היום?', 'Today?')}
+              value={amtInput[heroGoal.id] || ''}
+              onChange={(e) => setAmtInput((m) => ({ ...m, [heroGoal.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+              onKeyDown={(e) => e.key === 'Enter' && logAmount(heroGoal)}
+              aria-label={L('כמה ביצעת היום?', 'How much today?')}
+            />
+            <button type="button" className="ps-hero-btn" onClick={() => logAmount(heroGoal)} disabled={restricted || !amtInput[heroGoal.id]}>
+              {L('רישום', 'Log')}
+            </button>
+            {/* ⚠ גם מינוס, ולא רק פלוס: היעד הזה לא מופיע ברשימה למטה, ולכן
+                זו נקודת התיקון היחידה שלו. רישום של 200 במקום 20 היה נתקע. */}
+            <button type="button" className="ps-hero-chip" onClick={() => bump(heroGoal, -1)} disabled={restricted} aria-label={L('הפחתת צעד', 'Step down')}>
+              <Minus size={14} aria-hidden="true" />
+            </button>
+            <button type="button" className="ps-hero-chip" onClick={() => bump(heroGoal, 1)} disabled={restricted} aria-label={L('הוספת צעד', 'Add a step')}>
+              <Plus size={14} aria-hidden="true" />
+            </button>
+            <button type="button" className="ps-hero-chip" onClick={() => setOpenId(openId === heroGoal.id ? null : heroGoal.id)}
+              aria-expanded={openId === heroGoal.id} aria-controls={`plg-chart-${heroGoal.id}`}>
+              <TrendingUp size={14} aria-hidden="true" /> {L('גרף', 'Chart')}
+            </button>
+            <span className="ps-hero-note">{L('ממלאים אחרי האימון', 'Fill it in after practice')}</span>
+          </div>
+          {openId === heroGoal.id && (
+            <div id={`plg-chart-${heroGoal.id}`} className="ps-hero-done">
+              {(logsBy[heroGoal.id] || []).length >= 2
+                ? <GoalChart logs={logsBy[heroGoal.id]} target={heroGoal.target_value} goalId={heroGoal.id} />
+                : <p className="ps-mut">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא', 'Log your progress — the chart will start filling up')}</p>}
+            </div>
+          )}
         </div>
       )}
 
-      {total === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><Target size={26} /></span>
-          <div className="empty-title">{L('עוד אין יעדים', 'No goals yet')}</div>
-          <p className="muted small">{L('המאמן יגדיר לך יעדים — או שתוכל להוסיף יעד אישי משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
+      {total === 0 && (
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><Target size={20} aria-hidden="true" /></span>
+            <b>{L('עוד אין יעדים', 'No goals yet')}</b>
+            <p>{L('המאמן יגדיר לך יעדים — או שתוכל להוסיף יעד אישי משלך למטה.', 'Your coach will set you goals — or add a personal one below.')}</p>
+          </div>
         </div>
-      ) : (
-        <>
-        {/* 1.5 — סדר קבוע לפי טווח, בלי טאבים של סינון */}
-        {groups.map((grp) => (
-          <section key={grp.id} className="plg2-group">
-            <p className="pl-section-label">{L(grp.label[0], grp.label[1])}</p>
-            {grp.items.length === 0 ? (
-              <p className="muted small plg2-group-empty">{L('אין יעדים לטווח הזה עדיין.', 'No goals for this horizon yet.')}</p>
-            ) : (
-        <ul className="plg2-list">
-          {grp.items.map((g) => {
+      )}
+
+      {/* 1.5 — סדר קבוע לפי טווח, בלי טאבים של סינון.
+          ⚠ התווית יושבת **מחוץ** ל-‎.ps-cols: פריט שפורש על כל העמודות בתוך
+          הרשת מונע מ-auto-fit לכווץ עמודות ריקות, וטווח עם יעד אחד היה
+          משאיר חצי שורה ריקה בדסקטופ. */}
+      {groups.map((grp) => (
+        <section key={grp.id}>
+          <p className="ps-group-lbl">{L(grp.label[0], grp.label[1])}</p>
+          {grp.items.length === 0 ? (
+            <p className="ps-mut">{L('אין יעדים לטווח הזה עדיין.', 'No goals for this horizon yet.')}</p>
+          ) : (
+          <div className="ps-cols">
+            {grp.items.map((g) => {
             const isCount = !!g.target_value
             const pct = isCount ? Math.min(100, Math.round(((g.progress_value || 0) / g.target_value) * 100)) : (g.status === 'done' ? 100 : 0)
-            const isDone = goalFrac(g) >= 1
             return (
-              <li key={g.id} className={isDone ? 'plg2-card done' : 'plg2-card'}>
-                <div className="plg2-top">
-                  <div className="plg2-title">
-                    <strong>{g.title}</strong>
-                    <span className="plg2-tag">
-                      {!g.player_id
-                        ? L('קבוצתי', 'Team')
-                        : g.created_by === me ? L('אישי', 'Personal') : L('מהמאמן', 'From coach')}
-                      {g.due_date ? ` · ${L('עד ', 'due ')}${dueLabel(g.due_date)}` : ''}
-                    </span>
-                  </div>
-                  {isDone
-                    ? <span className="plg2-donepill"><Check size={12} /> {L('הושלם', 'Done')}</span>
-                    : isCount ? <span className="plg2-pct">{pct}%</span> : null}
+              <article key={g.id} className="ps-card">
+                <div className="ps-card-head">
+                  <h2 className="ps-h">{g.title}</h2>
+                  <span className="ps-chip ps-chip--acc">
+                    {originTx(g)}{g.due_date ? ` · ${L('עד ', 'due ')}${dueLabel(g.due_date)}` : ''}
+                  </span>
                 </div>
-                <div className="plg2-bar"><span className={isDone ? 'done' : ''} style={{ width: `${pct}%` }} /></div>
+                {isCount && (
+                  <>
+                    <div className="ps-hero-nums">
+                      <b className="ps-num ps-num--acc" dir="ltr">{g.progress_value || 0}</b>
+                      <span className="ps-mut">{L(`מתוך ${g.target_value}`, `of ${g.target_value}`)}</span>
+                    </div>
+                    <div className="ps-track"><span style={{ inlineSize: `${pct}%` }} /></div>
+                  </>
+                )}
                 {/* מיקוד קבוצתי (player_id = null): ה-RLS מתיר לשחקן לעדכן רק את
                     השורות שלו, ולכן +/- ו"סמן שבוצע" היו מסננים 0 שורות ומחזירים
                     204 — הכפתור "עבד" למראית עין וחזר לאחור בטעינה הבאה.
                     את המיקוד הקבוצתי מסמנים בסיכום האימון. */}
                 {!g.player_id ? (
-                  <p className="plg2-teamnote">{L('מיקוד של כל הקבוצה — סמן אותו בסיכום האימון בסוף האימון.', 'A whole-team focus — mark it in your post-practice summary.')}</p>
+                  <p className="ps-mut">{L('מיקוד של כל הקבוצה — סמן אותו בסיכום האימון בסוף האימון.', 'A whole-team focus — mark it in your post-practice summary.')}</p>
                 ) : (
-                <div className="plg2-log">
-                  {isCount ? (
-                    <div className="plg2-step">
-                      <button className="plg2-step-btn minus" onClick={() => bump(g, -1)} aria-label="-"><Minus size={16} /></button>
-                      <span className="plg2-count"><b>{g.progress_value || 0}</b> / {g.target_value}</span>
-                      <button className="plg2-step-btn plus" onClick={() => bump(g, 1)} aria-label="+"><Plus size={16} /></button>
+                  <>
+                    {isCount && amtRow(g)}
+                    <div className="ps-steps">
+                      {isCount && (
+                        <>
+                          <button type="button" className="ps-add" onClick={() => bump(g, -1)} disabled={restricted} aria-label={L('הפחתת צעד', 'Step down')}>
+                            <Minus size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button" className="ps-add" onClick={() => bump(g, 1)} disabled={restricted} aria-label={L('הוספת צעד', 'Step up')}>
+                            <Plus size={16} aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
+                      <button type="button" className="ps-add" onClick={() => toggleDone(g)} disabled={restricted}>
+                        <Check size={14} aria-hidden="true" /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
+                      </button>
                     </div>
-                  ) : <span />}
-                  <button className={g.status === 'done' ? 'plg2-donebtn on' : 'plg2-donebtn'} onClick={() => toggleDone(g)}>
-                    <Check size={14} /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
-                  </button>
-                </div>
+                  </>
                 )}
-
-                {/* §11 — «כמה ביצעת?» גלוי על הכרטיס, לא קבור באקורדיון הגרף */}
-                {isCount && g.player_id && !isDone && (
-                  <div className="plg2-amt">
-                    <input className="plg2-amt-input" dir="ltr" inputMode="numeric"
-                      placeholder={L('כמה ביצעת היום?', 'How much today?')}
-                      value={amtInput[g.id] || ''}
-                      onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
-                      onKeyDown={(e) => e.key === 'Enter' && logAmount(g)} />
-                    <button className="plg2-amt-btn" onClick={() => logAmount(g)} disabled={!amtInput[g.id]}>
-                      <Plus size={14} /> {L('רישום', 'Log')}
-                    </button>
-                  </div>
-                )}
-
                 {isCount && (
-                  <button className="plg2-more" onClick={() => setOpenId(openId === g.id ? null : g.id)} aria-expanded={openId === g.id}>
-                    <TrendingUp size={13} /> {L('גרף התקדמות', 'Progress chart')}
-                    <ChevronDown size={14} className={openId === g.id ? 'plg2-chev open' : 'plg2-chev'} />
-                  </button>
+                  <>
+                    <button type="button" className="ps-linkrow" onClick={() => setOpenId(openId === g.id ? null : g.id)}
+                      aria-expanded={openId === g.id} aria-controls={`plg-chart-${g.id}`}>
+                      <TrendingUp size={13} aria-hidden="true" />
+                      <span className="ps-grow ps-t13">{L('גרף התקדמות', 'Progress chart')}</span>
+                      <ChevronDown size={14} aria-hidden="true" className={openId === g.id ? 'plg2-chev open' : 'plg2-chev'} />
+                    </button>
+                    {openId === g.id && (
+                      <div id={`plg-chart-${g.id}`} className="plg2-prog">
+                        {(logsBy[g.id] || []).length >= 2
+                          ? <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
+                          : <p className="ps-mut">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא', 'Log your progress — the chart will start filling up')}</p>}
+                      </div>
+                    )}
+                  </>
                 )}
-                {isCount && openId === g.id && (
-                  <div className="plg2-prog">
-                    {(logsBy[g.id] || []).length >= 2
-                      ? <GoalChart logs={logsBy[g.id]} target={g.target_value} goalId={g.id} />
-                      : <p className="muted small plg2-prog-empty">{L('רשום כמה ביצעת — והגרף יתחיל להתמלא', 'Log your progress — the chart will start filling up')}</p>}
-                  </div>
-                )}
-              </li>
+              </article>
+              )
+            })}
+          </div>
+          )}
+        </section>
+      ))}
+
+      {achieved.length > 0 && (
+        <div className="ps-card">
+          <b className="ps-h">{L('היעדים שהושגו', 'Goals achieved')}</b>
+          {/* ⚠ השורה לחיצה ומחזירה את היעד לפעיל. בלי זה סימון בטעות היה
+              בלתי הפיך: היעד יורד מרשימת הפעילים, ואיתו כל הפקדים שלו. */}
+          {achieved.map((g) => {
+            const own = !!g.player_id
+            const Row = own ? 'button' : 'div'
+            return (
+              <Row
+                key={g.id}
+                {...(own ? { type: 'button', onClick: () => toggleDone(g), disabled: restricted, className: 'ps-linkrow ps-row--ok' } : { className: 'ps-row ps-row--ok' })}
+              >
+                <span className="ps-okdot" aria-hidden="true"><Check size={14} /></span>
+                <span className="ps-grow ps-t13b">{g.title}</span>
+                <span className="ps-chip ps-chip--ok">{own ? L('הושלם · לביטול', 'Done · tap to undo') : L('הושלם', 'Done')}</span>
+              </Row>
             )
           })}
-        </ul>
-            )}
-          </section>
-        ))}
-        </>
+        </div>
       )}
 
-      <button className="plg2-add" onClick={() => setAddOpen(true)}>
-        <Plus size={18} /> {L('יעד חדש', 'New goal')}
+      <button type="button" className="ps-btn-ghost" onClick={() => setAddOpen(true)} disabled={restricted}>
+        <Plus size={18} aria-hidden="true" /> {L('יעד חדש', 'New goal')}
       </button>
 
       <AddGoalSheet open={addOpen} onClose={() => setAddOpen(false)} onAdd={addGoal} />
-    </div>
+    </PlayerScreen>
   )
 }

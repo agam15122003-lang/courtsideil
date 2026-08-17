@@ -27015,3 +27015,746 @@ html.a11y-motion .bw-lvl:hover, html.a11y-motion .bw-lvl:active, html.a11y-motio
   .bw-home{ grid-template-columns:repeat(3,minmax(0,1fr)); }
   .bw-home > .bw-game:last-of-type{ grid-column:auto; }
 }
+
+
+/* ==========================================================================
+   17.8.2026 · מסכי השחקן — לפי PlayerScreens.dc.html
+   --------------------------------------------------------------------------
+   שישה מסכים בצד השחקן קיבלו את השפה של מסמך העיצוב: לו״ז · משימות ·
+   יעדים · מאמן אישי · מדיה · פרופיל.
+
+   ⚠ המסמך מצייר אפליקציה שלמה, עם סרגל צד וסרגל טאבים משלה. לאתר כבר יש
+   ניווט (‎.sidebar בדסקטופ, PocketNav במובייל), ולכן **הניווט של המסמך
+   לא מיושם** — רק התוכן של כל מסך, במקום שבו הוא כבר חי היום:
+       sched   → view 'schedule' (הקבוצה והלו״ז)
+       tasks   → view 'drills'   (המשימות שלי)
+       goals   → view 'goals'    (היעדים שלי)
+       coach   → view 'pcoach'   (המאמן האישי)
+       media   → view 'videos'   (מדיה)
+       profile → view 'profile'  (פרופיל)
+
+   מרחב שמות ps- חדש (index.css הוא append-only; ראה nh- · pkn- · bw-).
+   המידות והצבעים מתוך th() של המסמך, עם אותם תיקוני קונטרסט שכבר נעשו
+   ב-bw-*: קצות הגרדיאנטים כהים מהמסמך, כי טקסט לבן 11–13px על
+   ‎#60A5FA/#FB923C/#A78BFA נותן 2.2–2.7:1 בלבד (AA דורש 4.5).
+   ========================================================================== */
+
+.ps{
+  --ps-card:#FFFFFF;
+  --ps-line:#E4ECFC;
+  --ps-hair:#F1F5FD;
+  --ps-soft:#F8FAFC;
+  --ps-txt:#0F172A;
+  --ps-mut:#5B6B84;                 /* 4.9:1 על #F1F5FD — טקסט משני */
+  --ps-dim:#64748B;                 /* קישוט ואייקונים בלבד */
+  --ps-shadow:0 8px 22px rgba(15,23,42,.07);
+  --ps-glass:rgba(255,255,255,.94);
+  --ps-sheet:#FFFFFF;
+  --ps-ok:#059669;  --ps-ok-tx:#065F46;  --ps-ok-bg:#F0FDF6; --ps-ok-line:#D6F3E7;
+  --ps-warn-tx:#92400E; --ps-warn-bg:#FEF3C7; --ps-warn-line:#FDE68A;
+  --ps-bad-tx:#991B1B; --ps-bad-bg:#FEF2F2; --ps-bad-line:#FECACA;
+  --ps-tint:.10; --ps-tint-b:.22;   /* שקיפות רקע/מסגרת של צ׳יפים */
+  --ps-num-font:var(--font-display);
+  /* צבע המסך (ברירת מחדל: הלו״ז) */
+  --ps-a:#1E3A8A; --ps-a2:#2563EB; --ps-a-rgb:37,99,235; --ps-acc:#2563EB; --ps-acc-tx:#1D4ED8;
+  position:relative;
+  display:flex; flex-direction:column; gap:13px;
+  min-inline-size:0;
+  color:var(--ps-txt);
+  font-family:var(--font);
+}
+.ps[data-page='tasks']{   --ps-a:#9A3412; --ps-a2:#C2410C; --ps-a-rgb:234,88,12;  --ps-acc:#EA580C; --ps-acc-tx:#C2410C; }
+.ps[data-page='goals']{   --ps-a:#5B21B6; --ps-a2:#7C3AED; --ps-a-rgb:109,40,217; --ps-acc:#6D28D9; --ps-acc-tx:#6D28D9; }
+.ps[data-page='coach']{   --ps-a:#0B4F63; --ps-a2:#0E7490; --ps-a-rgb:14,116,144; --ps-acc:#0E7490; --ps-acc-tx:#0E7490; }
+.ps[data-page='media']{   --ps-a:#991B1B; --ps-a2:#DC2626; --ps-a-rgb:220,38,38;  --ps-acc:#DC2626; --ps-acc-tx:#B91C1C; }
+.ps[data-page='profile']{ --ps-a:#152A63; --ps-a2:#1D4ED8; --ps-a-rgb:29,78,216;  --ps-acc:#1D4ED8; --ps-acc-tx:#1D4ED8; }
+
+[data-theme='dark'] .ps{
+  --ps-card:rgba(148,180,255,.07);
+  --ps-line:rgba(120,160,255,.22);
+  --ps-hair:rgba(120,160,255,.14);
+  --ps-soft:rgba(10,18,38,.45);
+  --ps-txt:#EAF0FF;
+  --ps-mut:#8FA3CF;
+  --ps-dim:#7387B4;
+  --ps-shadow:0 12px 30px rgba(4,8,20,.45);
+  --ps-glass:rgba(10,18,38,.9);
+  --ps-sheet:#111C3D;
+  --ps-ok:#34D399;  --ps-ok-tx:#A7F3D0;  --ps-ok-bg:rgba(52,211,153,.14); --ps-ok-line:rgba(52,211,153,.35);
+  --ps-warn-tx:#FBBF24; --ps-warn-bg:rgba(245,158,11,.14); --ps-warn-line:rgba(245,158,11,.4);
+  --ps-bad-tx:#FECACA;  --ps-bad-bg:rgba(220,38,38,.16);  --ps-bad-line:rgba(220,38,38,.4);
+  --ps-tint:.18; --ps-tint-b:.40;
+  --ps-acc-tx:#60A5FA;
+}
+[data-theme='dark'] .ps[data-page='tasks']{   --ps-acc-tx:#FB923C; }
+[data-theme='dark'] .ps[data-page='goals']{   --ps-acc-tx:#A78BFA; }
+[data-theme='dark'] .ps[data-page='coach']{   --ps-acc-tx:#22D3EE; }
+[data-theme='dark'] .ps[data-page='media']{   --ps-acc-tx:#F87171; }
+[data-theme='dark'] .ps[data-page='profile']{ --ps-acc-tx:#60A5FA; }
+
+/* ---- הקנבס: אותה הכרעה כמו ב«עולם הכדורסל» ----
+   הבאנר הוא הכותרת, ולכן הסרגל העליון יורד במובייל והריפוד של
+   .main-content נבלע כדי שהבאנר ייגע בקצוות. */
+.main-inner:is([data-view='drills'],[data-view='goals'],[data-view='schedule'],[data-view='pcoach'],[data-view='videos'],[data-view='profile']).ps-view{
+  max-inline-size:1132px;
+}
+.layout:is([data-view='drills'],[data-view='goals'],[data-view='schedule'],[data-view='pcoach'],[data-view='videos'],[data-view='profile']).ps-host .main-content{
+  background:#F1F5FD;
+}
+[data-theme='dark'] .layout.ps-host .main-content{
+  background:radial-gradient(120% 55% at 50% -6%,#16234A 0%,#101A38 46%,#0A1226 100%);
+}
+@media (max-width:768px){
+  .main-inner.ps-view{ padding-inline:16px; padding-block-start:0; }
+  .layout.ps-host .mobile-topbar{ display:none; }
+  .layout.ps-host .main-content{ padding-block-start:0; padding-inline:0; }
+}
+
+/* ⚠ pan-y pinch-zoom (ולא pan-y לבד): חוסם גרירה אופקית של המסך אבל
+   משאיר צביטה להגדלה. הרצועות הנגללות מחזירות לעצמן pan-x. */
+.ps, .ps-overlay{ touch-action:pan-y pinch-zoom; }
+.ps-scrollrow{ touch-action:pan-x pan-y pinch-zoom; overscroll-behavior-x:contain; }
+
+/* ==========================  הבאנר  ========================== */
+/* ⚠ בלי z-index: הקשר ערימה כאן כולא את פאנל ההתראות מתחת לשורת המספרים. */
+.ps-head{
+  position:relative; overflow:hidden;
+  margin-inline:-16px;
+  padding:calc(18px + env(safe-area-inset-top)) 16px 42px;
+  border-radius:0 0 28px 28px;
+  background:linear-gradient(135deg,var(--ps-a) 0%,var(--ps-a2) 100%);
+  color:#fff;
+  box-shadow:0 10px 30px rgba(var(--ps-a-rgb),.28);
+  transition:background .3s ease, box-shadow .3s ease;
+}
+[data-theme='dark'] .ps-head{ box-shadow:0 10px 40px rgba(4,8,20,.5); }
+.ps-head-ring{
+  position:absolute; inset-block-end:-60px; inset-inline-start:-30px;
+  inline-size:170px; block-size:170px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.14); pointer-events:none;
+}
+.ps-head-row{ position:relative; display:flex; align-items:center; gap:12px; }
+.ps-head-tx{ display:flex; flex-direction:column; gap:1px; min-inline-size:0; }
+.ps-kicker{ font-size:10.5px; font-weight:800; letter-spacing:1.2px; color:#fff; }
+.ps-title{ margin:0; font-family:var(--font-display); font-size:24px; font-weight:900; line-height:1.1; letter-spacing:-.4px; color:#fff; }
+.ps-head-btns{ margin-inline-start:auto; display:flex; align-items:center; gap:8px; flex:none; }
+.ps-hbtn{
+  inline-size:38px; block-size:38px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.14);
+  color:#fff; cursor:pointer; display:grid; place-items:center; transition:background .2s;
+}
+.ps-hbtn:hover{ background:rgba(255,255,255,.24); }
+.ps-hbtn:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+@media (pointer:coarse){ .ps-hbtn{ inline-size:44px; block-size:44px; } }
+/* כפתור המאמן בכותרת — קיצור דרך מכל מסך אל «המאמן האישי» */
+.ps-head-coach{
+  display:flex; align-items:center; gap:8px; flex:none;
+  padding:6px 10px; border-radius:13px;
+  border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.14);
+  color:#fff; font:inherit; cursor:pointer; text-align:start;
+  transition:background .2s;
+}
+.ps-head-coach:hover{ background:rgba(255,255,255,.24); }
+.ps-head-coach:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.ps-head-coach-av{
+  inline-size:28px; block-size:28px; border-radius:50%;
+  background:rgba(255,255,255,.24); display:grid; place-items:center;
+  font-size:11px; font-weight:800; flex:none;
+}
+.ps-head-coach-tx{ display:flex; flex-direction:column; min-inline-size:0; }
+.ps-head-coach-tx b{ font-size:11px; font-weight:800; }
+.ps-head-coach-tx span{ font-size:10px; opacity:.85; }
+/* הפעמון בבאנר — נדרש רק במובייל, שם הסרגל העליון יורד */
+.ps-head-bell{ flex:none; }
+.ps-head-bell .ntf-bell{
+  inline-size:38px; block-size:38px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.14); color:#fff;
+}
+.ps-head-bell .ntf-bell:hover, .ps-head-bell .ntf-bell.open{
+  background:rgba(255,255,255,.24); color:#fff; border-color:rgba(255,255,255,.5);
+}
+@media (pointer:coarse){ .ps-head-bell .ntf-bell{ inline-size:44px; block-size:44px; } }
+/* הבאנר הוא overflow:hidden — הפאנל מקובע למסך, כמו בבית ובמגרש */
+@media (max-width:768px){
+  .ps-head-bell .ntf-panel{
+    position:fixed;
+    inset-block-start:calc(76px + env(safe-area-inset-top));
+    inset-inline:12px; inline-size:auto; max-inline-size:none; z-index:80;
+  }
+}
+@media (min-width:769px){
+  /* בדסקטופ הפעמון חי בסרגל הצד — כאן הוא גם כפול וגם נחתך */
+  .ps-head-bell{ display:none; }
+  .ps-head{ margin-inline:0; border-radius:22px; padding:22px 26px 44px; }
+  .ps-title{ font-size:28px; }
+}
+
+/* ==========================  שורת המספרים  ========================== */
+/* רוכבת על תחתית הבאנר, כמו גלולת הלשוניות במגרש */
+.ps-band{
+  position:relative; z-index:2;
+  display:flex; align-items:center; gap:8px;
+  margin-block-start:-26px;
+  padding:12px;
+  border-radius:18px;
+  background:var(--ps-glass); backdrop-filter:blur(12px);
+  border:1px solid var(--ps-line); box-shadow:var(--ps-shadow);
+}
+.ps-band-cell{ flex:1 1 0; min-inline-size:0; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.ps-band-num{ font-family:var(--ps-num-font); font-weight:900; font-size:19px; line-height:1; color:var(--ps-acc-tx); font-variant-numeric:tabular-nums; }
+.ps-band-lbl{ font-size:10px; font-weight:700; color:var(--ps-dim); text-align:center; }
+.ps-band-div{ inline-size:1px; block-size:26px; background:var(--ps-hair); flex:none; }
+@media (min-width:769px){ .ps-band{ padding:12px 16px; } }
+
+/* ==========================  גוף המסך  ========================== */
+.ps-body{ display:flex; flex-direction:column; gap:13px; min-inline-size:0; animation:ps-slide .3s both; }
+.ps-cols{ display:flex; flex-direction:column; gap:13px; align-items:stretch; min-inline-size:0; }
+@media (min-width:900px){
+  .ps-cols{ display:grid; grid-template-columns:1fr 1fr; align-items:start; }
+  .ps-cols > *{ min-inline-size:0; }
+}
+@keyframes ps-slide{ from{ opacity:0; transform:translateY(12px) } to{ opacity:1; transform:none } }
+@keyframes ps-pop{ from{ opacity:0; transform:scale(.95) } to{ opacity:1; transform:none } }
+@keyframes ps-sheet{ from{ transform:translateY(103%) } to{ transform:none } }
+
+/* ==========================  כרטיס  ========================== */
+.ps-card{
+  display:flex; flex-direction:column; gap:11px; flex-shrink:0;
+  padding:14px; border-radius:20px;
+  background:var(--ps-card); border:1px solid var(--ps-line);
+  box-shadow:var(--ps-shadow);
+  animation:ps-slide .3s both;
+  min-inline-size:0;
+}
+@media (min-width:769px){ .ps-card{ padding:17px; } }
+.ps-card-head{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.ps-card-head > .ps-chip{ margin-inline-start:auto; }
+.ps-h{ margin:0; font-size:15.5px; font-weight:800; color:var(--ps-txt); line-height:1.3; }
+
+/* ==========================  הבאנר הפנימי (hero)  ========================== */
+.ps-hero{
+  display:flex; flex-direction:column; gap:7px; flex-shrink:0;
+  padding:15px; border-radius:20px;
+  background:linear-gradient(140deg,var(--ps-a) 0%,var(--ps-a2) 100%);
+  box-shadow:0 14px 30px rgba(var(--ps-a-rgb),.3);
+  color:#fff; animation:ps-slide .3s both; min-inline-size:0;
+}
+[data-theme='dark'] .ps-hero{ box-shadow:0 0 30px rgba(var(--ps-a-rgb),.35); }
+@media (min-width:769px){ .ps-hero{ padding:18px; } }
+.ps-hero-row{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.ps-hero-row > .ps-hero-pill{ margin-inline-start:auto; }
+.ps-hero-kick{ font-size:10.5px; font-weight:800; letter-spacing:.8px; color:rgba(255,255,255,.9); }
+.ps-hero-title{ font-family:var(--font-display); font-size:20px; font-weight:900; line-height:1.2; color:#fff; }
+.ps-hero-sub{ font-size:13px; font-weight:600; color:rgba(255,255,255,.92); }
+.ps-hero-note{ font-size:10.5px; font-weight:600; color:rgba(255,255,255,.8); }
+.ps-hero-num{ font-family:var(--ps-num-font); font-weight:900; font-size:34px; line-height:1; color:#fff; font-variant-numeric:tabular-nums; }
+.ps-hero-nums{ display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+.ps-hero-pill{
+  font-size:11px; font-weight:800; color:#fff; white-space:nowrap; flex:none;
+  background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.3);
+  border-radius:999px; padding:4px 10px;
+}
+.ps-hero-track{ block-size:10px; border-radius:99px; background:rgba(0,0,0,.22); overflow:hidden; }
+.ps-hero-bar{ display:block; block-size:100%; border-radius:99px; background:#fff; transition:inline-size .6s cubic-bezier(.34,1.3,.64,1); }
+.ps-hero-acts{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-block-start:4px; }
+.ps-hero-chip{
+  min-block-size:38px; padding:9px 13px; border-radius:11px; flex:none;
+  border:1px solid rgba(255,255,255,.38); background:rgba(0,0,0,.16); color:#fff;
+  font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; transition:background .2s;
+}
+.ps-hero-chip:hover:not(:disabled){ background:rgba(0,0,0,.3); }
+.ps-hero-chip:disabled{ opacity:.55; cursor:not-allowed; }
+.ps-hero-btn{
+  min-block-size:38px; padding:9px 15px; border-radius:11px; flex:none;
+  border:none; background:#fff; color:var(--ps-a);
+  font:inherit; font-size:12.5px; font-weight:800; cursor:pointer;
+}
+.ps-hero-btn:disabled{ opacity:.6; cursor:not-allowed; }
+.ps-hero-in{
+  inline-size:84px; flex:none; padding:9px 10px; border-radius:11px;
+  border:1px solid rgba(255,255,255,.4); background:rgba(0,0,0,.18); color:#fff;
+  font:inherit; font-size:12.5px; font-weight:800; text-align:center;
+}
+.ps-hero-in::placeholder{ color:rgba(255,255,255,.72); font-weight:600; }
+.ps-hero-in:focus-visible{ outline:2px solid #fff; outline-offset:1px; }
+.ps-hero-chip:focus-visible, .ps-hero-btn:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.ps-hero-done{
+  display:flex; flex-direction:column; gap:9px; margin-block-start:4px;
+  padding:12px; border-radius:15px;
+  background:var(--ps-card); border:1px solid var(--ps-line); color:var(--ps-txt);
+  animation:ps-pop .22s both;
+}
+/* גלולות קטנות בתוך הבאנר (יומן האימונים ביעדים) */
+.ps-hero-log{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.ps-hero-cell{
+  inline-size:32px; block-size:32px; border-radius:10px; flex:none;
+  display:grid; place-items:center;
+  font-family:var(--ps-num-font); font-weight:900; font-size:13px; color:#fff;
+  background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.28);
+  font-variant-numeric:tabular-nums;
+}
+.ps-hero-cell.is-hit{ border-color:rgba(255,255,255,.7); background:rgba(255,255,255,.2); }
+
+/* כפתור־באנר: כרטיס המאמן */
+.ps-coach{
+  display:flex; align-items:center; gap:13px; flex-shrink:0; inline-size:100%;
+  padding:15px; border-radius:20px; border:none; text-align:start;
+  background:linear-gradient(140deg,var(--ps-a) 0%,var(--ps-a2) 100%);
+  box-shadow:0 14px 30px rgba(var(--ps-a-rgb),.3);
+  color:#fff; font:inherit; cursor:pointer; animation:ps-slide .3s both;
+}
+[data-theme='dark'] .ps-coach{ box-shadow:0 0 30px rgba(var(--ps-a-rgb),.35); }
+@media (min-width:769px){ .ps-coach{ padding:18px; } }
+.ps-coach:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-coach-tx{ display:flex; flex-direction:column; gap:3px; flex:1; min-inline-size:0; }
+.ps-coach-end{ display:flex; flex-direction:column; align-items:center; gap:4px; flex:none; }
+.ps-av-lg{
+  inline-size:60px; block-size:60px; border-radius:19px; flex:none;
+  background:rgba(255,255,255,.2); border:2px solid rgba(255,255,255,.4);
+  display:grid; place-items:center;
+  font-family:var(--ps-num-font); font-weight:900; font-size:21px; color:#fff;
+}
+
+/* ==========================  שורות  ========================== */
+.ps-row{
+  display:flex; align-items:center; gap:10px; min-inline-size:0;
+  padding:10px 12px; border-radius:14px;
+  background:var(--ps-soft); border:1px solid var(--ps-hair);
+}
+.ps-row--acc{ background:rgba(var(--ps-a-rgb),var(--ps-tint)); border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); }
+.ps-row--ok{ background:var(--ps-ok-bg); border-color:var(--ps-ok-line); }
+.ps-row-main{ display:flex; flex-direction:column; gap:2px; flex:1; min-inline-size:0; }
+.ps-row-end{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none; }
+.ps-linkrow{
+  display:flex; align-items:center; gap:10px; inline-size:100%; min-inline-size:0;
+  padding:10px 12px; border-radius:14px; text-align:start;
+  background:var(--ps-soft); border:1px solid var(--ps-hair);
+  font:inherit; color:var(--ps-txt); cursor:pointer; transition:border-color .2s, background .2s;
+}
+.ps-linkrow:hover{ border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); background:rgba(var(--ps-a-rgb),calc(var(--ps-tint) / 2)); }
+.ps-linkrow:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-linkrow-go{ font-size:12.5px; font-weight:800; color:var(--ps-acc-tx); flex:none; }
+.ps-bar-i{ inline-size:5px; align-self:stretch; min-block-size:34px; border-radius:99px; flex:none; background:var(--ps-acc); }
+.ps-bar-i--ok{ background:var(--ps-ok); }
+.ps-bar-i--warn{ background:var(--ps-warn-tx); }
+.ps-okdot{
+  inline-size:26px; block-size:26px; border-radius:50%; flex:none;
+  display:grid; place-items:center; background:var(--ps-ok); color:#fff;
+}
+[data-theme='dark'] .ps-okdot{ color:#04211A; }
+
+/* ==========================  טיפוגרפיה  ========================== */
+.ps-t13{ font-size:13px; font-weight:600; color:var(--ps-txt); }
+.ps-t13b{ font-size:13px; font-weight:800; color:var(--ps-txt); }
+.ps-mut{ font-size:13px; font-weight:600; color:var(--ps-mut); line-height:1.55; margin:0; }
+.ps-lbl{ font-size:11px; font-weight:600; color:var(--ps-dim); }
+.ps-num{ font-family:var(--ps-num-font); font-weight:900; font-size:14px; color:var(--ps-txt); font-variant-numeric:tabular-nums; }
+.ps-num--acc{ color:var(--ps-acc-tx); font-size:16px; }
+.ps-grow{ flex:1; min-inline-size:0; }
+
+/* ==========================  צ׳יפים  ========================== */
+.ps-chip{
+  display:inline-flex; align-items:center; gap:4px; flex:none;
+  font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px; white-space:nowrap;
+}
+.ps-chip--acc{ color:var(--ps-acc-tx); background:rgba(var(--ps-a-rgb),var(--ps-tint)); border:1px solid rgba(var(--ps-a-rgb),var(--ps-tint-b)); }
+.ps-chip--mut{ color:var(--ps-mut); background:var(--ps-soft); border:1px solid var(--ps-hair); font-weight:700; }
+.ps-chip--ok{ color:var(--ps-ok-tx); background:var(--ps-ok-bg); border:1px solid var(--ps-ok-line); }
+
+/* צ׳יפ־כפתור (מסנני מדיה) */
+.ps-filter{
+  font:inherit; font-size:12px; font-weight:800; cursor:pointer;
+  border-radius:999px; padding:7px 13px; transition:background .18s, color .18s, border-color .18s;
+  border:1px solid var(--ps-line); background:transparent; color:var(--ps-mut);
+}
+.ps-filter:hover{ border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); color:var(--ps-acc-tx); }
+.ps-filter.is-on{ border-color:var(--ps-acc); background:var(--ps-acc); color:#fff; }
+.ps-filter:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+
+/* ==========================  פסי התקדמות וכפתורים  ========================== */
+.ps-track{ block-size:10px; border-radius:99px; background:var(--ps-hair); overflow:hidden; }
+[data-theme='dark'] .ps-track{ background:rgba(148,180,255,.14); }
+.ps-track > span{ display:block; block-size:100%; border-radius:99px; background:var(--ps-acc); transition:inline-size .6s cubic-bezier(.34,1.3,.64,1); }
+.ps-add{
+  min-block-size:40px; padding:9px 14px; border-radius:11px; flex:none;
+  border:1px solid rgba(var(--ps-a-rgb),var(--ps-tint-b));
+  background:rgba(var(--ps-a-rgb),calc(var(--ps-tint) * .6));
+  color:var(--ps-acc-tx); font:inherit; font-size:12.5px; font-weight:800; cursor:pointer;
+  transition:background .2s;
+}
+.ps-add:hover:not(:disabled){ background:rgba(var(--ps-a-rgb),var(--ps-tint)); }
+.ps-add:disabled{ opacity:.55; cursor:not-allowed; }
+.ps-add:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  min-block-size:46px; padding:12px 18px; border-radius:13px; border:none;
+  background:linear-gradient(135deg,var(--ps-a) 0%,var(--ps-a2) 100%); color:#fff;
+  font:inherit; font-size:14px; font-weight:800; cursor:pointer; flex:1;
+}
+.ps-btn:disabled{ opacity:.6; cursor:not-allowed; }
+.ps-btn-ghost{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  min-block-size:46px; padding:12px 18px; border-radius:13px;
+  border:1.5px solid rgba(var(--ps-a-rgb),var(--ps-tint-b));
+  background:transparent; color:var(--ps-acc-tx);
+  font:inherit; font-size:14px; font-weight:800; cursor:pointer; flex:1;
+}
+.ps-btn:focus-visible, .ps-btn-ghost:focus-visible, .ps-add:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-in{
+  flex:1; min-inline-size:0; padding:11px 13px; border-radius:12px;
+  border:1px solid var(--ps-line); background:var(--ps-soft); color:var(--ps-txt);
+  font:inherit; font-size:13px; font-weight:600;
+}
+.ps-in:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:1px; }
+.ps-form{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+/* ==========================  מצב ריק  ========================== */
+.ps-empty{
+  display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center;
+  padding:20px 14px; border-radius:16px;
+  background:var(--ps-soft); border:1px dashed var(--ps-line);
+}
+.ps-empty-ic{
+  inline-size:42px; block-size:42px; border-radius:14px; display:grid; place-items:center;
+  background:rgba(var(--ps-a-rgb),var(--ps-tint)); color:var(--ps-acc-tx);
+}
+.ps-empty-ic--ok{ border-radius:50%; background:var(--ps-ok); color:#fff; }
+[data-theme='dark'] .ps-empty-ic--ok{ color:#04211A; }
+.ps-empty b{ font-size:16px; font-weight:900; color:var(--ps-txt); }
+.ps-empty p{ margin:0; font-size:12.5px; color:var(--ps-mut); line-height:1.55; max-inline-size:36ch; }
+
+/* ==========================  אווטארים  ========================== */
+.ps-team-av{
+  inline-size:30px; block-size:30px; border-radius:9px; flex:none; display:grid; place-items:center;
+  background:var(--ps-acc); color:#fff; font-size:11px; font-weight:800;
+}
+.ps-team-av--mut{ background:var(--ps-hair); color:var(--ps-mut); }
+
+/* ==========================================================================
+   ps-* · חלקים ייחודיים למסכים
+   ========================================================================== */
+
+/* ---- לשוניות המשנה (הקבוצה והלו״ז — ארבע לשוניות) ---- */
+.ps-seg{
+  display:flex; gap:4px; padding:5px; border-radius:16px;
+  background:var(--ps-card); border:1px solid var(--ps-line); box-shadow:var(--ps-shadow);
+  overflow-x:auto; scrollbar-width:none;
+  touch-action:pan-x pan-y pinch-zoom; overscroll-behavior-x:contain;
+}
+.ps-seg::-webkit-scrollbar{ display:none; }
+.ps-seg-btn{
+  flex:1 1 0; min-inline-size:max-content;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  min-block-size:42px; padding:6px 10px;
+  border:0; border-radius:12px; background:none;
+  font:inherit; font-size:12.5px; font-weight:700; color:var(--ps-mut);
+  cursor:pointer; transition:color .2s, background .2s; white-space:nowrap;
+}
+.ps-seg-btn.is-on{ color:var(--ps-acc-tx); font-weight:800; background:rgba(var(--ps-a-rgb),var(--ps-tint)); }
+.ps-seg-btn:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:-2px; }
+
+/* ---- הלו״ז: רשת השבוע ---- */
+.ps-week{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+@media (min-width:769px){ .ps-week{ gap:7px; } }
+.ps-day{
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  inline-size:100%; min-inline-size:0; box-sizing:border-box;
+  min-block-size:62px; padding:7px 2px;
+  border-radius:12px; border:1.5px solid var(--ps-hair); background:var(--ps-soft);
+  font:inherit; cursor:pointer; transition:border-color .18s, background .18s, box-shadow .18s;
+}
+.ps-day.is-on{
+  border-color:var(--ps-acc); background:rgba(var(--ps-a-rgb),var(--ps-tint));
+  box-shadow:0 8px 18px rgba(var(--ps-a-rgb),.16);
+}
+.ps-day:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+@media (min-width:769px){ .ps-day{ min-block-size:104px; padding:9px 7px; gap:5px; border-radius:15px; } }
+.ps-day-nm{ font-size:11px; font-weight:800; color:var(--ps-dim); }
+.ps-day.is-on .ps-day-nm{ color:var(--ps-acc-tx); }
+.ps-day-num{
+  font-family:var(--ps-num-font); font-weight:900; font-size:14px; line-height:1.3;
+  color:var(--ps-txt); border-radius:9px; padding:1px 0; font-variant-numeric:tabular-nums;
+}
+.ps-day.is-on .ps-day-num{ color:var(--ps-acc-tx); }
+.ps-day-num.is-today{ background:#0F172A; color:#fff; padding:1px 7px; }
+[data-theme='dark'] .ps-day-num.is-today{ background:#EAF0FF; color:#0A1226; }
+.ps-day.is-on .ps-day-num.is-today{ color:#fff; }
+[data-theme='dark'] .ps-day.is-on .ps-day-num.is-today{ color:#0A1226; }
+@media (min-width:769px){ .ps-day-num{ font-size:17px; } }
+.ps-day-dots{ display:flex; gap:3px; align-items:center; justify-content:center; min-block-size:9px; }
+.ps-dot{ inline-size:7px; block-size:7px; border-radius:50%; flex:none; background:var(--ps-acc); }
+.ps-dot--ok{ background:var(--ps-ok); }
+.ps-dot--warn{ background:var(--ps-warn-tx); }
+.ps-day-evs{ display:none; }
+@media (min-width:769px){
+  .ps-day-dots{ display:none; }
+  .ps-day-evs{ display:flex; flex-direction:column; gap:4px; inline-size:100%; }
+}
+.ps-day-ev{
+  display:block; inline-size:100%; box-sizing:border-box;
+  font-size:11px; font-weight:800; text-align:center;
+  border-radius:8px; padding:4px 5px;
+  color:var(--ps-acc-tx); background:rgba(var(--ps-a-rgb),var(--ps-tint));
+}
+.ps-day-ev b{ display:block; font-size:11px; font-variant-numeric:tabular-nums; }
+.ps-day-ev--ok{ color:var(--ps-ok-tx); background:var(--ps-ok-bg); }
+.ps-day-ev--warn{ color:var(--ps-warn-tx); background:var(--ps-warn-bg); }
+
+/* כפתורי «מגיע / אאחר / לא מגיע» בתוך הבאנר */
+.ps-rsvp{ display:flex; gap:7px; margin-block-start:4px; }
+.ps-rsvp > button{
+  flex:1; min-block-size:42px; padding:10px 8px; border-radius:12px;
+  font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; transition:background .2s, color .2s, border-color .2s;
+  border:1px solid rgba(255,255,255,.38); background:rgba(0,0,0,.16); color:#fff;
+}
+.ps-rsvp > button:hover:not(:disabled){ background:rgba(0,0,0,.3); }
+.ps-rsvp > button.is-on{ background:#fff; color:var(--ps-a); border-color:#fff; }
+.ps-rsvp > button:disabled{ opacity:.55; cursor:not-allowed; }
+.ps-rsvp > button:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+
+/* ---- מדיה: רצועת סרטונים ---- */
+.ps-strip{ display:flex; gap:10px; overflow-x:auto; padding-block-end:4px; scrollbar-width:none; }
+.ps-strip::-webkit-scrollbar{ display:none; }
+@media (min-width:769px){
+  .ps-strip{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); overflow-x:visible; padding-block-end:0; }
+}
+.ps-vid{
+  display:flex; flex-direction:column; gap:5px; flex:none;
+  min-inline-size:168px; inline-size:168px;
+  border:0; background:none; padding:0; font:inherit; text-align:start; cursor:pointer;
+}
+@media (min-width:769px){ .ps-vid{ inline-size:auto; min-inline-size:0; } }
+.ps-vid:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:3px; border-radius:14px; }
+.ps-thumb{
+  position:relative; inline-size:100%; aspect-ratio:16/9; border-radius:13px; overflow:hidden;
+  display:grid; place-items:center;
+  background:linear-gradient(150deg,#1E293B,#334155) center/cover no-repeat;
+}
+[data-theme='dark'] .ps-thumb{ background:linear-gradient(150deg,#16233F,#22345C) center/cover no-repeat; }
+.ps-play{
+  inline-size:34px; block-size:34px; border-radius:50%; display:grid; place-items:center;
+  background:rgba(255,255,255,.92); color:#DC2626;
+}
+.ps-vid-tt{ font-size:13px; font-weight:700; color:var(--ps-txt); line-height:1.35; }
+.ps-vid-meta{ font-size:10.5px; font-weight:600; color:var(--ps-dim); }
+
+/* ---- פרופיל ---- */
+.ps-prof{ display:flex; align-items:center; gap:13px; min-inline-size:0; }
+.ps-prof-av{
+  inline-size:64px; block-size:64px; border-radius:21px; flex:none; overflow:hidden;
+  background:rgba(255,255,255,.2); border:2px solid rgba(255,255,255,.4);
+  display:grid; place-items:center;
+  font-family:var(--ps-num-font); font-weight:900; font-size:22px; color:#fff;
+}
+.ps-prof-av img{ inline-size:100%; block-size:100%; object-fit:cover; }
+.ps-set{
+  display:flex; align-items:center; gap:10px; inline-size:100%; min-inline-size:0;
+  padding:9px 2px; border:0; border-block-start:1px solid var(--ps-hair);
+  background:none; font:inherit; text-align:start; color:var(--ps-txt);
+}
+.ps-card > .ps-set:first-of-type{ border-block-start:0; }
+button.ps-set{ cursor:pointer; }
+button.ps-set:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-set-val{ font-size:12px; font-weight:800; color:var(--ps-acc-tx); flex:none; }
+
+/* ---- גיליון כרטיס המאמן ---- */
+.ps-overlay{
+  position:fixed; inset:0; z-index:60;
+  display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch;
+}
+.ps-scrim{ position:absolute; inset:0; background:rgba(8,13,31,.55); border:0; animation:ps-fade .2s both; }
+@keyframes ps-fade{ from{ opacity:0 } to{ opacity:1 } }
+.ps-sheet{
+  position:relative;
+  display:flex; flex-direction:column; gap:13px;
+  max-block-size:88%; overflow-y:auto;
+  padding:18px 18px calc(34px + env(safe-area-inset-bottom));
+  border-radius:24px 24px 0 0;
+  background:var(--ps-sheet); border:1px solid var(--ps-line); color:var(--ps-txt);
+  box-shadow:0 -14px 40px rgba(8,13,31,.35);
+  animation:ps-sheet .3s cubic-bezier(.22,1,.36,1) both;
+}
+@media (min-width:769px){
+  .ps-overlay{ justify-content:center; align-items:center; padding:24px; }
+  .ps-sheet{
+    inline-size:470px; max-inline-size:100%; max-block-size:86%;
+    border-radius:24px; padding:20px; animation:ps-pop .25s both;
+  }
+}
+.ps-sheet-head{ display:flex; align-items:flex-start; gap:12px; }
+.ps-sheet-tx{ display:flex; flex-direction:column; gap:3px; flex:1; min-inline-size:0; }
+.ps-sheet-kick{ font-size:10.5px; font-weight:800; letter-spacing:1px; color:var(--ps-mut); }
+.ps-sheet-title{ margin:0; font-family:var(--font-display); font-size:21px; font-weight:900; line-height:1.15; color:var(--ps-txt); }
+.ps-x{
+  inline-size:34px; block-size:34px; border-radius:11px; flex:none; display:grid; place-items:center;
+  border:1px solid var(--ps-line); background:var(--ps-soft); color:var(--ps-mut); cursor:pointer;
+}
+.ps-x:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+@media (pointer:coarse){ .ps-x{ inline-size:44px; block-size:44px; } }
+.ps-sheet-sec{ display:flex; flex-direction:column; gap:7px; }
+
+/* ---- משימות: שלבי התרגול ---- */
+.ps-steps{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+/* תמונת סרטון בתוך כרטיס משימה */
+.ps-media{
+  position:relative; display:grid; place-items:center;
+  inline-size:100%; aspect-ratio:16/9; border-radius:15px; overflow:hidden;
+  background:linear-gradient(150deg,#1E293B,#334155) center/cover no-repeat;
+}
+.ps-media:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-media-tag{
+  position:absolute; inset-block-end:8px; inset-inline-start:8px;
+  font-size:10.5px; font-weight:800; color:#fff;
+  background:rgba(8,13,31,.72); border-radius:7px; padding:3px 8px;
+}
+
+/* ---- תיבות שהמסך מקבל מבחוץ (צ׳אט, הסכמות, הנתונים שלי) ----
+   הרכיבים האלה אינם חלק ממסמך העיצוב; הם מקבלים את הקנבס החדש דרך
+   מעטפת .ps-slot ושומרים על המרקאפ שלהם. */
+.ps-slot{ display:flex; flex-direction:column; gap:13px; min-inline-size:0; }
+.ps-slot > .pl-screen{ animation:none; }
+.ps-slot .pl-section-label{ color:var(--ps-mut); }
+
+/* ---- תנועה מופחתת ---- */
+@media (prefers-reduced-motion:reduce){
+  .ps-body, .ps-card, .ps-hero, .ps-coach, .ps-sheet, .ps-scrim, .ps-hero-done{ animation:none !important; }
+  .ps-track > span, .ps-hero-bar{ transition:none !important; }
+}
+html.a11y-motion .ps-body, html.a11y-motion .ps-card, html.a11y-motion .ps-hero,
+html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scrim{ animation:none !important; }
+
+/* ==========================================================================
+   ps- · השלמות: מה שרוכב על הבאנר, ואייקוני ההגדרות
+   ========================================================================== */
+
+/* הרוכב — שורת המספרים או גלולת הלשוניות. שתיהן יושבות באותו מקום, ולכן
+   ההיסט השלילי חי כאן ולא בכל אחת מהן. */
+.ps-rider{ position:relative; z-index:2; margin-block-start:-26px; }
+.ps-band{ margin-block-start:-26px; }
+.ps-rider > .ps-band{ margin-block-start:0; }
+
+.ps-set-ic{
+  inline-size:30px; block-size:30px; border-radius:10px; flex:none; display:grid; place-items:center;
+  background:rgba(var(--ps-a-rgb),var(--ps-tint)); color:var(--ps-acc-tx);
+}
+
+/* אישור ההגעה בכרטיס היום — הרכיב שומר על המרקאפ שלו, רק מתיישר לקנבס */
+.ps-slot > .wl-rsvp{ margin:0; }
+
+/* ==========================================================================
+   ps- · תיקוני הסבב הראשון על צילומי המסך
+   ========================================================================== */
+
+/* (1) ארבע לשוניות + אייקון + תווית עברית לא נכנסות בשורה אחת ב-390 —
+   האחרונה נחתכה בקצה. אייקון מעל תווית, בדיוק כמו ‎.bw-tab. */
+@media (max-width:600px){
+  .ps-seg-btn{ flex-direction:column; gap:3px; font-size:11px; padding:6px 4px; min-block-size:48px; }
+}
+
+/* (2) פריט שפורש על שתי העמודות ברשת הדסקטופ (תוויות הטווח ביעדים) */
+
+/* (3) מינימום 10.5px לטקסט על המסך (כלל הבית) — 10px נמדד קטן מדי
+   בשורת המספרים ובכפתור המאמן */
+.ps-band-lbl{ font-size:10.5px; }
+.ps-head-coach-tx span{ font-size:10.5px; }
+.ps-vid-meta, .ps-hero-note, .ps-kicker, .ps-hero-kick{ font-size:10.5px; }
+
+/* (4) הנקודות והפסים הם קישוט ולא טקסט — הגוון החי של המסמך, ולא
+   הגרסה המוכהה שנועדה לקריאוּת של מילים */
+.ps-dot--warn{ background:#F59E0B; }
+.ps-bar-i--warn{ background:#F59E0B; }
+
+/* ==========================================================================
+   ps- · תיקוני הסבב השני
+   ========================================================================== */
+
+/* ⚠ auto-fit ולא ‎1fr 1fr: כשיש כרטיס אחד בלבד (טווח יעדים עם יעד יחיד,
+   משימה פתוחה אחת) שתי עמודות קשיחות השאירו חצי שורה ריקה. auto-fit
+   מכווץ עמודה ריקה לאפס, ולכן כרטיס בודד נפרש לכל הרוחב מעצמו. */
+@media (min-width:900px){
+  .ps-cols{ grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+}
+.ps-group-lbl{ margin:0 0 9px; padding-inline:2px; }
+
+/* ==========================================================================
+   ps- · וריאנטים (במקום סגנון בשורה ב-JSX)
+   ========================================================================== */
+.ps-end{ margin-inline-start:auto; }
+.ps-hbtn--quiet{ background:var(--ps-soft); border-color:var(--ps-line); color:var(--ps-mut); }
+.ps-hbtn--quiet:hover{ background:var(--ps-hair); }
+/* אווטאר גדול על משטח בהיר (בגיליון) ולא על גרדיאנט */
+.ps-av-lg--soft{
+  background:rgba(var(--ps-a-rgb),var(--ps-tint));
+  border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b));
+  color:var(--ps-acc-tx);
+}
+/* שדה טקסט חופשי בבאנר (סיבת אי-הגעה) — לא מספר ברוחב קבוע */
+.ps-hero-in--wide{ inline-size:auto; flex:1; text-align:start; }
+/* כרטיס בתוך כרטיס: אירוע בודד ברשימת היום */
+.ps-card--sub{ box-shadow:none; background:var(--ps-soft); border-color:var(--ps-hair); gap:9px; }
+/* שורה בלי הקופסה שלה — כשהיא כבר יושבת בתוך כרטיס־מִשְׁנֶה */
+.ps-row--bare{ background:none; border:0; padding:0; }
+.ps-group-lbl{ font-size:11px; font-weight:600; color:var(--ps-dim); }
+
+/* ==========================================================================
+   17.8.2026 (ב) · ps- — תיקוני הסקירה האדוורסרית
+   ========================================================================== */
+
+/* (1) ⚠ ‏.ps-hero-done יושב **בתוך** באנר גרדיאנט. ‏--ps-card הוא #FFF
+   במצב בהיר אבל rgba(148,180,255,.07) במצב כהה — כלומר 93% מהגרדיאנט
+   הכתום/האדום עולה מבעד לקופסה, והטקסט האפור עליה נמדד ~2:1. הקופסה
+   הזאת צריכה משטח **אטום** בשני המצבים; --ps-sheet הוא בדיוק זה. */
+.ps-hero-done{ background:var(--ps-sheet); }
+
+/* (2) הצ׳יפ הפעיל נצבע ב---ps-acc, ובמסך המשימות זה #EA580C — לבן עליו
+   הוא 3.56:1. ‏--ps-a2 הוא הקצה שכבר הוכהה לצורך הגרדיאנט, ומעביר AA
+   בכל ששת המסכים (4.6–6.5). */
+.ps-filter.is-on{ background:var(--ps-a2); border-color:var(--ps-a2); }
+
+/* (3) טקסט לבן שקוף על גרדיאנט: .8/.85/.9 ירדו ל-3.5–4.1:1 במסכים
+   האדום והכתום. הטקסטים האלה נושאים מידע (שאלת ההגעה, המצב שנרשם) ולכן
+   הם עוברים ללבן מלא; רק צל עדין שומר על ההיררכיה. */
+.ps-hero-note, .ps-hero-kick, .ps-hero-sub, .ps-kicker{ color:#fff; }
+.ps-head-coach-tx span{ opacity:1; }
+
+/* (4) שורה מושבתת (היסטוריית משימות במצב מוגבל) — היה עליה pointer
+   ו-hover כאילו היא פעילה */
+.ps-linkrow:disabled{ opacity:.55; cursor:default; }
+.ps-linkrow:disabled:hover{ background:var(--ps-soft); border-color:var(--ps-hair); }
+
+/* (5) ⚠ ‏:first-of-type נמדד לפי שם התגית ולא לפי המחלקה. בכרטיס
+   ההגדרות יש גם div.ps-set וגם button.ps-set, ולכן הכפתור הראשון
+   (התנתקות) «זכה» גם הוא וירד לו הקו המפריד. הקו יורד מהשורה שצמודה
+   לכותרת, וזה בדיוק מה שהתכוונו אליו. */
+.ps-card > .ps-set:first-of-type{ border-block-start:1px solid var(--ps-hair); }
+.ps-h + .ps-set{ border-block-start:0; }
+
+/* (6) ⚠ ‏.main-inner input (0-1-1) מנצח כל מחלקה בודדת — 16px של מגן
+   הזום ב-iOS גובר, וההצהרות שלנו היו קוד מת. משאירים 16px ומיישרים את
+   הגובה, במקום להעמיד פנים שיש כאן 12.5px. */
+.ps-in, .ps-hero-in{ font-size:16px; }
+.ps-hero-in{ inline-size:96px; }
+
+/* (7) הודעת המצב המוגבל מוצגת מעל הבאנר, והבאנר הוא זה שנושא את
+   ה-safe-area. בלי זה היא נצמדת לגובה 0 מתחת למגרעת המסך. */
+@media (max-width:768px){
+  .main-inner.ps-view > .rstr-block{ margin-block-start:calc(12px + env(safe-area-inset-top)); }
+}
+
+/* (8) evTone() מייצר גם ‎--acc, ולא רק ‎--ok/--warn. עד עכשיו הוא «עבד»
+   רק כי מחלקת הבסיס ממילא צבועה בצבע המסך — מחלקה שנבנית בזמן ריצה
+   ואין לה כלל משלה היא בדיוק מה שנשבר בשקט בעריכה הבאה. */
+.ps-dot--acc{ background:var(--ps-acc); }
+.ps-bar-i--acc{ background:var(--ps-acc); }
+.ps-day-ev--acc{ color:var(--ps-acc-tx); background:rgba(var(--ps-a-rgb),var(--ps-tint)); }
+
+/* (9) ⚠ ‏--ps-dim מוגדר בראש הבלוק כ«קישוט ואייקונים בלבד», ואז שימש
+   בפועל לטקסט: תוויות שורת המספרים, תוויות הטווח ביעדים, המטא של
+   הסרטונים ותוויות המשנה בשורות. נמדד 4.33–4.4:1 על הקנבס — מתחת ל-AA.
+   כל שימוש **טקסטואלי** עובר ל---ps-mut; --ps-dim נשאר לאייקונים. */
+.ps-group-lbl, .ps-band-lbl, .ps-lbl, .ps-vid-meta{ color:var(--ps-mut); }
+
+/* (10) תווית הסרטון יושבת מעל תמונה ממוזערת שאיננו שולטים בה — הרקע
+   שלה חייב להיות אטום מספיק כדי שהלבן ייקרא גם על ממוזערת בהירה. */
+.ps-media-tag, .ps-len{ background:rgba(8,13,31,.86); }
