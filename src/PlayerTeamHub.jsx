@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L, trTeam } from './i18n'
+import { L, cnt, trTeam } from './i18n'
 import { sendNotification } from './notify'
 import { expandSlots } from './sessionId'
 import TeamChat from './TeamChat'
@@ -19,6 +19,7 @@ import CoachChat from './CoachChat'
 import LeagueTable from './LeagueTable'
 import PlayerScreen from './PlayerScreen'
 
+const coachNm = (c) => `${c?.first_name || ''} ${c?.last_name || ''}`.trim() || L('המאמן', 'Coach')
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const ilShort = (s) => { const d = new Date(s + 'T00:00'); return isNaN(d) ? s : `${d.getDate()}.${d.getMonth() + 1}` }
@@ -31,7 +32,7 @@ const TABS = [
 ]
 
 // ---------- הקבוצה שלי: סגל יבש + המשחק הבא + טבלת הליגה ----------
-function MyTeamTab({ membership }) {
+function MyTeamTab({ membership, onSched, onChat }) {
   const [mates, setMates] = useState(null)
   const [nextGame, setNextGame] = useState(null)
   const [iba, setIba] = useState(null) // {league_id, league_name, iba_team_name} או null
@@ -65,44 +66,99 @@ function MyTeamTab({ membership }) {
     return () => { alive = false }
   }, [membership])
 
+  const crest = (trTeam(membership.team) || '?').slice(0, 2)
   return (
-    <div className="pth-team">
-      {nextGame && (
-        <div className="pth-nextgame">
-          <span className="pth-nextgame-ic" aria-hidden="true"><Trophy size={18} /></span>
-          <div className="pth-nextgame-tx">
-            <b>{nextGame.opponent ? L(`המשחק הבא: נגד ${nextGame.opponent}`, `Next game: vs ${nextGame.opponent}`) : L('המשחק הבא', 'Next game')}</b>
-            <span className="muted small">
-              <bdi dir="ltr">{ilShort(nextGame.game_date)}</bdi>
-              {nextGame.game_time && <> · <bdi dir="ltr">{String(nextGame.game_time).slice(0, 5)}</bdi></>}
-              {nextGame.location && <> · <MapPin size={11} aria-hidden="true" /> {nextGame.location}</>}
+    <>
+      {/* הבאנר של המסמך: סמל, שם הקבוצה, והמאמן. ⚠ בלי מאזן/מקום/נקודות
+          למשחק — אין להם מקור בשרת, והמסמך רק מדגים אותם. */}
+      <div className="ps-hero">
+        <div className="ps-prof">
+          <span className="ps-crest" aria-hidden="true">{crest}</span>
+          <span className="ps-coach-tx">
+            {iba?.league_name && <span className="ps-hero-kick">{iba.league_name}</span>}
+            <b className="ps-hero-title">{trTeam(membership.team)}</b>
+            <span className="ps-hero-sub">
+              {[mates?.length ? cnt(mates.length, L('שחקן אחד', 'player'), L('שחקנים', 'players')) : null,
+                membership.coach ? L(`מאמן: ${coachNm(membership.coach)}`, `Coach: ${coachNm(membership.coach)}`) : null]
+                .filter(Boolean).join(' · ')}
             </span>
+          </span>
+        </div>
+      </div>
+
+      <div className="ps-cols">
+        <div className="ps-card">
+          <div className="ps-card-head">
+            <b className="ps-h">{L('המשחק הבא', 'Next game')}</b>
+            {nextGame?.game_time && (
+              <span className="ps-chip ps-chip--acc" dir="ltr">{String(nextGame.game_time).slice(0, 5)}</span>
+            )}
+          </div>
+          {nextGame ? (
+            <>
+              <div className="ps-vs">
+                <span className="ps-vs-side">
+                  <span className="ps-crest-sm" aria-hidden="true">{crest}</span>
+                  <b className="ps-t13b">{trTeam(membership.team)}</b>
+                </span>
+                <b className="ps-vs-tx">VS</b>
+                <span className="ps-vs-side">
+                  <span className="ps-crest-sm ps-crest-sm--mut" aria-hidden="true">
+                    {(nextGame.opponent || '?').slice(0, 2)}
+                  </span>
+                  <b className="ps-t13b">{nextGame.opponent || L('יריבה', 'Opponent')}</b>
+                </span>
+              </div>
+              <span className="ps-lbl">
+                <bdi dir="ltr">{ilShort(nextGame.game_date)}</bdi>
+                {nextGame.location && <> · <MapPin size={11} aria-hidden="true" /> {nextGame.location}</>}
+              </span>
+              {onSched && (
+                <button type="button" className="ps-btn-ghost" onClick={onSched}>{L('ללו״ז המלא', 'Full schedule')}</button>
+              )}
+            </>
+          ) : (
+            <p className="ps-mut">{L('אין משחק קרוב בלו״ז. ברגע שהמאמן יוסיף — הוא יופיע כאן.', 'No upcoming game yet. It shows up here once your coach adds one.')}</p>
+          )}
+        </div>
+
+        <div className="ps-card">
+          <div className="ps-card-head">
+            <b className="ps-h">{L('הסגל', 'Roster')}</b>
+            <span className="ps-chip ps-chip--mut">
+              {mates === null ? L('טוען…', 'Loading…') : cnt(mates.length, L('שחקן אחד', 'player'), L('שחקנים', 'players'))}
+            </span>
+          </div>
+          {mates === null ? null : mates.length === 0 ? (
+            <p className="ps-mut">{L('אין עדיין שחקנים בסגל.', 'No players in the roster yet.')}</p>
+          ) : (
+            <div className="ps-roster">
+              {mates.map((m) => (
+                <div key={m.id} className="ps-row">
+                  <span className="ps-jersey" aria-hidden="true">{m.number || '·'}</span>
+                  <span className="ps-row-main">
+                    <b className="ps-t13b">{m.name}</b>
+                    {m.position && <span className="ps-lbl">{m.position}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {onChat && (
+            <button type="button" className="ps-btn" onClick={onChat}>{L('לצ׳אט הקבוצה', 'Team chat')}</button>
+          )}
+        </div>
+      </div>
+
+      {iba?.league_id && (
+        <div className="ps-card">
+          <b className="ps-h"><Trophy size={15} aria-hidden="true" /> {L('טבלת הליגה', 'League table')}</b>
+          <div className="ps-slot">
+            <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || membership.team} />
           </div>
         </div>
       )}
-
-      <p className="pl-section-label"><Users size={15} /> {L('הסגל', 'Roster')}</p>
-      {mates === null ? null : mates.length === 0 ? (
-        <p className="muted small">{L('אין עדיין שחקנים בסגל.', 'No players in the roster yet.')}</p>
-      ) : (
-        <ul className="pls-roster-list pth-roster">
-          {mates.map((m) => (
-            <li key={m.id}>
-              {m.number ? <span className="pl-mate-num">{m.number}</span> : <span className="pl-mate-num">·</span>}
-              <span className="pls-roster-name">{m.name}</span>
-              {m.position && <span className="muted small">{m.position}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {iba?.league_id && (
-        <div className="pth-league">
-          <p className="pl-section-label"><Trophy size={15} /> {L('טבלת הליגה', 'League table')}</p>
-          <LeagueTable leagueId={iba.league_id} leagueName={iba.league_name} highlight={iba.iba_team_name || membership.team} />
-        </div>
-      )}
-    </div>
+    </>
   )
 }
 
@@ -253,7 +309,9 @@ export default function PlayerTeamHub({ session, membership, coach, initialTab, 
 
   return (
     <PlayerScreen
-      page="sched"
+      // ⚠ הצבע והכותרת מתחלפים עם הלשונית: המסמך המעודכן נותן לכל אחת
+      //    מהן מסך משלה (sched · team · chat · coach), לא לשונית בתוך מסך.
+      page={tab === 'schedule' ? 'sched' : tab}
       kicker={L(head.kicker[0], head.kicker[1])}
       title={L(head.title[0], head.title[1])}
       rider={tabs}
@@ -262,11 +320,14 @@ export default function PlayerTeamHub({ session, membership, coach, initialTab, 
       onCoach={onCoach}
     >
       {tab === 'schedule' && ScheduleView}
-      {/* שלוש הלשוניות האחרות אינן במסמך העיצוב — הן מקבלות את הקנבס
-          החדש דרך ‎.ps-slot ושומרות על המרקאפ שלהן */}
-      {tab === 'team' && <div className="ps-slot"><MyTeamTab membership={membership} /></div>}
+      {tab === 'team' && (
+        <MyTeamTab membership={membership} onSched={() => setTab('schedule')} onChat={() => setTab('chat')} />
+      )}
+      {/* ⚠ בלי כותרת משלנו: ל-TeamChat כבר יש ‎.pl-chat-head משלו, ומעליו
+          הבאנר של המסך — שלוש כותרות זו על זו. הרכיב משותף עם צד המאמן
+          ולכן הוא שומר על המרקאפ שלו; ‎.ps-chat רק מיישר אותו לקנבס. */}
       {tab === 'chat' && (
-        <div className="ps-slot">
+        <div className="ps-chat ps-slot">
           <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
         </div>
       )}

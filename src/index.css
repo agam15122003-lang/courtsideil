@@ -27758,3 +27758,125 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* (10) תווית הסרטון יושבת מעל תמונה ממוזערת שאיננו שולטים בה — הרקע
    שלה חייב להיות אטום מספיק כדי שהלבן ייקרא גם על ממוזערת בהירה. */
 .ps-media-tag, .ps-len{ background:rgba(8,13,31,.86); }
+
+/* ==========================================================================
+   17.8.2026 (ג) · ps- — שלושת המסכים שנוספו לגרסה המעודכנת של המסמך
+   --------------------------------------------------------------------------
+   המסמך עודכן מששה מסכים לתשעה. ששת הראשונים לא השתנו כלל (הושוו בלוק
+   מול בלוק), ונוספו:
+     sessions → view 'feedback'          · האימונים שלי (PlayerTimeline)
+     team     → PlayerTeamHub, לשונית team · הקבוצה שלי
+     chat     → PlayerTeamHub, לשונית chat · צ׳אט הקבוצה
+   ו-'coach' של המסמך שינה כותרת ל«המאמן שלי» — כלומר מאמן הקבוצה
+   (לשונית coach בהאב), ולא «המאמן האישי» שנשאר מסך של האתר בלבד.
+
+   ⚠ קצות הגרדיאנט כהים מהמסמך, כרגיל: לבן על #0891B2 נותן 3.7:1 ועל
+   #059669 נותן 3.4:1 — שניהם מתחת ל-AA.
+   ========================================================================== */
+.ps[data-page='sessions']{ --ps-a:#155E75; --ps-a2:#0E7490; --ps-a-rgb:8,145,178;  --ps-acc:#0891B2; --ps-acc-tx:#0E7490; }
+.ps[data-page='team']{     --ps-a:#831843; --ps-a2:#BE185D; --ps-a-rgb:190,24,93;  --ps-acc:#BE185D; --ps-acc-tx:#BE185D; }
+.ps[data-page='chat']{     --ps-a:#065F46; --ps-a2:#047857; --ps-a-rgb:5,150,105;  --ps-acc:#059669; --ps-acc-tx:#047857; }
+.ps[data-page='pcoach']{   --ps-a:#0B4F63; --ps-a2:#0E7490; --ps-a-rgb:14,116,144; --ps-acc:#0E7490; --ps-acc-tx:#0E7490; }
+[data-theme='dark'] .ps[data-page='sessions']{ --ps-acc-tx:#22D3EE; }
+[data-theme='dark'] .ps[data-page='team']{     --ps-acc-tx:#F472B6; }
+[data-theme='dark'] .ps[data-page='chat']{     --ps-acc-tx:#34D399; }
+[data-theme='dark'] .ps[data-page='pcoach']{   --ps-acc-tx:#22D3EE; }
+
+/* ---- האימונים שלי: ציטוט בבאנר, גרף מגמה, בוררי עומס ---- */
+.ps-hero-quote{ font-size:14px; font-weight:600; color:#fff; line-height:1.55; }
+.ps-trend{ inline-size:100%; block-size:110px; overflow:visible; }
+.ps-loads{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.ps-load{
+  inline-size:44px; block-size:44px; border-radius:13px; flex:none;
+  display:grid; place-items:center; cursor:pointer; font:inherit;
+  font-family:var(--ps-num-font); font-weight:900; font-size:15px;
+  border:1px solid var(--ps-line); background:var(--ps-soft); color:var(--ps-mut);
+  transition:background .2s, color .2s, border-color .2s;
+}
+.ps-load.is-on{ background:var(--ps-acc); border-color:var(--ps-acc); color:#fff; }
+.ps-load:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-react{
+  inline-size:38px; block-size:38px; border-radius:12px; flex:none;
+  display:grid; place-items:center; cursor:pointer; font-size:17px; line-height:1;
+  border:1px solid rgba(255,255,255,.38); background:rgba(0,0,0,.16);
+  transition:background .2s, transform .15s;
+}
+.ps-react:hover{ background:rgba(0,0,0,.3); }
+.ps-react.is-on{ background:#fff; transform:scale(1.06); }
+.ps-react:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.ps-mvp{
+  display:inline-flex; align-items:center; gap:4px; flex:none;
+  font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;
+  color:var(--ps-warn-tx); background:var(--ps-warn-bg); border:1px solid var(--ps-warn-line);
+}
+
+/* ---- הקבוצה שלי: סמל, שורת VS, סגל ---- */
+.ps-crest{
+  inline-size:56px; block-size:56px; border-radius:18px; flex:none; display:grid; place-items:center;
+  background:rgba(255,255,255,.2); border:2px solid rgba(255,255,255,.4);
+  font-family:var(--ps-num-font); font-weight:900; font-size:19px; color:#fff;
+}
+.ps-hero-stats{ display:flex; gap:7px; margin-block-start:4px; }
+.ps-hero-stat{
+  flex:1 1 0; min-inline-size:0; display:flex; flex-direction:column; align-items:center; gap:1px;
+  padding:9px 6px; border-radius:14px;
+  background:rgba(0,0,0,.16); border:1px solid rgba(255,255,255,.24);
+}
+.ps-hero-stat b{ font-family:var(--ps-num-font); font-weight:900; font-size:17px; color:#fff; font-variant-numeric:tabular-nums; }
+.ps-vs{ display:flex; align-items:center; gap:10px; padding:12px 6px; border-radius:16px; background:var(--ps-soft); border:1px solid var(--ps-hair); }
+.ps-vs-side{ display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; min-inline-size:0; text-align:center; }
+.ps-vs-tx{ font-family:var(--ps-num-font); font-weight:900; font-size:15px; color:var(--ps-mut); flex:none; }
+.ps-crest-sm{
+  inline-size:38px; block-size:38px; border-radius:12px; flex:none; display:grid; place-items:center;
+  background:var(--ps-acc); color:#fff; font-weight:800; font-size:13px;
+}
+.ps-crest-sm--mut{ background:var(--ps-hair); color:var(--ps-mut); }
+.ps-roster{ display:grid; grid-template-columns:1fr; gap:7px; }
+@media (min-width:600px){ .ps-roster{ grid-template-columns:1fr 1fr; } }
+.ps-jersey{
+  inline-size:32px; block-size:32px; border-radius:10px; flex:none; display:grid; place-items:center;
+  background:rgba(var(--ps-a-rgb),var(--ps-tint)); color:var(--ps-acc-tx);
+  font-family:var(--ps-num-font); font-weight:900; font-size:13px; font-variant-numeric:tabular-nums;
+}
+.ps-bignum{ font-family:var(--ps-num-font); font-weight:900; font-size:30px; line-height:1; color:var(--ps-acc-tx); font-variant-numeric:tabular-nums; }
+
+/* ---- צ׳אט הקבוצה ---- */
+.ps-chat{ display:flex; flex-direction:column; gap:10px; min-inline-size:0; }
+.ps-chat-head{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 13px; border-radius:16px;
+  background:var(--ps-card); border:1px solid var(--ps-line); box-shadow:var(--ps-shadow);
+}
+.ps-quick{ display:flex; gap:6px; flex-wrap:wrap; }
+.ps-quick-chip{
+  font:inherit; font-size:12px; font-weight:700; cursor:pointer; flex:none;
+  padding:8px 12px; border-radius:999px;
+  border:1px solid var(--ps-line); background:var(--ps-card); color:var(--ps-mut);
+  transition:border-color .2s, color .2s;
+}
+.ps-quick-chip:hover{ border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); color:var(--ps-acc-tx); }
+.ps-quick-chip:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+
+/* ---- הצ׳אט על הקנבס החדש ----
+   TeamChat משותף עם צד המאמן ולכן המרקאפ שלו לא נגע. מה שכן: המשטח
+   הקרם שלו נראה כמו אפליקציה אחרת על הקנבס הכחלחל, והכותרת שלו כפולה
+   לבאנר של המסך. */
+.ps-chat .pl-chat-screen{ animation:none; }
+.ps-chat .pl-chat-head{
+  background:var(--ps-card); border:1px solid var(--ps-line);
+  border-radius:16px; box-shadow:var(--ps-shadow);
+}
+.ps-chat .pl-chat-head .pl-h2{ font-size:15.5px; color:var(--ps-txt); }
+.ps-chat .pl-chat-box{
+  background:var(--ps-card); border:1px solid var(--ps-line);
+  border-radius:20px; box-shadow:var(--ps-shadow);
+}
+.ps-chat .empty-state{ background:var(--ps-soft); border-color:var(--ps-line); }
+.ps-chat .pl-chat-badge{ color:var(--ps-acc-tx); background:rgba(var(--ps-a-rgb),var(--ps-tint)); border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); }
+
+/* המשטח הקרם עם דפוס הנקודות הוא של הצ׳אט המשותף. במסך ה-ps הוא
+   נמדד כמו אפליקציה אחרת על הקנבס — כאן הוא לובש את טוקני המסך.
+   ⚠ רק בתוך ‎.ps-chat: הצ׳אט של המאמן ממשיך להיראות כפי שהוא. */
+.ps-chat .chat-scroll{ background:var(--ps-soft); background-image:none; }
+.ps-chat .chat-input{ background:var(--ps-soft); border-color:var(--ps-line); color:var(--ps-txt); }
+.ps-chat .btn-send{ background:var(--ps-acc); }

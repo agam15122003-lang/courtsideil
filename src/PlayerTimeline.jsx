@@ -13,6 +13,7 @@ import { waShare } from './share'
 import FeedbackSheet from './FeedbackSheet'
 import { SkeletonCards } from './Skeleton'
 import BasketballIcon from './BasketballIcon'
+import PlayerScreen from './PlayerScreen'
 
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
@@ -28,24 +29,32 @@ function LoadTrend({ series }) {
   const line = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ')
   const area = `${line} L ${xs(n - 1).toFixed(1)} ${H - p} L ${xs(0).toFixed(1)} ${H - p} Z`
   const last = pts[n - 1]
+  const avg = series.reduce((s, v) => s + v, 0) / n
+  const top = Math.max(...series)
   return (
-    <div className="plt-trend">
-      <div className="plt-trend-head">
-        <span><TrendingUp size={15} /> {L('מגמת עומס', 'Load trend')}</span>
-        <span className="muted small">{L(`${cnt(n, 'האימון האחרון', 'אימונים אחרונים')}`, `last ${n} sessions`)}</span>
+    <div className="ps-card">
+      <div className="ps-card-head">
+        <b className="ps-h"><TrendingUp size={15} aria-hidden="true" /> {L('מגמת עומס', 'Load trend')}</b>
+        <span className="ps-chip ps-chip--mut">{L(cnt(n, 'האימון האחרון', 'אימונים אחרונים'), `last ${n} sessions`)}</span>
       </div>
-      <svg viewBox="0 0 300 110" className="plt-trend-svg" preserveAspectRatio="none" aria-hidden="true">
+      {/* ⚠ צבועים ב---ps-acc ולא ב---accent: הגרף חי עכשיו בתוך מסך ps,
+          ולכל מסך שם יש צבע משלו */}
+      <svg viewBox="0 0 300 110" className="ps-trend" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="pltTrend" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="var(--accent)" stopOpacity="0.3" />
-            <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
+            <stop offset="0" stopColor="var(--ps-acc)" stopOpacity="0.3" />
+            <stop offset="1" stopColor="var(--ps-acc)" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <line x1="10" y1="100" x2="290" y2="100" stroke="var(--border)" strokeWidth="1" />
+        <line x1="10" y1="100" x2="290" y2="100" stroke="var(--ps-hair)" strokeWidth="1" />
         <path d={area} fill="url(#pltTrend)" />
-        <path className="plt-trend-line" d={line} fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={last[0]} cy={last[1]} r="5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2.5" />
+        <path d={line} fill="none" stroke="var(--ps-acc)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={last[0]} cy={last[1]} r="5.5" fill="var(--ps-acc)" />
       </svg>
+      <div className="ps-steps">
+        <span className="ps-chip ps-chip--acc">{L(`ממוצע ${avg.toFixed(1)} מתוך 10`, `Avg ${avg.toFixed(1)} of 10`)}</span>
+        <span className="ps-lbl">{L(`האימון האחרון: ${series[n - 1]} · הגבוה בתקופה: ${top}`, `Last: ${series[n - 1]} · period high: ${top}`)}</span>
+      </div>
     </div>
   )
 }
@@ -54,19 +63,44 @@ function LoadTrend({ series }) {
 // דורש את react_to_feedback() מ-supabase_engagement2.sql; אם ה-RPC חסר —
 // הכפתורים פשוט לא ישנו כלום והשגיאה תוצג בטוסט.
 const REACTIONS = ['👍', '🔥', '💪', '🙏']
-export function FbReact({ fb, coachId, me }) {
+export function FbReact({ fb, coachId, me, hero = false }) {
   const [chosen, setChosen] = useState(fb?.player_reaction || null)
   if (!fb?.id) return null
+
+  const react = async (r) => {
+    const { error } = await supabase.rpc('react_to_feedback', { p_id: fb.id, p_reaction: r })
+    if (error) { toast.error(L('התגובה לא נשלחה', 'Reaction failed')); return }
+    setChosen(r)
+    sendNotification({ to: coachId, actor: me, type: 'message', content: L(`השחקן הגיב ${r} על המשוב שלך`, `Player reacted ${r} to your feedback`), nav: 'teams' })
+  }
+
+  // בבאנר של «האימונים שלי» — שורת האמוג׳י של המסמך, על הגרדיאנט
+  if (hero) {
+    return (
+      <>
+        <span className="ps-hero-note">{L('להגיב:', 'React:')}</span>
+        {REACTIONS.map((r) => (
+          <button
+            key={r} type="button"
+            className={chosen === r ? 'ps-react is-on' : 'ps-react'}
+            aria-pressed={chosen === r}
+            disabled={!!chosen}
+            onClick={() => react(r)}
+            aria-label={L(`הגב ${r}`, `React ${r}`)}
+          >{r}</button>
+        ))}
+        <span className="ps-hero-note ps-end">
+          {chosen ? L('הגבת — המאמן רואה', 'Sent — your coach sees it') : L('טאפ אחד וזה מגיע אליו', 'One tap and it reaches them')}
+        </span>
+      </>
+    )
+  }
+
   if (chosen) return <span className="th-react-done">{chosen} {L('הגבת', 'You reacted')}</span>
   return (
     <span className="th-react">
       {REACTIONS.map((r) => (
-        <button key={r} type="button" onClick={async () => {
-          const { error } = await supabase.rpc('react_to_feedback', { p_id: fb.id, p_reaction: r })
-          if (error) { toast.error(L('התגובה לא נשלחה', 'Reaction failed')); return }
-          setChosen(r)
-          sendNotification({ to: coachId, actor: me, type: 'message', content: L(`השחקן הגיב ${r} על המשוב שלך`, `Player reacted ${r} to your feedback`), nav: 'teams' })
-        }} aria-label={L(`הגב ${r}`, `React ${r}`)}>{r}</button>
+        <button key={r} type="button" onClick={() => react(r)} aria-label={L(`הגב ${r}`, `React ${r}`)}>{r}</button>
       ))}
     </span>
   )
@@ -77,7 +111,7 @@ export function FbReact({ fb, coachId, me }) {
 // וציר זמן: כל אימון/משחק שעבר הוא כרטיס אחד שמרכז נוכחות, עומס,
 // יעדים ✓✗, משוב המאמן, סיכום, MVP.
 // ============================================================
-export default function PlayerTimeline({ session, membership }) {
+export default function PlayerTimeline({ session, membership, bell, coachName: coachNameProp, onCoach }) {
   // §12 — «אימונים שהיו» כסטאק: כרטיס אחד פתוח, השאר שורות מקופלות
   const [openId, setOpenId] = useState(null)
   const [items, setItems] = useState(null)
@@ -172,48 +206,67 @@ export default function PlayerTimeline({ session, membership }) {
   useEffect(() => { load() }, [load])
 
   if (!membership) return null
-  if (items === null) return <SkeletonCards count={4} lines={2} />
+  if (items === null) {
+    return (
+      <PlayerScreen page="sessions" bell={bell} coach={coachNameProp} onCoach={onCoach}>
+        <SkeletonCards count={4} lines={2} />
+      </PlayerScreen>
+    )
+  }
+
+  const band = stats ? [
+    { value: stats.attendancePct != null ? `${stats.attendancePct}%` : '—', label: L('נוכחות', 'Attendance') },
+    { value: stats.sessions, label: L('אימונים', 'Sessions') },
+    { value: stats.avgEffort != null ? stats.avgEffort.toFixed(1) : '—', label: L('עומס ממוצע', 'Avg load') },
+  ] : null
 
   return (
-    <div className="pl-screen pl-narrow">
-      <header className="pl-head tone-accent">
-        <span className="pl-head-ic"><History size={22} /></span>
-        <div className="pl-head-txt">
-          <h2>{L('האימונים שלי', 'My sessions')}</h2>
-          <p>{L('המשוב, העומס והיעדים שלך במקום אחד', 'Your feedback, effort and goals in one place')}</p>
-        </div>
-      </header>
-
-      <button className="plt-cta" onClick={() => setFbOpen(true)}>
-        <Send size={18} /> {L('מלא סיכום אימון', 'Log session summary')}
-      </button>
-
-      {/* 1.8 — המשוב המלא מהאימון האחרון, למעלה */}
-      {latestFb && (
-        <div className="plt-lastfb">
-          <p className="pl-section-label">{L('המשוב האחרון מהמאמן', "Coach's latest feedback")}</p>
-          <div className="plt-lastfb-card">
-            <span className="muted small">
-              {latestFb.created_at ? new Date(latestFb.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''}
-            </span>
-            <p>{latestFb.content}</p>
+    <PlayerScreen page="sessions" band={band} bell={bell} coach={coachNameProp} onCoach={onCoach}>
+      {/* המסמך פותח בבאנר עם המשוב האחרון והתגובה אליו — לא בכפתור */}
+      {latestFb ? (
+        <div className="ps-hero">
+          <div className="ps-hero-row">
+            <b className="ps-hero-kick">
+              {L('המשוב האחרון מ', "Coach's latest feedback · ")}{coachName(latestFb.coach)}
+              {latestFb.created_at ? ` · ${new Date(latestFb.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}
+            </b>
+            {latestFb.rating > 0 && (
+              <span className="ps-hero-pill" aria-label={L(`דירוג ${latestFb.rating} מתוך 5`, `Rated ${latestFb.rating} of 5`)}>
+                {'★'.repeat(latestFb.rating)}{'☆'.repeat(5 - latestFb.rating)}
+              </span>
+            )}
+          </div>
+          <span className="ps-hero-quote">״{latestFb.content}״</span>
+          <div className="ps-hero-acts">
+            <FbReact fb={latestFb} coachId={membership.coach_id} me={me} hero />
           </div>
         </div>
-      )}
-
-      {stats && (
-        <div className="plt-trio">
-          <div className="plt-stat"><b className="green">{stats.attendancePct != null ? `${stats.attendancePct}%` : '—'}</b><span>{L('נוכחות', 'Attendance')}</span></div>
-          <div className="plt-stat"><b>{stats.tasksDone}</b><span>{L('משימות שבוצעו', 'Tasks done')}</span></div>
-          <div className="plt-stat"><b className="brand">{stats.avgEffort != null ? stats.avgEffort.toFixed(1) : '—'}</b><span>{L('עומס ממוצע', 'Avg load')}</span></div>
+      ) : (
+        <div className="ps-hero">
+          <b className="ps-hero-kick">{L('האימונים שלי', 'My sessions')}</b>
+          <b className="ps-hero-title">{L('כאן נשמר כל אימון', 'Every session is kept here')}</b>
+          <span className="ps-hero-sub">{L('המשוב, העומס והיעדים שלך — אימון אחרי אימון.', 'Your feedback, effort and goals — session by session.')}</span>
         </div>
       )}
 
-      {stats && stats.series && stats.series.length >= 2 && <LoadTrend series={stats.series} />}
+      <div className="ps-cols">
+        {stats && stats.series && stats.series.length >= 2 && <LoadTrend series={stats.series} />}
+
+        <div className="ps-card">
+          <b className="ps-h">{L('מלא סיכום אימון', 'Log session summary')}</b>
+          <p className="ps-mut">
+            {L('איך הרגשת באימון האחרון? העומס והפתק שלך נשמרים בציר ונשלחים למאמן.',
+               'How did the last session feel? Your load and note are saved to your timeline and sent to your coach.')}
+          </p>
+          <button type="button" className="ps-btn" onClick={() => setFbOpen(true)}>
+            <Send size={17} aria-hidden="true" /> {L('מלא סיכום אימון', 'Log session summary')}
+          </button>
+        </div>
+      </div>
 
       {/* סיכום שבועי להורים — טקסט מוכן לוואטסאפ מהנתונים שכבר על המסך */}
       {stats && stats.sessions > 0 && (
-        <button className="plt-share" onClick={() => {
+        <button type="button" className="ps-btn-ghost" onClick={() => {
           const week = items.filter((c) => c.type !== 'note' && c.date >= ymdAgo(7))
           const weekEff = week.map((c) => c.eff?.effort).filter((v) => v != null)
           const mvpCard = week.find((c) => c.review && c.review.mvp_player_id === me)
@@ -228,19 +281,24 @@ export default function PlayerTimeline({ session, membership }) {
           ].filter(Boolean)
           waShare(lines.join('\n'))
         }}>
-          <Share2 size={15} /> {L('שיתוף סיכום להורים', 'Share recap with parents')}
+          <Share2 size={15} aria-hidden="true" /> {L('שיתוף סיכום שבועי להורים', 'Share weekly recap with parents')}
         </button>
       )}
 
       {items.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-ic"><History size={26} /></span>
-          <div className="empty-title">{L('ההיסטוריה שלך תתחיל כאן', 'Your history starts here')}</div>
-          <p className="muted small">{L('אחרי כל אימון — הדירוג שלך, היעדים והמשוב מהמאמן יישמרו כאן, אימון אחרי אימון.', 'After each practice — your rating, goals and coach feedback are saved here, session by session.')}</p>
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><History size={20} aria-hidden="true" /></span>
+            <b>{L('ההיסטוריה שלך תתחיל כאן', 'Your history starts here')}</b>
+            <p>{L('אחרי כל אימון — הדירוג שלך, היעדים והמשוב מהמאמן יישמרו כאן, אימון אחרי אימון.', 'After each practice — your rating, goals and coach feedback are saved here, session by session.')}</p>
+          </div>
         </div>
       ) : (
-        <>
-          <p className="pl-section-label" style={{ marginTop: 18 }}>{L('ארכיון אימונים', 'Session archive')}</p>
+        <div className="ps-card">
+          <div className="ps-card-head">
+            <b className="ps-h">{L('ארכיון אימונים', 'Session archive')}</b>
+            <span className="ps-chip ps-chip--mut">{L(cnt(items.length, 'רשומה אחת', 'רשומות'), `${items.length} entries`)}</span>
+          </div>
           <div className="thist">
             {items.map((c) => {
               const isMvp = c.review && c.review.mvp_player_id === me
@@ -317,11 +375,11 @@ export default function PlayerTimeline({ session, membership }) {
               )
             })}
           </div>
-        </>
+        </div>
       )}
 
       <FeedbackSheet session={session} membership={membership} open={fbOpen}
         onClose={() => setFbOpen(false)} onSent={load} />
-    </div>
+    </PlayerScreen>
   )
 }

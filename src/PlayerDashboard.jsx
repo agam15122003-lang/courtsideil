@@ -819,7 +819,7 @@ function MyPersonalCoaches({ session, bell, setView }) {
   ]
 
   return (
-    <PlayerScreen page="coach" band={rows.length ? band : null} bell={bell}>
+    <PlayerScreen page="pcoach" band={rows.length ? band : null} bell={bell}>
       {/* במסמך הבאנר הוא **כרטיס המאמן** — לחיצה פותחת גיליון עם הפרטים */}
       {rows.map((r) => (
         <button key={r.id} type="button" className="ps-coach" onClick={() => setCardOf(r)}>
@@ -924,7 +924,7 @@ function CoachCardSheet({ row, onClose }) {
   }, [])
   const c = row.coach || {}
   return createPortal(
-    <div className="ps ps-overlay" data-page="coach">
+    <div className="ps ps-overlay" data-page="pcoach">
       <button type="button" className="ps-scrim" onClick={onClose} aria-label={L('סגירה', 'Close')} />
       <div className="ps-sheet" ref={ref} role="dialog" aria-modal="true" aria-label={L('כרטיס מאמן', 'Coach card')}>
         <div className="ps-sheet-head">
@@ -3423,10 +3423,10 @@ const pocketNavFor = (hasTeam) =>
 // אצלם במובייל — בדיוק כמו בבית וב«עולם הכדורסל».
 // ⚠ ‏coach/team/teamchat נמצאים ברשימה כי שלושתם מרנדרים את PlayerTeamHub,
 // כלומר את אותו מסך «הקבוצה והלו״ז» עם לשונית פתוחה אחרת.
-const PS_VIEWS = ['drills', 'goals', 'schedule', 'pcoach', 'videos', 'profile', 'coach', 'team', 'teamchat']
+const PS_VIEWS = ['drills', 'goals', 'schedule', 'pcoach', 'videos', 'profile', 'coach', 'team', 'teamchat', 'feedback']
 // אלה שמתחלפים ב-LockedFeature לשחקן בלי קבוצה — ואז אין באנר, ולכן גם
 // אסור להוריד את הסרגל העליון
-const PS_TEAM_VIEWS = ['goals', 'schedule', 'coach', 'team', 'teamchat']
+const PS_TEAM_VIEWS = ['goals', 'schedule', 'coach', 'team', 'teamchat', 'feedback']
 
 export default function PlayerDashboard({ session, profile, onProfileReload, restricted: restrictedProp, canSelfConfirm = false }) {
   // נחיתה מכוונת: מי שהגיע מלינק המגרש (#/court) נוחת על המגרש ולא על
@@ -3560,7 +3560,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
       case 'feedback':
         return hasTeam
-          ? <PlayerTimeline session={session} membership={membership} />
+          ? <PlayerTimeline session={session} membership={membership} {...ps} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('האימונים שלי', 'My sessions')}
               desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />

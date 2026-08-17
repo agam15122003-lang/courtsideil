@@ -16,12 +16,19 @@ import { L } from './i18n'
 // והדפסה נשארים במקום אחד.
 
 export const PS_PAGES = {
-  sched:   { kicker: ['לו״ז', 'SCHEDULE'],            title: ['הלו״ז שלי', 'My schedule'] },
-  tasks:   { kicker: ['משימות · שיעורי בית', 'TASKS'], title: ['המשימות שלי', 'My tasks'] },
-  goals:   { kicker: ['יעדים', 'GOALS'],               title: ['היעדים שלי', 'My goals'] },
-  coach:   { kicker: ['מאמן', 'COACH'],                title: ['המאמן האישי', 'Personal coach'] },
-  media:   { kicker: ['מדיה', 'MEDIA'],                title: ['סרטוני לימוד', 'Media'] },
-  profile: { kicker: ['פרופיל', 'PROFILE'],            title: ['פרופיל השחקן', 'My profile'] },
+  sched:    { kicker: ['לו״ז', 'SCHEDULE'],             title: ['הלו״ז שלי', 'My schedule'] },
+  sessions: { kicker: ['אימונים · 90 יום', 'SESSIONS'], title: ['האימונים שלי', 'My sessions'] },
+  tasks:    { kicker: ['משימות · שיעורי בית', 'TASKS'], title: ['המשימות שלי', 'My tasks'] },
+  goals:    { kicker: ['יעדים', 'GOALS'],               title: ['היעדים שלי', 'My goals'] },
+  team:     { kicker: ['קבוצה', 'TEAM'],                title: ['הקבוצה שלי', 'My team'] },
+  chat:     { kicker: ['צ׳אט', 'CHAT'],                 title: ['צ׳אט הקבוצה', 'Team chat'] },
+  coach:    { kicker: ['מאמן', 'COACH'],                title: ['המאמן שלי', 'My coach'] },
+  media:    { kicker: ['מדיה', 'MEDIA'],                title: ['סרטוני לימוד', 'Media'] },
+  profile:  { kicker: ['פרופיל', 'PROFILE'],            title: ['פרופיל השחקן', 'My profile'] },
+  // «המאמן האישי» אינו במסמך העיצוב — הוא מסך של האתר בלבד (מאמן שעובד
+  // אחד־על־אחד, בנפרד מהקבוצה). מקבל את אותה שפה, וכותרת שלא מתנגשת
+  // עם «המאמן שלי» של הקבוצה.
+  pcoach:   { kicker: ['מאמן אישי', 'PERSONAL'],        title: ['המאמן האישי', 'Personal coach'] },
 }
 
 // ראשי תיבות לעיגול האווטאר — שם ריק לא יפיל את המסך
