@@ -27880,3 +27880,65 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 .ps-chat .chat-scroll{ background:var(--ps-soft); background-image:none; }
 .ps-chat .chat-input{ background:var(--ps-soft); border-color:var(--ps-line); color:var(--ps-txt); }
 .ps-chat .btn-send{ background:var(--ps-acc); }
+
+/* ==========================================================================
+   17.8.2026 (ד) · ps- — ארכיון האימונים ו«המאמן שלי» נכנסים לשפה
+   --------------------------------------------------------------------------
+   שני המקומות היחידים שנשארו במרקאפ הישן בתוך מעטפת. הבעלים צדק: על
+   הקנבס החדש הם נראו כמו אפליקציה אחרת.
+   ========================================================================== */
+
+/* שורה מתקפלת: החץ מסתובב, והפרטים נפתחים ברכות */
+.ps-chev{ flex:none; color:var(--ps-dim); transition:transform .22s ease; }
+.ps-chev.is-open{ transform:rotate(180deg); }
+.ps-fold{ display:flex; flex-direction:column; gap:9px; animation:ps-fade .22s both; }
+
+/* «בקשות מהירות» — ארבעה כפתורים בשתי עמודות, בשפת הכרטיסים */
+.ps-quickreq .pth-quick{ display:flex; flex-direction:column; gap:11px; }
+.ps-quickreq .pl-section-label{ margin:0; font-size:15.5px; font-weight:800; color:var(--ps-txt); letter-spacing:0; text-transform:none; }
+.ps-quickreq .pth-quick-grid{ display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+@media (max-width:400px){ .ps-quickreq .pth-quick-grid{ grid-template-columns:1fr; } }
+.ps-quickreq .pth-quick-btn{
+  display:flex; align-items:center; justify-content:flex-start; gap:8px;
+  min-block-size:46px; padding:11px 13px; margin:0;
+  border-radius:14px; border:1px solid var(--ps-line); background:var(--ps-soft);
+  color:var(--ps-txt); font:inherit; font-size:13px; font-weight:700; cursor:pointer;
+  transition:border-color .2s, background .2s;
+}
+.ps-quickreq .pth-quick-btn:hover{ border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); background:rgba(var(--ps-a-rgb),calc(var(--ps-tint) / 2)); }
+.ps-quickreq .pth-quick-btn svg{ color:var(--ps-acc-tx); flex:none; }
+.ps-quickreq .pth-quick-btn:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps-quickreq .pth-quick-form{ grid-column:1 / -1; display:flex; flex-direction:column; gap:8px; }
+.ps-quickreq .finder-input{
+  padding:11px 13px; border-radius:12px;
+  border:1px solid var(--ps-line); background:var(--ps-soft); color:var(--ps-txt);
+}
+.ps-quickreq .btn-primary{
+  min-block-size:46px; border-radius:13px; border:0;
+  background:linear-gradient(135deg,var(--ps-a) 0%,var(--ps-a2) 100%); color:#fff;
+}
+.ps-quickreq .chip.selected{ background:var(--ps-acc); border-color:var(--ps-acc); color:#fff; }
+
+/* כותרת המאמן בצ׳אט האישי — שורת כרטיס, לא טקסט חשוף */
+.ps-chat .pl-coach-head{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 13px; border-radius:16px;
+  background:var(--ps-card); border:1px solid var(--ps-line); box-shadow:var(--ps-shadow);
+}
+
+/* כפתורי התגובה בתוך הארכיון — הגרסה הלא־באנרית של FbReact.
+   המרקאפ משותף עם צד המאמן, ולכן רק בתוך ‎.ps הם לובשים את הטוקנים. */
+.ps .th-react{ display:flex; gap:6px; flex-wrap:wrap; }
+.ps .th-react button{
+  inline-size:34px; block-size:34px; border-radius:11px; flex:none;
+  display:grid; place-items:center; font-size:15px; line-height:1; cursor:pointer;
+  border:1px solid var(--ps-line); background:var(--ps-soft);
+  transition:border-color .2s, background .2s, transform .15s;
+}
+.ps .th-react button:hover{ border-color:rgba(var(--ps-a-rgb),var(--ps-tint-b)); background:rgba(var(--ps-a-rgb),var(--ps-tint)); transform:scale(1.06); }
+.ps .th-react button:focus-visible{ outline:2px solid var(--ps-acc); outline-offset:2px; }
+.ps .th-react-done{
+  display:inline-flex; align-items:center; gap:5px; flex:none;
+  font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;
+  color:var(--ps-ok-tx); background:var(--ps-ok-bg); border:1px solid var(--ps-ok-line);
+}

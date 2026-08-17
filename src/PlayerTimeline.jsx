@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
-  Dumbbell, StickyNote, Send, TrendingUp, Share2,
+  Dumbbell, StickyNote, Send, TrendingUp, Share2, ChevronDown,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -299,82 +299,96 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
             <b className="ps-h">{L('ארכיון אימונים', 'Session archive')}</b>
             <span className="ps-chip ps-chip--mut">{L(cnt(items.length, 'רשומה אחת', 'רשומות'), `${items.length} entries`)}</span>
           </div>
-          <div className="thist">
-            {items.map((c) => {
-              const isMvp = c.review && c.review.mvp_player_id === me
-              // כרטיס "הודעה מהמאמן" — ירקרק, ללא אימון צמוד
-              if (c.type === 'note') {
-                return (
-                  <div key={c.session_id} className="th-msg">
-                    <div className="th-msg-head">
-                      <span className="th-msg-ic"><MessageSquareHeart size={15} /></span>
-                      <strong>{L('הודעה מהמאמן', 'Message from coach')}</strong>
-                      <span className="th-date">{heDate(c.date)}</span>
-                    </div>
-                    {c.fb?.rating > 0 && (
-                      <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={13} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
-                    )}
-                    {c.fb?.content && <p className="th-msg-txt">{c.fb.content}</p>}
-                    <FbReact fb={c.fb} coachId={membership.coach_id} me={me} />
-                  </div>
-                )
-              }
-              // כרטיס סיכום אימון/משחק
-              const isOpen = (openId ?? items.find((x) => x.type !== 'note')?.session_id) === c.session_id
+          {/* ארכיון האימונים במרקאפ של המסמך: שורה מתקפלת עם אייקון, כותרת,
+              תאריך, MVP ועומס — ואחריה הפרטים. */}
+          {items.map((c) => {
+            const isMvp = c.review && c.review.mvp_player_id === me
+            // "הודעה מהמאמן" — משוב שלא צמוד לאימון מסוים
+            if (c.type === 'note') {
               return (
-                <div key={c.session_id} className={(isMvp ? 'th-card mvp' : 'th-card') + (isOpen ? '' : ' is-folded')}>
-                  <button type="button" className="th-card-head th-fold" onClick={() => setOpenId(isOpen ? '-' : c.session_id)} aria-expanded={isOpen}>
-                    <span className="th-title">
-                      {c.type === 'game'
-                        ? <><BasketballIcon size={15} /> {c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game')}</>
-                        : <><Dumbbell size={15} /> {L('אימון קבוצתי', 'Team practice')}</>}
+                <div key={c.session_id} className="ps-card ps-card--sub">
+                  <div className="ps-card-head">
+                    <span className="ps-jersey" aria-hidden="true"><MessageSquareHeart size={15} /></span>
+                    <b className="ps-t13b">{L('הודעה מהמאמן', 'Message from coach')}</b>
+                    <span className="ps-chip ps-chip--mut">{heDate(c.date)}</span>
+                  </div>
+                  {c.fb?.rating > 0 && (
+                    <span className="ps-lbl" aria-label={L(`דירוג ${c.fb.rating} מתוך 5`, `Rated ${c.fb.rating} of 5`)}>
+                      {'★'.repeat(c.fb.rating)}{'☆'.repeat(5 - c.fb.rating)}
                     </span>
-                    <span className="th-date">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
-                  </button>
-                  {isOpen && (<>
-
-                  {isMvp && <div className="th-mvp"><Crown size={15} /> {L('נבחרת ל-MVP של האימון!', 'You were the MVP!')}</div>}
-
-                  {(c.eff || c.att || c.marks.length > 0) && (
-                    <div className="th-pills">
-                      {c.eff && <span className="th-pill load"><Flame size={12} /> {L('עומס', 'Load')} {c.eff.effort}/10</span>}
-                      {c.att && (
-                        <span className={`th-pill att-${c.att}`}>
-                          {c.att === 'present' ? <><Check size={12} /> {L('נכחת', 'Present')}</> : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')}
-                        </span>
-                      )}
-                      {c.marks.map((m, i) => (
-                        <span key={i} className={m.met ? 'th-pill goal met' : 'th-pill goal miss'}>
-                          {m.met ? <Check size={12} /> : <Minus size={12} />} {m.title}
-                        </span>
-                      ))}
-                    </div>
                   )}
-
-                  {c.eff?.note && <p className="th-quote">״{c.eff.note}״</p>}
-
-                  {c.fb && (c.fb.content || c.fb.rating > 0) && (
-                    <div className="th-coach">
-                      <Avatar name={coachName(c.fb.coach)} url={c.fb.coach?.avatar_url} size={28} />
-                      <div className="th-coach-body">
-                        <span className="th-coach-lbl">{L('המאמן כתב לך', 'Coach wrote')}</span>
-                        {c.fb.rating > 0 && (
-                          <span className="pl-fb-stars">{[1, 2, 3, 4, 5].map((n) => <Star key={n} size={12} fill={n <= c.fb.rating ? 'currentColor' : 'none'} />)}</span>
-                        )}
-                        {c.fb.content && <p>{c.fb.content}</p>}
-                        <FbReact fb={c.fb} coachId={membership.coach_id} me={me} />
-                      </div>
-                    </div>
-                  )}
-
-                  {c.review?.overall_note && (
-                    <p className="th-summary"><StickyNote size={12} /> {L('סיכום המאמן: ', 'Coach summary: ')}{c.review.overall_note}</p>
-                  )}
-                  </>)}
+                  {c.fb?.content && <p className="ps-quote">״{c.fb.content}״</p>}
+                  <div className="ps-steps"><FbReact fb={c.fb} coachId={membership.coach_id} me={me} /></div>
                 </div>
               )
-            })}
-          </div>
+            }
+            // כרטיס סיכום אימון/משחק
+            const isOpen = (openId ?? items.find((x) => x.type !== 'note')?.session_id) === c.session_id
+            return (
+              <div key={c.session_id} className="ps-card ps-card--sub">
+                <button
+                  type="button" className="ps-linkrow ps-row--bare"
+                  onClick={() => setOpenId(isOpen ? '-' : c.session_id)}
+                  aria-expanded={isOpen} aria-controls={`ps-se-${c.session_id}`}
+                >
+                  <span className="ps-jersey" aria-hidden="true">
+                    {c.type === 'game' ? <BasketballIcon size={15} /> : <Dumbbell size={15} />}
+                  </span>
+                  <span className="ps-row-main">
+                    <b className="ps-t13b">
+                      {c.type === 'game'
+                        ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game'))
+                        : L('אימון קבוצתי', 'Team practice')}
+                    </b>
+                    <span className="ps-lbl">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
+                  </span>
+                  {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
+                  {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
+                  <ChevronDown size={16} aria-hidden="true" className={isOpen ? 'ps-chev is-open' : 'ps-chev'} />
+                </button>
+
+                {isOpen && (
+                  <div id={`ps-se-${c.session_id}`} className="ps-fold">
+                    {(c.eff || c.att || c.marks.length > 0) && (
+                      <div className="ps-steps">
+                        {c.eff && <span className="ps-chip ps-chip--acc"><Flame size={12} aria-hidden="true" /> {L('עומס', 'Load')} <bdi dir="ltr">{c.eff.effort}/10</bdi></span>}
+                        {c.att && (
+                          <span className={c.att === 'present' ? 'ps-chip ps-chip--ok' : c.att === 'late' ? 'ps-chip ps-chip--warn' : 'ps-chip ps-chip--bad'}>
+                            {c.att === 'present' ? <><Check size={12} aria-hidden="true" /> {L('נכחת', 'Present')}</> : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')}
+                          </span>
+                        )}
+                        {c.marks.map((m, i) => (
+                          <span key={i} className={m.met ? 'ps-chip ps-chip--ok' : 'ps-chip ps-chip--mut'}>
+                            {m.met ? <Check size={12} aria-hidden="true" /> : <Minus size={12} aria-hidden="true" />} {m.title}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {c.eff?.note && <p className="ps-quote">״{c.eff.note}״</p>}
+
+                    {c.fb && (c.fb.content || c.fb.rating > 0) && (
+                      <div className="ps-row">
+                        <Avatar name={coachName(c.fb.coach)} url={c.fb.coach?.avatar_url} size={28} />
+                        <span className="ps-row-main">
+                          <span className="ps-lbl">
+                            {L('המאמן כתב לך', 'Coach wrote')}
+                            {c.fb.rating > 0 && ` · ${'★'.repeat(c.fb.rating)}${'☆'.repeat(5 - c.fb.rating)}`}
+                          </span>
+                          {c.fb.content && <span className="ps-quote">{c.fb.content}</span>}
+                          <span className="ps-steps"><FbReact fb={c.fb} coachId={membership.coach_id} me={me} /></span>
+                        </span>
+                      </div>
+                    )}
+
+                    {c.review?.overall_note && (
+                      <p className="ps-lbl"><StickyNote size={12} aria-hidden="true" /> {L('סיכום המאמן: ', 'Coach summary: ')}{c.review.overall_note}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 

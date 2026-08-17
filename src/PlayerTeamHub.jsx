@@ -331,9 +331,14 @@ export default function PlayerTeamHub({ session, membership, coach, initialTab, 
           <TeamChat session={session} coachId={membership.coach_id} team={membership.team} isCoach={false} />
         </div>
       )}
+      {/* ⚠ ‏ps-chat גם כאן: CoachChat חולק את אותן מחלקות עם TeamChat
+          (‎.pl-chat-head / .pl-chat-box / .chat-scroll), ובלי המחלקה הזאת
+          המשטח הקרם שלו נשאר בשפה הישנה על הקנבס החדש. */}
       {tab === 'coach' && (
-        <div className="ps-slot">
-          <QuickRequests session={session} membership={membership} coach={coach} />
+        <div className="ps-chat ps-slot">
+          <div className="ps-card ps-quickreq">
+            <QuickRequests session={session} membership={membership} coach={coach} />
+          </div>
           <CoachChat session={session} coach={coach} />
         </div>
       )}
