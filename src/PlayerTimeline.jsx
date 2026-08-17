@@ -15,6 +15,7 @@ import { SkeletonCards } from './Skeleton'
 import BasketballIcon from './BasketballIcon'
 import PlayerScreen from './PlayerScreen'
 
+const ARCHIVE_PEEK = 3 // כמה רשומות רואים לפני «הצג את ארכיון האימונים»
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
 const heDate = (d) => new Date(d + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
@@ -113,7 +114,10 @@ export function FbReact({ fb, coachId, me, hero = false }) {
 // ============================================================
 export default function PlayerTimeline({ session, membership, bell, coachName: coachNameProp, onCoach }) {
   // §12 — «אימונים שהיו» כסטאק: כרטיס אחד פתוח, השאר שורות מקופלות
+  // ⚠ ‏null = הכול מקופל. עד 17.8 הראשון נפתח מעצמו, וזה מה שהפך את
+  // הארכיון לקיר במקום לרשימה.
   const [openId, setOpenId] = useState(null)
+  const [archiveOpen, setArchiveOpen] = useState(false) // false = שלושת האחרונים
   const [items, setItems] = useState(null)
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
@@ -214,6 +218,12 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
     )
   }
 
+  // ⚠ המשוב שכבר מוצג בבאנר יורד מהארכיון — אחרת אותו ציטוט מופיע
+  //   פעמיים על אותו מסך, ואחת מהפעמים בלי הקשר.
+  const archive = items.filter((c) => !(c.type === 'note' && c.fb?.id && c.fb.id === latestFb?.id))
+  // שלושת האחרונים בלבד, עד שמבקשים את הכול
+  const shown = archiveOpen ? archive : archive.slice(0, ARCHIVE_PEEK)
+
   const band = stats ? [
     { value: stats.attendancePct != null ? `${stats.attendancePct}%` : '—', label: L('נוכחות', 'Attendance') },
     { value: stats.sessions, label: L('אימונים', 'Sessions') },
@@ -297,11 +307,16 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
         <div className="ps-card">
           <div className="ps-card-head">
             <b className="ps-h">{L('ארכיון אימונים', 'Session archive')}</b>
-            <span className="ps-chip ps-chip--mut">{L(cnt(items.length, 'רשומה אחת', 'רשומות'), `${items.length} entries`)}</span>
+            <span className="ps-chip ps-chip--mut">
+              {archiveOpen
+                ? L(cnt(items.length, 'רשומה אחת', 'רשומות'), `${items.length} entries`)
+                : L(`${shown.length} האחרונים`, `latest ${shown.length}`)}
+            </span>
           </div>
-          {/* ארכיון האימונים במרקאפ של המסמך: שורה מתקפלת עם אייקון, כותרת,
-              תאריך, MVP ועומס — ואחריה הפרטים. */}
-          {items.map((c) => {
+          {/* ⚠ שלושה בלבד, וכולם מקופלים. הארכיון מגיע עד 90 יום אחורה —
+              רשימה פתוחה של הכול הפכה את המסך לקיר. מבחוץ רואים סיכום
+              קצר (מתי · נוכחות · עומס · MVP), והפירוט נפתח בלחיצה. */}
+          {shown.map((c) => {
             const isMvp = c.review && c.review.mvp_player_id === me
             // "הודעה מהמאמן" — משוב שלא צמוד לאימון מסוים
             if (c.type === 'note') {
@@ -322,13 +337,20 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
                 </div>
               )
             }
-            // כרטיס סיכום אימון/משחק
-            const isOpen = (openId ?? items.find((x) => x.type !== 'note')?.session_id) === c.session_id
+            // כרטיס סיכום אימון/משחק — מקופל עד שלוחצים
+            const isOpen = openId === c.session_id
+            // הסיכום הקצר שרואים מבחוץ: מתי · נוכחות · כמה יעדים הושגו
+            const summary = [
+              heDate(c.date) + (c.time ? ` · ${c.time}` : ''),
+              c.att ? (c.att === 'present' ? L('נכחת', 'Present') : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')) : null,
+              c.marks.length ? L(`${c.marks.filter((m) => m.met).length}/${c.marks.length} יעדים`, `${c.marks.filter((m) => m.met).length}/${c.marks.length} goals`) : null,
+              c.fb?.content ? L('משוב מהמאמן', 'Coach feedback') : null,
+            ].filter(Boolean).join(' · ')
             return (
               <div key={c.session_id} className="ps-card ps-card--sub">
                 <button
                   type="button" className="ps-linkrow ps-row--bare"
-                  onClick={() => setOpenId(isOpen ? '-' : c.session_id)}
+                  onClick={() => setOpenId(isOpen ? null : c.session_id)}
                   aria-expanded={isOpen} aria-controls={`ps-se-${c.session_id}`}
                 >
                   <span className="ps-jersey" aria-hidden="true">
@@ -340,7 +362,7 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
                         ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game'))
                         : L('אימון קבוצתי', 'Team practice')}
                     </b>
-                    <span className="ps-lbl">{heDate(c.date)}{c.time ? ` · ${c.time}` : ''}</span>
+                    <span className="ps-lbl">{summary}</span>
                   </span>
                   {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
                   {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
@@ -389,6 +411,18 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
               </div>
             )
           })}
+
+          {archive.length > ARCHIVE_PEEK && (
+            <button
+              type="button" className="ps-btn-ghost"
+              onClick={() => { setArchiveOpen((v) => !v); setOpenId(null) }}
+              aria-expanded={archiveOpen}
+            >
+              {archiveOpen
+                ? L('הצגת שלושת האחרונים בלבד', 'Show the latest three only')
+                : L(`הצג את ארכיון האימונים (${archive.length})`, `Show the full archive (${archive.length})`)}
+            </button>
+          )}
         </div>
       )}
 
