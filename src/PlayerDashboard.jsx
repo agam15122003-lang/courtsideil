@@ -2473,7 +2473,7 @@ function LastTeamReview({ membership, me }) {
 // ---------- מסך: בית (עשיר, ממוקד שחקן) ----------
 // §7 — «המשימות שלי» בבית: עד שלוש משימות פתוחות אמיתיות מהמאמן, עם פס
 // התקדמות ורישום מהיר. עד עכשיו הסקשן «המשימות» בבית הציג רק יעדים.
-function HomeTasks({ session, setView, variant }) {
+function HomeTasks({ session, setView, variant, personalIds = [] }) {
   const me = session.user.id
   const [rows, setRows] = useState(null)
   // אותה טבלה כמו במסך המשימות (assignment_completions) — ולכן אותו שער
@@ -2550,6 +2550,11 @@ function HomeTasks({ session, setView, variant }) {
               const target = Number(a.target_value)
               const title = a.drill?.title || a.title || (a.plan ? a.plan.name : L('תרגיל', 'Drill'))
               const pct = target > 0 ? Math.min(100, Math.round((prog / target) * 100)) : 0
+              // ⚠ כל שורה נשלחת למסך **שלה** (בקשת הבעלים 17.8): משימה מהמאמן
+              //    האישי → דף המאמן האישי; מהמאמן של הקבוצה → «המשימות שלי».
+              //    קודם הכול הלך ל-'drills', ומשימה אישית נחתה במסך הלא־נכון.
+              const isPersonal = personalIds.includes(a.coach_id)
+              const dest = isPersonal ? 'pcoach' : 'drills'
               return (
                 <div key={a.id} className={isDone ? 'nh-task done' : 'nh-task'}>
                   <button
@@ -2562,7 +2567,7 @@ function HomeTasks({ session, setView, variant }) {
                   >
                     {isDone && <Check size={14} aria-hidden="true" />}
                   </button>
-                  <button type="button" className="nh-task-body" onClick={() => setView('drills')}>
+                  <button type="button" className="nh-task-body" onClick={() => setView(dest)}>
                     <span className="nh-task-top">
                       <b>{title}</b>
                       {target > 0 && <span className="nh-task-num" dir="ltr">{prog}/{target}{a.unit ? ` ${a.unit}` : ''}</span>}
@@ -2571,16 +2576,42 @@ function HomeTasks({ session, setView, variant }) {
                       ? <span className="nh-task-sub done"><Check size={12} aria-hidden="true" /> {L('הושלם · המאמן רואה', 'Done · your coach sees it')}</span>
                       : target > 0
                         ? <span className="nh-task-bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
-                        : <span className="nh-task-sub">{a.note || L('משימה מהמאמן', 'Task from your coach')}</span>}
+                        : <span className="nh-task-sub">
+                            {a.note || (isPersonal ? L('משימה מהמאמן האישי', 'Task from your personal coach') : L('משימה מהמאמן', 'Task from your coach'))}
+                          </span>}
+                    {/* תג מקור — כדי שהשחקן ידע לאן השורה מובילה עוד לפני הלחיצה */}
+                    {isPersonal && !isDone && <span className="nh-task-src">{L('מאמן אישי', 'Personal coach')}</span>}
                   </button>
                 </div>
               )
             })}
           </div>
         )}
-        <button type="button" className="nh-card-foot" onClick={() => setView('drills')}>
-          {L('לכל המשימות שלי', 'All my tasks')} <ChevronFwd size={14} aria-hidden="true" />
-        </button>
+        {/* הקישור התחתון: כשיש בכרטיס משימות משני המקורות — שני קישורים,
+            כל אחד למסך שלו. כשיש רק אישיות — לדף המאמן האישי בלבד. */}
+        {(() => {
+          const hasPersonal = rows.some(({ a }) => personalIds.includes(a.coach_id))
+          const hasTeam = rows.some(({ a }) => !personalIds.includes(a.coach_id))
+          if (hasPersonal && !hasTeam) {
+            return (
+              <button type="button" className="nh-card-foot" onClick={() => setView('pcoach')}>
+                {L('למשימות מהמאמן האישי', 'Tasks from my personal coach')} <ChevronFwd size={14} aria-hidden="true" />
+              </button>
+            )
+          }
+          return (
+            <>
+              <button type="button" className="nh-card-foot" onClick={() => setView('drills')}>
+                {L('לכל המשימות שלי', 'All my tasks')} <ChevronFwd size={14} aria-hidden="true" />
+              </button>
+              {hasPersonal && (
+                <button type="button" className="nh-card-foot" onClick={() => setView('pcoach')}>
+                  {L('למשימות מהמאמן האישי', 'Tasks from my personal coach')} <ChevronFwd size={14} aria-hidden="true" />
+                </button>
+              )}
+            </>
+          )
+        })()}
         {restricted && (
           <RestrictedNote>
             {L('רישום ההתקדמות נשמר אצל המאמן, ולכן הוא נפתח אחרי אישור ההורה.',
@@ -2723,7 +2754,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
   )
 }
 
-function PlayerHome({ session, profile, membership, setView, onJoined, onNotification }) {
+function PlayerHome({ session, profile, membership, setView, onJoined, onNotification, personalIds = [] }) {
   const { restricted } = useRestricted()
   const [fbOpen, setFbOpen] = useState(false)
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
@@ -2751,7 +2782,7 @@ function PlayerHome({ session, profile, membership, setView, onJoined, onNotific
       {membership && (
         <div className="nh-cols">
           <div className="nh-main">
-            <div className="nh-o-tasks"><HomeTasks session={session} setView={setView} variant="card" key={`t${fbRefresh}`} /></div>
+            <div className="nh-o-tasks"><HomeTasks session={session} setView={setView} variant="card" personalIds={personalIds} key={`t${fbRefresh}`} /></div>
             <div className="nh-o-fb">
               <section className="nh-card nh-fb">
                 <div className="nh-card-head">
@@ -3650,7 +3681,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromNotification} />} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
-      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} />
+      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} personalIds={personalIds} />
     }
   }
 

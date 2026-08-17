@@ -28004,3 +28004,11 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 .pt-target-row .pt-unit{ flex:1; min-inline-size:0; }
 .pt-target-row .pt-unit:disabled{ opacity:.55; }
 @media (max-width:480px){ .pt-target-row{ flex-direction:column; } .pt-target-row .pt-target{ flex:none; } }
+
+/* תג מקור על שורת משימה בכרטיס הבית — «מאמן אישי» */
+.nh-task-src{
+  display:inline-flex; align-items:center; align-self:flex-start;
+  margin-block-start:4px; padding:2px 8px; border-radius:999px;
+  font-size:10.5px; font-weight:800; letter-spacing:.2px;
+  color:var(--accent-strong); background:var(--accent-soft);
+}
