@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { Target, Plus, Trash2, Check, Minus, X, TrendingUp, ChevronDown } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -276,8 +276,9 @@ export function GoalChart({ logs, target, goalId }) {
 }
 
 // ---------- מסך היעדים של השחקן — עם תיעוד עצמי ----------
-export function MyGoals({ session, membership, restricted = false, bell, coachName, onCoach }) {
-  const [goals, setGoals] = useState(null)
+export function MyGoals({ session, membership, restricted = false, personalIds = [], scope = 'team', bell, coachName, onCoach }) {
+  // allGoals = כל מה שהשרת החזיר; goals (למטה) = אחרי הורדת המאמן האישי
+  const [allGoals, setGoals] = useState(null)
   const [logsBy, setLogsBy] = useState({})
   const [openId, setOpenId] = useState(null)
   const [amtInput, setAmtInput] = useState({})
@@ -368,7 +369,8 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
 
   // ⚠ גם הטעינה וגם השגיאה עטופות ב-PlayerScreen: הקנבס החדש מוריד את
   // הסרגל העליון במובייל, ומסך בלי באנר נשאר בלי כותרת ובלי פעמון.
-  if (goals === null) {
+  if (allGoals === null) {
+    if (scope === 'personal') return <SkeletonCards count={2} lines={2} />
     return (
       <PlayerScreen page="goals" bell={bell} coach={coachName} onCoach={onCoach}>
         <SkeletonCards count={3} lines={2} />
@@ -376,10 +378,21 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
     )
   }
 
+  // 17.8 — יעדים שהמאמן האישי הציב חיים בדף שלו ולא מתערבבים כאן.
+  // ⚠ סינון בזמן רינדור ולא בתוך load(): personalIds הוא מערך חדש בכל
+  //   רינדור של ההורה, ובתוך ה-useCallback הוא היה או תלות שמריצה טעינה
+  //   אינסופית, או ערך תקוע מהרינדור הראשון.
+  // scope='personal' = מוטמע בדף המאמן האישי ומציג רק את שלו
+  const goals = allGoals.filter((g) =>
+    scope === 'personal' ? personalIds.includes(g.coach_id) : !personalIds.includes(g.coach_id))
+  // בהטמעה אין באנר משלנו — הדף כבר הביא אחד
+  const Shell = scope === 'personal' ? Fragment : PlayerScreen
+  const shellOf = (extra) => (scope === 'personal' ? {} : { page: 'goals', bell, coach: coachName, onCoach, ...extra })
+
   // מצב שגיאה — לא «אין יעדים». הסבר מרגיע + «נסה שוב».
   if (loadErr) {
     return (
-      <PlayerScreen page="goals" bell={bell} coach={coachName} onCoach={onCoach}>
+      <Shell {...shellOf()}>
         <div className="ps-card">
           <div className="ps-empty" role="alert">
             <span className="ps-empty-ic"><Target size={20} aria-hidden="true" /></span>
@@ -390,7 +403,7 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
             </button>
           </div>
         </div>
-      </PlayerScreen>
+      </Shell>
     )
   }
 
@@ -421,12 +434,14 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
 
   // 1.5 — סדר קבוע: לאימון הקרוב · חודשי · חצי-שנתי · שנתי (+שבועי ישן אם קיים)
   // הבאנר יוצא מהרשימה כדי שלא יופיע פעמיים, וההישגים יורדים לכרטיס משלהם.
+  // ⚠ בהטמעה בדף המאמן האישי מציגים רק טווחים שיש בהם יעד — ארבע שורות
+  //   «אין יעדים לטווח הזה» מתחת ליעד אחד הן רעש, לא מידע.
   const groups = PERIODS
     .map((p) => ({
       ...p,
       items: goals.filter((g) => g.period === p.id && g !== heroGoal && !isAchieved(g)),
     }))
-    .filter((p) => p.items.length > 0 || !p.legacy)
+    .filter((p) => p.items.length > 0 || (!p.legacy && scope !== 'personal'))
   const achieved = goals.filter(isAchieved)
 
   const band = [
@@ -452,7 +467,7 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
   )
 
   return (
-    <PlayerScreen page="goals" band={total ? band : null} bell={bell} coach={coachName} onCoach={onCoach}>
+    <Shell {...shellOf({ band: total ? band : null })}>
       {heroGoal && (
         <div className="ps-hero">
           <div className="ps-hero-row">
@@ -627,11 +642,18 @@ export function MyGoals({ session, membership, restricted = false, bell, coachNa
         </div>
       )}
 
-      <button type="button" className="ps-btn-ghost" onClick={() => setAddOpen(true)} disabled={restricted}>
-        <Plus size={18} aria-hidden="true" /> {L('יעד חדש', 'New goal')}
-      </button>
-
-      <AddGoalSheet open={addOpen} onClose={() => setAddOpen(false)} onAdd={addGoal} />
-    </PlayerScreen>
+      {/* ⚠ לא בדף המאמן האישי: «יעד חדש» יוצר יעד אישי של השחקן ומשייך
+          אותו למאמן **הקבוצה** (membership.coach_id) — כלומר הוא היה
+          נשמר ומופיע במסך היעדים הראשי, לא כאן. יעד מהמאמן האישי מגיע
+          רק ממנו. */}
+      {scope !== 'personal' && (
+        <>
+          <button type="button" className="ps-btn-ghost" onClick={() => setAddOpen(true)} disabled={restricted}>
+            <Plus size={18} aria-hidden="true" /> {L('יעד חדש', 'New goal')}
+          </button>
+          <AddGoalSheet open={addOpen} onClose={() => setAddOpen(false)} onAdd={addGoal} />
+        </>
+      )}
+    </Shell>
   )
 }

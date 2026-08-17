@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, useMemo, createContext, useContext, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
@@ -777,8 +777,9 @@ const statusTx = (s) =>
     : s === 'pending_parent' ? L('ממתין לאישור ההורה', 'Waiting for a parent')
       : L('ממתין לאישור המאמן', 'Waiting for the coach')
 
-function MyPersonalCoaches({ session, bell, setView }) {
+function MyPersonalCoaches({ session, personalIds = [], bell }) {
   const [cardOf, setCardOf] = useState(null) // השורה שהגיליון פתוח עליה
+  const { restricted } = useRestricted()
   // ⚠ מתחיל כמערך ריק ולא כ-null, במכוון.
   // הגרסה הקודמת התחילה ב-null והחזירה null עד שהשאילתה ענתה — כלומר
   // הכרטיס **לא היה קיים** בזמן הטעינה, וכל תקלה בצד השרת (טבלה חסרה,
@@ -883,25 +884,30 @@ function MyPersonalCoaches({ session, bell, setView }) {
                                        'Got a code from a coach? Enter it here and the request goes to them.')}</p>}
         </div>
 
-        {/* «מה המאמן נתן לי» מהמסמך — קיצורי דרך אמיתיים, לא נתוני דמה */}
-        {setView && (
-          <div className="ps-card">
-            <b className="ps-h">{L('מה המאמן נתן לי', 'What my coach gave me')}</b>
-            <button type="button" className="ps-linkrow" onClick={() => setView('drills')}>
-              <span className="ps-grow ps-t13">{L('המשימות שלי', 'My tasks')}</span>
-              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
-            </button>
-            <button type="button" className="ps-linkrow" onClick={() => setView('goals')}>
-              <span className="ps-grow ps-t13">{L('היעדים שלי', 'My goals')}</span>
-              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
-            </button>
-            <button type="button" className="ps-linkrow" onClick={() => setView('videos')}>
-              <span className="ps-grow ps-t13">{L('סרטוני לימוד', 'Media')}</span>
-              <span className="ps-linkrow-go">{L('לפתוח', 'Open')}</span>
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* בקשת הבעלים (17.8): מה שהמאמן האישי שולח **נשאר כאן** — המשימות
+          והיעדים שלו לא מתערבבים עם אלה של מאמן הקבוצה. אותם רכיבים בדיוק
+          כמו במסכים הראשיים (אותה לוגיקה, אותו שער לקטין), רק ב-scope
+          «אישי» ובלי באנר משלהם. מוצג רק כשיש מאמן אישי פעיל. */}
+      {personalIds.length > 0 && (
+        <>
+          <section className="ps-sec">
+            <div className="ps-card-head ps-sec-head">
+              <b className="ps-h">{L('המשימות מהמאמן האישי', 'Tasks from my personal coach')}</b>
+              <span className="ps-chip ps-chip--acc">{L('רק כאן', 'Only here')}</span>
+            </div>
+            <MyAssignments session={session} personalIds={personalIds} scope="personal" />
+          </section>
+          <section className="ps-sec">
+            <div className="ps-card-head ps-sec-head">
+              <b className="ps-h">{L('היעדים מהמאמן האישי', 'Goals from my personal coach')}</b>
+              <span className="ps-chip ps-chip--acc">{L('רק כאן', 'Only here')}</span>
+            </div>
+            <MyGoals session={session} membership={null} restricted={restricted} personalIds={personalIds} scope="personal" />
+          </section>
+        </>
+      )}
 
       {cardOf && <CoachCardSheet row={cardOf} onClose={() => setCardOf(null)} />}
     </PlayerScreen>
@@ -974,8 +980,9 @@ function CoachCardSheet({ row, onClose }) {
   )
 }
 
-function MyAssignments({ session, bell, coachName, onCoach }) {
-  const [items, setItems] = useState(null)
+function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachName, onCoach }) {
+  // allItems = כל מה שהשרת החזיר; items (למטה) = אחרי הורדת המאמן האישי
+  const [allItems, setItems] = useState(null)
   const [complBy, setComplBy] = useState({}) // assignment_id -> { progress_value, done_at }
   const [filter, setFilter] = useState('open') // open | all | done
 
@@ -1011,7 +1018,10 @@ function MyAssignments({ session, bell, coachName, onCoach }) {
 
   // תרגיל בוצע/לא-בוצע (בלי יעד), או פתיחה מחדש של תרגיל עם יעד (שומרת את ההתקדמות)
   const toggleDone = async (id, wasDone) => {
-    const a = items.find((x) => x.id === id)
+    // ⚠ allItems ולא items: items נגזר למטה, אחרי ההצהרה הזאת — קריאה
+    //   אליו מכאן היא TDZ (ReferenceError בלחיצה). ומכל מקום החיפוש צריך
+    //   להיות במלאי המלא, לא ברשימה המסוננת.
+    const a = (allItems || []).find((x) => x.id === id)
     const keepProgress = Number(a?.target_value) > 0
     if (wasDone) {
       setComplBy((m) => ({ ...m, [id]: { progress_value: keepProgress ? (m[id]?.progress_value || 0) : 0, done_at: null } }))
@@ -1047,13 +1057,21 @@ function MyAssignments({ session, bell, coachName, onCoach }) {
   // שלד תואם-צורה במקום ספינר — הרשימה לא קופצת מריק למלא.
   // ⚠ בתוך PlayerScreen: הקנבס החדש מוריד את הסרגל העליון במובייל, ומסך
   // בלי באנר היה נשאר בלי כותרת ובלי פעמון בזמן הטעינה.
-  if (items === null) {
+  if (allItems === null) {
+    if (scope === 'personal') return <SkeletonCards count={2} lines={2} />
     return (
       <PlayerScreen page="tasks" bell={bell} coach={coachName} onCoach={onCoach}>
         <SkeletonCards count={3} lines={2} />
       </PlayerScreen>
     )
   }
+  // 17.8 — מה שהמאמן האישי שלח חי בדף שלו ולא מתערבב כאן.
+  // ⚠ סינון בזמן רינדור ולא ב-load(): personalIds הוא מערך חדש בכל רינדור
+  //   של ההורה, ובתוך useCallback הוא היה ערך תקוע מהטעינה הראשונה.
+  // scope='personal' = הרכיב מוטמע בדף המאמן האישי ומציג **רק** את שלו;
+  // ברירת המחדל = מסך המשימות הראשי, שמציג את כל השאר.
+  const items = allItems.filter((a) =>
+    scope === 'personal' ? personalIds.includes(a.coach_id) : !personalIds.includes(a.coach_id))
   const openItems = items.filter((a) => !isDone(a))
   const doneItems = items.filter(isDone)
   const openCount = openItems.length
@@ -1074,14 +1092,20 @@ function MyAssignments({ session, bell, coachName, onCoach }) {
     { value: doneCount, label: L('הושלמו', 'Completed') },
   ]
 
+  // בהטמעה בדף המאמן האישי אין באנר משלנו — הדף כבר הביא אחד
+  const Shell = scope === 'personal' ? Fragment : PlayerScreen
+  const shellProps = scope === 'personal' ? {} : { page: 'tasks', band: items.length ? band : null, bell, coach: coachName, onCoach }
+
   return (
-    <PlayerScreen page="tasks" band={items.length ? band : null} bell={bell} coach={coachName} onCoach={onCoach}>
+    <Shell {...shellProps}>
       {items.length === 0 ? (
         <div className="ps-card">
           <div className="ps-empty">
             <span className="ps-empty-ic"><Dumbbell size={20} aria-hidden="true" /></span>
             <b>{L('עוד לא קיבלת תרגילים', 'No drills yet')}</b>
-            <p>{L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
+            <p>{scope === 'personal'
+              ? L('כשהמאמן האישי ישלח לך משימה, היא תופיע כאן — ורק כאן.', 'When your personal coach sends a task, it shows up here — and only here.')
+              : L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
           </div>
         </div>
       ) : (
@@ -1132,7 +1156,7 @@ function MyAssignments({ session, bell, coachName, onCoach }) {
           )}
         </>
       )}
-    </PlayerScreen>
+    </Shell>
   )
 }
 
@@ -3468,6 +3492,28 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   }, [session.user.id])
   useEffect(() => { loadMemberships() }, [loadMemberships])
 
+  // ---- מי הם המאמנים האישיים שלי ----
+  // בקשת הבעלים (17.8): מה שהמאמן האישי שולח נשאר בדף שלו ולא מתערבב
+  // עם המשימות והיעדים של מאמן הקבוצה. המזהים נטענים כאן פעם אחת ויורדים
+  // לשלושת המסכים שצריכים אותם, כדי שלא תהיה גרסה שונה בכל מסך.
+  //
+  // ⚠ כשל בטעינה = מערך ריק = הכול נשאר במסכים הראשיים, בדיוק כמו קודם.
+  //   הכיוון הזה חשוב: עדיף שמשימה תופיע במקום הלא־אידיאלי מאשר שתיעלם.
+  const [pCoachIds, setPCoachIds] = useState([])
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase
+        .from('personal_trainees')
+        .select('coach_id, status')
+        .eq('player_id', session.user.id)
+        .neq('status', 'ended')
+      if (!alive || error) return
+      setPCoachIds([...new Set((data || []).map((r) => r.coach_id).filter(Boolean))])
+    })().catch(() => { /* טבלה חסרה / רשת — נשארים עם מערך ריק */ })
+    return () => { alive = false }
+  }, [session.user.id])
+
   useEffect(() => { window.scrollTo({ top: 0 }); setDrawer(false) }, [view])
 
   const approved = (memberships || []).filter((m) => m.status === 'approved')
@@ -3547,10 +3593,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const renderScreen = () => {
     // ps — המידע שכל אחד מששת המסכים צריך לבאנר שלו (פעמון, שם המאמן
     // לכפתור הקיצור, וניווט אליו). מרוכז כאן כדי שלא ישוכפל בשש קריאות.
+    // מאמן שהוא גם מאמן הקבוצה אינו "אישי" לצורך ההפרדה: אחרת אותו
+    // אדם היה מתפצל לשני מסכים והשחקן היה מחפש את המשימה בשניהם.
+    const personalIds = pCoachIds.filter((id) => id !== membership?.coach_id)
     const ps = { bell: psBell, coachName: psCoachName, onCoach: psOnCoach, setView }
     switch (view) {
-      case 'drills': return <MyAssignments session={session} {...ps} />
-      case 'pcoach': return <MyPersonalCoaches session={session} {...ps} />
+      case 'drills': return <MyAssignments session={session} personalIds={personalIds} {...ps} />
+      case 'pcoach': return <MyPersonalCoaches session={session} personalIds={personalIds} {...ps} />
       case 'coach':
         return hasTeam
           ? <PlayerTeamHub session={session} membership={membership} coach={coach} restricted={restricted} initialTab="coach" {...ps}
@@ -3566,7 +3615,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
       case 'goals':
         return hasTeam
-          ? <MyGoals session={session} membership={membership} restricted={restricted} {...ps} />
+          ? <MyGoals session={session} membership={membership} restricted={restricted} personalIds={personalIds} {...ps} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('היעדים שלי', 'My goals')}
               desc={L('המאמן יגדיר לך יעדים ברגע שתצטרף לקבוצה. הצטרפו עם קוד מהמאמן.', 'Your coach sets goals once you join a team. Join with a code from your coach.')} />

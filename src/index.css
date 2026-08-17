@@ -27942,3 +27942,7 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px;
   color:var(--ps-ok-tx); background:var(--ps-ok-bg); border:1px solid var(--ps-ok-line);
 }
+
+/* ---- קטע מוטמע בדף המאמן האישי (משימות/יעדים ב-scope אישי) ---- */
+.ps-sec{ display:flex; flex-direction:column; gap:13px; min-inline-size:0; }
+.ps-sec-head{ padding-inline:2px; }
