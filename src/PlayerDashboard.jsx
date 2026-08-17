@@ -3593,9 +3593,11 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const renderScreen = () => {
     // ps — המידע שכל אחד מששת המסכים צריך לבאנר שלו (פעמון, שם המאמן
     // לכפתור הקיצור, וניווט אליו). מרוכז כאן כדי שלא ישוכפל בשש קריאות.
-    // מאמן שהוא גם מאמן הקבוצה אינו "אישי" לצורך ההפרדה: אחרת אותו
-    // אדם היה מתפצל לשני מסכים והשחקן היה מחפש את המשימה בשניהם.
-    const personalIds = pCoachIds.filter((id) => id !== membership?.coach_id)
+    // ⚠ כלל הבעלים (17.8): מאמן **אף פעם** אינו גם מאמן הקבוצה וגם המאמן
+    //    האישי של אותו שחקן. לכן «מי המאמן» הוא תשובה מלאה, ואין צורך
+    //    בחריגה למאמן כפול־תפקיד — חריגה כזאת רק הייתה מדליפה משימות
+    //    אישיות למסך הקבוצה.
+    const personalIds = pCoachIds
     const ps = { bell: psBell, coachName: psCoachName, onCoach: psOnCoach, setView }
     switch (view) {
       case 'drills': return <MyAssignments session={session} personalIds={personalIds} {...ps} />

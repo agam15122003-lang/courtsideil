@@ -201,6 +201,8 @@ export default function PersonalTrainees({ session }) {
     }
     setSendTo(null)
     toast.success(L('המשימה נשלחה', 'Task sent'))
+    // רענון «מה שלחתי» — rows לא השתנו, ולכן ה-effect לא ירוץ מעצמו
+    setRows((cur) => [...cur])
   }
 
   // הקוד האישי — נוצר בפעם הראשונה שנכנסים למסך. RPC ולא קריאה לעמודה:
@@ -223,6 +225,45 @@ export default function PersonalTrainees({ session }) {
       toast.error(L('ההעתקה נכשלה — סמן והעתק ידנית', 'Copy failed — select and copy manually'))
     }
   }
+
+  // ---- מה שלחתי לכל מתאמן — משימות ויעדים, כאן ולא במסך הקבוצה ----
+  // בקשת הבעלים (17.8): המאמן רואה את מה שהוא שלח למתאמן האישי **בדף
+  // הזה**, ולא מעורבב עם המשימות הכלליות של הקבוצה. הכלל שמאפשר את זה:
+  // מאמן אף פעם אינו גם מאמן הקבוצה וגם המאמן האישי של אותו שחקן — ולכן
+  // כל משימה/יעד שלי לשחקן שהוא מתאמן אישי שלי הם, בהגדרה, אישיים.
+  const [sent, setSent] = useState({}) // player_id -> { tasks:[], goals:[] }
+  const [openFor, setOpenFor] = useState(null) // איזה מתאמן פרוש
+  useEffect(() => {
+    const ids = rows.filter((r) => r.status !== 'ended').map((r) => r.player_id).filter(Boolean)
+    if (!ids.length) { setSent({}); return }
+    let alive = true
+    ;(async () => {
+      const [aQ, gQ] = await Promise.all([
+        supabase.from('player_assignments')
+          .select('id, player_id, title, note, due_date, target_value, unit, status, created_at, drill:drills(title)')
+          .eq('coach_id', me).in('player_id', ids).order('created_at', { ascending: false }).limit(200),
+        supabase.from('player_goals')
+          .select('id, player_id, title, target_value, progress_value, status, period, due_date, created_at')
+          .eq('coach_id', me).in('player_id', ids).order('created_at', { ascending: false }).limit(200),
+      ])
+      if (!alive) return
+      const tasks = (aQ.data || []).filter((a) => (a.status || 'active') !== 'archived')
+      // מי סיים — completions לכל המשימות שנשלחו
+      let done = {}
+      if (tasks.length) {
+        const cQ = await supabase.from('assignment_completions')
+          .select('assignment_id, player_id, done_at, progress_value')
+          .in('assignment_id', tasks.map((t) => t.id))
+        for (const c of cQ.data || []) done[c.assignment_id] = c
+      }
+      if (!alive) return
+      const by = {}
+      for (const t of tasks) (by[t.player_id] = by[t.player_id] || { tasks: [], goals: [] }).tasks.push({ ...t, compl: done[t.id] || null })
+      for (const g of gQ.data || []) (by[g.player_id] = by[g.player_id] || { tasks: [], goals: [] }).goals.push(g)
+      setSent(by)
+    })().catch(() => { /* טבלה חסרה / רשת — הקטע פשוט לא מוצג */ })
+    return () => { alive = false }
+  }, [rows, me])
 
   if (loading) return <div className="welcome-card"><SkeletonCards count={2} /></div>
 
@@ -315,6 +356,81 @@ export default function PersonalTrainees({ session }) {
                     {L('סיום הקשר', 'End')}
                   </button>
                 </div>
+
+                {/* מה שלחתי למתאמן הזה — מקופל, נפתח בלחיצה. כאן ולא
+                    במסך הקבוצה: אלה משימות ויעדים אישיים. */}
+                {(() => {
+                  const s = sent[r.player_id]
+                  const n = (s?.tasks.length || 0) + (s?.goals.length || 0)
+                  if (!n) return null
+                  const open = openFor === r.id
+                  const doneN = (s.tasks || []).filter((t) => t.compl?.done_at).length
+                  return (
+                    <div className="pt-sent">
+                      <button type="button" className="pt-sent-toggle" onClick={() => setOpenFor(open ? null : r.id)} aria-expanded={open}>
+                        <span>
+                          {L('מה שלחתי', 'What I sent')} · {s.tasks.length ? L(`${s.tasks.length} משימות`, `${s.tasks.length} tasks`) : null}
+                          {s.tasks.length && s.goals.length ? ' · ' : ''}
+                          {s.goals.length ? L(`${s.goals.length} יעדים`, `${s.goals.length} goals`) : null}
+                          {s.tasks.length ? <span className="muted"> · {L(`${doneN} בוצעו`, `${doneN} done`)}</span> : null}
+                        </span>
+                        <span className="pt-sent-chev" aria-hidden="true">{open ? '▴' : '▾'}</span>
+                      </button>
+                      {open && (
+                        <div className="pt-sent-body">
+                          {s.tasks.length > 0 && (
+                            <>
+                              <span className="field-label">{L('משימות', 'Tasks')}</span>
+                              <ul className="pt-sent-list">
+                                {s.tasks.map((t) => {
+                                  const isDone = !!t.compl?.done_at
+                                  const prog = Number(t.compl?.progress_value) || 0
+                                  const tv = Number(t.target_value) || 0
+                                  return (
+                                    <li key={t.id} className={isDone ? 'pt-sent-row done' : 'pt-sent-row'}>
+                                      <span className="pt-sent-title">{t.drill?.title || t.title || L('משימה', 'Task')}</span>
+                                      <span className="pt-sent-meta">
+                                        {isDone
+                                          ? <span className="status-pill adm-cv cv-granted"><Check size={11} aria-hidden="true" /> {L('בוצע', 'Done')}</span>
+                                          : tv > 0
+                                            ? <bdi dir="ltr">{prog}/{tv}{t.unit ? ` ${t.unit}` : ''}</bdi>
+                                            : <span className="status-pill adm-cv cv-denied">{L('פתוח', 'Open')}</span>}
+                                        {t.due_date && <span className="muted small"> · {L('עד', 'by')} <bdi dir="ltr">{t.due_date.slice(8, 10)}.{t.due_date.slice(5, 7)}</bdi></span>}
+                                      </span>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            </>
+                          )}
+                          {s.goals.length > 0 && (
+                            <>
+                              <span className="field-label" style={{ marginTop: 10 }}>{L('יעדים', 'Goals')}</span>
+                              <ul className="pt-sent-list">
+                                {s.goals.map((g) => {
+                                  const tv = Number(g.target_value) || 0
+                                  const isDone = g.status === 'done'
+                                  return (
+                                    <li key={g.id} className={isDone ? 'pt-sent-row done' : 'pt-sent-row'}>
+                                      <span className="pt-sent-title">{g.title}</span>
+                                      <span className="pt-sent-meta">
+                                        {isDone
+                                          ? <span className="status-pill adm-cv cv-granted"><Check size={11} aria-hidden="true" /> {L('הושג', 'Reached')}</span>
+                                          : tv > 0
+                                            ? <bdi dir="ltr">{Number(g.progress_value) || 0}/{tv}</bdi>
+                                            : <span className="status-pill adm-cv cv-denied">{L('פעיל', 'Active')}</span>}
+                                      </span>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {sendTo && sendTo.id === r.id && (
                   <div className="pt-form">
