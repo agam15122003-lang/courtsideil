@@ -114,6 +114,10 @@ export default function PersonalTrainees({ session }) {
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [due, setDue] = useState('')
+  // יעד כמותי (בקשת הבעלים 17.8): בלי מספר המשימה היא «בוצע/לא בוצע»;
+  // עם מספר השחקן מסמן התקדמות (+10 · +25 · כמה עשיתי) עד שמגיע ליעד.
+  const [target, setTarget] = useState('')
+  const [unit, setUnit] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function load() {
@@ -178,18 +182,33 @@ export default function PersonalTrainees({ session }) {
     toast.success(L('הקשר הסתיים', 'Connection ended'))
   }
 
-  const openSend = (r) => { setSendTo(r); setTitle(''); setNote(''); setDue('') }
+  const openSend = (r) => { setSendTo(r); setTitle(''); setNote(''); setDue(''); setTarget(''); setUnit('') }
 
   const sendTask = async () => {
     if (!title.trim()) { toast.error(L('כתוב מה המשימה', 'Write what the task is')); return }
     setSaving(true)
-    const { error: err } = await supabase.from('player_assignments').insert({
+    const row = {
       coach_id: me,
       player_id: sendTo.player_id,
       title: title.trim(),
       note: note.trim() || null,
       due_date: due || null,
-    })
+    }
+    const tv = Number(target)
+    if (tv > 0) { row.target_value = tv; row.unit = unit.trim() || null }
+    let { error: err } = await supabase.from('player_assignments').insert(row)
+    // מיגרציית היעד (supabase_assignments_progress.sql) אולי טרם רצה — עמודה
+    // חסרה מפילה את כל ה-insert. שולחים שוב בלי היעד, כדי שהשיגור עצמו לא
+    // ייכשל. אותו דפוס בדיוק כמו sendToPlayersApi.
+    let warn = null
+    if (err && tv > 0 && (err.code === 'PGRST204' || /target_value|unit/i.test(err.message || ''))) {
+      const { target_value: _t, unit: _u, ...stripped } = row
+      const retry = await supabase.from('player_assignments').insert(stripped)
+      if (!retry.error) {
+        err = null
+        warn = L('נשלח בלי היעד הכמותי — צריך להריץ את מיגרציית ה-SQL של היעדים', 'Sent without the target — the targets SQL migration must be run')
+      }
+    }
     setSaving(false)
     if (err) {
       // המדיניות במסד חוסמת שיגור למי שאינו שלי — כולל קטין שההורה
@@ -200,7 +219,8 @@ export default function PersonalTrainees({ session }) {
       return
     }
     setSendTo(null)
-    toast.success(L('המשימה נשלחה', 'Task sent'))
+    if (warn) toast.info(warn)
+    else toast.success(L('המשימה נשלחה', 'Task sent'))
     // רענון «מה שלחתי» — rows לא השתנו, ולכן ה-effect לא ירוץ מעצמו
     setRows((cur) => [...cur])
   }
@@ -451,6 +471,34 @@ export default function PersonalTrainees({ session }) {
                       placeholder={L('פירוט (לא חובה)', 'Details (optional)')}
                       style={{ marginTop: 8 }}
                     />
+                    {/* יעד כמותי — עם מספר השחקן מסמן התקדמות (+10 · +25 · כמה
+                        עשיתי) ולא רק «בוצע». בלי מספר זו משימת וי רגילה. */}
+                    <div className="pt-target-row">
+                      <input
+                        className="finder-input pt-target"
+                        dir="ltr"
+                        inputMode="numeric"
+                        value={target}
+                        onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))}
+                        aria-label={L('יעד מספרי', 'Numeric target')}
+                        placeholder={L('יעד מספרי (לא חובה)', 'Numeric target (optional)')}
+                      />
+                      <input
+                        className="finder-input pt-unit"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        maxLength={30}
+                        aria-label={L('יחידה', 'Unit')}
+                        placeholder={L('יחידה — זריקות', 'Unit — shots')}
+                        disabled={!Number(target)}
+                      />
+                    </div>
+                    <p className="muted small" style={{ margin: '4px 2px 0' }}>
+                      {Number(target) > 0
+                        ? L(`השחקן יסמן התקדמות עד ${Number(target)}${unit.trim() ? ' ' + unit.trim() : ''}, ויסומן «בוצע» כשיגיע.`,
+                            `The player logs progress up to ${Number(target)}${unit.trim() ? ' ' + unit.trim() : ''}, and it's marked done on arrival.`)
+                        : L('בלי מספר — משימת «בוצע / לא בוצע».', 'Without a number — a plain done / not done task.')}
+                    </p>
                     <label className="pf-label" style={{ marginTop: 8 }}>
                       {L('עד מתי', 'Due')}
                       <input

@@ -27997,3 +27997,10 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 .pt-sent-row.done{ opacity:.72; }
 .pt-sent-title{ min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pt-sent-meta{ flex:none; display:inline-flex; align-items:center; gap:4px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+
+/* יעד כמותי בטופס שיגור משימה למתאמן אישי (PersonalTrainees) */
+.pt-target-row{ display:flex; gap:8px; margin-block-start:8px; }
+.pt-target-row .pt-target{ flex:0 0 150px; text-align:center; font-variant-numeric:tabular-nums; }
+.pt-target-row .pt-unit{ flex:1; min-inline-size:0; }
+.pt-target-row .pt-unit:disabled{ opacity:.55; }
+@media (max-width:480px){ .pt-target-row{ flex-direction:column; } .pt-target-row .pt-target{ flex:none; } }
