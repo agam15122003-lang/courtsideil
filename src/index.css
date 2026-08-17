@@ -27946,3 +27946,31 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* ---- קטע מוטמע בדף המאמן האישי (משימות/יעדים ב-scope אישי) ---- */
 .ps-sec{ display:flex; flex-direction:column; gap:13px; min-inline-size:0; }
 .ps-sec-head{ padding-inline:2px; }
+
+/* ==========================================================================
+   17.8.2026 · גלילה אופקית במובייל — נעילה ברמת השורש
+   --------------------------------------------------------------------------
+   הבעלים: «המסך זז ימינה ושמאלה כשגוללים טיפה הצידה עם האצבע». המנגנון:
+   ‎.main-content{overflow-x:clip} **מסתיר** גלישה אבל לא עוצר גרירה —
+   ‏clip אינו מכולת גלילה, והמגירה של סרגל הצד חונה מחוץ למסך
+   (‏translateX(100%)) ונותנת למנוע הדפדפן משהו לגרור אליו. בסימולציה
+   הדבר לא משתחזר כי הוא קורה ברמת ה-compositor של Safari/Chrome־מובייל,
+   מתחת למה שה-DOM מדווח — ולכן הנעילה כאן היא בשורש, איפה שאף ילד
+   לא יכול לעקוף אותה.
+
+   ⚠ pan-y **pinch-zoom** ולא pan-y לבד, ולא manipulation: שניהם מבטלים
+   צביטה להגדלה, והאפליקציה לא מבטלת זום (נגישות). הרצועות הנגללות
+   לרוחב (‎.ps-strip / .bw-scrollrow / .nh-vid-rail / .ps-seg) כבר
+   מחזירות לעצמן pan-x, ולכן הן ממשיכות לעבוד.
+   ⚠ overflow-x:hidden על html **וגם** על body: Safari מכבד את זה רק
+   כששניהם מוגדרים; אחד לבד לא מספיק.
+   ========================================================================== */
+@media (max-width:768px){
+  html, body{ overflow-x:hidden; overscroll-behavior-x:none; }
+  body{ touch-action:pan-y pinch-zoom; }
+  /* המגירה החונה: מקובעת ולא רחבה — אבל בזמן שהיא סגורה היא לא צריכה
+     להיות בעץ הפריסה בכלל. visibility:hidden מוציא אותה מכל חישוב
+     גלילה/גרירה, וה-transition מחזיר אותה בפתיחה. */
+  .sidebar:not(.open){ visibility:hidden; transition:transform .25s ease-out, visibility 0s linear .25s; }
+  .sidebar.open{ visibility:visible; transition:transform .25s ease-out, visibility 0s; }
+}
