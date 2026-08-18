@@ -501,8 +501,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
         team={team}
         player={playerPage}
         onBack={() => { setPlayerPage(null); load(); loadAges() }}
-        {/* «תיק שחקן» מוצג רק למי שהמסך פתוח בפניו — אחרת הניווט נופל
-            למסך הפרופיל. כשהתיק ייפתח לכל המאמנים, יורדת בדיקת is_admin. */}
+        // «תיק שחקן» מוצג רק למי שהמסך פתוח בפניו — אחרת הניווט נופל למסך
+        // הפרופיל. כשהתיק ייפתח לכל המאמנים, יורדת בדיקת is_admin.
         onOpenDossier={onNavigate && profile?.is_admin ? (p) => onNavigate(`dossier:${p.id}`) : undefined}
       />
     )
