@@ -231,7 +231,9 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
       setCatalog(cat)
       setTeams(t.teams)
       setRoster(rows)
-      setTeam((cur) => cur || t.teams[0] || '')
+      // מעבר בין מאמנים (גלישה של מנהל) — «הקבוצה שנבחרה» של הקודם לא
+      // קיימת אצל הבא, ולכן נופלים לראשונה שלו במקום למסך ריק ומטעה
+      setTeam((cur) => (cur && t.teams.includes(cur) ? cur : t.teams[0] || ''))
       setPersonByRoster(Object.fromEntries(rows.filter((r) => r.person_id).map((r) => [r.id, r.person_id])))
       setBoot({ loading: false, error: null, missing: false })
       // עריכת הקטלוג פתוחה למנהל מועדון בלבד — גם במסד וגם במסך
