@@ -236,7 +236,7 @@ const PAGE_META = {
   dossier: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: FolderOpen,
     title: L('תיק שחקן', 'Player dossier'),
-    subtitle: L('התיק שעובר עם השחקן משנה לשנה — דירוגים, מדידות, רקע וגרף התקדמות. כרגע תצוגה מוקדמת על נתוני דוגמה.', 'The dossier that follows the player year to year — ratings, measurements, background and a progress chart. Currently a preview on demo data.'),
+    subtitle: L('התיק שעובר עם השחקן משנה לשנה — דירוגים, מדידות, רקע וגרף התקדמות. סגור: אתה, המנהלים מעליך, ומי שנתת לו גישה.', 'The dossier that follows the player year to year — ratings, measurements, background and a progress chart. Private to you, your managers and anyone you grant access.'),
     size: 'lg',
   }),
   // מסך 7a: eyebrow «הודעות», כותרת «השיחות שלי», וכפתור «שיחה חדשה»

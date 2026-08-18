@@ -226,8 +226,19 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   }, [])
 
   // שמירת דירוג/מדידה: מיד על המסך, ואז במסד. תיקון באותו יום דורס.
-  const setValue = async (personId, metricKey, value) => {
-    if (!personId) return
+  // אם התיק עוד לא נוצר (לחיצה בשנייה הראשונה של פתיחה ראשונה) —
+  // פותחים אותו כאן ואז שומרים, במקום לבלוע את הלחיצה בשקט.
+  const setValue = async (personId, metricKey, value, rosterIdForOpen) => {
+    let pid = personId
+    if (!pid && rosterIdForOpen) pid = await ensurePerson(rosterIdForOpen)
+    if (!pid) {
+      toast.error(L('התיק עוד נטען — נסו שוב בעוד רגע', 'The dossier is still loading — try again in a moment'))
+      return
+    }
+    return setValueFor(pid, metricKey, value)
+  }
+
+  const setValueFor = async (personId, metricKey, value) => {
     const on = api.today()
     setEntries((cur) => {
       const person = { ...(cur[personId] || {}) }
@@ -374,17 +385,19 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   const [dups, setDups] = useState([])
   const [measureEdit, setMeasureEdit] = useState(null)
   const [ready, setReady] = useState(false)
+  const [pid, setPid] = useState(personId || null) // מזהה האדם, מקומית
   const opened = useRef(false)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       if (!rosterRow) return
-      let pid = personId
-      if (!pid && !opened.current) { opened.current = true; pid = await ensurePerson(rosterRow.id) }
-      if (!alive || !pid) return
-      await loadEntriesFor([pid])
-      const [n, h, d] = await Promise.all([api.loadNotes(pid), api.loadHistory(pid), api.findDuplicates(pid)])
+      let id = personId
+      if (!id && !opened.current) { opened.current = true; id = await ensurePerson(rosterRow.id) }
+      if (!alive || !id) return
+      setPid(id)
+      await loadEntriesFor([id])
+      const [n, h, d] = await Promise.all([api.loadNotes(id), api.loadHistory(id), api.findDuplicates(id)])
       if (!alive) return
       setNotes(n.notes || [])
       setHistory(h.history || [])
@@ -399,14 +412,14 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rosterRow?.id, personId])
 
-  const E = entries[personId] || {}
+  const E = entries[pid] || {}
   const now = (key) => seriesNow(E[key])
   const prev = (key) => seriesPrev(E[key])
   const trendMetric = catalog.all.find((m) => m.key === trendKey)
 
   const addNote = async () => {
-    if (!noteText.trim() || !personId) return
-    const { note, error } = await api.addNote({ personId, kind: noteKind, content: noteText.trim(), coachId: me })
+    if (!noteText.trim() || !pid) return
+    const { note, error } = await api.addNote({ personId: pid, kind: noteKind, content: noteText.trim(), coachId: me })
     if (error) { toast.error(L('שמירת הרשומה נכשלה: ', 'Failed to save: ') + error.message); return }
     setNotes((cur) => [note, ...cur])
     setNoteText('')
@@ -423,7 +436,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   const saveMeasure = async () => {
     const v = Number(measureEdit.value)
     if (Number.isNaN(v) || v <= 0) { toast.error(L('מספר לא תקין', 'Not a valid number')); return }
-    await setValue(personId, measureEdit.key, v)
+    await setValue(pid, measureEdit.key, v, rosterRow.id)
     setMeasureEdit(null)
   }
   const linkTo = async (candidate) => {
@@ -434,13 +447,13 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
       confirmText: L('חיבור התיקים', 'Merge'),
     })
     if (!ok) return
-    const { error } = await api.mergePeople(candidate.id, personId)
+    const { error } = await api.mergePeople(candidate.id, pid)
     if (error) { toast.error(L('החיבור נכשל: ', 'Merge failed: ') + error.message); return }
     toast.success(L('התיקים חוברו', 'Dossiers merged'))
     setDups([])
-    loadEntriesFor([personId])
-    api.loadNotes(personId).then((n) => setNotes(n.notes || []))
-    api.loadHistory(personId).then((h) => setHistory(h.history || []))
+    loadEntriesFor([pid])
+    api.loadNotes(pid).then((n) => setNotes(n.notes || []))
+    api.loadHistory(pid).then((h) => setHistory(h.history || []))
   }
 
   if (!rosterRow) return null
@@ -581,7 +594,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                     {c.metrics.map((m) => (
                       <li key={m.key} className="pd-metric">
                         <span className="pd-metric-k">{m.label}</span>
-                        <Dots value={now(m.key)} name={m.label} onChange={(v) => setValue(personId, m.key, v)} />
+                        <Dots value={now(m.key)} name={m.label} onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
                         <DeltaIcon from={prev(m.key)} to={now(m.key)} />
                       </li>
                     ))}
@@ -681,6 +694,7 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
   const [pIdx, setPIdx] = useState(0)
   const [mIdx, setMIdx] = useState(0)
   const [prep, setPrep] = useState(true)
+  const [pids, setPids] = useState({}) // rosterId -> personId (נבנה כאן, לא תלוי ב-prop)
   const metrics = useMemo(
     () => catalog.cats.flatMap((c) => c.metrics.map((m) => ({ ...m, catLabel: c.label }))),
     [catalog]
@@ -692,11 +706,13 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
     ;(async () => {
       setPrep(true)
       const ids = []
+      const map = {}
       for (const r of teamRoster) {
         const pid = personByRoster[r.id] || (await ensurePerson(r.id))
-        if (pid) ids.push(pid)
+        if (pid) { ids.push(pid); map[r.id] = pid }
       }
       if (!alive) return
+      setPids(map)
       await loadEntriesFor(ids)
       if (alive) setPrep(false)
     })()
@@ -705,7 +721,7 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
   }, [team, teamRoster.length])
 
   const today = api.today()
-  const pidOf = (r) => personByRoster[r.id]
+  const pidOf = (r) => pids[r.id] || personByRoster[r.id]
   const seriesOf = (r, key) => (entries[pidOf(r)] || {})[key]
   const valOf = (r, key) => seriesNow(seriesOf(r, key))
   const doneToday = (r, key) => (seriesOf(r, key) || []).some((e) => e.on === today)
@@ -787,7 +803,7 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
                   <li key={m.key} className={doneToday(player, m.key) ? 'pd-metric is-new' : 'pd-metric'}>
                     <span className="pd-metric-k">{m.label}</span>
                     <Dots value={valOf(player, m.key)} name={`${player.name} · ${m.label}`}
-                      onChange={(v) => setValue(pidOf(player), m.key, v)} />
+                      onChange={(v) => setValue(pidOf(player), m.key, v, player.id)} />
                     <DeltaIcon from={seriesPrev(seriesOf(player, m.key))} to={valOf(player, m.key)} />
                   </li>
                 ))}
@@ -813,7 +829,7 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
                   {r.number ? <span className="pd-num sm" dir="ltr">{r.number}</span> : null} {r.name}
                 </span>
                 <Dots value={valOf(r, metric.key)} name={`${r.name} · ${metric.label}`}
-                  onChange={(v) => setValue(pidOf(r), metric.key, v)} />
+                  onChange={(v) => setValue(pidOf(r), metric.key, v, r.id)} />
                 <DeltaIcon from={seriesPrev(seriesOf(r, metric.key))} to={valOf(r, metric.key)} />
               </li>
             ))}
