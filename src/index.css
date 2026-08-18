@@ -29135,3 +29135,131 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* שש הקטגוריות + השם נכנסות למסך מחשב בלי גלילה */
 .pd-round th, .pd-round td { padding: 7px 6px; }
 .pd-round tbody th { padding-inline: 10px; }
+
+/* --- סבב דירוג מחדש: מסך אחד בכל פעם, בלי טבלה --- */
+.pd-mode { display: flex; gap: 6px; padding: 4px; background: var(--surface-alt); border-radius: var(--radius-sm); align-self: flex-start; flex-wrap: wrap; }
+.pd-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+.pd-mode-btn.on { background: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
+.pd-prog { display: flex; gap: 4px; flex-wrap: wrap; }
+.pd-prog-i { width: 100%; max-width: 34px; height: 6px; border-radius: 3px; background: var(--border); flex: 1 1 12px; }
+.pd-prog-i.ok { background: var(--success); }
+.pd-prog-i.cur { background: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent); }
+.pd-sheet { gap: 14px; }
+.pd-sheet-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--primary);
+}
+.pd-sheet-h .pd-num { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pd-sheet-name {
+  display: block;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--text);
+  cursor: pointer;
+  text-align: start;
+}
+.pd-sheet-name.as-text { cursor: default; }
+.pd-sheet-name:hover:not(.as-text) { color: var(--accent-strong); }
+.pd-sheet-kick { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; color: var(--text-muted); }
+.pd-meta.dark { color: var(--text-muted); font-size: 12.5px; display: block; }
+.pd-sheet-count { margin-inline-start: auto; }
+.pd-sheet-cat h4 {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.pd-metric-player { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.pd-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pd-nav .btn-soft, .pd-nav .btn-primary { margin-top: 0; }
+.pd-nav-mid { flex: 1; text-align: center; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.pd-nav-next { min-width: 130px; }
+.pd-nav-end { margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--success) 10%, transparent); font-size: 13.5px; }
+
+/* --- «מי רואה את התיקים» — התשובה במשפט אחד ואחריה הפירוט --- */
+.pd-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-inline-start: 4px solid var(--primary);
+}
+.pd-answer svg { flex: none; margin-top: 2px; color: var(--primary); }
+.pd-answer p { margin: 0; font-size: 15px; line-height: 1.7; }
+.pd-answer-no { color: var(--accent-strong); font-weight: 700; }
+.pd-levels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pd-level {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  position: relative;
+}
+.pd-level + .pd-level { margin-top: 12px; }
+.pd-level + .pd-level::before {
+  content: '';
+  position: absolute;
+  top: -13px;
+  inset-inline-start: 27px;
+  width: 2px;
+  height: 13px;
+  background: var(--border-hover);
+}
+.pd-level.me { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.pd-level-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+.pd-level-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pd-level-tx b { font-size: 15px; }
+.pd-level-who { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.pd-level-who.empty { font-weight: 500; color: var(--text-muted); }
+.pd-level-sees { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-muted); }
+.pd-status { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: var(--radius-sm); }
+.pd-status.in { background: color-mix(in srgb, var(--success) 10%, transparent); }
+.pd-status.out { background: var(--warn-soft); }
+.pd-status.in svg { color: var(--success); flex: none; }
+.pd-status.out svg { color: var(--warn); flex: none; }
+.pd-status div { display: flex; flex-direction: column; gap: 3px; }
+.pd-status span { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+/* שורה שעודכנה בסבב הנוכחי — סימן שקט, לא צבע צועק */
+.pd-metric.is-new { background: color-mix(in srgb, var(--success) 8%, transparent); border-radius: 6px; }
+.pd-metric.is-new .pd-metric-k::after { content: ' •'; color: var(--success); font-weight: 800; }

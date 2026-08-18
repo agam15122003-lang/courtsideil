@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import {
   FolderOpen, Users, Ruler, Weight, MoveUp, Timer, StickyNote, Plus, ChevronDown, ChevronUp,
   TrendingUp, TrendingDown, Minus, Shield, UserPlus, Lock, Eye, Check, X, CalendarDays, Activity,
+  ListChecks,
 } from 'lucide-react'
+// חצי «הבא/הקודם» מתהפכים לפי שפה — אסור לייבא ChevronLeft/Right ישירות
+import { ChevronBack as ChevronRight, ChevronFwd as ChevronLeft } from './DirIcon'
 import { L } from './i18n'
 
 // «תיק שחקן» — 18.8.2026, **תצוגה מוקדמת על נתוני דוגמה**.
@@ -56,10 +59,6 @@ const CATS = [
   },
 ]
 const ALL_METRICS = CATS.flatMap((c) => c.metrics.map((m) => ({ ...m, cat: c.key, catHe: c.he })))
-const metricLabel = (key) => {
-  const m = ALL_METRICS.find((x) => x.key === key)
-  return m ? L(m.he, m.en) : key
-}
 
 // מדידות (מספרים עם יחידות) — נפרדות מהדירוגים
 const MEASURES = [
@@ -445,150 +444,290 @@ function Dossier({ player, ratings, setRating }) {
 }
 
 // =====================================================================
-//  2. סבב דירוג — כל הקבוצה, מהר
+//  2. סבב דירוג — כל הקטגוריות, מסך אחד בכל פעם
+//     (הטבלה הראשונה נפסלה: שש קטגוריות בלבד, וגלילה לצדדים)
+//     שני כיווני עבודה, כי מאמנים חושבים בשני הכיוונים:
+//       · «שחקן אחרי שחקן» — פותחים שחקן, מדרגים אותו בהכול, הבא.
+//       · «קטגוריה אחרי קטגוריה» — מדרגים את כל הקבוצה במחויבות,
+//         ואז את כולם בסיומות. יוצא עקבי יותר בין השחקנים.
 // =====================================================================
-const ROUND_KEYS = ['ball', 'fin', 'dman', 'iq', 'commit', 'ath']
 function RatingRound({ ratings, setRating, onOpenPlayer }) {
-  const [done, setDone] = useState(() => new Set())
-  const total = DEMO_PLAYERS.length
+  const [mode, setMode] = useState('player') // player | metric
+  const [pIdx, setPIdx] = useState(0)
+  const [mIdx, setMIdx] = useState(0)
+  // «הושלם» נמדד על הסבב הזה בלבד: מה שהמאמן נגע בו עכשיו. אחרת המונה
+  // היה מראה 16/16 כבר בפתיחה (לכל שחקן יש דירוג מהסבב הקודם).
+  const [touched, setTouched] = useState(() => new Set())
+  const mark = (pid, key, v) => {
+    setTouched((cur) => new Set(cur).add(`${pid}:${key}`))
+    setRating(pid, key, v)
+  }
+  const isTouched = (pid, key) => touched.has(`${pid}:${key}`)
+
+  const player = DEMO_PLAYERS[pIdx]
+  const metric = ALL_METRICS[mIdx]
+  // מה נחשב «הושלם»: כל 16 המדדים לשחקן / כל 12 השחקנים במדד
+  const playerDone = (p) => ALL_METRICS.every((m) => isTouched(p.id, m.key))
+  const metricDone = (m) => DEMO_PLAYERS.every((p) => isTouched(p.id, m.key))
+  const donePlayers = DEMO_PLAYERS.filter(playerDone).length
+  const doneMetrics = ALL_METRICS.filter(metricDone).length
+
+  const step = (dir) => {
+    if (mode === 'player') setPIdx((i) => Math.min(DEMO_PLAYERS.length - 1, Math.max(0, i + dir)))
+    else setMIdx((i) => Math.min(ALL_METRICS.length - 1, Math.max(0, i + dir)))
+  }
+  const atStart = mode === 'player' ? pIdx === 0 : mIdx === 0
+  const atEnd = mode === 'player' ? pIdx === DEMO_PLAYERS.length - 1 : mIdx === ALL_METRICS.length - 1
+  const doneNow = mode === 'player' ? donePlayers : doneMetrics
+  const totalNow = mode === 'player' ? DEMO_PLAYERS.length : ALL_METRICS.length
+
   return (
     <div className="pd">
       <header className="pd-head pd-head--round">
         <div className="pd-head-tx">
           <h2 className="pd-name">{L('סבב דירוג · נערים ב׳', 'Rating round · Youth B')}</h2>
-          <span className="pd-meta">{L('שש הקטגוריות המרכזיות. הכול לחיץ — לתיק המלא נכנסים מהשם.', 'Six core categories. Tap to rate; open the full dossier from the name.')}</span>
+          <span className="pd-meta">
+            {mode === 'player'
+              ? L('שחקן אחד על המסך, כל 16 הקטגוריות. מסמנים 1–5 ועוברים לשחקן הבא.',
+                   'One player on screen with all 16 categories. Mark 1–5 and move on.')
+              : L('קטגוריה אחת, כל הקבוצה — ככה הדירוג יוצא עקבי בין השחקנים.',
+                   'One category, the whole team — this keeps the scale consistent.')}
+          </span>
         </div>
         <span className="pd-round-count">
-          <bdi dir="ltr">{done.size}/{total}</bdi> {L('הושלמו', 'done')}
+          <bdi dir="ltr">{doneNow}/{totalNow}</bdi> {mode === 'player' ? L('שחקנים הושלמו', 'players done') : L('קטגוריות הושלמו', 'categories done')}
         </span>
       </header>
 
-      <div className="pd-round-wrap">
-        <table className="pd-round">
-          <thead>
-            <tr>
-              <th scope="col">{L('שחקן', 'Player')}</th>
-              {ROUND_KEYS.map((k) => <th key={k} scope="col">{metricLabel(k)}</th>)}
-              <th scope="col">{L('סיום', 'Done')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {DEMO_PLAYERS.map((p) => (
-              <tr key={p.id} className={done.has(p.id) ? 'is-done' : undefined}>
-                <th scope="row">
-                  <button type="button" className="pd-round-name" onClick={() => onOpenPlayer(p.id)}>
-                    <span className="pd-num sm" dir="ltr">{p.number}</span> {p.name}
-                  </button>
-                </th>
-                {ROUND_KEYS.map((k) => (
-                  <td key={k}>
-                    <Dots value={ratings[p.id][k][2]} name={`${p.name} · ${metricLabel(k)}`}
-                      onChange={(v) => setRating(p.id, k, v)} />
-                  </td>
-                ))}
-                <td>
-                  <button type="button" className={done.has(p.id) ? 'pd-done on' : 'pd-done'}
-                    aria-pressed={done.has(p.id)}
-                    onClick={() => setDone((cur) => { const n = new Set(cur); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}>
-                    <Check size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* איך לעבוד */}
+      <div className="pd-mode" role="group" aria-label={L('כיוון העבודה', 'Working direction')}>
+        <button type="button" className={mode === 'player' ? 'pd-mode-btn on' : 'pd-mode-btn'}
+          aria-pressed={mode === 'player'} onClick={() => setMode('player')}>
+          <Users size={15} /> {L('שחקן אחרי שחקן', 'Player by player')}
+        </button>
+        <button type="button" className={mode === 'metric' ? 'pd-mode-btn on' : 'pd-mode-btn'}
+          aria-pressed={mode === 'metric'} onClick={() => setMode('metric')}>
+          <ListChecks size={15} /> {L('קטגוריה אחרי קטגוריה', 'Category by category')}
+        </button>
       </div>
-      <p className="muted small">
-        {L('בטלפון הטבלה נגללת לצדדים; אפשר גם לדרג שחקן־שחקן מתוך התיק שלו.',
-           'On a phone the table scrolls sideways; you can also rate player by player inside the dossier.')}
-      </p>
+
+      {/* פס התקדמות */}
+      <div className="pd-prog" aria-hidden="true">
+        {(mode === 'player' ? DEMO_PLAYERS : ALL_METRICS).map((x, i) => {
+          const cur = i === (mode === 'player' ? pIdx : mIdx)
+          const ok = mode === 'player' ? playerDone(x) : metricDone(x)
+          return <span key={i} className={`pd-prog-i${cur ? ' cur' : ''}${ok ? ' ok' : ''}`} />
+        })}
+      </div>
+
+      {/* ------- מצב א׳: שחקן אחד, כל הקטגוריות ------- */}
+      {mode === 'player' && (
+        <section className="pd-card pd-sheet">
+          <div className="pd-sheet-h">
+            <span className="pd-num" dir="ltr">{player.number}</span>
+            <div>
+              <button type="button" className="pd-sheet-name" onClick={() => onOpenPlayer(player.id)}>
+                {player.name}
+              </button>
+              <span className="pd-meta dark">{player.pos} · <bdi dir="ltr">{2026 - player.born}</bdi> {L('שנים', 'yrs')}</span>
+            </div>
+            <span className="muted small pd-sheet-count">
+              <bdi dir="ltr">{ALL_METRICS.filter((m) => isTouched(player.id, m.key)).length}/{ALL_METRICS.length}</bdi> {L('עודכנו בסבב הזה', 'updated in this round')}
+            </span>
+          </div>
+
+          {CATS.map((c) => (
+            <div key={c.key} className="pd-sheet-cat">
+              <h4>{L(c.he, c.en)}</h4>
+              <ul className="pd-metrics">
+                {c.metrics.map((m) => (
+                  <li key={m.key} className={isTouched(player.id, m.key) ? 'pd-metric is-new' : 'pd-metric'}>
+                    <span className="pd-metric-k">{L(m.he, m.en)}</span>
+                    <Dots value={ratings[player.id][m.key][2]} name={`${player.name} · ${L(m.he, m.en)}`}
+                      onChange={(v) => mark(player.id, m.key, v)} />
+                    <DeltaIcon from={ratings[player.id][m.key][1]} to={ratings[player.id][m.key][2]} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* ------- מצב ב׳: קטגוריה אחת, כל הקבוצה ------- */}
+      {mode === 'metric' && (
+        <section className="pd-card pd-sheet">
+          <div className="pd-sheet-h">
+            <div>
+              <span className="pd-sheet-kick">{metric.catHe}</span>
+              <b className="pd-sheet-name as-text">{L(metric.he, metric.en)}</b>
+            </div>
+            <span className="muted small pd-sheet-count">
+              <bdi dir="ltr">{mIdx + 1}/{ALL_METRICS.length}</bdi> {L('קטגוריות', 'categories')}
+            </span>
+          </div>
+          <ul className="pd-metrics">
+            {DEMO_PLAYERS.map((p) => (
+              <li key={p.id} className={isTouched(p.id, metric.key) ? 'pd-metric is-new' : 'pd-metric'}>
+                <span className="pd-metric-k pd-metric-player">
+                  <span className="pd-num sm" dir="ltr">{p.number}</span> {p.name}
+                </span>
+                <Dots value={ratings[p.id][metric.key][2]} name={`${p.name} · ${L(metric.he, metric.en)}`}
+                  onChange={(v) => mark(p.id, metric.key, v)} />
+                <DeltaIcon from={ratings[p.id][metric.key][1]} to={ratings[p.id][metric.key][2]} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* מעבר */}
+      <div className="pd-nav">
+        <button type="button" className="btn-soft" onClick={() => step(-1)} disabled={atStart}>
+          <ChevronRight size={16} /> {L('הקודם', 'Previous')}
+        </button>
+        <span className="pd-nav-mid">
+          {mode === 'player'
+            ? L(`שחקן ${pIdx + 1} מתוך ${DEMO_PLAYERS.length}`, `Player ${pIdx + 1} of ${DEMO_PLAYERS.length}`)
+            : L(`קטגוריה ${mIdx + 1} מתוך ${ALL_METRICS.length}`, `Category ${mIdx + 1} of ${ALL_METRICS.length}`)}
+        </span>
+        <button type="button" className="btn-primary pd-nav-next" onClick={() => step(1)} disabled={atEnd}>
+          {L('הבא', 'Next')} <ChevronLeft size={16} />
+        </button>
+      </div>
+      {atEnd && (
+        <p className="pd-nav-end">
+          {L('זה האחרון. הדירוגים נשמרים לתאריך של היום — הגרף בתיק יקבל נקודה חדשה.',
+             'That was the last one. Ratings are saved under today’s date — the chart gets a new point.')}
+        </p>
+      )}
     </div>
   )
 }
 
 // =====================================================================
-//  3. העץ והגישות
+//  3. מי רואה את התיקים  (המסך «עץ המועדון» נפסל — לא היה מובן)
+//     עכשיו: משפט אחד בראש שאומר בדיוק מי רואה, ואחריו שלושה כרטיסים.
 // =====================================================================
-const TREE = {
-  club: 'הפועל עמק חפר',
-  manager: { name: 'אגם אדירי', role: 'מנהל מועדון' },
-  pro: null,
-  coaches: [
-    { name: 'אגם אדירי', teams: ['נערים ב׳', 'קטסל א׳'], inTree: true, me: true },
-    { name: 'תמר לוי', teams: ['נערים א׳'], inTree: true },
-    { name: 'רן שביט', teams: ['ילדים א׳'], inTree: false },
-  ],
+const CLUB = {
+  name: 'הפועל עמק חפר',
+  iAmIn: true,                       // מנהל המועדון צירף אותי
+  manager: 'אגם אדירי',
+  pro: null,                         // מנהל מקצועי — עוד לא מונה
+  myTeams: ['נערים ב׳', 'קטסל א׳'],
 }
-function Tree() {
-  const [grants, setGrants] = useState([{ name: 'תמר לוי', level: 'view' }])
+const LEVELS = [
+  {
+    key: 'club', he: 'מנהל מועדון', en: 'Club manager', who: CLUB.manager,
+    seesHe: 'רואה את התיקים של כל השחקנים במועדון', seesEn: 'Sees every player in the club',
+  },
+  {
+    key: 'pro', he: 'מנהל מקצועי', en: 'Technical director', who: null,
+    seesHe: 'רואה את התיקים של המאמנים שהוא אחראי עליהם', seesEn: 'Sees the dossiers of the coaches under them',
+  },
+  {
+    key: 'coach', he: 'מאמן', en: 'Coach', who: 'אגם אדירי (אתה)', me: true,
+    seesHe: 'רואה את התיקים של הקבוצות שהוא מאמן', seesEn: 'Sees the dossiers of the teams they coach',
+  },
+]
+
+function Access() {
+  const [grants, setGrants] = useState([{ name: 'תמר לוי', team: 'נערים א׳', level: 'view' }])
   return (
     <div className="pd">
       <header className="pd-head">
         <div className="pd-head-tx">
-          <h2 className="pd-name">{L('העץ של המועדון והגישות', 'Club tree & access')}</h2>
-          <span className="pd-meta">{L('מי רואה תיקים של מי — וגם מי לא.', 'Who sees whose dossiers — and who does not.')}</span>
+          <h2 className="pd-name">{L('מי רואה את התיקים', 'Who sees the dossiers')}</h2>
+          <span className="pd-meta">{L('התשובה במשפט אחד, ואחר כך הפירוט.', 'The answer in one line, then the details.')}</span>
         </div>
       </header>
 
+      {/* התשובה, בגדול */}
+      <div className="pd-answer">
+        <Lock size={18} aria-hidden="true" />
+        <p>
+          {L('את התיקים של ', 'The dossiers of ')}
+          <b>{CLUB.myTeams.join(' ' + L('ו', 'and') + ' ')}</b>
+          {L(' רואים כרגע: ', ' are currently seen by: ')}
+          <b>{L('אתה', 'you')}</b>
+          {', '}
+          <b>{CLUB.manager} ({L('מנהל המועדון', 'club manager')})</b>
+          {grants.length ? `, ${grants.map((g) => g.name).join(', ')} (${L('נתת גישה', 'you granted access')})` : ''}
+          {'. '}
+          <span className="pd-answer-no">{L('אף אחד אחר — ולא השחקנים או ההורים.', 'Nobody else — and not the players or parents.')}</span>
+        </p>
+      </div>
+
       <div className="pd-grid">
+        {/* מי מעליך */}
         <section className="pd-card pd-card--wide">
           <div className="pd-card-h">
-            <h3><Shield size={16} /> {TREE.club}</h3>
-            <span className="muted small">{L('הדגמה — עוד לא מחובר', 'Demo — not wired yet')}</span>
+            <h3><Shield size={16} /> {L('הסדר במועדון', 'The order in the club')} · {CLUB.name}</h3>
           </div>
-          <ul className="pd-tree">
-            <li className="pd-tree-row lvl0">
-              <span className="pd-tree-role">{L('מנהל מועדון', 'Club manager')}</span>
-              <b>{TREE.manager.name}</b>
-              <span className="pd-tree-see"><Eye size={13} /> {L('רואה את כל תיקי המועדון', 'Sees every dossier in the club')}</span>
-            </li>
-            <li className="pd-tree-row lvl1">
-              <span className="pd-tree-role">{L('מנהל מקצועי', 'Technical director')}</span>
-              <span className="pd-tree-empty">{L('לא מונה', 'Not appointed')}</span>
-              <button type="button" className="btn-soft pd-tree-btn"><UserPlus size={14} /> {L('מינוי', 'Appoint')}</button>
-            </li>
-            {TREE.coaches.map((c) => (
-              <li key={c.name} className={c.inTree ? 'pd-tree-row lvl2' : 'pd-tree-row lvl2 out'}>
-                <span className="pd-tree-role">{L('מאמן', 'Coach')}</span>
-                <b>{c.name}{c.me ? L(' (אתה)', ' (you)') : ''}</b>
-                <span className="muted small">{c.teams.join(' · ')}</span>
-                {c.inTree ? (
-                  <span className="pd-tree-see in"><Check size={13} /> {L('בעץ', 'In the tree')}</span>
-                ) : (
-                  <>
-                    <span className="pd-tree-see out"><X size={13} /> {L('לא צורף — התיקים שלו פרטיים', 'Not joined — dossiers stay private')}</span>
-                    <button type="button" className="btn-soft pd-tree-btn">{L('צירוף לעץ', 'Add to tree')}</button>
-                  </>
+          <ol className="pd-levels">
+            {LEVELS.map((lv, i) => (
+              <li key={lv.key} className={lv.me ? 'pd-level me' : 'pd-level'}>
+                <span className="pd-level-n" aria-hidden="true">{i + 1}</span>
+                <span className="pd-level-tx">
+                  <b>{L(lv.he, lv.en)}</b>
+                  {lv.who
+                    ? <span className="pd-level-who">{lv.who}</span>
+                    : <span className="pd-level-who empty">{L('עוד לא מונה אף אחד', 'Nobody appointed yet')}</span>}
+                  <span className="pd-level-sees"><Eye size={13} /> {L(lv.seesHe, lv.seesEn)}</span>
+                </span>
+                {!lv.who && (
+                  <button type="button" className="btn-soft pd-tree-btn"><UserPlus size={14} /> {L('מינוי', 'Appoint')}</button>
                 )}
               </li>
             ))}
-          </ul>
+          </ol>
           <p className="muted small pd-tree-note">
-            {L('מאמן יכול לפתוח קבוצות ולנהל תיקים גם בלי להיות בעץ — אבל אז אף מנהל לא רואה אותם.',
-               'A coach can open teams and keep dossiers without being in the tree — but then no manager sees them.')}
+            {L('מנהל מועדון ממנה את המנהל המקצועי ומצרף מאמנים. מאמן יכול לפתוח קבוצות ולנהל תיקים גם בלי שצירפו אותו — ואז אף מנהל לא רואה אותם.',
+               'The club manager appoints the technical director and adds coaches. A coach can open teams and keep dossiers without being added — and then no manager sees them.')}
           </p>
         </section>
 
-        <section className="pd-card pd-card--wide">
+        {/* המצב שלי */}
+        <section className="pd-card">
+          <div className="pd-card-h"><h3>{L('המצב שלך', 'Your status')}</h3></div>
+          <div className={CLUB.iAmIn ? 'pd-status in' : 'pd-status out'}>
+            {CLUB.iAmIn ? <Check size={18} /> : <X size={18} />}
+            <div>
+              <b>{CLUB.iAmIn
+                ? L(`מנהל המועדון צירף אותך ל${CLUB.name}`, `The club manager added you to ${CLUB.name}`)
+                : L('אתה לא מצורף למועדון', 'You are not attached to a club')}</b>
+              <span>{CLUB.iAmIn
+                ? L('לכן מנהל המועדון רואה את התיקים שלך. אם תרצה שלא — צריך לצאת מהמועדון.', 'That is why the club manager sees your dossiers. To change it you would have to leave the club.')
+                : L('התיקים שלך פרטיים לחלוטין — אף מנהל לא רואה אותם.', 'Your dossiers are completely private — no manager sees them.')}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* גישות שנתתי */}
+        <section className="pd-card">
           <div className="pd-card-h">
-            <h3>{L('גישה לתיק של סול בלמן', 'Access to Sol Belman’s dossier')}</h3>
-            <button type="button" className="btn-soft pd-add" onClick={() => setGrants((g) => [...g, { name: 'רן שביט', level: 'view' }])}>
-              <Plus size={15} /> {L('מתן גישה למאמן', 'Grant a coach access')}
+            <h3>{L('מאמנים שנתת להם גישה', 'Coaches you gave access')}</h3>
+            <button type="button" className="btn-soft pd-add"
+              onClick={() => setGrants((g) => [...g, { name: 'רן שביט', team: 'ילדים א׳', level: 'view' }])}>
+              <Plus size={15} /> {L('הוספה', 'Add')}
             </button>
           </div>
-          <ul className="pd-grants">
-            <li><b>{L('אגם אדירי', 'Agam Adiri')}</b> <span className="pd-grant-lvl owner">{L('בעל התיק', 'Owner')}</span></li>
-            <li><b>{TREE.manager.name}</b> <span className="pd-grant-lvl auto">{L('לפי העץ — מנהל מועדון', 'By the tree — club manager')}</span></li>
-            {grants.map((g, i) => (
-              <li key={g.name + i}>
-                <b>{g.name}</b>
-                <span className="pd-grant-lvl">{g.level === 'view' ? L('צפייה', 'View') : L('צפייה ועריכה', 'View & edit')}</span>
-                <button type="button" className="link-button danger" onClick={() => setGrants((cur) => cur.filter((_, x) => x !== i))}>
-                  {L('הסרה', 'Remove')}
-                </button>
-              </li>
-            ))}
-          </ul>
+          {grants.length === 0 ? (
+            <p className="muted small">{L('לא נתת גישה לאף מאמן. רק אתה והמנהלים מעליך רואים.', 'You have not given any coach access. Only you and your managers can see.')}</p>
+          ) : (
+            <ul className="pd-grants">
+              {grants.map((g, i) => (
+                <li key={g.name + i}>
+                  <b>{g.name}</b>
+                  <span className="muted small">{g.team}</span>
+                  <span className="pd-grant-lvl">{L('צפייה', 'View')}</span>
+                  <button type="button" className="link-button danger" onClick={() => setGrants((cur) => cur.filter((_, x) => x !== i))}>
+                    {L('הסרה', 'Remove')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </div>
@@ -630,7 +769,7 @@ export default function PlayerDossier() {
           <Users size={15} aria-hidden="true" /> {L('סבב דירוג', 'Rating round')}
         </button>
         <button className={tab === 'tree' ? 'tab active' : 'tab'} onClick={() => setTab('tree')}>
-          <Shield size={15} aria-hidden="true" /> {L('העץ והגישות', 'Tree & access')}
+          <Shield size={15} aria-hidden="true" /> {L('מי רואה את התיקים', 'Who sees them')}
         </button>
       </div>
 
@@ -649,7 +788,7 @@ export default function PlayerDossier() {
       {tab === 'round' && (
         <RatingRound ratings={ratings} setRating={setRating} onOpenPlayer={(id) => { setPlayerId(id); setTab('dossier') }} />
       )}
-      {tab === 'tree' && <Tree />}
+      {tab === 'tree' && <Access />}
     </div>
   )
 }
