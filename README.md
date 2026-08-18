@@ -112,4 +112,5 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 - **`ניהול_הפרויקט.md` — מצב הפרויקט: מה להריץ, מה להחליט, ומה נשאר לבנות. המסמך הראשון לפתוח.**
 
 - `SPEC.md` — אפיון · `SECURITY.md` — מדיניות אבטחה
+- `HANDOFF_18.8.md` — האנדוף האחרון (המחברת המלאה + תיק שחקן)
 - `HANDOFF.md`, `DESIGN_RESEARCH.md` — עיצוב · `AUDIT.md` — ממצאי סקירות
