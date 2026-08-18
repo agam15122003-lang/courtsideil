@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Maximize2, Trash2 } from 'lucide-react'
-import { CourtLines, ObjectShape, Arrow, FULL, HALF } from './CourtDiagram'
+import { CourtLines, ObjectShape, Arrow, courtDim } from './CourtDiagram'
 import { InkPaths, useInkTool } from './ink'
 import { L } from './i18n'
 
@@ -14,14 +14,16 @@ import { L } from './i18n'
 //   tool, color       — 'pen' | 'eraser' + צבע (מהסרגל של עמודת המגרשים)
 //   onOpen, onRemove  — פתיחה בלוח המלא / הסרת המגרש
 //   index             — מספר המגרש (לתווית)
-export const emptyBoard = () => ({ fullCourt: true, steps: [{ objects: [], arrows: [], ink: [] }] })
+// ברירת המחדל במחברת: מגרש שלם **לאורך** — צר, ולכן משאיר רוחב לכתיבה
+export const emptyBoard = () => ({ fullCourt: true, portrait: true, steps: [{ objects: [], arrows: [], ink: [] }] })
 
 export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, index = 0 }) {
   const svgRef = useRef(null)
   const b = board && board.steps && board.steps.length ? board : emptyBoard()
   const step = b.steps[0] || { objects: [], arrows: [], ink: [] }
   const full = b.fullCourt !== false
-  const dim = full ? FULL : HALF
+  const portrait = !!b.portrait
+  const dim = courtDim(full, portrait)
   const editable = typeof onChange === 'function'
   const strokes = step.ink || []
 
@@ -51,7 +53,7 @@ export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen
         {...(inkTool.drawing ? inkTool.handlers : {})}
       >
         <rect x="0" y="0" width={dim.w} height={dim.h} fill="#ffffff" />
-        <CourtLines full={full} />
+        <CourtLines full={full} portrait={portrait} />
         {(step.arrows || []).map((a) => (
           <Arrow key={a.id} a={a} />
         ))}

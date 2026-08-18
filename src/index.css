@@ -28614,3 +28614,120 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 .nbk .nbk-body .nbk-text { background-image: none; }
 .nbk .nb-slot-in { border-bottom-color: #c9d4e2; }
 .nbk-att-row { border-bottom-color: #e2e6ee; }
+
+/* =====================================================================
+   מגרש «לאורך» + טלפון מוטה לרוחב  ·  18.8.2026 (בקשת הבעלים)
+   ===================================================================== */
+
+/* --- המגרש לאורך: צר וגבוה, ולכן תופס פחות רוחב מהדף --- */
+.court--portrait { aspect-ratio: 500 / 940; max-width: min(360px, 100%); }
+.court--portrait:not(.court--full) { aspect-ratio: 470 / 500; }
+.tb-fullscreen .court--portrait {
+  max-width: none;
+  width: auto;
+  block-size: min(72vh, 900px);
+}
+.tb-fullscreen .board-block { align-items: center; }
+
+/* עמודת המגרשים צרה יותר — הרוחב שהתפנה עובר לכתיבה */
+.nbk-courts { flex: 0 0 148px; width: 148px; }
+
+/* --- טלפון: המגרשים בתחתית המחברת, בשורה --- */
+@media (max-width: 720px) {
+  .nbk-page { flex-direction: column; }
+  .nbk-courts {
+    order: 2;
+    flex-basis: auto;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px dashed #c7ccd6;
+  }
+  .nbk-courts-tools { flex: 1 1 100%; justify-content: center; }
+  .nbk-courts .mini-court { flex: 0 0 96px; width: 96px; }
+  .nbk-add-court { flex: 0 0 auto; width: auto; padding: 8px 12px; }
+  .nbk-courts-hint { display: block; flex: 1 1 100%; }
+}
+
+/* --- טלפון מוטה לרוחב: אין סייד־בר קבוע, המחברת מקבלת את כל המסך --- */
+@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
+  .layout { display: block; min-height: 100vh; }
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding: 6px var(--space-3);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .drawer-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .drawer-close { display: inline-flex; }
+  .drawer-overlay { display: block; position: fixed; inset: 0; background: rgba(10, 14, 24, 0.45); z-index: 55; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 272px;
+    max-width: 82vw;
+    height: 100vh;
+    flex-direction: column;
+    padding: var(--space-4);
+    border-inline-end: none;
+    border-inline-start: 1px solid var(--border);
+    background: var(--surface);
+    z-index: 60;
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { padding: var(--space-3); }
+  /* פחות «קישוט» — הדף הוא מה שצריך לראות. הבאנר מתכווץ לשורה אחת
+     (ולא נעלם) כדי שהכותרת והניווט חזרה יישארו. */
+  .quote-strip, .welcome-badge, .cs-hero-sub, .cs-hero-art, .cs-hero-eyebrow { display: none; }
+  .cs-hero, .cs-hero--md, .cs-hero--lg, .cs-hero--sm {
+    height: auto;
+    min-height: 0;
+    padding: 6px var(--space-4);
+  }
+  .cs-hero-body { padding: 0; }
+  .cs-hero-title { font-size: 18px; }
+  .work-tabs { margin-block: 6px; }
+  .welcome-card { padding: var(--space-3); }
+  .nbk-page { padding: var(--space-3); padding-inline-end: calc(var(--space-3) + 16px); }
+  /* לרוחב יש מקום: המגרשים חוזרים לצד, צרים */
+  .nbk-courts {
+    order: 0;
+    flex-direction: column;
+    flex: 0 0 112px;
+    width: 112px;
+    border-top: 0;
+    padding-top: 0;
+  }
+  .nbk-page { flex-direction: row; }
+  .nbk-courts .mini-court { flex: none; width: 100%; }
+  .nbk-courts-hint { display: none; }
+}
+/* טלפון לרוחב + מחברת פתוחה: הדף הוא המסך. הבאנר, הטאבים וההסבר
+   מתקפלים כדי שהמחברת תתחיל מיד — היציאה נשארת דרך «כל התוכניות»
+   וההמבורגר. (:has נתמך בכל הדפדפנים שהאפליקציה מכוונת אליהם) */
+@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
+  .cs-page:has(.nbk-editor) .cs-hero,
+  .cs-page:has(.nbk-editor) .cs-hero-bar,
+  .cs-page:has(.nbk-editor) .work-tabs,
+  .nbk-editor .nbk-head p,
+  .nbk-editor .nbk-more-lines .muted,
+  .nbk-editor .nbk-linked p { display: none; }
+  .nbk-editor .nbk-head { gap: 6px; }
+  .nbk-editor .nbk-head h2 { font-size: 17px; }
+  .nbk-editor .nb-header { padding: 8px var(--space-4); }
+  .nbk-editor .nb-header .nb-title { font-size: 19px; margin: 0; }
+  .nbk-editor .nb-coach { margin-top: 4px; padding: 2px 8px; font-size: 12px; }
+}

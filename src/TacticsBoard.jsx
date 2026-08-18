@@ -3,12 +3,10 @@ import { createPortal } from 'react-dom'
 import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X, Pencil, Eraser } from 'lucide-react'
 import { L } from './i18n'
 import { motionOff, dur, loadGsap, resetArrowDraw, clearArrowDraw, buildArrowDraw } from './anim'
-import { CourtLines, ObjectShape, arcLift, arcPath } from './CourtDiagram'
+import { CourtLines, ObjectShape, arcLift, arcPath, courtDim } from './CourtDiagram'
 // 18.8 — «עט» ו«מחק»: ציור חופשי על המגרש, נשמר לכל שלב ב-step.ink
 import { InkPaths, useInkTool, INK_COLORS } from './ink'
 
-const HALF = { w: 500, h: 470 }
-const FULL = { w: 940, h: 500 }
 
 // שיעור מהמעבר בין שלבים שבו ציור החצים כבר הסתיים (0.85 = 85% מהדרך)
 const DRAW_LEAD = 0.85
@@ -207,13 +205,14 @@ function Board({
   onAddInk,
   onRemoveInk,
   inkColor,
+  portrait = false,
   headerLabel,
   drawScrub = null,
 }) {
   const svgRef = useRef(null)
   const dragId = useRef(null)
   const [draft, setDraft] = useState(null)
-  const dim = full ? FULL : HALF
+  const dim = courtDim(full, portrait)
   const arrows = step.arrows || []
   const arrowsRef = useArrowDraw(arrows, stepIndex, drawScrub)
   // עט/מחק — הקווים החופשיים של השלב הזה
@@ -314,10 +313,10 @@ function Board({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dim.w} ${dim.h}`}
-        className={full ? 'court court--full' : 'court'}
+        className={`court${full ? ' court--full' : ''}${portrait ? ' court--portrait' : ''}`}
         role="img"
         aria-label={L(
-          `לוח טקטיקה — ${full ? 'מגרש שלם' : 'חצי מגרש'}, שלב ${stepIndex + 1}`,
+          `לוח טקטיקה — ${full ? 'מגרש שלם' : 'חצי מגרש'}${portrait ? ' לאורך' : ''}, שלב ${stepIndex + 1}`,
           `Tactics board — ${full ? 'full court' : 'half court'}, step ${stepIndex + 1}`
         )}
         style={{ touchAction: 'none', cursor: tool === 'select' ? 'default' : 'crosshair' }}
@@ -351,7 +350,7 @@ function Board({
           </marker>
         </defs>
         <rect x="0" y="0" width={dim.w} height={dim.h} fill="#E3B877" />
-        <CourtLines full={full} variant="board" />
+        <CourtLines full={full} variant="board" portrait={portrait} />
         <g ref={arrowsRef}>
           {arrows.map((a) => (
             <Arrow
@@ -411,6 +410,9 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
   const initial =
     value && value.steps ? value : { fullCourt: false, steps: [{ objects: [], arrows: [] }] }
   const [fullCourt, setFullCourt] = useState(!!initial.fullCourt)
+  // «לאורך» נשמר על הלוח עצמו — אחרת המגרש הקטן והמסך המלא היו מציגים
+  // את אותם שחקנים בשתי מערכות צירים שונות
+  const [portrait, setPortrait] = useState(!!initial.portrait)
   const [steps, setSteps] = useState(
     initial.steps && initial.steps.length ? initial.steps : [{ objects: [], arrows: [] }]
   )
@@ -452,11 +454,11 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const dim = fullCourt ? FULL : HALF
+  const dim = courtDim(fullCourt, portrait)
 
-  const commit = (next, nf = fullCourt) => {
+  const commit = (next, nf = fullCourt, np = portrait) => {
     setSteps(next)
-    if (onChange) onChange({ fullCourt: nf, steps: next })
+    if (onChange) onChange({ fullCourt: nf, portrait: np, steps: next })
   }
 
   const addObj = (stepIndex, type) => {
@@ -481,7 +483,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
           ? { ...s, objects: s.objects.map((o) => (o.id === objId ? { ...o, ...pos } : o)) }
           : s
       )
-      if (onChange) onChange({ fullCourt, steps: next })
+      if (onChange) onChange({ fullCourt, portrait, steps: next })
       return next
     })
   }
@@ -522,7 +524,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
   const addInk = (stepIndex, stroke) =>
     setSteps((cur) => {
       const next = cur.map((s, i) => (i === stepIndex ? { ...s, ink: [...(s.ink || []), stroke] } : s))
-      if (onChange) onChange({ fullCourt, steps: next })
+      if (onChange) onChange({ fullCourt, portrait, steps: next })
       return next
     })
   const removeInk = (stepIndex, inkIds) =>
@@ -531,7 +533,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
       const next = cur.map((s, i) =>
         i === stepIndex ? { ...s, ink: (s.ink || []).filter((k) => !ids.includes(k.id)) } : s
       )
-      if (onChange) onChange({ fullCourt, steps: next })
+      if (onChange) onChange({ fullCourt, portrait, steps: next })
       return next
     })
 
@@ -579,6 +581,35 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
       setFullCourt(full)
       commit(steps, full)
     }
+  }
+  // סיבוב הלוח: המיקומים נשמרים כפי שהם ולכן מסובבים גם אותם, אחרת
+  // השחקנים היו נופלים מחוץ למגרש אחרי המעבר לאורך.
+  const setPortraitCourt = (p) => {
+    if (p === portrait) return
+    const from = courtDim(fullCourt, portrait)
+    const to = courtDim(fullCourt, p)
+    const mapX = (x, y) => (p ? to.w - (y * to.w) / from.h : (y * to.w) / from.h)
+    const mapY = (x) => (p ? (x * to.h) / from.w : to.h - (x * to.h) / from.w)
+    const r1 = (n) => Math.round(n * 10) / 10
+    const next = steps.map((st) => ({
+      ...st,
+      objects: (st.objects || []).map((o) => ({ ...o, x: r1(mapX(o.x, o.y)), y: r1(mapY(o.x, o.y)) })),
+      arrows: (st.arrows || []).map((a) => ({
+        ...a,
+        x1: r1(mapX(a.x1, a.y1)), y1: r1(mapY(a.x1, a.y1)),
+        x2: r1(mapX(a.x2, a.y2)), y2: r1(mapY(a.x2, a.y2)),
+      })),
+      ink: (st.ink || []).map((k) => {
+        const pts = []
+        for (let i = 0; i < (k.p || []).length; i += 2) {
+          pts.push(r1(mapX(k.p[i], k.p[i + 1])), r1(mapY(k.p[i], k.p[i + 1])))
+        }
+        return { ...k, p: pts }
+      }),
+    }))
+    setPortrait(p)
+    setSteps(next)
+    if (onChange) onChange({ fullCourt, portrait: p, steps: next })
   }
 
   // אנימציה: מתקדם בין שלבים ברצף — תנועה חלקה (easing) + השהייה קצרה בכל שלב (לולאה)
@@ -712,6 +743,17 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
           </div>
         )}
 
+        {!readOnly && (
+          <div className="tb-group" role="group" aria-label={L('כיוון המגרש', 'Court orientation')}>
+            <button type="button" className={portrait ? 'tb-btn on' : 'tb-btn'} aria-pressed={portrait} onClick={() => setPortraitCourt(true)}>
+              {L('לאורך', 'Portrait')}
+            </button>
+            <button type="button" className={!portrait ? 'tb-btn on' : 'tb-btn'} aria-pressed={!portrait} onClick={() => setPortraitCourt(false)}>
+              {L('לרוחב', 'Landscape')}
+            </button>
+          </div>
+        )}
+
         <div className="tb-group" role="group" aria-label={L('תצוגה', 'View')}>
           <button type="button" className={layout === 'single' ? 'tb-btn on' : 'tb-btn'} aria-pressed={layout === 'single'} onClick={() => setLayout('single')}>
             <Square size={15} /> {L('שלב בודד', 'Single step')}
@@ -798,6 +840,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
             onAddInk={addInk}
             onRemoveInk={removeInk}
             inkColor={inkColor}
+            portrait={portrait}
           />
         ))}
 
@@ -811,6 +854,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
               stepIndex={frame.idx}
               total={steps.length}
               full={fullCourt}
+              portrait={portrait}
               readOnly
               tool="select"
               drawScrub={frame.p}

@@ -22,16 +22,32 @@ import { InkPaths } from './ink'
 // למצב כהה בכוונה, כפי שהיה כאן מאז ומעולם.
 export const FULL = { w: 940, h: 500 }
 export const HALF = { w: 500, h: 470 }
+// 18.8 — מגרש «לאורך»: אותו מגרש, מסובב 90°, כדי שיהיה צר ויתפוס פחות
+// רוחב מהדף. הסיבוב הוא של קווי המגרש בלבד — הדיו, השחקנים והחצים
+// נשמרים ביחידות התיבה המסובבת, ולכן הציור נופל בדיוק במקום שציירו בו.
+export const courtDim = (full, portrait) => {
+  const s = full ? FULL : HALF
+  return portrait ? { w: s.h, h: s.w } : s
+}
 const LINE = '#1b2a4a'
 
 // variant='notebook' — קווים דקים כהים על דף לבן (ברירת מחדל, מחברת האימונים)
 // variant='board'    — קווים לבנים עבים על מגרש נייבי (לוח הטקטיקה), כולל סלים
-export function CourtLines({ full, variant = 'notebook' }) {
+export function CourtLines({ full, variant = 'notebook', portrait = false }) {
   const board = variant === 'board'
   const g = board
     ? { stroke: '#ffffff', strokeWidth: '3', fill: 'none' }
     : { 'data-nb': 'court', stroke: LINE, strokeWidth: '2', fill: 'none' }
   const key = board ? 'rgba(27,42,74,0.12)' : undefined // מילוי הרחבה (הצבע) בלוח בלבד
+  // מגרש לאורך: מסובבים את אותה גיאומטריה לתוך תיבה צרה וגבוהה
+  if (portrait) {
+    const src = full ? FULL : HALF
+    return (
+      <g {...g} transform={`translate(${src.h},0) rotate(90)`}>
+        <CourtLines full={full} variant={variant} />
+      </g>
+    )
+  }
   if (full) {
     return (
       <g {...g}>
@@ -210,8 +226,8 @@ function useNotebookDraw(svgRef, index, arrows) {
 
 // step אופציונלי — שלב בודד מלוח הטקטיקה; אם אין, מצויר מגרש ריק (תבנית).
 // index — מיקום התרשים בעמודה, לצורך כניסה מדורגת.
-export default function CourtDiagram({ full = false, step, index = 0 }) {
-  const dim = full ? FULL : HALF
+export default function CourtDiagram({ full = false, portrait = false, step, index = 0 }) {
+  const dim = courtDim(full, portrait)
   const objects = (step && step.objects) || []
   const arrows = (step && step.arrows) || []
   const svgRef = useRef(null)
@@ -227,7 +243,7 @@ export default function CourtDiagram({ full = false, step, index = 0 }) {
         </marker>
       </defs>
       <rect x="0" y="0" width={dim.w} height={dim.h} fill="#ffffff" />
-      <CourtLines full={full} />
+      <CourtLines full={full} portrait={portrait} />
       {arrows.map((a) => (
         <Arrow key={a.id} a={a} />
       ))}

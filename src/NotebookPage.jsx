@@ -11,6 +11,7 @@ import { L, tr, trTeam } from './i18n'
 function CourtColumn({ board }) {
   const steps = board && board.steps && board.steps.length ? board.steps : null
   const full = !!(board && board.fullCourt)
+  const portrait = !!(board && board.portrait)
   // אם יש לוח עם תוכן — מצייר כל שלב; אחרת תבנית מגרש ריקה אחת
   const list =
     steps && steps.some((s) => (s.objects || []).length || (s.arrows || []).length)
@@ -19,7 +20,7 @@ function CourtColumn({ board }) {
   return (
     <div className="nb-courts">
       {list.map((step, i) => (
-        <CourtDiagram key={i} full={full} step={step} index={i} />
+        <CourtDiagram key={i} full={full} portrait={portrait} step={step} index={i} />
       ))}
     </div>
   )
