@@ -79,6 +79,9 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 38 | `supabase_notebook_18_8.sql` | **חובה** — «המחברת המלאה» 18.8: `training_plans.body/ink/courts/team/session_date/duration_minutes/is_draft`, `practice_attendance.reason`, `player_assignments.plan_view`, RPC `plan_for_player` (מה השחקן רואה מתוכנית ששוגרה אליו) |
 | 39 | `supabase_dossier_18_8.sql` | **חובה לתיק שחקן** — `dossier_people` (זהות אחת לשחקן) + `team_players.person_id`, `dossier_metrics` (קטלוג: 16 דירוגים + 4 מדידות, ניתן לעריכה לכל מועדון), `dossier_entries`, `dossier_notes`, `dossier_access`, `club_roles`, ופונקציות ההרשאה `dossier_can_see`/`dossier_can_edit` |
 
+> **גל «עולם המשחק» (12.8–16.8) אינו בטבלה הזו** — שבעת הקבצים `supabase_game_*` מרוכזים
+> ב-`הרצת_SQL_12.8.md` עם סטטוס ההרצה בפועל. **`supabase_game_quiz_hardening_13_8.sql` טרם רץ.**
+
 > **הגל של 18.8 מרוכז ב-`הרצת_SQL_18.8.md`** — שני קבצים
 > (`supabase_notebook_18_8.sql` ואחריו `supabase_dossier_18_8.sql`),
 > עם בדיקות אימות, מינוי מנהל מועדון, ומה משתנה על המסך.
@@ -105,6 +108,8 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 בפרויקט ה-Vercel). ‏CI ‏(GitHub Actions) מוודא build נקי על כל push/PR ל-main.
 
 ## מסמכים נוספים
+
+- **`ניהול_הפרויקט.md` — מצב הפרויקט: מה להריץ, מה להחליט, ומה נשאר לבנות. המסמך הראשון לפתוח.**
 
 - `SPEC.md` — אפיון · `SECURITY.md` — מדיניות אבטחה
 - `HANDOFF.md`, `DESIGN_RESEARCH.md` — עיצוב · `AUDIT.md` — ממצאי סקירות
