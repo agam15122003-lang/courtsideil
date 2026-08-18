@@ -15,6 +15,8 @@ import { ChevronFwd } from './DirIcon'
 import { L, trTeam } from './i18n'
 
 const pad = (n) => String(n).padStart(2, '0')
+// תו שבירת שורה — הגוף של המחברת נשמר עם \n
+const NL = String.fromCharCode(10)
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const hm = (t) => (t ? String(t).slice(0, 5) : '')
 const DAYS = [['א', 'Su'], ['ב', 'Mo'], ['ג', 'Tu'], ['ד', 'We'], ['ה', 'Th'], ['ו', 'Fr'], ['ש', 'Sa']]
@@ -147,14 +149,28 @@ export function TodayPlanCard({ session, profile, schedule, onNavigate }) {
         .order('position')
       if (!alive || items.error) return
 
+      // 18.8 — תוכנית שנכתבה במחברת אין לה בהכרח פריטים: הכול על הדף.
+      // בלי זה כרטיס «תוכנית האימון · היום» פשוט לא היה מופיע.
+      let bodyLines = []
+      if (!(items.data || []).length) {
+        const { data: pl } = await supabase
+          .from('training_plans').select('body').eq('id', entry.plan_id).maybeSingle()
+        if (!alive) return
+        bodyLines = String(pl?.body || '')
+          .split(NL).map((x) => x.trim()).filter(Boolean).slice(0, 8)
+      }
+
       setPlan({
         entry,
+        fromBody: bodyLines.length > 0,
         // plan_items.title קיים בייצור אך לא באף מיגרציה — לכן fallback
-        items: (items.data || []).map((it) => ({
-          id: it.id,
-          title: it.drill?.title || it.title || L('תרגיל', 'Drill'),
-          min: it.duration_minutes || null,
-        })),
+        items: (items.data || []).length
+          ? (items.data || []).map((it) => ({
+              id: it.id,
+              title: it.drill?.title || it.title || L('תרגיל', 'Drill'),
+              min: it.duration_minutes || null,
+            }))
+          : bodyLines.map((t, i) => ({ id: `b${i}`, title: t, min: null })),
       })
     })()
     return () => { alive = false }
@@ -180,7 +196,7 @@ export function TodayPlanCard({ session, profile, schedule, onNavigate }) {
         <div className="hp-nb-body">
           <div className="hp-nb-total">
             <span>{L('מבנה האימון', 'Practice structure')}</span>
-            <b dir="ltr">{total} {L('דק׳', 'min')}</b>
+            {total > 0 && <b dir="ltr">{total} {L('דק׳', 'min')}</b>}
           </div>
           <ol className="hp-nb-rows">
             {plan.items.map((it, i) => (

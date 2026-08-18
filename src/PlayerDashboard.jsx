@@ -7,7 +7,7 @@ import {
   Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
   ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
-  Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus,
+  Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus, BookOpen,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -52,6 +52,8 @@ import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
 import { SkeletonCards, SkeletonMedia } from './Skeleton'
 import { PendingBanner, sendParentLink } from './PendingApproval'
+// 18.8 — תוכנית אימון ששוגרה לשחקן: רשימת התרגילים או הדף כולו (לפי בחירת המאמן)
+import PlayerPlanSheet from './PlayerPlanSheet'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
@@ -576,6 +578,7 @@ function TaskHero({ a, compl, onToggleDone, onProgress }) {
 function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
   const [custom, setCustom] = useState('') // קלט "כמה עשיתי?"
   const [customOpen, setCustomOpen] = useState(false)
+  const [planOpen, setPlanOpen] = useState(false) // 18.8 — גיליון תוכנית האימון
   // assignment_completions נמצאת ברשימת השערים בשרת — כל רישום ביצוע
   // או התקדמות יידחה ב-RLS, ולכן הכפתורים מושבתים ולא «נכשלים».
   const { restricted } = useRestricted()
@@ -604,6 +607,15 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
         )}
         <span className="ps-chip ps-chip--mut">{a.player_id ? L('נשלח אליך אישית', 'Sent to you') : L('לכל הקבוצה', 'Whole team')}</span>
       </div>
+      {/* 18.8 — תוכנית אימון: פתיחת התוכנית (רשימת התרגילים / הדף כולו) */}
+      {a.plan_id && (
+        <button type="button" className="ps-btn-ghost" onClick={() => setPlanOpen(true)}>
+          <BookOpen size={17} aria-hidden="true" /> {L('פתיחת תוכנית האימון', 'Open the practice plan')}
+        </button>
+      )}
+      {planOpen && a.plan_id && (
+        <PlayerPlanSheet planId={a.plan_id} title={title} onClose={() => setPlanOpen(false)} />
+      )}
       {(yt || vidUrl) && (
         <a
           className="ps-media" href={vidUrl || '#'} target="_blank" rel="noopener noreferrer"

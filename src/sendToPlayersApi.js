@@ -24,6 +24,8 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   const base = { coach_id: coachId }
   if (content.drillId) base.drill_id = content.drillId
   if (content.planId) base.plan_id = content.planId
+  // 18.8 — תוכנית: מה השחקן רואה ('drills' | 'page'); העמודה מ-supabase_notebook_18_8.sql
+  if (content.planId && content.planView) base.plan_view = content.planView
   if (content.videoUrl) base.video_url = content.videoUrl
   if (content.title) base.title = content.title
   if (note) base.note = note
@@ -62,14 +64,32 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
 
   let { error } = await supabase.from('player_assignments').insert(rows)
   let warn = null
-  // מיגרציית היעד (supabase_assignments_progress.sql) אולי טרם רצה בפרוד — עמודה חסרה
-  // מפילה את כל ה-insert. במקרה כזה שולחים שוב בלי היעד, כדי שהשיגור עצמו לא ייכשל.
+  // עמודות שאולי טרם נוספו בפרוד: target_value/unit (supabase_assignments_progress.sql)
+  // ו-plan_view (supabase_notebook_18_8.sql). מסירים אותן **במצטבר** — קודם
+  // כל אחת ניסתה בנפרד, וכשחסרו שתיהן כל הניסיונות נכשלו והשיגור «נכשל»
+  // למרות שהוא היה עובר בלי שתיהן.
+  let payload = rows
+  const strip = (fn) => { payload = payload.map(fn) }
   if (error && base.target_value != null && (error.code === 'PGRST204' || /target_value|unit/i.test(error.message || ''))) {
-    const stripped = rows.map(({ target_value: _t, unit: _u, ...r }) => r)
-    const retry = await supabase.from('player_assignments').insert(stripped)
+    strip(({ target_value: _t, unit: _u, ...r }) => r)
+    const retry = await supabase.from('player_assignments').insert(payload)
     if (!retry.error) {
       error = null
       warn = L('נשלח בלי היעד הכמותי — צריך להריץ את מיגרציית ה-SQL החדשה', 'Sent without the target — the new SQL migration must be run')
+    } else {
+      error = retry.error
+    }
+  }
+  // מסד שטרם הריץ supabase_notebook_18_8.sql — בלי plan_view. שולחים בלי,
+  // והשחקן יראה את ברירת המחדל (רשימת התרגילים).
+  if (error && base.plan_view && (error.code === 'PGRST204' || /plan_view/i.test(error.message || ''))) {
+    strip(({ plan_view: _v, ...r }) => r)
+    const retry = await supabase.from('player_assignments').insert(payload)
+    if (!retry.error) {
+      error = null
+      if (base.plan_view === 'page') warn = L('נשלח כרשימת תרגילים — צריך להריץ את מיגרציית ה-SQL של המחברת (supabase_notebook_18_8.sql)', 'Sent as a drills list — the notebook SQL migration must be run (supabase_notebook_18_8.sql)')
+    } else {
+      error = retry.error
     }
   }
   if (error) return { ok: false, error: error.message }

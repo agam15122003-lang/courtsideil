@@ -76,6 +76,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 35 | `supabase_private_media.sql` | **חובה** — מדיניות SELECT על `storage.objects` והכנת המעבר ל-bucket פרטי + Signed URLs. **שורת ההיפוך שבסוף הקובץ מורצת ידנית רק אחרי פריסת פרונט שמייצר Signed URLs** |
 | 36 | `supabase_hardening_medium_3_8.sql` | הקשחות בינוניות: `join_with_code()` (הצטרפות בקוד בלי INSERT ישיר), תצוגת `public_drills` בלי `created_by`, תפוגת קודי הצטרפות ומונה ניסיונות, אינדקסים לעמודות RLS. דורש 32 ו-33; שני סעיפים נעולים מאחורי `v_frontend_ready` |
 | 37 | `supabase_schedule_board_4_8.sql` | **חובה** — זימון פגישה רק בין מאמנים (עד כה אפשר היה לזמן קטין), `location` ל-`schedule_entries`/`coach_meetings`, ואינדקס ראשון ל-`schedule_entries` |
+| 38 | `supabase_notebook_18_8.sql` | **חובה** — «המחברת המלאה» 18.8: `training_plans.body/ink/courts/team/session_date/duration_minutes/is_draft`, `practice_attendance.reason`, `player_assignments.plan_view`, RPC `plan_for_player` (מה השחקן רואה מתוכנית ששוגרה אליו) |
 
 > **גל 3.8–4.8 אינו בטבלה הזו.** ארבעה־עשר הקבצים שרצו בגל ההוא מרוכזים
 > ב-`הרצת_SQL_3.8.md`, יחד עם מצב ההרצה בפועל ובדיקות האימות. הטבלה כאן
