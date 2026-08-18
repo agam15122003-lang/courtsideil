@@ -78,6 +78,9 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 37 | `supabase_schedule_board_4_8.sql` | **חובה** — זימון פגישה רק בין מאמנים (עד כה אפשר היה לזמן קטין), `location` ל-`schedule_entries`/`coach_meetings`, ואינדקס ראשון ל-`schedule_entries` |
 | 38 | `supabase_notebook_18_8.sql` | **חובה** — «המחברת המלאה» 18.8: `training_plans.body/ink/courts/team/session_date/duration_minutes/is_draft`, `practice_attendance.reason`, `player_assignments.plan_view`, RPC `plan_for_player` (מה השחקן רואה מתוכנית ששוגרה אליו) |
 
+> **הגל של 18.8 (המחברת המלאה) מרוכז ב-`הרצת_SQL_18.8.md`** — קובץ אחד
+> (`supabase_notebook_18_8.sql`), עם בדיקות אימות ומה משתנה על המסך.
+
 > **גל 3.8–4.8 אינו בטבלה הזו.** ארבעה־עשר הקבצים שרצו בגל ההוא מרוכזים
 > ב-`הרצת_SQL_3.8.md`, יחד עם מצב ההרצה בפועל ובדיקות האימות. הטבלה כאן
 > מתארת את סדר ההקמה מאפס.
