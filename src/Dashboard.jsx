@@ -274,6 +274,7 @@ export default function Dashboard({ session }) {
   const [finderTab, setFinderTab] = useState(null) // לשונית לפתיחה במאתר ('games' מהקבוצות)
   const [teamsTab, setTeamsTab] = useState(null) // טאב לפתיחה בקבוצה ('practices' מהלו"ז)
   const [planToOpen, setPlanToOpen] = useState(null) // תוכנית לפתוח ישירות (מדף הבית)
+  const [dossierRoster, setDossierRoster] = useState(null) // תיק שחקן לפתוח ישירות (מכרטיס השחקן)
   const [workTab, setWorkTab] = useState('plans') // 'plans' | 'drills' | 'community' במסך «אימונים ותרגילים»
   const [communityKind, setCommunityKind] = useState('plans') // בטאב «מהקהילה»: 'plans' | 'drills'
   // (7.8) isNarrow ירד: הלוח המעוגל נושא את הציטוט שלו בכל רוחב מסך,
@@ -295,6 +296,8 @@ export default function Dashboard({ session }) {
     if (id === 'teams-practices') { setTeamsTab('practices'); setView('teams'); return }
     // «למחברת המלאה» / «תוכנית האימון» הבטיחו תוכנית מסוימת ונחתו על הרשימה
     if (typeof id === 'string' && id.startsWith('plans:')) { setPlanToOpen(id.slice(6)); setWorkTab('plans'); setView('work'); return }
+    // «תיק שחקן» מכרטיס השחקן — נוחתים על התיק של אותה שורת סגל
+    if (typeof id === 'string' && id.startsWith('dossier:')) { setDossierRoster(id.slice(8)); setView('dossier'); return }
     // «תרגילים» ו«תוכניות» הם עכשיו שני טאבים במסך אחד — הקישורים הישנים נשמרים
     if (id === 'drills') { setWorkTab('drills'); setView('work'); return }
     if (id === 'plans') { setWorkTab('plans'); setView('work'); return }
@@ -817,7 +820,12 @@ export default function Dashboard({ session }) {
             <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
           ) : view === 'dossier' && profile?.is_admin ? (
             <Page {...PAGE_META.dossier()}>
-              <PlayerDossier />
+              <PlayerDossier
+                session={session}
+                profile={profile}
+                initialRosterId={dossierRoster}
+                onConsumeInitial={() => setDossierRoster(null)}
+              />
             </Page>
           ) : view === 'admin' && profile?.is_admin ? (
             <Page {...PAGE_META.admin()}>

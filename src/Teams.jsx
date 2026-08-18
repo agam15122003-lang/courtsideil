@@ -495,7 +495,15 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   if (playerPage) {
     // חזרה מהכרטיס מרעננת גם את הצלבת הגיל: תאריך הלידה נערך שם, וזה
     // המקום היחיד שבו המאמן מתקן את הצד שלו.
-    return <PlayerCard coachId={me} team={team} player={playerPage} onBack={() => { setPlayerPage(null); load(); loadAges() }} />
+    return (
+      <PlayerCard
+        coachId={me}
+        team={team}
+        player={playerPage}
+        onBack={() => { setPlayerPage(null); load(); loadAges() }}
+        onOpenDossier={onNavigate ? (p) => onNavigate(`dossier:${p.id}`) : undefined}
+      />
+    )
   }
 
   return (

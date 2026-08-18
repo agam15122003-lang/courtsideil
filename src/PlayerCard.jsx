@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   User, Phone, Ruler, Cake, Hash, HeartPulse, Flame, ClipboardList,
   MessageSquare, Lock, Send, Trash2, Save, TrendingUp, TrendingDown, Minus,
+  FolderOpen,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -35,7 +36,7 @@ const AVAIL = [
   { id: 'sick', label: ['חולה', 'Sick'], tone: 'warn' },
 ]
 
-export default function PlayerCard({ coachId, team, player, onBack }) {
+export default function PlayerCard({ coachId, team, player, onBack, onOpenDossier }) {
   const rosterId = player.id
   const authId = player.player_id || null
 
@@ -195,6 +196,12 @@ export default function PlayerCard({ coachId, team, player, onBack }) {
         <h1 className="ta-title tg-screen-title">
           <User size={17} /> {player.name} · {trTeam(team)}
         </h1>
+        {/* 18.8 — התיק שעובר עם השחקן משנה לשנה (דירוגים, מדידות, רקע) */}
+        {onOpenDossier && (
+          <button type="button" className="btn-soft pc-dossier-btn" onClick={() => onOpenDossier(player)}>
+            <FolderOpen size={15} /> {L('תיק שחקן', 'Player dossier')}
+          </button>
+        )}
       </div>
 
       {/* ---------- פרטים יבשים ---------- */}

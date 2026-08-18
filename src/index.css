@@ -29263,3 +29263,6 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* שורה שעודכנה בסבב הנוכחי — סימן שקט, לא צבע צועק */
 .pd-metric.is-new { background: color-mix(in srgb, var(--success) 8%, transparent); border-radius: 6px; }
 .pd-metric.is-new .pd-metric-k::after { content: ' •'; color: var(--success); font-weight: 800; }
+/* «תיק שחקן» מכותרת כרטיס השחקן */
+.pc-dossier-btn { margin-top: 0; margin-inline-start: auto; padding: 8px 14px; min-height: 40px; font-size: 13px; }
+@media (pointer: coarse) { .pc-dossier-btn { min-height: 44px; } }
