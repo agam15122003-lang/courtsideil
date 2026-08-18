@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   FolderOpen, Users, Ruler, Weight, MoveUp, Timer, Plus, ChevronDown, ChevronUp,
   TrendingUp, TrendingDown, Minus, Shield, UserPlus, Lock, Eye, Check, X, CalendarDays, Activity,
-  ListChecks, Link2, Database, Trash2,
+  ListChecks, Link2, Database, Trash2, Printer, SlidersHorizontal, RotateCcw, EyeOff,
 } from 'lucide-react'
 // חצי «הבא/הקודם» מתהפכים לפי שפה — אסור לייבא ChevronLeft/Right ישירות
 import { ChevronBack as ChevronRight, ChevronFwd as ChevronLeft } from './DirIcon'
@@ -36,9 +37,31 @@ const fmtDate = (iso) => {
   return Number.isNaN(d.getTime()) ? iso : `${d.getDate()}.${d.getMonth() + 1}.${String(d.getFullYear()).slice(2)}`
 }
 const round1 = (n) => Math.round(n * 10) / 10
-// «עכשיו» ו«סבב קודם»: הערך האחרון, והערך מהתאריך שלפניו
-const seriesNow = (arr) => (arr && arr.length ? arr[arr.length - 1].value : 0)
-const seriesPrev = (arr) => (arr && arr.length > 1 ? arr[arr.length - 2].value : 0)
+// «עכשיו» ו«סבב קודם» **לתאריך שנבחר**: כשמזינים לתאריך אחר צריך לראות מה היה
+// בתוקף אז — לא את הדירוג האחרון בזמן. הסדרה מגיעה ממוינת בזמן מהמסד,
+// והעדכון האופטימי שומר על המיון.
+const atDate = (arr, on) => {
+  const upto = (arr || []).filter((e) => e.on <= on)
+  return {
+    cur: upto.length ? upto[upto.length - 1].value : 0,
+    prev: upto.length > 1 ? upto[upto.length - 2].value : 0,
+  }
+}
+const hasOn = (arr, on) => (arr || []).some((e) => e.on === on)
+
+// הדפסה/ייצוא: הדפדפן מדפיס — «שמירה כ-PDF» בחלון ההדפסה היא הייצוא.
+// מסמנים את ה-body כדי שכללי ההדפסה יחולו על התיק בלבד; מסכים אחרים
+// (המחברת, דף התרגיל) מדפיסים את עצמם ואסור להם להיעלם.
+function printDossier() {
+  const done = () => {
+    document.body.classList.remove('print-dossier')
+    window.removeEventListener('afterprint', done)
+  }
+  document.body.classList.add('print-dossier')
+  window.addEventListener('afterprint', done)
+  window.print()
+  setTimeout(done, 1200)   // דפדפנים שלא יורים afterprint
+}
 
 // ---------- «עכביש» ----------
 function Radar({ cats, valNow, valPrev, size = 216 }) {
@@ -80,7 +103,7 @@ function Radar({ cats, valNow, valPrev, size = 216 }) {
 }
 
 // ---------- גרף לאורך זמן ----------
-function Trend({ series, unit, lowerIsBetter }) {
+function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
   if (!series || series.length === 0) {
     return (
       <p className="muted small">
@@ -90,7 +113,9 @@ function Trend({ series, unit, lowerIsBetter }) {
   }
   const w = 520, h = 132, pad = { t: 18, r: 16, b: 26, l: 34 }
   const values = series.map((s) => s.value)
-  const min = Math.min(...values), max = Math.max(...values)
+  // קו הקבוצה נכנס לחישוב הסקאלה, אחרת הוא היה נצמד לשפת הגרף ומשקר
+  const scale = teamAvg > 0 ? [...values, teamAvg] : values
+  const min = Math.min(...scale), max = Math.max(...scale)
   const span = max - min || 1
   const x = (i) => (series.length === 1 ? w / 2 : pad.l + (i * (w - pad.l - pad.r)) / (series.length - 1))
   const y = (v) => pad.t + (h - pad.t - pad.b) * (1 - (v - min) / span)
@@ -101,6 +126,14 @@ function Trend({ series, unit, lowerIsBetter }) {
     <div className="pd-trend">
       <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={L('גרף התקדמות', 'Progress chart')}>
         <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} className="pd-axis" />
+        {teamAvg > 0 && (
+          <g>
+            <line x1={pad.l} y1={y(teamAvg)} x2={w - pad.r} y2={y(teamAvg)} className="pd-team-line" />
+            <text x={pad.l + 4} y={y(teamAvg) - 5} className="pd-team-lbl">
+              {L('ממוצע הקבוצה', 'Team average')} <tspan dir="ltr">{teamAvg}</tspan>
+            </text>
+          </g>
+        )}
         {series.length > 1 && <path d={line} className={better ? 'pd-line up' : 'pd-line down'} />}
         {series.map((s, i) => (
           <g key={s.on + '-' + i}>
@@ -120,13 +153,16 @@ function Trend({ series, unit, lowerIsBetter }) {
   )
 }
 
-function Dots({ value, onChange, name }) {
+// canClear: הערך שמוצג נרשם **לתאריך הנבחר**, ולכן לחיצה עליו מבטלת.
+// אם הוא נגרר מסבב קודם — לחיצה עליו מאשרת אותו לתאריך הזה, לא מוחקת
+// (אחרת «אותו דירוג כמו בפעם שעברה» היה בלתי אפשרי לרשום).
+function Dots({ value, onChange, name, canClear = true }) {
   return (
     <span className="pd-dots" role="radiogroup" aria-label={name}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n}`}
           className={n <= value ? 'pd-dot-btn on' : 'pd-dot-btn'}
-          onClick={() => onChange(n === value ? 0 : n)}>
+          onClick={() => onChange(n === value && canClear ? 0 : n)}>
           <span />
         </button>
       ))}
@@ -149,6 +185,10 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   const club = profile?.club || ''
 
   const [tab, setTab] = useState('dossier')
+  // תאריך ההזנה. ברירת המחדל היום; מאמן שממלא סבב שהתקיים בשבוע שעבר
+  // בוחר את התאריך שלו, וכל מה שיסומן יישמר עליו.
+  const [onDate, setOnDate] = useState(api.today())
+  const [iAmManager, setIAmManager] = useState(false)
   const [boot, setBoot] = useState({ loading: true, error: null, missing: false })
   const [catalog, setCatalog] = useState({ cats: [], measures: [], all: [] })
   const [teams, setTeams] = useState([])
@@ -183,9 +223,15 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
       setTeam((cur) => cur || t.teams[0] || '')
       setPersonByRoster(Object.fromEntries(rows.filter((r) => r.person_id).map((r) => [r.id, r.person_id])))
       setBoot({ loading: false, error: null, missing: false })
+      // עריכת הקטלוג פתוחה למנהל מועדון בלבד — גם במסד וגם במסך
+      if (club) {
+        const cr = await api.loadClubRoles(club)
+        if (alive && !cr.error) setIAmManager((cr.roles || []).some((r) => r.user_id === me && r.role === 'club_manager'))
+      }
     })()
     return () => { alive = false }
-  }, [me, reloadKey])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, club, reloadKey])
 
   // הגעה מכרטיס השחקן: קופצים ישר לתיק שלו (קבוצה + שחקן), פעם אחת
   useEffect(() => {
@@ -202,6 +248,13 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
     if (!teamRoster.some((r) => r.id === rosterId)) setRosterId(teamRoster[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team, teamRoster.length])
+
+  // מזהי האנשים של הקבוצה — לממוצע הקבוצה. **בלי לפתוח תיקים חדשים**:
+  // פתיחת תיק היא פעולה של המאמן, לא תופעת לוואי של צפייה במסך.
+  const teamPids = useMemo(
+    () => teamRoster.map((r) => personByRoster[r.id]).filter(Boolean),
+    [teamRoster, personByRoster]
+  )
 
   // פתיחת תיק לשורת סגל — יוצרת את האדם בפעם הראשונה (RPC dossier_open)
   const ensurePerson = useCallback(async (rid) => {
@@ -225,6 +278,12 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
     setEntries((cur) => ({ ...cur, ...Object.fromEntries(need.map((id) => [id, byPerson[id] || {}])) }))
   }, [])
 
+  // הערכים של כל הקבוצה בשאילתה אחת — הבסיס לממוצע הקבוצה בגרף ובדירוגים
+  useEffect(() => {
+    if (teamPids.length) loadEntriesFor(teamPids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team, teamPids.length])
+
   // שמירת דירוג/מדידה: מיד על המסך, ואז במסד. תיקון באותו יום דורס.
   // אם התיק עוד לא נוצר (לחיצה בשנייה הראשונה של פתיחה ראשונה) —
   // פותחים אותו כאן ואז שומרים, במקום לבלוע את הלחיצה בשקט.
@@ -239,11 +298,12 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   }
 
   const setValueFor = async (personId, metricKey, value) => {
-    const on = api.today()
+    const on = onDate
     setEntries((cur) => {
       const person = { ...(cur[personId] || {}) }
       const arr = (person[metricKey] || []).filter((e) => e.on !== on)
-      person[metricKey] = value > 0 ? [...arr, { on, value }] : arr
+      // הזנה לתאריך אחר נכנסת באמצע הסדרה — שומרים על המיון בזמן
+      person[metricKey] = value > 0 ? [...arr, { on, value }].sort((a, b) => (a.on < b.on ? -1 : 1)) : arr
       return { ...cur, [personId]: person }
     })
     setSaving(true)
@@ -291,9 +351,16 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
         <button className={tab === 'access' ? 'tab active' : 'tab'} onClick={() => setTab('access')}>
           <Shield size={15} aria-hidden="true" /> {L('מי רואה את התיקים', 'Who sees them')}
         </button>
+        {iAmManager && (
+          <button className={tab === 'catalog' ? 'tab active' : 'tab'} onClick={() => setTab('catalog')}>
+            <SlidersHorizontal size={15} aria-hidden="true" /> {L('הקטלוג', 'Catalog')}
+          </button>
+        )}
       </div>
 
-      {noTeams ? (
+      {tab === 'catalog' ? (
+        <CatalogEditor club={club} rows={catalog.rows || []} onSaved={() => setReloadKey((k) => k + 1)} />
+      ) : noTeams ? (
         <div className="empty-state">
           <span className="empty-ic"><Users size={26} /></span>
           <div className="empty-title">{L('אין עדיין שחקנים', 'No players yet')}</div>
@@ -321,8 +388,29 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
                 </select>
               </>
             )}
+            {tab !== 'access' && (
+              <>
+                <span className="muted small">{L('תאריך', 'Date')}</span>
+                <input className="finder-input pd-date" type="date" value={onDate} max={api.today()}
+                  onChange={(e) => setOnDate(e.target.value || api.today())}
+                  aria-label={L('תאריך ההזנה', 'Entry date')} />
+                {onDate !== api.today() && (
+                  <button type="button" className="pd-date-back" onClick={() => setOnDate(api.today())}>
+                    <RotateCcw size={13} aria-hidden="true" /> {L('חזרה להיום', 'Back to today')}
+                  </button>
+                )}
+              </>
+            )}
             {saving && <span className="muted small">{L('שומר…', 'Saving…')}</span>}
           </div>
+
+          {tab !== 'access' && onDate !== api.today() && (
+            <p className="pd-backdate" role="status">
+              <CalendarDays size={15} aria-hidden="true" />
+              {L(`מזינים לתאריך ${fmtDate(onDate)} — מה שתסמנו כאן יישמר לתאריך הזה, ולא להיום.`,
+                 `Entering for ${fmtDate(onDate)} — what you mark is saved under that date, not today.`)}
+            </p>
+          )}
 
           {teamRoster.length === 0 ? (
             <div className="empty-state">
@@ -341,6 +429,8 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
               entries={entries}
               loadEntriesFor={loadEntriesFor}
               setValue={setValue}
+              onDate={onDate}
+              teamPids={teamPids}
             />
           ) : tab === 'round' ? (
             <RatingRound
@@ -353,6 +443,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
               entries={entries}
               loadEntriesFor={loadEntriesFor}
               setValue={setValue}
+              onDate={onDate}
             />
           ) : (
             <Access
@@ -373,8 +464,9 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
 // =====================================================================
 //  1. תיק שחקן
 // =====================================================================
-function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, loadEntriesFor, setValue }) {
+function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, loadEntriesFor, setValue, onDate, teamPids }) {
   const [openCat, setOpenCat] = useState(catalog.cats[0]?.key || '')
+  const [cmp, setCmp] = useState(false)   // השוואה לממוצע הקבוצה
   const [trendKey, setTrendKey] = useState(catalog.measures[0]?.key || catalog.cats[0]?.metrics[0]?.key || '')
   const [notes, setNotes] = useState([])
   const [noteOpen, setNoteOpen] = useState(false)
@@ -413,13 +505,19 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   }, [rosterRow?.id, personId])
 
   const E = entries[pid] || {}
-  const now = (key) => seriesNow(E[key])
-  const prev = (key) => seriesPrev(E[key])
+  // מה שהיה בתוקף בתאריך הנבחר — לא הדירוג האחרון בזמן
+  const now = (key) => atDate(E[key], onDate).cur
+  const prev = (key) => atDate(E[key], onDate).prev
+  // ממוצע הקבוצה למדד, באותו תאריך, לפי מי שכבר יש לו ערך
+  const teamAvg = (key) => {
+    const vals = (teamPids || []).map((id) => atDate((entries[id] || {})[key], onDate).cur).filter((v) => v > 0)
+    return vals.length ? round1(vals.reduce((a, b) => a + b, 0) / vals.length) : 0
+  }
   const trendMetric = catalog.all.find((m) => m.key === trendKey)
 
   const addNote = async () => {
     if (!noteText.trim() || !pid) return
-    const { note, error } = await api.addNote({ personId: pid, kind: noteKind, content: noteText.trim(), coachId: me })
+    const { note, error } = await api.addNote({ personId: pid, kind: noteKind, content: noteText.trim(), on: onDate, coachId: me })
     if (error) { toast.error(L('שמירת הרשומה נכשלה: ', 'Failed to save: ') + error.message); return }
     setNotes((cur) => [note, ...cur])
     setNoteText('')
@@ -471,6 +569,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             {[rosterRow.position, age ? `${age} ${L('שנים', 'yrs')}` : null, trTeam(rosterRow.team)].filter(Boolean).join(' · ')}
           </span>
         </div>
+        <button type="button" className="btn-soft pd-print-btn" onClick={printDossier}>
+          <Printer size={15} aria-hidden="true" /> {L('הדפסה', 'Print')}
+        </button>
         <span className="pd-lock"><Lock size={13} /> {L('סגור — אתה והמנהלים מעליך', 'Private — you and your managers')}</span>
       </header>
 
@@ -530,6 +631,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                       <bdi dir="ltr">{(v - p > 0 ? '+' : '') + round1(v - p)}</bdi>
                     </span>
                   ) : null}
+                  {cmp && teamAvg(m.key) > 0 ? (
+                    <span className="pd-teamv sm"><Users size={11} aria-hidden="true" /> <bdi dir="ltr">{teamAvg(m.key)}</bdi></span>
+                  ) : null}
                 </button>
               )
             })}
@@ -565,9 +669,19 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                 </optgroup>
               ))}
             </select>
+            <button type="button" className={cmp ? 'pd-cmp on' : 'pd-cmp'} aria-pressed={cmp}
+              onClick={() => setCmp((v) => !v)}>
+              <Users size={14} aria-hidden="true" /> {L('השוואה לקבוצה', 'Compare to team')}
+            </button>
           </div>
           <Trend series={E[trendKey]} unit={trendMetric?.kind === 'number' ? trendMetric.unit : L('נק׳', 'pts')}
-            lowerIsBetter={!!trendMetric?.lower_is_better} />
+            lowerIsBetter={!!trendMetric?.lower_is_better} teamAvg={cmp ? teamAvg(trendKey) : 0} />
+          {cmp && teamAvg(trendKey) === 0 && (
+            <p className="muted small">
+              {L('אין עוד ערכים לשאר הקבוצה במדד הזה — הממוצע יופיע אחרי שתדרגו עוד שחקנים.',
+                 'No values for the rest of the team on this metric yet.')}
+            </p>
+          )}
         </section>
 
         <section className="pd-card pd-card--wide">
@@ -581,12 +695,19 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             const pvals = c.metrics.map((m) => prev(m.key)).filter((v) => v > 0)
             const avgNow = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
             const avgPrev = pvals.length ? pvals.reduce((a, b) => a + b, 0) / pvals.length : 0
+            const tvals = cmp ? c.metrics.map((m) => teamAvg(m.key)).filter((v) => v > 0) : []
+            const avgTeam = tvals.length ? round1(tvals.reduce((a, b) => a + b, 0) / tvals.length) : 0
             return (
               <div key={c.key} className={open ? 'pd-cat open' : 'pd-cat'}>
                 <button type="button" className="pd-cat-h" onClick={() => setOpenCat(open ? '' : c.key)} aria-expanded={open}>
                   {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   <b>{c.label}</b>
                   <span className="pd-cat-avg" dir="ltr">{avgNow ? avgNow.toFixed(1) : '—'}</span>
+                  {avgTeam > 0 && (
+                    <span className="pd-teamv" title={L('ממוצע הקבוצה', 'Team average')}>
+                      <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{avgTeam}</bdi>
+                    </span>
+                  )}
                   <DeltaIcon from={avgPrev} to={avgNow} />
                 </button>
                 {open && (
@@ -594,7 +715,13 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                     {c.metrics.map((m) => (
                       <li key={m.key} className="pd-metric">
                         <span className="pd-metric-k">{m.label}</span>
-                        <Dots value={now(m.key)} name={m.label} onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
+                        <Dots value={now(m.key)} name={m.label} canClear={hasOn(E[m.key], onDate)}
+                          onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
+                        {cmp && teamAvg(m.key) > 0 ? (
+                          <span className="pd-teamv" title={L('ממוצע הקבוצה', 'Team average')}>
+                            <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{teamAvg(m.key)}</bdi>
+                          </span>
+                        ) : null}
                         <DeltaIcon from={prev(m.key)} to={now(m.key)} />
                       </li>
                     ))}
@@ -682,6 +809,83 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
           )}
         </section>
       </div>
+
+      {/* דף ההדפסה — מוסתר על המסך, וזה מה שיוצא למדפסת (או ל-PDF).
+          טבלאות ולא גרפים: דף אחד שאפשר לקחת לשיחה עם ההורים או לארכיון.
+          יושב על ה-body בפורטל, כדי שכלל ההדפסה יסתיר את כל השאר בשורה
+          אחת — בלי «visibility» ובלי דפים ריקים. */}
+      {createPortal(
+        <div className="pd-paper">
+          <div className="pdp-head">
+            <h1>{rosterRow.name}{rosterRow.number ? ` · ${rosterRow.number}` : ''}</h1>
+            <span>{[trTeam(rosterRow.team), rosterRow.position, age ? `${age} ${L('שנים', 'yrs')}` : null].filter(Boolean).join(' · ')}</span>
+            <span className="pdp-date">{L('נכון ל-', 'As of ')}{fmtDate(onDate)}</span>
+          </div>
+
+          {history.length > 1 && (
+            <p className="pdp-line">
+              <b>{L('השנים בתיק: ', 'Seasons: ')}</b>
+              {history.map((h) => `${new Date(h.created_at).getFullYear()} ${trTeam(h.team)}`).join(' · ')}
+            </p>
+          )}
+
+          {catalog.measures.length > 0 && (
+            <table className="pdp-tbl">
+              <caption>{L('מדידות', 'Measurements')}</caption>
+              <tbody>
+                {catalog.measures.map((m) => (
+                  <tr key={m.key}>
+                    <th scope="row">{m.label}</th>
+                    <td dir="ltr">{now(m.key) ? `${now(m.key)} ${m.unit || ''}` : '—'}</td>
+                    <td dir="ltr">{teamAvg(m.key) ? `${L('קבוצה', 'team')} ${teamAvg(m.key)}` : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {catalog.cats.map((c) => (
+            <table className="pdp-tbl" key={c.key}>
+              <caption>{c.label}</caption>
+              <tbody>
+                {c.metrics.map((m) => (
+                  <tr key={m.key}>
+                    <th scope="row">{m.label}</th>
+                    <td dir="ltr">{now(m.key) ? `${now(m.key)}/5` : '—'}</td>
+                    <td dir="ltr">{prev(m.key) ? `${L('קודם', 'prev')} ${prev(m.key)}` : ''}</td>
+                    <td dir="ltr">{teamAvg(m.key) ? `${L('קבוצה', 'team')} ${teamAvg(m.key)}` : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
+
+          {Object.keys(auto).length > 0 && (
+            <p className="pdp-line">
+              <b>{L('נאסף לבד: ', 'Collected automatically: ')}</b>
+              {[
+                auto.attendance != null ? `${L('נוכחות', 'attendance')} ${auto.attendance}%` : null,
+                auto.effort != null ? `${L('עומס מדווח', 'reported load')} ${auto.effort}/10` : null,
+                auto.tasks != null ? `${L('משימות שבוצעו', 'tasks done')} ${auto.tasks}` : null,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          )}
+
+          {notes.length > 0 && (
+            <div className="pdp-notes">
+              <h2>{L('רקע ושיחות', 'Background & talks')}</h2>
+              {notes.map((n) => (
+                <p key={n.id}><b>{n.kind} · {fmtDate(n.on_date)}</b> {n.content}</p>
+              ))}
+            </div>
+          )}
+
+            <p className="pdp-foot">
+              {L('תיק שחקן · CourtSide — מסמך פרטי של הצוות המקצועי.', 'Player dossier · CourtSide — private staff document.')}
+            </p>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
@@ -689,7 +893,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
 // =====================================================================
 //  2. סבב דירוג — כל הקטגוריות, מסך אחד בכל פעם
 // =====================================================================
-function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, entries, loadEntriesFor, setValue }) {
+function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, entries, loadEntriesFor, setValue, onDate }) {
   const [mode, setMode] = useState('player')
   const [pIdx, setPIdx] = useState(0)
   const [mIdx, setMIdx] = useState(0)
@@ -720,11 +924,13 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team, teamRoster.length])
 
-  const today = api.today()
+  const isToday = onDate === api.today()
   const pidOf = (r) => pids[r.id] || personByRoster[r.id]
   const seriesOf = (r, key) => (entries[pidOf(r)] || {})[key]
-  const valOf = (r, key) => seriesNow(seriesOf(r, key))
-  const doneToday = (r, key) => (seriesOf(r, key) || []).some((e) => e.on === today)
+  const valOf = (r, key) => atDate(seriesOf(r, key), onDate).cur
+  const prevOf = (r, key) => atDate(seriesOf(r, key), onDate).prev
+  // «הושלם» = יש ערך **לתאריך הנבחר** (לא ערך שנגרר מסבב קודם)
+  const doneToday = (r, key) => hasOn(seriesOf(r, key), onDate)
 
   const playerDone = (r) => metrics.length > 0 && metrics.every((m) => doneToday(r, m.key))
   const metricDone = (m) => teamRoster.length > 0 && teamRoster.every((r) => doneToday(r, m.key))
@@ -752,8 +958,8 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
           <h2 className="pd-name">{L('סבב דירוג · ', 'Rating round · ')}{trTeam(team)}</h2>
           <span className="pd-meta">
             {mode === 'player'
-              ? L(`שחקן אחד על המסך, כל ${metrics.length} הקטגוריות. הדירוג נשמר לתאריך של היום.`,
-                   `One player, all ${metrics.length} categories. Saved under today’s date.`)
+              ? L(`שחקן אחד על המסך, כל ${metrics.length} הקטגוריות. הדירוג נשמר ${isToday ? 'לתאריך של היום' : `לתאריך ${fmtDate(onDate)}`}.`,
+                   `One player, all ${metrics.length} categories. Saved under ${isToday ? 'today’s date' : fmtDate(onDate)}.`)
               : L('קטגוריה אחת, כל הקבוצה — ככה הדירוג יוצא עקבי בין השחקנים.',
                    'One category, the whole team — this keeps the scale consistent.')}
           </span>
@@ -792,7 +998,8 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
               <span className="pd-meta dark">{[player.position, trTeam(player.team)].filter(Boolean).join(' · ')}</span>
             </div>
             <span className="muted small pd-sheet-count">
-              <bdi dir="ltr">{metrics.filter((m) => doneToday(player, m.key)).length}/{metrics.length}</bdi> {L('עודכנו היום', 'updated today')}
+              <bdi dir="ltr">{metrics.filter((m) => doneToday(player, m.key)).length}/{metrics.length}</bdi>{' '}
+              {isToday ? L('עודכנו היום', 'updated today') : L(`עודכנו ב-${fmtDate(onDate)}`, `updated on ${fmtDate(onDate)}`)}
             </span>
           </div>
           {catalog.cats.map((c) => (
@@ -803,8 +1010,9 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
                   <li key={m.key} className={doneToday(player, m.key) ? 'pd-metric is-new' : 'pd-metric'}>
                     <span className="pd-metric-k">{m.label}</span>
                     <Dots value={valOf(player, m.key)} name={`${player.name} · ${m.label}`}
+                      canClear={doneToday(player, m.key)}
                       onChange={(v) => setValue(pidOf(player), m.key, v, player.id)} />
-                    <DeltaIcon from={seriesPrev(seriesOf(player, m.key))} to={valOf(player, m.key)} />
+                    <DeltaIcon from={prevOf(player, m.key)} to={valOf(player, m.key)} />
                   </li>
                 ))}
               </ul>
@@ -829,8 +1037,9 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
                   {r.number ? <span className="pd-num sm" dir="ltr">{r.number}</span> : null} {r.name}
                 </span>
                 <Dots value={valOf(r, metric.key)} name={`${r.name} · ${metric.label}`}
+                  canClear={doneToday(r, metric.key)}
                   onChange={(v) => setValue(pidOf(r), metric.key, v, r.id)} />
-                <DeltaIcon from={seriesPrev(seriesOf(r, metric.key))} to={valOf(r, metric.key)} />
+                <DeltaIcon from={prevOf(r, metric.key)} to={valOf(r, metric.key)} />
               </li>
             ))}
           </ul>
@@ -852,8 +1061,8 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
       </div>
       {atEnd && (
         <p className="pd-nav-end">
-          {L('זה האחרון. כל דירוג נשמר לתאריך של היום, והגרף בתיק קיבל נקודה חדשה.',
-             'That was the last one. Every rating is saved under today’s date and the chart has a new point.')}
+          {L(`זה האחרון. כל דירוג נשמר לתאריך ${isToday ? 'של היום' : fmtDate(onDate)}, והגרף בתיק קיבל נקודה חדשה.`,
+             `That was the last one. Every rating is saved under ${isToday ? 'today’s date' : fmtDate(onDate)} and the chart has a new point.`)}
         </p>
       )}
     </div>
@@ -920,6 +1129,23 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
     setAccess((cur) => [...cur.filter((x) => x.coach_id !== coach.id), { coach_id: coach.id, level: 'view', name: coach.name }])
     setPickOpen(false)
     toast.success(L(`${coach.name} רואה מעכשיו את התיק`, `${coach.name} can now see this dossier`))
+  }
+  // «צפייה» או «צפייה ועריכה». עריכה = הוא יכול לשנות דירוגים ולכתוב
+  // רשומות בתיק, ולכן שואלים לפני — הסרה חזרה לצפייה היא לחיצה אחת.
+  const setLevel = async (row, level) => {
+    if (row.level === level) return
+    if (level === 'edit') {
+      const ok = await confirmDialog({
+        title: L(`לתת ל${row.name} גם לערוך?`, `Let ${row.name} edit too?`),
+        message: L('הוא יוכל לשנות דירוגים, להוסיף מדידות ולכתוב רשומות בתיק הזה. אפשר להחזיר ל«צפייה» בכל רגע.',
+                   'They will be able to change ratings, add measurements and write entries in this dossier. You can switch back to “View” at any time.'),
+        confirmText: L('כן, גם עריכה', 'Yes, allow editing'),
+      })
+      if (!ok) return
+    }
+    const { error } = await api.grantAccess({ personId, coachId: row.coach_id, level, byId: me })
+    if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
+    setAccess((cur) => cur.map((x) => (x.coach_id === row.coach_id ? { ...x, level } : x)))
   }
   const revoke = async (row) => {
     const { error } = await api.revokeAccess({ personId, coachId: row.coach_id })
@@ -1046,7 +1272,16 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
             {access.map((a) => (
               <li key={a.coach_id}>
                 <b>{a.name}</b>
-                <span className="pd-grant-lvl">{a.level === 'edit' ? L('צפייה ועריכה', 'View & edit') : L('צפייה', 'View')}</span>
+                <span className="pd-lvl" role="group" aria-label={L(`רמת הגישה של ${a.name}`, `${a.name}’s access level`)}>
+                  <button type="button" className={a.level === 'edit' ? 'pd-lvl-b' : 'pd-lvl-b on'}
+                    aria-pressed={a.level !== 'edit'} onClick={() => setLevel(a, 'view')}>
+                    <Eye size={13} aria-hidden="true" /> {L('צפייה', 'View')}
+                  </button>
+                  <button type="button" className={a.level === 'edit' ? 'pd-lvl-b on' : 'pd-lvl-b'}
+                    aria-pressed={a.level === 'edit'} onClick={() => setLevel(a, 'edit')}>
+                    <Check size={13} aria-hidden="true" /> {L('גם עריכה', 'Edit too')}
+                  </button>
+                </span>
                 <button type="button" className="link-button danger" onClick={() => revoke(a)}>{L('הסרה', 'Remove')}</button>
               </li>
             ))}
@@ -1056,6 +1291,280 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
           </p>
         </section>
       </div>
+    </div>
+  )
+}
+
+// =====================================================================
+//  4. הקטלוג — מה מדרגים במועדון (מנהל מועדון בלבד)
+// =====================================================================
+// ברירת המחדל (20 המדדים) גלובלית ומשותפת לכל המועדונים. מועדון לא משנה
+// אותה — הוא מוסיף «שורת מועדון» עם אותו key, וזו דורסת אצלו בלבד. לכן
+// «חזרה לברירת המחדל» היא פשוט מחיקת שורת המועדון.
+function CatalogEditor({ club, rows, onSaved }) {
+  const [busy, setBusy] = useState(false)
+  const [edit, setEdit] = useState(null)      // { m, label }
+  const [addOpen, setAddOpen] = useState(false)
+  const [draft, setDraft] = useState({ label: '', cat: '', newCat: '', kind: 'rating', unit: '', lower: false })
+
+  // אותו מיזוג שב-loadCatalog — אבל בלי לסנן כבויים, כי כאן מנהלים גם אותם
+  const merged = useMemo(() => {
+    const byKey = new Map()
+    for (const r of rows) {
+      const cur = byKey.get(r.key)
+      if (!cur || (r.club && !cur.club)) byKey.set(r.key, r)
+    }
+    return [...byKey.values()].sort((a, b) => (a.sort || 0) - (b.sort || 0))
+  }, [rows])
+  const globalKeys = useMemo(() => new Set(rows.filter((r) => !r.club).map((r) => r.key)), [rows])
+  const cats = useMemo(() => {
+    const out = []
+    for (const m of merged) {
+      let c = out.find((x) => x.key === m.cat)
+      if (!c) { c = { key: m.cat, label: m.cat_label, metrics: [] }; out.push(c) }
+      c.metrics.push(m)
+    }
+    return out
+  }, [merged])
+
+  // כתיבה: על שורת מועדון — עדכון; על שורה גלובלית — יצירת שורת מועדון
+  const write = async (m, fields) => {
+    setBusy(true)
+    const res = m.club
+      ? await api.saveClubMetric({ id: m.id, ...fields })
+      : await api.saveClubMetric({
+          club, key: m.key, label: m.label, cat: m.cat, cat_label: m.cat_label,
+          kind: m.kind, unit: m.unit, lower_is_better: m.lower_is_better,
+          sort: m.sort, active: m.active, ...fields,
+        })
+    setBusy(false)
+    if (res.error) { toast.error(L('השמירה נכשלה: ', 'Save failed: ') + res.error.message); return false }
+    onSaved()
+    return true
+  }
+
+  const rename = async () => {
+    const label = (edit?.label || '').trim()
+    if (!label) return
+    if (await write(edit.m, { label })) { setEdit(null); toast.success(L('השם עודכן', 'Renamed')) }
+  }
+
+  const toggle = async (m) => {
+    if (m.active) {
+      const ok = await confirmDialog({
+        title: L(`להסתיר את «${m.label}»?`, `Hide “${m.label}”?`),
+        message: L('המדד ייעלם ממסכי הדירוג של כל המאמנים במועדון. הדירוגים שכבר נרשמו נשמרים, ויחזרו ברגע שתחזירו אותו.',
+                   'It disappears from the rating screens of every coach in the club. Existing ratings are kept and return if you re-enable it.'),
+        confirmText: L('הסתרה', 'Hide'),
+      })
+      if (!ok) return
+    }
+    await write(m, { active: !m.active })
+  }
+
+  const reset = async (m) => {
+    const ok = await confirmDialog({
+      title: L('לחזור לברירת המחדל?', 'Back to the default?'),
+      message: L(`«${m.label}» יחזור לשם ולהגדרה המקוריים של המערכת.`, `“${m.label}” returns to the original name and settings.`),
+      confirmText: L('חזרה לברירת המחדל', 'Restore default'),
+    })
+    if (!ok) return
+    setBusy(true)
+    const { error } = await api.deleteClubMetric(m.id)
+    setBusy(false)
+    if (error) { toast.error(L('הפעולה נכשלה: ', 'Failed: ') + error.message); return }
+    onSaved()
+  }
+
+  const remove = async (m) => {
+    const ok = await confirmDialog({
+      title: L(`למחוק את «${m.label}»?`, `Delete “${m.label}”?`),
+      message: L('המדד יימחק מהקטלוג של המועדון. דירוגים שכבר נרשמו נשמרים במסד אך לא יוצגו יותר.',
+                 'The metric is removed from the club catalog. Existing ratings stay in the database but are no longer shown.'),
+      confirmText: L('מחיקה', 'Delete'), danger: true,
+    })
+    if (!ok) return
+    setBusy(true)
+    const { error } = await api.deleteClubMetric(m.id)
+    setBusy(false)
+    if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return }
+    onSaved()
+  }
+
+  const add = async () => {
+    const label = draft.label.trim()
+    const isNewCat = draft.cat === '__new'
+    const catLabel = (isNewCat ? draft.newCat : cats.find((c) => c.key === draft.cat)?.label || '').trim()
+    if (!label || !catLabel) {
+      toast.error(L('צריך שם למדד ותחום שהוא שייך אליו', 'A name and an area are required'))
+      return
+    }
+    const sort = (merged.length ? Math.max(...merged.map((m) => m.sort || 0)) : 0) + 10
+    setBusy(true)
+    const res = await api.saveClubMetric({
+      club,
+      key: api.newMetricKey(),
+      label,
+      cat: isNewCat ? `c_${api.newMetricKey().slice(2)}` : draft.cat,
+      cat_label: catLabel,
+      kind: draft.kind,
+      unit: draft.kind === 'number' ? (draft.unit.trim() || null) : null,
+      lower_is_better: draft.kind === 'number' ? !!draft.lower : false,
+      sort,
+      active: true,
+    })
+    setBusy(false)
+    if (res.error) { toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + res.error.message); return }
+    setDraft({ label: '', cat: '', newCat: '', kind: 'rating', unit: '', lower: false })
+    setAddOpen(false)
+    onSaved()
+    toast.success(L('המדד נוסף לקטלוג', 'Added to the catalog'))
+  }
+
+  return (
+    <div className="pd">
+      <header className="pd-head">
+        <div className="pd-head-tx">
+          <h2 className="pd-name">{L('הקטלוג של ', 'The catalog of ')}{club}</h2>
+          <span className="pd-meta">
+            {L('מה מדרגים בתיקים — לכל המאמנים שצורפו למועדון. שינוי כאן משנה את המסכים שלהם.',
+               'What gets rated in the dossiers — for every coach added to the club. A change here changes their screens.')}
+          </span>
+        </div>
+        <button type="button" className="btn-soft pd-add" onClick={() => setAddOpen((v) => !v)}>
+          <Plus size={15} aria-hidden="true" /> {L('מדד חדש', 'New metric')}
+        </button>
+      </header>
+
+      <p className="pd-cat-note" role="note">
+        <SlidersHorizontal size={15} aria-hidden="true" />
+        {L('שינוי שם או הסתרה לא מוחקים דירוגים ישנים — הם רק משנים את מה שרואים מעכשיו. ההשוואה בין שנים נשארת אמינה כל עוד לא משנים את המשמעות של מדד קיים.',
+           'Renaming or hiding never deletes past ratings — it only changes what is shown from now on.')}
+      </p>
+
+      {addOpen && (
+        <div className="pd-note-new pd-cat-add">
+          <label>
+            {L('שם המדד', 'Metric name')}
+            <input className="finder-input" value={draft.label} maxLength={40} autoFocus
+              onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+              placeholder={L('למשל: הגנת פיק־אנד־רול', 'e.g. Pick-and-roll defense')} />
+          </label>
+          <label>
+            {L('התחום', 'Area')}
+            <select className="finder-input" value={draft.cat} onChange={(e) => setDraft((d) => ({ ...d, cat: e.target.value }))}>
+              <option value="">{L('בחרו תחום…', 'Pick an area…')}</option>
+              {cats.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              <option value="__new">{L('תחום חדש…', 'New area…')}</option>
+            </select>
+          </label>
+          {draft.cat === '__new' && (
+            <label>
+              {L('שם התחום החדש', 'New area name')}
+              <input className="finder-input" value={draft.newCat} maxLength={30}
+                onChange={(e) => setDraft((d) => ({ ...d, newCat: e.target.value }))} />
+            </label>
+          )}
+          <div className="chips">
+            <button type="button" className={draft.kind === 'rating' ? 'chip selected' : 'chip'}
+              onClick={() => setDraft((d) => ({ ...d, kind: 'rating' }))}>{L('דירוג 1–5', 'Rating 1–5')}</button>
+            <button type="button" className={draft.kind === 'number' ? 'chip selected' : 'chip'}
+              onClick={() => setDraft((d) => ({ ...d, kind: 'number' }))}>{L('מדידה במספר', 'Measurement')}</button>
+          </div>
+          {draft.kind === 'number' && (
+            <>
+              <label>
+                {L('יחידה', 'Unit')}
+                <input className="finder-input" value={draft.unit} maxLength={10}
+                  onChange={(e) => setDraft((d) => ({ ...d, unit: e.target.value }))}
+                  placeholder={L('ס״מ / שנ׳ / ק״ג', 'cm / sec / kg')} />
+              </label>
+              <label className="pd-cat-lower">
+                <input type="checkbox" checked={draft.lower}
+                  onChange={(e) => setDraft((d) => ({ ...d, lower: e.target.checked }))} />
+                {L('מספר נמוך יותר = טוב יותר (כמו ריצת 20 מ׳)', 'Lower is better (like a 20m sprint)')}
+              </label>
+            </>
+          )}
+          <div className="form-actions">
+            <button type="button" className="btn-primary" onClick={add} disabled={busy || !draft.label.trim()}>
+              {L('הוספה', 'Add')}
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => setAddOpen(false)}>{L('ביטול', 'Cancel')}</button>
+          </div>
+        </div>
+      )}
+
+      {cats.length === 0 ? (
+        <div className="empty-state">
+          <span className="empty-ic"><SlidersHorizontal size={26} /></span>
+          <div className="empty-title">{L('הקטלוג ריק', 'The catalog is empty')}</div>
+          <p className="muted small">{L('מוסיפים מדד ראשון בכפתור «מדד חדש».', 'Add the first metric with “New metric”.')}</p>
+        </div>
+      ) : (
+        <div className="pd-grid">
+          {cats.map((c) => (
+            <section className="pd-card pd-card--wide" key={c.key}>
+              <div className="pd-card-h">
+                <h3>{c.label}</h3>
+                <span className="muted small">
+                  <bdi dir="ltr">{c.metrics.filter((m) => m.active).length}/{c.metrics.length}</bdi> {L('מוצגים', 'shown')}
+                </span>
+              </div>
+              <ul className="pd-cat-list">
+                {c.metrics.map((m) => {
+                  const overridden = !!m.club && globalKeys.has(m.key)
+                  const own = !!m.club && !globalKeys.has(m.key)
+                  const editing = edit?.m?.key === m.key
+                  return (
+                    <li key={m.key} className={m.active ? 'pd-cat-row' : 'pd-cat-row off'}>
+                      {editing ? (
+                        <>
+                          <input className="finder-input" value={edit.label} maxLength={40} autoFocus
+                            onChange={(e) => setEdit((cur) => ({ ...cur, label: e.target.value }))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') rename() }}
+                            aria-label={L('שם המדד', 'Metric name')} />
+                          <button type="button" className="btn-primary" onClick={rename} disabled={busy}>{L('שמירה', 'Save')}</button>
+                          <button type="button" className="btn-ghost" onClick={() => setEdit(null)}>{L('ביטול', 'Cancel')}</button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="pd-cat-nm">
+                            {m.label}
+                            <span className="pd-cat-kind">
+                              {m.kind === 'number' ? (m.unit || L('מספר', 'number')) : '1–5'}
+                            </span>
+                            {overridden && <span className="pd-cat-tag">{L('שונה במועדון', 'Club change')}</span>}
+                            {own && <span className="pd-cat-tag own">{L('של המועדון', 'Club metric')}</span>}
+                            {!m.active && <span className="pd-cat-tag off">{L('מוסתר', 'Hidden')}</span>}
+                          </span>
+                          <button type="button" className="link-button" disabled={busy}
+                            onClick={() => setEdit({ m, label: m.label })}>{L('שינוי שם', 'Rename')}</button>
+                          <button type="button" className="link-button" disabled={busy} onClick={() => toggle(m)}>
+                            {m.active
+                              ? <><EyeOff size={13} aria-hidden="true" /> {L('הסתרה', 'Hide')}</>
+                              : <><Eye size={13} aria-hidden="true" /> {L('הצגה', 'Show')}</>}
+                          </button>
+                          {overridden && (
+                            <button type="button" className="link-button" disabled={busy} onClick={() => reset(m)}>
+                              <RotateCcw size={13} aria-hidden="true" /> {L('ברירת מחדל', 'Default')}
+                            </button>
+                          )}
+                          {own && (
+                            <button type="button" className="link-button danger" disabled={busy} onClick={() => remove(m)}>
+                              <Trash2 size={13} aria-hidden="true" /> {L('מחיקה', 'Delete')}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

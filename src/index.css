@@ -29266,3 +29266,143 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* «תיק שחקן» מכותרת כרטיס השחקן */
 .pc-dossier-btn { margin-top: 0; margin-inline-start: auto; padding: 8px 14px; min-height: 40px; font-size: 13px; }
 @media (pointer: coarse) { .pc-dossier-btn { min-height: 44px; } }
+
+/* =====================================================================
+   19.8.2026 — «תיק שחקן», סגירת הפערים
+   תאריך הזנה · השוואה לממוצע הקבוצה · הדפסה · רמת גישה · עריכת הקטלוג
+   ===================================================================== */
+
+/* --- תאריך ההזנה --- */
+.pd-date { width: 150px; }
+.pd-date-back {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 4px 10px;
+  border: 1px solid var(--border-hover); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.pd-date-back:hover { background: var(--surface-alt); }
+.pd-backdate {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 10px; padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft); color: var(--text);
+  font-size: 13px; font-weight: 600; line-height: 1.5;
+}
+.pd-backdate svg { flex: none; color: var(--warning); }
+
+/* --- השוואה לממוצע הקבוצה --- */
+.pd-cmp {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 5px 12px;
+  border: 1px solid var(--border-hover); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-muted);
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.pd-cmp:hover { border-color: var(--accent); color: var(--text); }
+.pd-cmp.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.pd-teamv {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  padding: 2px 7px; border-radius: var(--radius-full);
+  background: var(--surface-alt); color: var(--text-muted);
+  font-size: 12px; font-weight: 800;
+}
+.pd-teamv.sm { padding: 1px 5px; font-size: 11px; }
+.pd-team-line {
+  stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .75;
+}
+.pd-team-lbl { fill: var(--text-muted); font-size: 10.5px; font-weight: 700; }
+
+/* --- רמת גישה: צפייה / גם עריכה --- */
+.pd-lvl { display: inline-flex; gap: 4px; flex: none; }
+.pd-lvl-b {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 32px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-muted);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.pd-lvl-b:hover { border-color: var(--border-hover); color: var(--text); }
+.pd-lvl-b.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+@media (pointer: coarse) { .pd-lvl-b, .pd-date-back { min-height: 44px; } }
+
+/* --- הקטלוג של המועדון --- */
+.pd-cat-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 0 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm); background: var(--surface-alt);
+  color: var(--text-muted); font-size: 12.5px; line-height: 1.6;
+}
+.pd-cat-note svg { flex: none; margin-top: 2px; }
+.pd-cat-add { display: flex; flex-direction: column; gap: 10px; }
+.pd-cat-add label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; }
+.pd-cat-lower { flex-direction: row !important; align-items: center; font-weight: 600 !important; }
+.pd-cat-lower input { width: 18px; height: 18px; accent-color: var(--accent-fill); }
+.pd-cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pd-cat-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 9px 4px; border-bottom: 1px solid var(--border);
+}
+.pd-cat-row:last-child { border-bottom: 0; }
+.pd-cat-row.off { opacity: .6; }
+.pd-cat-nm {
+  display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin-inline-end: auto; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.pd-cat-kind { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.pd-cat-tag {
+  padding: 1px 7px; border-radius: var(--radius-full);
+  background: var(--accent-soft); color: var(--accent-strong);
+  font-size: 11px; font-weight: 800;
+}
+.pd-cat-tag.own { background: var(--c-blue-bg); color: var(--c-blue); }
+.pd-cat-tag.off { background: var(--surface-alt); color: var(--text-muted); }
+.pd-cat-row .link-button { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+@media (pointer: coarse) { .pd-cat-row .link-button { min-height: 44px; } }
+@media (max-width: 560px) {
+  .pd-cat-nm { width: 100%; margin-inline-end: 0; }
+  .pd-date { width: 138px; }
+}
+
+/* --- הדפסה/ייצוא של התיק --- */
+/* כפתור על באנר הכותרת הכהה — btn-soft בהיר היה נבלע בו */
+.pd-head .btn-soft {
+  flex: none;
+  min-height: 38px;
+  padding: 7px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.pd-head .btn-soft:hover { background: rgba(255, 255, 255, 0.22); }
+@media (pointer: coarse) { .pd-head .btn-soft { min-height: 44px; } }
+.pd-paper { display: none; }
+@media print {
+  /* דף התיק יושב על ה-body בפורטל; בהדפסה מסתירים את כל השאר.
+     נשאר בתוקף רק כשה-body מסומן — כדי שמסכים אחרים שמדפיסים
+     (המחברת, דף התרגיל) לא ייעלמו. */
+  body.print-dossier > *:not(.pd-paper) { display: none !important; }
+  body.print-dossier .pd-paper {
+    display: block;
+    padding: 0 4mm;
+    color: #000; background: #fff;
+    font-size: 11.5pt;
+  }
+  .pdp-head { border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
+  .pdp-head h1 { margin: 0 0 2px; font-size: 19pt; }
+  .pdp-head span { display: block; font-size: 10.5pt; }
+  .pdp-date { margin-top: 3px; font-weight: 700; }
+  .pdp-line { margin: 0 0 8px; font-size: 10.5pt; }
+  .pdp-tbl { width: 100%; border-collapse: collapse; margin-bottom: 10px; page-break-inside: avoid; }
+  .pdp-tbl caption {
+    text-align: start; font-weight: 800; font-size: 12pt;
+    padding: 4px 0; border-bottom: 1px solid #000;
+  }
+  .pdp-tbl th, .pdp-tbl td { padding: 3px 6px; font-size: 10.5pt; border-bottom: 1px solid #bbb; }
+  .pdp-tbl th { text-align: start; font-weight: 600; width: 46%; }
+  .pdp-tbl td { text-align: start; }
+  .pdp-notes { page-break-inside: avoid; }
+  .pdp-notes h2 { font-size: 12pt; margin: 10px 0 4px; border-bottom: 1px solid #000; }
+  .pdp-notes p { margin: 0 0 6px; font-size: 10.5pt; line-height: 1.45; }
+  .pdp-foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #000; font-size: 9pt; }
+}

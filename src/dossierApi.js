@@ -34,6 +34,7 @@ export async function loadCatalog() {
     // שורת מועדון (club לא null) מנצחת את הגלובלית
     if (!cur || (row.club && !cur.club)) byKey.set(row.key, row)
   }
+  const rows = data || []
   const all = [...byKey.values()].filter((m) => m.active).sort((a, b) => a.sort - b.sort)
   const ratings = all.filter((m) => m.kind === 'rating')
   const measures = all.filter((m) => m.kind === 'number')
@@ -44,7 +45,36 @@ export async function loadCatalog() {
     if (!c) { c = { key: m.cat, label: m.cat_label, metrics: [] }; cats.push(c) }
     c.metrics.push(m)
   }
-  return { all, ratings, measures, cats }
+  return { rows, all, ratings, measures, cats }
+}
+
+// ---------- עריכת הקטלוג (מנהל מועדון בלבד) ----------
+// המדיניות במסד (dossier_metrics_write) מתירה כתיבה רק לשורות עם
+// club = המועדון שלי. שינוי של שורה גלובלית נעשה כאן כ«שורת מועדון» עם
+// אותו key — היא דורסת את הגלובלית במיזוג שב-loadCatalog, ומחיקתה
+// מחזירה את ברירת המחדל. כך אף מועדון לא משנה לאחרים את הסולם.
+export async function saveClubMetric(row) {
+  const { id, ...fields } = row
+  if (id) {
+    const { error } = await supabase.from('dossier_metrics').update(fields).eq('id', id)
+    return { error }
+  }
+  const { data, error } = await supabase.from('dossier_metrics').insert(fields).select('id').single()
+  return { id: data?.id, error }
+}
+
+export async function deleteClubMetric(id) {
+  const { error } = await supabase.from('dossier_metrics').delete().eq('id', id)
+  return { error }
+}
+
+// מזהה למדד חדש: המסד דורש ^[a-z0-9_]{2,32}$, ולכן לא אפשר לגזור אותו
+// מהשם בעברית. מזהה אקראי קצר — השם למסך יושב ב-label.
+export const newMetricKey = () => {
+  const a = new Uint8Array(6)
+  globalThis.crypto?.getRandomValues?.(a)
+  const hex = [...a].map((n) => n.toString(16).padStart(2, '0')).join('')
+  return `m_${hex && !/^0+$/.test(hex) ? hex : Date.now().toString(36)}`
 }
 
 // ---------- הקבוצות והסגל ----------
