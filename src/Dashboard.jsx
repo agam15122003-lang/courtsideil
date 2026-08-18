@@ -112,6 +112,7 @@ const Schedule = lazy(lazyRetry(() => import('./Schedule')))
 const PersonalTrainees = lazy(lazyRetry(() => import('./PersonalTrainees')))
 const Teams = lazy(lazyRetry(() => import('./Teams')))
 const Admin = lazy(lazyRetry(() => import('./Admin')))
+const PlayerDossier = lazy(lazyRetry(() => import('./PlayerDossier')))
 // 10a — הצד הציבורי של הפרופיל הוא בדיוק המסך שמאמן אחר רואה
 const CoachProfile = lazy(lazyRetry(() => import('./CoachProfile')))
 const Media = lazy(lazyRetry(() => import('./Media')))
@@ -127,6 +128,7 @@ import {
   MonitorPlay,
   Shield,
   ShieldCheck,
+  FolderOpen,
   Menu,
   X,
   Pencil,
@@ -179,6 +181,9 @@ const POCKET_NAV = [
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
+// «תיק שחקן» — תצוגה מוקדמת על נתוני דוגמה, גלויה למנהלי מערכת בלבד
+// עד שהמסכים יאושרו ויחוברו למסד.
+const DOSSIER_NAV = { id: 'dossier', key: 'nav.dossier', Icon: FolderOpen }
 // הפרופיל לא ב-NAV (הוא כרטיס המשתמש בסרגל) — בגיליון הוא פריט ככל השאר
 const PROFILE_NAV = { id: 'profile', key: 'nav.profile', Icon: User }
 
@@ -227,6 +232,12 @@ const PAGE_META = {
     eyebrow: L('מערכת', 'System'), eyebrowIcon: ShieldCheck,
     title: L('ניהול', 'Administration'),
     subtitle: L('מאמנים, דיווחים ומצב המערכת.', 'Coaches, reports and system status.'),
+  }),
+  dossier: () => ({
+    eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: FolderOpen,
+    title: L('תיק שחקן', 'Player dossier'),
+    subtitle: L('התיק שעובר עם השחקן משנה לשנה — דירוגים, מדידות, רקע וגרף התקדמות. כרגע תצוגה מוקדמת על נתוני דוגמה.', 'The dossier that follows the player year to year — ratings, measurements, background and a progress chart. Currently a preview on demo data.'),
+    size: 'lg',
   }),
   // מסך 7a: eyebrow «הודעות», כותרת «השיחות שלי», וכפתור «שיחה חדשה»
   // בתוך הבאנר עצמו — לא שורת פעולות נפרדת מתחתיו.
@@ -605,7 +616,7 @@ export default function Dashboard({ session }) {
               style={{ '--nm-y': `${navBox.y}px`, '--nm-h': `${navBox.h}px` }}
             />
           )}
-          {(profile?.is_admin ? [...NAV, ADMIN_NAV] : NAV).map((item) => (
+          {(profile?.is_admin ? [...NAV, DOSSIER_NAV, ADMIN_NAV] : NAV).map((item) => (
             <button
               key={item.id}
               className={view === item.id ? 'nav-item active' : 'nav-item'}
@@ -804,6 +815,10 @@ export default function Dashboard({ session }) {
             <Teams session={session} profile={profile} onNavigate={navigate} initialTab={teamsTab} onConsumeInitialTab={() => setTeamsTab(null)} />
           ) : view === 'send' ? (
             <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
+          ) : view === 'dossier' && profile?.is_admin ? (
+            <Page {...PAGE_META.dossier()}>
+              <PlayerDossier />
+            </Page>
           ) : view === 'admin' && profile?.is_admin ? (
             <Page {...PAGE_META.admin()}>
               <Admin session={session} profile={profile} />
