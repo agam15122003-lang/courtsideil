@@ -6,9 +6,8 @@ import { ArrowBack, ChevronFwd, ChevronBack } from './DirIcon'
 import { downloadIcs } from './ics'
 import { supabase } from './supabaseClient'
 import { SkeletonCards } from './Skeleton'
-import NotebookPage from './NotebookPage'
 import SessionDetail from './SessionDetail'
-import { planToNotebook } from './TrainingPlans'
+import { PlanSheetById } from './PlanSheet'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
@@ -113,14 +112,8 @@ export default function Schedule({ session, onNavigate }) {
   const [ghost, setGhost] = useState(null)
   const dragRef = useRef(null)
 
-  const openPlan = async (plan) => {
-    const { data } = await supabase
-      .from('plan_items')
-      .select('*, drill:drills(*)')
-      .eq('plan_id', plan.id)
-      .order('position', { ascending: true })
-    setPlanView({ plan, items: data || [] })
-  }
+  // 18.8 — התוכנית המצורפת נפתחת כדף המחברת המלא (PlanSheetById טוען לבד)
+  const openPlan = (plan) => setPlanView({ plan })
 
   // טופס הוספה
   const [adding, setAdding] = useState(false)
@@ -575,11 +568,7 @@ export default function Schedule({ session, onNavigate }) {
         <button className="link-button" onClick={() => setPlanView(null)}>
           <ArrowBack size={15} className="back-ic" /> {L('חזרה ללו"ז', 'Back to schedule')}
         </button>
-        <NotebookPage
-          kind="plan"
-          plan={planToNotebook(planView.plan.name, planView.items)}
-          noCourt
-        />
+        <PlanSheetById planId={planView.plan.id} />
       </div>
     )
   }

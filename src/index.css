@@ -28012,3 +28012,605 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   font-size:10.5px; font-weight:800; letter-spacing:.2px;
   color:var(--accent-strong); background:var(--accent-soft);
 }
+
+
+/* =====================================================================
+   «המחברת המלאה» — 18.8.2026
+   תוכנית אימון כדף מחברת אחד: טקסט על שורות + שכבת דיו (עט/אצבע),
+   מגרשים קטנים בצד שמאל שמציירים עליהם, נוכחות בתחתית, טיוטות.
+   נקודות: nbk-* (המחברת החדשה), mini-court-* (מגרש קטן),
+   ink-* (צבעי העט — משותף ללוח הטקטי), plan-draft-badge (רשימה).
+   הדף עצמו הוא נייר בהיר בכוונה (כמו .notebook) — לא מגיב למצב כהה.
+   ===================================================================== */
+
+/* --- צבעי העט (בסרגל הלוח הטקטי ובמחברת) --- */
+.ink-colors {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px;
+}
+.ink-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--surface);
+  background: var(--ink, #1B2A4A);
+  box-shadow: 0 0 0 1px var(--border-hover);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.ink-swatch.on {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.ink-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .ink-swatch { width: 28px; height: 28px; }
+}
+.tb-fs-done {
+  margin-top: 0;
+  margin-inline-start: 8px;
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 13.5px;
+}
+
+/* --- ראש העורך --- */
+.nbk-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.nbk-head h2 { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nbk-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.nbk-head-actions .btn-soft { margin-top: 0; }
+.nbk-draft-tag,
+.plan-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  vertical-align: middle;
+}
+.coach-card.is-draft { border-style: dashed; }
+
+/* --- בורר התרגילים --- */
+.nbk-picker { margin-top: 12px; }
+.nbk-pick-search {
+  position: relative;
+  margin-bottom: 8px;
+}
+.nbk-pick-search svg {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.nbk-pick-search .finder-input { padding-inline-start: 36px; }
+
+/* --- פריסת הדף: תוכן מימין, מגרשים משמאל --- */
+.nbk-page {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  padding-inline-end: calc(var(--space-6) + 16px);
+}
+.nbk-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.nbk-courts {
+  flex: 0 0 216px;
+  width: 216px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 12px;
+}
+.nbk-name {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.6vw, 28px);
+  font-weight: 800;
+  margin: 0 0 12px;
+  color: var(--navy-1);
+  border-bottom: 2px solid var(--navy-1);
+  padding-bottom: 4px;
+}
+.nbk-meta { margin-top: 0; }
+.nbk-select,
+.nbk-date {
+  font-size: 15.5px;
+  padding: 2px 0;
+  min-height: 30px;
+  cursor: pointer;
+  color: var(--navy-1);
+  background: transparent;
+}
+.nbk-select { appearance: auto; }
+.nbk-date { font-family: inherit; }
+.nb-slot-in.ro { border-bottom-style: solid; border-bottom-color: #d8dde6; }
+
+/* --- סרגל הכתיבה --- */
+.nbk-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0 8px;
+}
+.nbk-tools .tb-group { background: #eef1f6; }
+.nbk-tools .tb-btn { color: var(--navy-1); }
+.nbk-tools .tb-btn.on { color: #fff; }
+.nbk-add-drill { margin-top: 0; }
+
+/* --- גוף המחברת: שורות + דיו --- */
+.nbk-body {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 29px,
+    var(--border-hover) 29px,
+    var(--border-hover) 30px
+  );
+}
+.nbk-body .nbk-text {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  background: transparent;
+  background-image: none;
+  font-family: var(--font-hand);
+  font-size: 18px;
+  line-height: 30px;
+  color: var(--navy-1);
+}
+.nbk-text-ro {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.nbk-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+.nbk-body.is-drawing .nbk-ink {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+.nbk-body.is-drawing .nbk-text { pointer-events: none; }
+.nbk-body.is-drawing { outline: 2px dashed color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 4px; border-radius: 4px; }
+.nbk-more-lines {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.nbk-more-lines .link-button { display: inline-flex; align-items: center; gap: 4px; }
+
+/* --- תרגילים מקושרים --- */
+.nbk-linked {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #c7ccd6;
+}
+.nbk-linked-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy-1);
+  margin-bottom: 6px;
+}
+.nbk-linked .chips { gap: 6px; }
+.nbk-linked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #c7ccd6;
+  color: var(--navy-1);
+}
+.nbk-linked-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.nbk-linked-x:hover { background: #eef1f6; color: var(--error); }
+
+/* --- נוכחות בתחתית הדף --- */
+.nbk-att {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 2px solid var(--navy-1);
+}
+.nbk-att-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.nbk-att-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--navy-1);
+}
+.nbk-att-hint { margin: 4px 0 0; }
+.nbk-att-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nbk-att-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e2e6ee;
+}
+.nbk-att-name {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--navy-1);
+}
+.nbk-att-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: #eef1f6;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.nbk-att-row.is-absent .nbk-att-name { color: var(--text-muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--error) 60%, transparent); }
+.nbk-att-row.is-late .nbk-att-name::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.nbk-att-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: #eef1f6;
+}
+.nbk-att-seg button {
+  min-height: 34px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--navy-1);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nbk-att-seg button.on { background: var(--navy-1); color: #fff; }
+.nbk-att-seg button.on.late { background: #8A4A00; }
+.nbk-att-seg button.on.absent { background: var(--error); }
+@media (pointer: coarse) {
+  .nbk-att-seg button { min-height: 40px; }
+}
+.nbk-att-reason-in {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 8px;
+  padding-inline-start: 4px;
+}
+.nbk-att-reason-in select,
+.nbk-att-reason-in input {
+  min-height: 36px;
+  border: 1px solid #c7ccd6;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--navy-1);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 4px 10px;
+}
+.nbk-att-reason-in select { flex: 0 0 auto; }
+.nbk-att-reason-in input { flex: 1 1 120px; min-width: 0; }
+.nbk-att-status { font-size: 13px; font-weight: 700; }
+.nbk-att-row.is-late .nbk-att-status { color: #8A4A00; }
+.nbk-att-row.is-absent .nbk-att-status { color: var(--error); }
+.nbk-att-reason { font-size: 13px; color: var(--text-muted); }
+.nbk-att-list.ro .nbk-att-row { min-height: 34px; padding: 3px 0; }
+
+/* --- עמודת המגרשים --- */
+.nbk-courts-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: #eef1f6;
+  border-radius: var(--radius-sm);
+}
+.nbk-courts-tools .tb-btn { min-height: 34px; padding: 4px 8px; }
+.nbk-courts-tools .ink-colors { padding-inline: 4px; margin-inline-start: auto; }
+.mini-court { position: relative; }
+.mini-court-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #c7ccd6;
+  border-radius: 4px;
+  background: #fff;
+}
+.mini-court.is-edit .mini-court-svg.is-drawing { cursor: crosshair; touch-action: none; }
+.mini-court-tools {
+  position: absolute;
+  top: 4px;
+  inset-inline-start: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+.mini-court:hover .mini-court-tools,
+.mini-court:focus-within .mini-court-tools { opacity: 1; }
+@media (pointer: coarse) { .mini-court-tools { opacity: 1; } }
+.mini-court-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--navy-1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+.mini-court-steps {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--navy-1);
+  background: #fff;
+  border: 1px solid #c7ccd6;
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
+}
+.mini-court-steps.ro { position: absolute; top: 4px; inset-inline-start: 4px; }
+.mini-court-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #c7ccd6;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--navy-1);
+  cursor: pointer;
+  padding: 0;
+}
+.mini-court-btn:hover { background: #eef1f6; }
+.mini-court-btn.danger:hover { color: var(--error); }
+.nbk-add-court { margin-top: 0; width: 100%; justify-content: center; }
+.nbk-courts-hint { margin: 0; font-size: 12px; line-height: 1.45; }
+
+/* --- שמירה --- */
+.nbk-actions { align-items: center; }
+.nbk-dirty { margin-inline-start: auto; }
+
+/* --- טלפון: המגרשים נשארים קטנים בצד שמאל, נפתחים בלחיצה --- */
+@media (max-width: 720px) {
+  .nbk-page {
+    gap: 10px;
+    padding: var(--space-4) var(--space-3) var(--space-5);
+    padding-inline-end: calc(var(--space-3) + 16px);
+  }
+  .nbk-courts {
+    flex-basis: 96px;
+    width: 96px;
+    gap: 8px;
+    position: static;
+  }
+  .nbk-courts-tools { flex-wrap: wrap; justify-content: center; }
+  .nbk-courts-tools .ink-colors { margin-inline-start: 0; }
+  .nbk-courts-hint { display: none; }
+  .nbk-add-court { padding: 6px 4px; font-size: 12px; }
+  .mini-court-tools { top: 2px; inset-inline-start: 2px; gap: 2px; }
+  .mini-court-btn { width: 26px; height: 26px; }
+  .nbk-body .nbk-text { font-size: 16px; }
+  .nbk-tools { justify-content: flex-start; }
+}
+@media (max-width: 420px) {
+  .nbk-courts { flex-basis: 84px; width: 84px; }
+  .nbk-page { padding-inline: 10px; padding-inline-end: calc(10px + 16px); }
+}
+
+/* --- הדפסה: הדף בלבד, בלי כלי עריכה --- */
+@media print {
+  .nbk-sheet .mini-court-tools,
+  .nbk-sheet .nbk-tools { display: none; }
+  .nbk-courts { position: static; }
+  /* בלי איפוס גובה: הגובה המוטבע הוא מה ששומר על שכבת כתב היד בדף המודפס */
+}
+
+/* --- 18.8: גיליון «תוכנית האימון» בעולם השחקן (PlayerPlanSheet) --- */
+.pps-sheet { gap: 10px; }
+.pps-page .notebook { box-shadow: none; }
+.pps-list { display: flex; flex-direction: column; gap: 10px; }
+.pps-drills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pps-drill {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--ps-card);
+  border: 1px solid var(--ps-line);
+}
+.pps-drill-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pps-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 999px;
+  background: rgba(var(--ps-a-rgb), .14); color: var(--ps-acc-tx);
+  font-size: 12px; font-weight: 900;
+}
+.pps-title { font-size: 15px; font-weight: 800; color: var(--ps-txt); flex: 1; min-inline-size: 0; }
+.pps-desc { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ps-mut); white-space: pre-wrap; }
+
+/* --- 18.8: מגרש שלם בלוח הטקטי — היחס הנכון. הכלל המקורי (.court--full,
+   שורה ~1416) נכתב *לפני* .court ולכן הפסיד לו ב-cascade, והמגרש השלם קיבל
+   את יחס חצי המגרש (letterbox כהה מעל המגרש). כאן הסלקטור חזק יותר. --- */
+.court.court--full { aspect-ratio: 940 / 500; }
+@media (max-width: 480px) {
+  .tb-fs-done { white-space: nowrap; font-size: 12.5px; padding: 6px 10px; min-height: 34px; }
+}
+
+/* =====================================================================
+   «המחברת המלאה» — תיקוני הסקירה, 18.8.2026
+   נגישות (יעדי מגע, זום ב-iOS), מצב כהה על דף הנייר, וסידור הדף
+   בתוך גיליון צר (השחקן) — הכול מעל הבלוק הראשי, בלי לגעת בו.
+   ===================================================================== */
+
+/* --- דף הנייר לא מגיב למצב כהה: צובעים את הכלים שעליו במפורש --- */
+.nbk .tb-btn,
+.nbk-courts-tools .tb-btn { color: var(--navy-1); }
+.nbk .tb-btn.on,
+.nbk-courts-tools .tb-btn.on { color: #fff; }
+.nbk .tb-btn:hover:not(.on),
+.nbk-courts-tools .tb-btn:hover:not(.on) { background: #fff; color: var(--navy-1); }
+.nbk .muted,
+.nbk .muted.small,
+.nbk-att-hint,
+.nbk-att-reason,
+.nbk-courts-hint,
+.nbk-linked .muted { color: #5B6B82; }
+.nbk-att-row.is-absent .nbk-att-name { color: #5B6B82; }
+.nbk .ink-swatch { border-color: #fff; }
+.nbk .link-button { color: var(--accent-strong); }
+.nbk-sheet .nb-slot-in.ro,
+.nbk .nb-slot-k,
+.nbk .nbk-att-title { color: var(--navy-1); }
+
+/* --- יעדי מגע ≥44px במסכי מגע (DESIGN.md §7) --- */
+@media (pointer: coarse) {
+  .mini-court-btn,
+  .nbk-linked-x { min-width: 44px; min-height: 44px; }
+  .nbk-courts-tools .tb-btn { min-height: 44px; min-width: 44px; }
+  .nbk-att-seg button { min-height: 44px; }
+  .tb-fs-done { min-height: 44px; }
+  .nbk-att-reason-in select,
+  .nbk-att-reason-in input { min-height: 44px; }
+}
+/* בטלפון (ולא בטאבלט, ששם המגרש גדול מספיק לצייר עליו) נגיעה על המגרש
+   הקטן פותחת את הלוח המלא — שם יש מקום לצייר. אחרת האצבע רק הייתה
+   מסמנת נקודה על מגרש ברוחב 96px, וכפתור ההגדלה הוא מטרה של 26px. */
+@media (max-width: 720px) {
+  .mini-court.is-edit .mini-court-svg { pointer-events: none; }
+  .mini-court-open {
+    display: block;
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+}
+.mini-court-open { display: none; }
+
+/* --- מניעת זום ב-iOS: שדות הדף בגודל 16px כמו כל שדה באפליקציה --- */
+.nbk-select,
+.nbk-date,
+.nbk-att-reason-in select,
+.nbk-att-reason-in input { font-size: 16px; }
+
+/* --- עמודת המגרשים «נדבקת» רק אם אין scroll container מסביב --- */
+.notebook.nbk { overflow: clip; }
+
+/* --- דף התוכנית בתוך גיליון צר (השחקן): הכול בטור אחד --- */
+.pps-page .nbk-page { flex-direction: column; padding-inline: var(--space-4); }
+.pps-page .nbk-courts {
+  width: 100%;
+  flex-basis: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  position: static;
+}
+.pps-page .mini-court { flex: 1 1 140px; max-width: 220px; }
+.pps-page .nbk-page { padding: var(--space-4); }
+.pps-page .nb-header { padding: var(--space-4); }
+/* סגירת הלוח במסך מלא היא עכשיו גם דרך היציאה מהמחברת בטלפון — 44px */
+@media (pointer: coarse) {
+  .tb-fs-close { width: 44px; height: 44px; }
+}
+
+/* --- דף הנייר לא מתהפך במצב כהה: כלים וקווים בצבעי נייר קבועים --- */
+.nbk .btn-soft,
+.nbk-add-court,
+.nbk .link-button {
+  background: #fff;
+  border-color: #c7ccd6;
+  color: var(--navy-1);
+}
+.nbk .btn-soft:hover,
+.nbk-add-court:hover { background: #eef1f6; border-color: var(--navy-1); color: var(--navy-1); }
+.nbk .link-button { background: transparent; border: 0; color: #A8491A; }
+/* שורות המחברת — תמיד תכלת נייר, גם כשהטוקן הופך לכהה */
+.nbk .nbk-body,
+.nbk .nbk-body .nbk-text,
+.nbk-sheet .nb-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 29px,
+    #c9d4e2 29px,
+    #c9d4e2 30px
+  );
+}
+.nbk .nbk-body .nbk-text { background-image: none; }
+.nbk .nb-slot-in { border-bottom-color: #c9d4e2; }
+.nbk-att-row { border-bottom-color: #e2e6ee; }

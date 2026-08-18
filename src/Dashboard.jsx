@@ -15,6 +15,8 @@ import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
 import PocketNav from './PocketNav'
 import { useLang, L } from './i18n'
+// שמירה על עבודה פתוחה (המחברת) לפני מעבר מסך — ראו src/unsavedGuard.js
+import { confirmLeave } from './unsavedGuard'
 // isAdultPlayer עבר ל-consent.js: גם מסך ההמתנה צריך אותו כדי לזהות שחקן
 // שהגיע ל-18 בזמן שחיכה לאישור הורה.
 import { isAdultPlayer } from './consent'
@@ -273,7 +275,9 @@ export default function Dashboard({ session }) {
 
   // ניווט עם יעדי-עומק: 'community-chats' פותח את הקהילה על טאב הצ'אטים,
   // 'finder-games' פותח את המאתר על לוח משחקי האימון
-  const navigate = (id) => {
+  const navigate = async (id) => {
+    // מסך עם עבודה שלא נשמרה (המחברת) מקבל הזדמנות לעצור את המעבר
+    if (!(await confirmLeave())) return
     if (id === 'community-chats') { setCommunityTab('chats'); setView('community'); return }
     if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
     // מהלו"ז אל ימי האימון הקבועים — עד היום זו הייתה הוראה בטקסט בלי קישור
@@ -605,7 +609,8 @@ export default function Dashboard({ session }) {
             <button
               key={item.id}
               className={view === item.id ? 'nav-item active' : 'nav-item'}
-              onClick={() => {
+              onClick={async () => {
+                if (!(await confirmLeave())) return
                 setView(item.id)
                 setDrawerOpen(false)
               }}
@@ -622,7 +627,7 @@ export default function Dashboard({ session }) {
         {profile?.first_name && (
           <button
             className="sidebar-user"
-            onClick={() => { setEditing(false); setView('profile'); setDrawerOpen(false) }}
+            onClick={async () => { if (!(await confirmLeave())) return; setEditing(false); setView('profile'); setDrawerOpen(false) }}
             title={t('action.editProfile')}
           >
             <Avatar
@@ -749,10 +754,10 @@ export default function Dashboard({ session }) {
                 <button className={workTab === 'plans' ? 'tab active' : 'tab'} onClick={() => setWorkTab('plans')}>
                   <ClipboardList size={15} aria-hidden="true" /> {L('בניית תוכנית', 'Build a plan')}
                 </button>
-                <button className={workTab === 'drills' ? 'tab active' : 'tab'} onClick={() => setWorkTab('drills')}>
+                <button className={workTab === 'drills' ? 'tab active' : 'tab'} onClick={async () => { if (await confirmLeave()) setWorkTab('drills') }}>
                   <Dumbbell size={15} aria-hidden="true" /> {L('בניית תרגיל', 'Build a drill')}
                 </button>
-                <button className={workTab === 'community' ? 'tab active' : 'tab'} onClick={() => setWorkTab('community')}>
+                <button className={workTab === 'community' ? 'tab active' : 'tab'} onClick={async () => { if (await confirmLeave()) setWorkTab('community') }}>
                   <Users size={15} aria-hidden="true" /> {L('מהקהילה', 'From the community')}
                 </button>
               </div>
@@ -928,7 +933,7 @@ export default function Dashboard({ session }) {
           עם כל הפיצ׳רים (כולל מה שהיה רק במגירת הסרגל). */}
       <PocketNav
         activeId={editing ? null : view}
-        onNavigate={(id) => { setEditing(false); setView(id); setDrawerOpen(false) }}
+        onNavigate={async (id) => { if (!(await confirmLeave())) return; setEditing(false); setView(id); setDrawerOpen(false) }}
         label={L('ניווט תחתון', 'Bottom navigation')}
         items={POCKET_NAV.map((item) => ({
           id: item.id,

@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X } from 'lucide-react'
+import { MousePointer2, ArrowUpRight, Send, Target, Square, LayoutGrid, Play, Maximize2, X, Pencil, Eraser } from 'lucide-react'
 import { L } from './i18n'
 import { motionOff, dur, loadGsap, resetArrowDraw, clearArrowDraw, buildArrowDraw } from './anim'
 import { CourtLines, ObjectShape, arcLift, arcPath } from './CourtDiagram'
+// 18.8 — «עט» ו«מחק»: ציור חופשי על המגרש, נשמר לכל שלב ב-step.ink
+import { InkPaths, useInkTool, INK_COLORS } from './ink'
 
 const HALF = { w: 500, h: 470 }
 const FULL = { w: 940, h: 500 }
@@ -63,13 +65,16 @@ function useLongPress(onLongPress, enabled) {
 }
 
 // חץ בודד (תנועה = קו מלא, מסירה = מקווקו, זריקה לסל = קשת כתומה)
-function Arrow({ a, readOnly, onRemove }) {
-  const cursor = { cursor: readOnly ? 'default' : 'pointer' }
-  const lp = useLongPress(() => onRemove(a.id), !readOnly)
+// tool נדרש: לחיצה ארוכה מוחקת חץ רק בכלי «גרירה». בלי זה, ציור איטי בעט
+// מעל חץ קיים היה מוחק אותו אחרי 550ms (ה-svg תופס את המצביע, ולכן ה-move
+// וה-up של החץ לא מגיעים כדי לבטל את הטיימר).
+function Arrow({ a, readOnly, tool = 'select', onRemove }) {
+  const cursor = { cursor: readOnly || tool !== 'select' ? 'default' : 'pointer' }
+  const lp = useLongPress(() => onRemove(a.id), !readOnly && tool === 'select')
   if (a.kind === 'shot') {
     const d = arcPath(a.x1, a.y1, a.x2, a.y2)
     return (
-      <g style={cursor} {...lp} onDoubleClick={() => !readOnly && onRemove(a.id)}>
+      <g style={cursor} {...lp} onDoubleClick={() => !readOnly && tool === 'select' && onRemove(a.id)}>
         <path d={d} fill="none" stroke="transparent" strokeWidth="16" />
         <path
           d={d}
@@ -85,7 +90,7 @@ function Arrow({ a, readOnly, onRemove }) {
   }
   const dash = a.kind === 'pass' ? '8,7' : undefined
   return (
-    <g style={cursor} {...lp} onDoubleClick={() => !readOnly && onRemove(a.id)}>
+    <g style={cursor} {...lp} onDoubleClick={() => !readOnly && tool === 'select' && onRemove(a.id)}>
       <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth="16" />
       <line
         x1={a.x1}
@@ -199,6 +204,9 @@ function Board({
   onDeleteStep,
   onAddArrow,
   onRemoveArrow,
+  onAddInk,
+  onRemoveInk,
+  inkColor,
   headerLabel,
   drawScrub = null,
 }) {
@@ -208,6 +216,14 @@ function Board({
   const dim = full ? FULL : HALF
   const arrows = step.arrows || []
   const arrowsRef = useArrowDraw(arrows, stepIndex, drawScrub)
+  // עט/מחק — הקווים החופשיים של השלב הזה
+  const ink = useInkTool(svgRef, dim, {
+    tool: readOnly ? 'select' : tool,
+    color: inkColor,
+    strokes: step.ink || [],
+    onAdd: (s) => onAddInk?.(stepIndex, s),
+    onErase: (ids) => onRemoveInk?.(stepIndex, ids),
+  })
 
   const toSvg = (e) => {
     const r = svgRef.current.getBoundingClientRect()
@@ -228,6 +244,7 @@ function Board({
 
   const onDown = (e) => {
     if (readOnly || tool === 'select') return
+    if (ink.drawing) { ink.handlers.onPointerDown(e); return }
     capture(e)
     const p = toSvg(e)
     setDraft({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
@@ -235,6 +252,7 @@ function Board({
 
   const onMove = (e) => {
     if (readOnly) return
+    if (ink.drawing) { ink.handlers.onPointerMove(e); return }
     if (draft) {
       const p = toSvg(e)
       setDraft((d) => ({ ...d, x2: p.x, y2: p.y }))
@@ -244,7 +262,8 @@ function Board({
     onMoveObj(dragId.current, toSvg(e))
   }
 
-  const onUp = () => {
+  const onUp = (e) => {
+    if (ink.drawing) { ink.handlers.onPointerUp(e); return }
     if (draft) {
       const len = Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1)
       if (len > 12) {
@@ -305,6 +324,7 @@ function Board({
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
+        onPointerCancel={onUp}
       >
         <defs>
           <marker
@@ -338,10 +358,13 @@ function Board({
               key={a.id}
               a={a}
               readOnly={readOnly}
+              tool={tool}
               onRemove={(id) => onRemoveArrow(stepIndex, id)}
             />
           ))}
         </g>
+        {/* דיו חופשי — מתחת לשחקנים, מעל קווי המגרש */}
+        <InkPaths strokes={step.ink} draft={ink.draft} />
         {draft &&
           (tool === 'arrow-shot' ? (
             <path
@@ -380,9 +403,11 @@ function Board({
   )
 }
 
-// לוח טקטיקה — מגרש (חצי/שלם), אובייקטים נגררים, חצים, וריבוי שלבים.
-// value/onChange: { fullCourt, steps:[{objects:[], arrows:[]}] }
-export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
+// לוח טקטיקה — מגרש (חצי/שלם), אובייקטים נגררים, חצים, דיו חופשי, וריבוי שלבים.
+// value/onChange: { fullCourt, steps:[{objects:[], arrows:[], ink:[]}] }
+// startFull/onCloseFull — 18.8: המחברת פותחת את הלוח ישר במסך מלא (מגרש קטן
+// שנלחץ), וסגירתו מחזירה את הציור למגרש הקטן דרך onChange.
+export default function TacticsBoard({ value, onChange, readOnly, autoPlay, startFull, onCloseFull, title }) {
   const initial =
     value && value.steps ? value : { fullCourt: false, steps: [{ objects: [], arrows: [] }] }
   const [fullCourt, setFullCourt] = useState(!!initial.fullCourt)
@@ -392,19 +417,22 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
   const [layout, setLayout] = useState(readOnly ? 'all' : 'single')
   const [current, setCurrent] = useState(0)
   const [tool, setTool] = useState('select')
+  const [inkColor, setInkColor] = useState(INK_COLORS[0].c)
   const [frame, setFrame] = useState({ idx: 0, p: 0 })
   const [paused, setPaused] = useState(false)
   // מסך מלא — מפרט המסמך: הלוח הוא קנבס, לא "שדה טופס (לא חובה)".
   // אותו דפוס portal שכבר עובד בפאנל התרגיל ב-DrillCard.
-  const [full, setFull] = useState(false)
+  const [full, setFull] = useState(!!startFull)
+  const closeFull = () => { setFull(false); onCloseFull?.() }
 
   // מסך מלא: Escape סוגר ונועל את גלילת הרקע (אותו חוזה כמו הפאנלים האחרים)
   useEffect(() => {
     if (!full) return
-    const onKey = (e) => { if (e.key === 'Escape') setFull(false) }
+    const onKey = (e) => { if (e.key === 'Escape') closeFull() }
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full])
 
   // autoPlay: פתיחת תרגיל מתניעה את האנימציה לבד — רגע ה"וואו" של הלוח.
@@ -488,6 +516,24 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
         i === stepIndex ? { ...s, arrows: (s.arrows || []).filter((a) => a.id !== arrowId) } : s
       )
     )
+
+  // דיו חופשי — קו נוסף / קו נמחק (מחק). המחיקה מגיעה מתוך תנועת מצביע,
+  // ולכן דרך setSteps פונקציונלי כדי לא לאבד מחיקות רצופות באותו פריים.
+  const addInk = (stepIndex, stroke) =>
+    setSteps((cur) => {
+      const next = cur.map((s, i) => (i === stepIndex ? { ...s, ink: [...(s.ink || []), stroke] } : s))
+      if (onChange) onChange({ fullCourt, steps: next })
+      return next
+    })
+  const removeInk = (stepIndex, inkIds) =>
+    setSteps((cur) => {
+      const ids = Array.isArray(inkIds) ? inkIds : [inkIds]
+      const next = cur.map((s, i) =>
+        i === stepIndex ? { ...s, ink: (s.ink || []).filter((k) => !ids.includes(k.id)) } : s
+      )
+      if (onChange) onChange({ fullCourt, steps: next })
+      return next
+    })
 
   const addStep = () => {
     // משכפל את השלב האחרון; כל חץ "מושך" את האובייקט הקרוב אליו ביותר אל קצה החץ.
@@ -618,6 +664,7 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
     // עד היום מצב הנגינה הסתיר את החצים לגמרי. עכשיו הם מוצגים ומציירים את
     // עצמם תוך כדי המעבר (useArrowDraw) — הקו מסביר לאן השחקן הולך.
     arrows: srcArrows,
+    ink: playSrc.ink || [],
   }
 
   const shown =
@@ -637,11 +684,16 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       )}
       {full && (
         <div className="tb-fs-head">
-          <strong>{L('לוח טקטיקה', 'Tactics board')}</strong>
+          <strong>{title || L('לוח טקטיקה', 'Tactics board')}</strong>
           <span className="muted small">
             {L(`שלב ${current + 1} מתוך ${steps.length}`, `Step ${current + 1} of ${steps.length}`)}
           </span>
-          <button type="button" className="tb-fs-close" onClick={() => setFull(false)} aria-label={L('סגור', 'Close')}>
+          {onCloseFull ? (
+            <button type="button" className="btn-primary tb-fs-done" onClick={closeFull}>
+              {L('סיום — חזרה למחברת', 'Done — back to notebook')}
+            </button>
+          ) : null}
+          <button type="button" className="tb-fs-close" onClick={closeFull} aria-label={L('סגור', 'Close')}>
             <X size={18} />
           </button>
         </div>
@@ -697,6 +749,34 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
             </button>
           </div>
         )}
+
+        {/* 18.8 — עט חופשי ומחק (עכבר / אצבע / עט על טאבלט) */}
+        {!readOnly && (
+          <div className="tb-group" role="group" aria-label={L('עט חופשי', 'Free pen')}>
+            <button type="button" className={tool === 'pen' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'pen'} onClick={() => setTool('pen')}>
+              <Pencil size={15} /> {L('עט', 'Pen')}
+            </button>
+            <button type="button" className={tool === 'eraser' ? 'tb-btn on' : 'tb-btn'} aria-pressed={tool === 'eraser'} onClick={() => setTool('eraser')}>
+              <Eraser size={15} /> {L('מחק', 'Eraser')}
+            </button>
+            {tool === 'pen' && (
+              <span className="ink-colors" role="radiogroup" aria-label={L('צבע העט', 'Pen color')}>
+                {INK_COLORS.map((k) => (
+                  <button
+                    key={k.c}
+                    type="button"
+                    role="radio"
+                    aria-checked={inkColor === k.c}
+                    aria-label={L(k.he, k.en)}
+                    className={inkColor === k.c ? 'ink-swatch on' : 'ink-swatch'}
+                    style={{ '--ink': k.c }}
+                    onClick={() => setInkColor(k.c)}
+                  />
+                ))}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {layout !== 'play' &&
@@ -715,6 +795,9 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
             onDeleteStep={delStep}
             onAddArrow={addArrow}
             onRemoveArrow={removeArrow}
+            onAddInk={addInk}
+            onRemoveInk={removeInk}
+            inkColor={inkColor}
           />
         ))}
 
@@ -799,8 +882,8 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay }) {
       {!readOnly && (
         <p className="muted small">
           {L(
-            'בחר חצי מגרש או מגרש שלם, הוסף וגרור אובייקטים. למחיקה — לחיצה ארוכה על האובייקט או על החץ (גם בטלפון). למצב חצים בחר "חץ תנועה", "חץ מסירה" או "זריקה לסל" וגרור על המגרש. בנה כמה שלבים בתצוגת "שלב בודד" או "כל השלבים".',
-            'Choose half court or full court, then add and drag objects. To delete, long-press the object or the arrow (works on phones too). For arrows, pick "Movement arrow", "Pass arrow" or "Shot" and drag on the court. Build multiple steps in "Single step" or "All steps" view.'
+            'בחר חצי מגרש או מגרש שלם, הוסף וגרור אובייקטים. למחיקה — לחיצה ארוכה על האובייקט או על החץ (גם בטלפון). למצב חצים בחר "חץ תנועה", "חץ מסירה" או "זריקה לסל" וגרור על המגרש. "עט" מצייר ביד חופשית (עכבר, אצבע או עט), "מחק" מוחק קו בנגיעה. בנה כמה שלבים בתצוגת "שלב בודד" או "כל השלבים".',
+            'Choose half court or full court, then add and drag objects. To delete, long-press the object or the arrow (works on phones too). For arrows, pick "Movement arrow", "Pass arrow" or "Shot" and drag on the court. "Pen" draws freehand (mouse, finger or stylus), "Eraser" removes a line on touch. Build multiple steps in "Single step" or "All steps" view.'
           )}
         </p>
       )}

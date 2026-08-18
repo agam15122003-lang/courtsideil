@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCards } from './Skeleton'
 import {
   Send, Users, User, Dumbbell, ClipboardList, MonitorPlay, PencilLine,
-  Search, Check, CalendarDays, Inbox, X, CheckCheck, Hash, Repeat2,
+  Search, Check, CalendarDays, Inbox, X, CheckCheck, Hash, Repeat2, BookOpen,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -56,6 +56,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   // אין מספר → השחקן פשוט מסמן «סיימתי».
   const [target, setTarget] = useState('')
   const [unit, setUnit] = useState('')
+  // 18.8 — תוכנית: מה השחקנים יראו — רשימת התרגילים בלבד או הדף כולו
+  const [planView, setPlanView] = useState('drills')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(null) // אישור אחרי שליחה: {count, label}
   const [feed, setFeed] = useState(null)
@@ -88,7 +90,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     if (source === 'task') return { kind: 'task', title: taskTitle.trim() }
     if (!chosenItem) return {}
     if (source === 'drill') return { kind: 'drill', drillId: chosenItem.id, title: chosenItem.title }
-    if (source === 'plan') return { kind: 'plan', planId: chosenItem.id, title: chosenItem.title }
+    if (source === 'plan') return { kind: 'plan', planId: chosenItem.id, title: chosenItem.title, planView }
     if (source === 'video') return { kind: 'video', videoUrl: chosenItem.url, title: chosenItem.title }
     return {}
   }
@@ -258,13 +260,34 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
             <h3 className="sp-h3"><Send size={16} /> {L('מה שולחים?', 'What are you sending?')}</h3>
 
             {lockedContent ? (
-              <div className="sp-locked">
-                <span className="sp-locked-ic"><Dumbbell size={17} /></span>
-                <span className="sp-locked-tx">
-                  <strong>{lockedContent.title}</strong>
-                  {lockedContent.sub && <span className="muted small">{lockedContent.sub}</span>}
-                </span>
-              </div>
+              <>
+                <div className="sp-locked">
+                  <span className="sp-locked-ic">{source === 'plan' ? <BookOpen size={17} /> : <Dumbbell size={17} />}</span>
+                  <span className="sp-locked-tx">
+                    <strong>{lockedContent.title}</strong>
+                    {lockedContent.sub && <span className="muted small">{lockedContent.sub}</span>}
+                  </span>
+                </div>
+                {/* 18.8 — תוכנית מהמחברת: המאמן בוחר בכל שליחה מה השחקנים יראו */}
+                {source === 'plan' && (
+                  <div className="sp-plan-view">
+                    <span className="muted small">{L('מה השחקנים יראו?', 'What will the players see?')}</span>
+                    <div className="sp-seg">
+                      <button type="button" className={planView === 'drills' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setPlanView('drills')}>
+                        {L('רשימת התרגילים בלבד', 'Drills list only')}
+                      </button>
+                      <button type="button" className={planView === 'page' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setPlanView('page')}>
+                        {L('הדף כולו', 'The whole page')}
+                      </button>
+                    </div>
+                    <p className="muted small sp-target-hint">
+                      {planView === 'page'
+                        ? L('השחקנים יראו את דף המחברת — הטקסט, כתב היד והמגרשים. הנוכחות לא נשלחת.', 'Players will see the notebook page — text, handwriting and courts. Attendance is not sent.')
+                        : L('השחקנים יראו רק את התרגילים מהספרייה שבתוכנית (שם + תוכן).', 'Players will see only the library drills in the plan (name + content).')}
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
               /* מלל חופשי בלבד — בלי בורר תרגיל/תוכנית/סרטון (בקשת הבעלים) */
               <input className="finder-input" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={L('לדוגמה: 100 זריקות עונשין', 'e.g. 100 free throws')} maxLength={120} />

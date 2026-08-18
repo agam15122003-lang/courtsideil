@@ -190,7 +190,8 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
       if (modern && tagFilter && !/[,{}"\\]/.test(tagFilter)) sel = sel.contains('tags', [tagFilter])
       if (q) {
         // חיפוש טקסט על שם/תיאור, ובענף המודרני גם על תגית מלאה
-        const parts = [`title.ilike.%${q}%`, `description.ilike.%${q}%`]
+        // 18.8 — הקטגוריה היא מלל חופשי, ולכן החיפוש מכסה גם אותה
+        const parts = [`title.ilike.%${q}%`, `description.ilike.%${q}%`, `category.ilike.%${q}%`]
         if (modern) parts.push(`tags.cs.{${q}}`)
         sel = sel.or(parts.join(','))
       }
@@ -320,6 +321,8 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
       ' ' +
       (d.description || '') +
       ' ' +
+      (d.category || '') +
+      ' ' +
       (d.tags || []).join(' ')
     ).toLowerCase()
     const searchOk =
@@ -407,7 +410,7 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={L('חיפוש בשם או בתיאור...', 'Search by name or description...')}
+          placeholder={L('חיפוש בשם, בתיאור או בקטגוריה...', 'Search by name, description or category...')}
           aria-label={L('חיפוש תרגילים', 'Search drills')}
         />
         <select
@@ -417,9 +420,14 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
           aria-label={L('סינון לפי קטגוריה', 'Filter by category')}
         >
           <option value="">{L('כל הקטגוריות', 'All categories')}</option>
-          {DRILL_CATEGORIES.map((cat) => (
+          {/* 18.8 — הקטגוריה היא מלל חופשי: לצד הקטגוריות המוכרות מוצגות גם
+              אלה שמופיעות בתרגילים שנטענו */}
+          {[...DRILL_CATEGORIES, ...[...new Set(drills.map((d) => (d.category || '').trim()).filter((c) => c && !DRILL_CATEGORIES.includes(c)))].sort((a, b) => a.localeCompare(b, 'he'))].map((cat) => (
             <option key={cat} value={cat}>{tr(cat)}</option>
           ))}
+          {catFilter && !DRILL_CATEGORIES.includes(catFilter) && !drills.some((d) => (d.category || '').trim() === catFilter) && (
+            <option value={catFilter}>{catFilter}</option>
+          )}
         </select>
         <div className="filter-ms">
           <MultiSelect

@@ -11,6 +11,7 @@ import {
   clearArrowDraw,
   buildArrowDraw,
 } from './anim'
+import { InkPaths } from './ink'
 
 // ===== הפרימיטיבים המשותפים של המגרש =====
 // עד היום CourtDiagram ו-TacticsBoard החזיקו שני עותקים זהים של ציור
@@ -19,8 +20,8 @@ import {
 // הערה על ה-hex: אלו צבעי ציור בתוך SVG (לא צבעי ממשק) — מכוונים לשני
 // הרקעים הקבועים של המגרש (דף מחברת לבן / מגרש נייבי) ולכן אינם מגיבים
 // למצב כהה בכוונה, כפי שהיה כאן מאז ומעולם.
-const FULL = { w: 940, h: 500 }
-const HALF = { w: 500, h: 470 }
+export const FULL = { w: 940, h: 500 }
+export const HALF = { w: 500, h: 470 }
 const LINE = '#1b2a4a'
 
 // variant='notebook' — קווים דקים כהים על דף לבן (ברירת מחדל, מחברת האימונים)
@@ -99,7 +100,7 @@ export const arcLift = (x1, y1, x2, y2) => Math.min(90, Math.hypot(x2 - x1, y2 -
 export const arcPath = (x1, y1, x2, y2) =>
   `M${x1},${y1} Q${(x1 + x2) / 2},${(y1 + y2) / 2 - arcLift(x1, y1, x2, y2)} ${x2},${y2}`
 
-function Arrow({ a }) {
+export function Arrow({ a }) {
   if (a.kind === 'shot')
     return (
       <path
@@ -230,6 +231,8 @@ export default function CourtDiagram({ full = false, step, index = 0 }) {
       {arrows.map((a) => (
         <Arrow key={a.id} a={a} />
       ))}
+      {/* 18.8 — דיו חופשי שצויר בעט על הלוח / המגרש הקטן */}
+      <InkPaths strokes={step && step.ink} />
       {objects.map((o) => (
         <g key={o.id} data-nb="obj">
           <ObjectShape o={o} />

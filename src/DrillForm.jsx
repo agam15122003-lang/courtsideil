@@ -194,9 +194,9 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
     setError(null)
 
     // קטגוריה היא חובה (השם נבדק אוטומטית כי הוא required)
-    if (!category) {
-      setError(L('יש לבחור קטגוריה לתרגיל.', 'Please choose a category for the drill.'))
-      toast.error(L('יש לבחור קטגוריה לתרגיל.', 'Please choose a category for the drill.'))
+    if (!category.trim()) {
+      setError(L('כתבו קטגוריה לתרגיל.', 'Please give the drill a category.'))
+      toast.error(L('כתבו קטגוריה לתרגיל.', 'Please give the drill a category.'))
       return
     }
 
@@ -210,7 +210,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
-      category,
+      category: category.trim(),
       age_groups: orderedGroups,
       tags: tags.length ? tags : null,
       difficulty: difficulty || null,
@@ -529,23 +529,26 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
                   />
                 </label>
 
-                <div className="nb-edit-chips">
+                {/* 18.8 — קטגוריה במלל חופשי (הבעלים ביקש להוריד את הכפתורים).
+                    ההצעות (datalist) הן הקטגוריות המוכרות — אפשר לבחור או לכתוב אחרת. */}
+                <label className="nb-slot nb-goal">
                   <span className="nb-slot-k">
                     {L('קטגוריה', 'Category')} <span className="req-star" aria-hidden="true">*</span>
                   </span>
-                  <div className="chips">
-                    {DRILL_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        className={category === cat ? 'chip selected' : 'chip'}
-                        onClick={() => setCategory(cat)}
-                      >
-                        {tr(cat)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                  <input
+                    className="nb-write nb-slot-in nb-grow"
+                    type="text"
+                    list="drill-cat-suggest"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder={L('למשל: הגנה, מסירות, משחק 3×3…', 'e.g. Defense, passing, 3×3 game…')}
+                    aria-label={L('קטגוריה', 'Category')}
+                    maxLength={40}
+                  />
+                  <datalist id="drill-cat-suggest">
+                    {DRILL_CATEGORIES.map((cat) => <option key={cat} value={cat}>{tr(cat)}</option>)}
+                  </datalist>
+                </label>
 
                 <div className="nb-edit-chips">
                   <span className="nb-slot-k">{L('שכבות גיל', 'Age groups')}</span>
@@ -635,12 +638,19 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
 
               <div className="field-group">
                 <span className="field-label">{L('קטגוריה', 'Category')} <span className="req-star" aria-hidden="true">*</span></span>
-                <select className="finder-input" value={category} onChange={(e) => setCategory(e.target.value)} required>
-                  <option value="">{L('— בחר קטגוריה —', '— Choose a category —')}</option>
-                  {DRILL_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{tr(cat)}</option>
-                  ))}
-                </select>
+                <input
+                  className="finder-input"
+                  type="text"
+                  list="drill-cat-suggest-full"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder={L('למשל: הגנה, מסירות, משחק 3×3…', 'e.g. Defense, passing, 3×3 game…')}
+                  maxLength={40}
+                  required
+                />
+                <datalist id="drill-cat-suggest-full">
+                  {DRILL_CATEGORIES.map((cat) => <option key={cat} value={cat}>{tr(cat)}</option>)}
+                </datalist>
               </div>
 
               <div className="field-group">
