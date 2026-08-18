@@ -29406,3 +29406,23 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   .pdp-notes p { margin: 0 0 6px; font-size: 10.5pt; line-height: 1.45; }
   .pdp-foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #000; font-size: 9pt; }
 }
+
+/* --- 19.8: מנהל מועדון גולש בתיקים של מאמן בעץ (קריאה בלבד) --- */
+.pd-viewing {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  color: var(--text); font-size: 13.5px; font-weight: 700;
+}
+.pd-viewing svg { flex: none; color: var(--info); }
+.pd-viewing span { margin-inline-end: auto; }
+.pd-viewing .btn-soft { flex: none; min-height: 38px; padding: 6px 12px; font-size: 13px; }
+@media (pointer: coarse) { .pd-viewing .btn-soft { min-height: 44px; } }
+/* נקודות הדירוג כשאין מה ללחוץ — אותו מראה, בלי משטח מגע */
+.pd-dots.ro { gap: 6px; padding-inline: 4px; }
+.pd-dot-ro {
+  width: 15px; height: 15px; border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-hover); background: var(--surface);
+}
+.pd-dot-ro.on { background: var(--primary); border-color: var(--primary); }

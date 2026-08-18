@@ -288,6 +288,21 @@ export async function loadClubRoles(club) {
   return { roles: rows.map((r) => ({ ...r, name: names[r.user_id] || '—' })) }
 }
 
+// ---------- ניהול העץ (מנהל מועדון) ----------
+// המדיניות club_roles_manager מתירה למנהל להוסיף/להסיר 'coach' ו-
+// 'technical_director' במועדון שלו בלבד. מנהל מועדון נוסף — אדמין בלבד.
+export async function addClubRole({ club, userId, role, byId }) {
+  const { error } = await supabase
+    .from('club_roles')
+    .upsert({ club, user_id: userId, role, approved_by: byId }, { onConflict: 'club,user_id,role' })
+  return { error }
+}
+
+export async function removeClubRole(id) {
+  const { error } = await supabase.from('club_roles').delete().eq('id', id)
+  return { error }
+}
+
 // מאמנים אחרים באותו מועדון — למתן גישה
 export async function loadClubCoaches(club, meId) {
   if (!club) return { coaches: [] }

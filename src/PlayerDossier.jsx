@@ -156,7 +156,14 @@ function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
 // canClear: הערך שמוצג נרשם **לתאריך הנבחר**, ולכן לחיצה עליו מבטלת.
 // אם הוא נגרר מסבב קודם — לחיצה עליו מאשרת אותו לתאריך הזה, לא מוחקת
 // (אחרת «אותו דירוג כמו בפעם שעברה» היה בלתי אפשרי לרשום).
-function Dots({ value, onChange, name, canClear = true }) {
+function Dots({ value, onChange, name, canClear = true, readOnly = false }) {
+  if (readOnly) {
+    return (
+      <span className="pd-dots ro" role="img" aria-label={L(`${name}: ${value || '—'} מתוך 5`, `${name}: ${value || '—'} of 5`)}>
+        {[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= value ? 'pd-dot-ro on' : 'pd-dot-ro'} />)}
+      </span>
+    )
+  }
   return (
     <span className="pd-dots" role="radiogroup" aria-label={name}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -189,6 +196,10 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   // בוחר את התאריך שלו, וכל מה שיסומן יישמר עליו.
   const [onDate, setOnDate] = useState(api.today())
   const [iAmManager, setIAmManager] = useState(false)
+  const [iAmDirector, setIAmDirector] = useState(false)
+  // מנהל שגולש בתיקים של מאמן אחר: { id, name }. קריאה בלבד — הדירוג
+  // נשאר של מי שמאמן (dossier_can_edit במסד לא נותן לו לכתוב בכלל).
+  const [viewCoach, setViewCoach] = useState(null)
   const [boot, setBoot] = useState({ loading: true, error: null, missing: false })
   const [catalog, setCatalog] = useState({ cats: [], measures: [], all: [] })
   const [teams, setTeams] = useState([])
@@ -210,7 +221,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
         setBoot({ loading: false, error: cat.error.message, missing: api.notDeployed(cat.error) })
         return
       }
-      const t = await api.loadTeams(me)
+      const t = await api.loadTeams(viewCoach?.id || me)
       if (!alive) return
       if (t.error) {
         setBoot({ loading: false, error: t.error.message, missing: api.notDeployed(t.error) })
@@ -226,12 +237,16 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
       // עריכת הקטלוג פתוחה למנהל מועדון בלבד — גם במסד וגם במסך
       if (club) {
         const cr = await api.loadClubRoles(club)
-        if (alive && !cr.error) setIAmManager((cr.roles || []).some((r) => r.user_id === me && r.role === 'club_manager'))
+        if (alive && !cr.error) {
+          const mine = (cr.roles || []).filter((r) => r.user_id === me)
+          setIAmManager(mine.some((r) => r.role === 'club_manager'))
+          setIAmDirector(mine.some((r) => r.role === 'technical_director'))
+        }
       }
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me, club, reloadKey])
+  }, [me, club, viewCoach?.id, reloadKey])
 
   // הגעה מכרטיס השחקן: קופצים ישר לתיק שלו (קבוצה + שחקן), פעם אחת
   useEffect(() => {
@@ -336,6 +351,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
     return <div className="welcome-card"><ErrorState message={boot.error} onRetry={() => setReloadKey((k) => k + 1)} /></div>
   }
 
+  const readOnly = !!viewCoach          // מנהל שגולש בתיקים של מאמן אחר
   const noTeams = teams.length === 0
   const rosterRow = teamRoster.find((r) => r.id === rosterId)
 
@@ -345,12 +361,21 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
         <button className={tab === 'dossier' ? 'tab active' : 'tab'} onClick={() => setTab('dossier')}>
           <FolderOpen size={15} aria-hidden="true" /> {L('תיק שחקן', 'Player dossier')}
         </button>
-        <button className={tab === 'round' ? 'tab active' : 'tab'} onClick={() => setTab('round')}>
-          <Users size={15} aria-hidden="true" /> {L('סבב דירוג', 'Rating round')}
-        </button>
-        <button className={tab === 'access' ? 'tab active' : 'tab'} onClick={() => setTab('access')}>
-          <Shield size={15} aria-hidden="true" /> {L('מי רואה את התיקים', 'Who sees them')}
-        </button>
+        {!readOnly && (
+          <button className={tab === 'round' ? 'tab active' : 'tab'} onClick={() => setTab('round')}>
+            <Users size={15} aria-hidden="true" /> {L('סבב דירוג', 'Rating round')}
+          </button>
+        )}
+        {!readOnly && (
+          <button className={tab === 'access' ? 'tab active' : 'tab'} onClick={() => setTab('access')}>
+            <Shield size={15} aria-hidden="true" /> {L('מי רואה את התיקים', 'Who sees them')}
+          </button>
+        )}
+        {(iAmManager || iAmDirector) && (
+          <button className={tab === 'club' ? 'tab active' : 'tab'} onClick={() => setTab('club')}>
+            <Shield size={15} aria-hidden="true" /> {L('המועדון', 'The club')}
+          </button>
+        )}
         {iAmManager && (
           <button className={tab === 'catalog' ? 'tab active' : 'tab'} onClick={() => setTab('catalog')}>
             <SlidersHorizontal size={15} aria-hidden="true" /> {L('הקטלוג', 'Catalog')}
@@ -358,15 +383,39 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
         )}
       </div>
 
+      {readOnly && (
+        <div className="pd-viewing" role="status">
+          <Eye size={16} aria-hidden="true" />
+          <span>
+            {L(`אתה צופה בתיקים של ${viewCoach.name} — קריאה בלבד.`, `Viewing ${viewCoach.name}’s dossiers — read only.`)}
+          </span>
+          <button type="button" className="btn-soft" onClick={() => { setViewCoach(null); setTab('dossier') }}>
+            <RotateCcw size={14} aria-hidden="true" /> {L('חזרה לקבוצות שלי', 'Back to my teams')}
+          </button>
+        </div>
+      )}
+
       {tab === 'catalog' ? (
         <CatalogEditor club={club} rows={catalog.rows || []} onSaved={() => setReloadKey((k) => k + 1)} />
+      ) : tab === 'club' ? (
+        <ClubManage
+          me={me}
+          club={club}
+          iAmManager={iAmManager}
+          onBrowse={(coach) => { setViewCoach(coach); setTab('dossier') }}
+        />
       ) : noTeams ? (
         <div className="empty-state">
           <span className="empty-ic"><Users size={26} /></span>
-          <div className="empty-title">{L('אין עדיין שחקנים', 'No players yet')}</div>
+          <div className="empty-title">
+            {readOnly ? L(`אין קבוצות אצל ${viewCoach.name}`, `No teams for ${viewCoach.name}`) : L('אין עדיין שחקנים', 'No players yet')}
+          </div>
           <p className="muted small">
-            {L('התיקים נבנים על הסגל שלך — מוסיפים שחקנים ב«הקבוצות שלי», וכל שחקן מקבל תיק אוטומטית.',
-               'Dossiers are built on your roster — add players in “My teams” and each gets a dossier automatically.')}
+            {readOnly
+              ? L('או שהוא עוד לא הוסיף שחקנים, או שהמסד עוד לא עודכן — צריך להריץ את supabase_club_manage_19_8.sql כדי שמנהל יראה סגל של מאמן אחר.',
+                  'Either they added no players yet, or supabase_club_manage_19_8.sql has not been run — a manager cannot read another coach’s roster without it.')
+              : L('התיקים נבנים על הסגל שלך — מוסיפים שחקנים ב«הקבוצות שלי», וכל שחקן מקבל תיק אוטומטית.',
+                  'Dossiers are built on your roster — add players in “My teams” and each gets a dossier automatically.')}
           </p>
         </div>
       ) : (
@@ -388,7 +437,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
                 </select>
               </>
             )}
-            {tab !== 'access' && (
+            {tab !== 'access' && !readOnly && (
               <>
                 <span className="muted small">{L('תאריך', 'Date')}</span>
                 <input className="finder-input pd-date" type="date" value={onDate} max={api.today()}
@@ -404,7 +453,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
             {saving && <span className="muted small">{L('שומר…', 'Saving…')}</span>}
           </div>
 
-          {tab !== 'access' && onDate !== api.today() && (
+          {tab !== 'access' && !readOnly && onDate !== api.today() && (
             <p className="pd-backdate" role="status">
               <CalendarDays size={15} aria-hidden="true" />
               {L(`מזינים לתאריך ${fmtDate(onDate)} — מה שתסמנו כאן יישמר לתאריך הזה, ולא להיום.`,
@@ -431,6 +480,8 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
               setValue={setValue}
               onDate={onDate}
               teamPids={teamPids}
+              readOnly={readOnly}
+              rosterOwner={viewCoach?.id || me}
             />
           ) : tab === 'round' ? (
             <RatingRound
@@ -464,7 +515,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
 // =====================================================================
 //  1. תיק שחקן
 // =====================================================================
-function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, loadEntriesFor, setValue, onDate, teamPids }) {
+function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, loadEntriesFor, setValue, onDate, teamPids, readOnly = false, rosterOwner }) {
   const [openCat, setOpenCat] = useState(catalog.cats[0]?.key || '')
   const [cmp, setCmp] = useState(false)   // השוואה לממוצע הקבוצה
   const [trendKey, setTrendKey] = useState(catalog.measures[0]?.key || catalog.cats[0]?.metrics[0]?.key || '')
@@ -485,8 +536,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
     ;(async () => {
       if (!rosterRow) return
       let id = personId
-      if (!id && !opened.current) { opened.current = true; id = await ensurePerson(rosterRow.id) }
-      if (!alive || !id) return
+      if (!id && !opened.current && !readOnly) { opened.current = true; id = await ensurePerson(rosterRow.id) }
+      if (!alive) return
+      if (!id) { if (readOnly) setReady(true); return }
       setPid(id)
       await loadEntriesFor([id])
       const [n, h, d] = await Promise.all([api.loadNotes(id), api.loadHistory(id), api.findDuplicates(id)])
@@ -496,7 +548,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
       setDups(d.candidates || [])
       setReady(true)
       const st = await api.loadAutoStats({
-        rosterId: rosterRow.id, playerId: rosterRow.player_id, coachId: me, team: rosterRow.team,
+        rosterId: rosterRow.id, playerId: rosterRow.player_id, coachId: rosterOwner || me, team: rosterRow.team,
       })
       if (alive) setAuto(st.stats || {})
     })()
@@ -556,6 +608,18 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
 
   if (!rosterRow) return null
   if (!ready) return <SkeletonCards count={2} lines={5} />
+  if (readOnly && !pid) {
+    return (
+      <div className="empty-state">
+        <span className="empty-ic"><FolderOpen size={26} /></span>
+        <div className="empty-title">{L('התיק עוד לא נפתח', 'The dossier was not opened yet')}</div>
+        <p className="muted small">
+          {L('התיק נוצר בפעם הראשונה שהמאמן נכנס אליו. עד אז אין מה להראות — וזה תקין.',
+             'A dossier is created the first time the coach opens it. Until then there is nothing to show.')}
+        </p>
+      </div>
+    )
+  }
 
   const age = rosterRow.birth_year ? new Date().getFullYear() - Number(rosterRow.birth_year) : null
 
@@ -572,10 +636,13 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
         <button type="button" className="btn-soft pd-print-btn" onClick={printDossier}>
           <Printer size={15} aria-hidden="true" /> {L('הדפסה', 'Print')}
         </button>
-        <span className="pd-lock"><Lock size={13} /> {L('סגור — אתה והמנהלים מעליך', 'Private — you and your managers')}</span>
+        <span className="pd-lock">
+          <Lock size={13} />{' '}
+          {readOnly ? L('קריאה בלבד', 'Read only') : L('סגור — אתה והמנהלים מעליך', 'Private — you and your managers')}
+        </span>
       </header>
 
-      {dups.length > 0 && (
+      {dups.length > 0 && !readOnly && (
         <div className="pd-dups">
           <Link2 size={16} aria-hidden="true" />
           <span>
@@ -612,7 +679,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
         <section className="pd-card">
           <div className="pd-card-h">
             <h3>{L('מדידות', 'Measurements')}</h3>
-            <span className="muted small">{L('לחיצה = מדידה חדשה', 'Tap to add a new one')}</span>
+            <span className="muted small">
+              {readOnly ? L('לחיצה = בחירת מדד לגרף', 'Tap to chart a metric') : L('לחיצה = מדידה חדשה', 'Tap to add a new one')}
+            </span>
           </div>
           <div className="pd-measures">
             {catalog.measures.map((m) => {
@@ -623,7 +692,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
               return (
                 <button key={m.key} type="button"
                   className={trendKey === m.key ? 'pd-measure on' : 'pd-measure'}
-                  onClick={() => { setTrendKey(m.key); setMeasureEdit({ key: m.key, value: v || '' }) }}>
+                  onClick={() => { setTrendKey(m.key); if (!readOnly) setMeasureEdit({ key: m.key, value: v || '' }) }}>
                   <span className="pd-measure-k"><Icon size={14} /> {m.label}</span>
                   <b dir="ltr">{v ? v : '—'}{v ? <small> {m.unit}</small> : null}</b>
                   {v && p ? (
@@ -687,7 +756,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
         <section className="pd-card pd-card--wide">
           <div className="pd-card-h">
             <h3>{L('דירוגים', 'Ratings')}</h3>
-            <span className="muted small">{L('1–5 · לחיצה על אותה נקודה מבטלת', '1–5 · tap the same dot to clear')}</span>
+            <span className="muted small">
+              {readOnly ? L('1–5 · קריאה בלבד', '1–5 · read only') : L('1–5 · לחיצה על אותה נקודה מבטלת', '1–5 · tap the same dot to clear')}
+            </span>
           </div>
           {catalog.cats.map((c) => {
             const open = openCat === c.key
@@ -715,7 +786,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                     {c.metrics.map((m) => (
                       <li key={m.key} className="pd-metric">
                         <span className="pd-metric-k">{m.label}</span>
-                        <Dots value={now(m.key)} name={m.label} canClear={hasOn(E[m.key], onDate)}
+                        <Dots value={now(m.key)} name={m.label} canClear={hasOn(E[m.key], onDate)} readOnly={readOnly}
                           onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
                         {cmp && teamAvg(m.key) > 0 ? (
                           <span className="pd-teamv" title={L('ממוצע הקבוצה', 'Team average')}>
@@ -735,9 +806,11 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
         <section className="pd-card pd-card--wide">
           <div className="pd-card-h">
             <h3>{L('רקע ושיחות', 'Background & talks')}</h3>
-            <button type="button" className="btn-soft pd-add" onClick={() => setNoteOpen((v) => !v)}>
-              <Plus size={15} /> {L('רשומה חדשה', 'New entry')}
-            </button>
+            {!readOnly && (
+              <button type="button" className="btn-soft pd-add" onClick={() => setNoteOpen((v) => !v)}>
+                <Plus size={15} /> {L('רשומה חדשה', 'New entry')}
+              </button>
+            )}
           </div>
           {noteOpen && (
             <div className="pd-note-new">
@@ -1565,6 +1638,191 @@ function CatalogEditor({ club, rows, onSaved }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// =====================================================================
+//  5. המועדון — הצוות, ומי רואה את מי (מנהל מועדון / מנהל מקצועי)
+// =====================================================================
+// מה שהיה עד היום שורת SQL: צירוף מאמן לעץ ומינוי מנהל מקצועי. המדיניות
+// במסד (club_roles_manager) מתירה למנהל המועדון להוסיף/להסיר 'coach' ו-
+// 'technical_director' במועדון שלו — ולא מנהלי מועדון נוספים, שזה של
+// אדמין המערכת בלבד. המסך לא ממציא הרשאה, הוא רק נותן לה כפתור.
+function ClubManage({ me, club, iAmManager, onBrowse }) {
+  const [roles, setRoles] = useState([])
+  const [coaches, setCoaches] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [r, c] = await Promise.all([api.loadClubRoles(club), api.loadClubCoaches(club, me)])
+    if (r.error) { setErr(r.error.message); setLoading(false); return }
+    setRoles(r.roles || [])
+    setCoaches(c.coaches || [])
+    setErr(null)
+    setLoading(false)
+  }, [club, me])
+  useEffect(() => { load() }, [load])
+
+  const managers = roles.filter((r) => r.role === 'club_manager')
+  const director = roles.find((r) => r.role === 'technical_director')
+  const inTree = roles.filter((r) => r.role === 'coach')
+  // מאמנים במועדון שעדיין לא בעץ — הרשימה לצירוף
+  const free = coaches.filter((c) => !roles.some((r) => r.user_id === c.id))
+
+  const add = async (userId, role) => {
+    setBusy(true)
+    const { error } = await api.addClubRole({ club, userId, role, byId: me })
+    setBusy(false)
+    if (error) { toast.error(L('הצירוף נכשל: ', 'Failed: ') + error.message); return }
+    setAddOpen(false)
+    toast.success(role === 'coach' ? L('המאמן צורף למועדון', 'Coach added') : L('המנהל המקצועי מונה', 'Technical director appointed'))
+    load()
+  }
+
+  const remove = async (row) => {
+    const isCoach = row.role === 'coach'
+    const ok = await confirmDialog({
+      title: isCoach ? L(`להוציא את ${row.name} מהעץ?`, `Remove ${row.name} from the club?`)
+                     : L(`לבטל את המינוי של ${row.name}?`, `Remove ${row.name} as technical director?`),
+      message: isCoach
+        ? L('מאותו רגע התיקים שלו פרטיים לחלוטין — גם אתה לא תראה אותם. שום נתון לא נמחק, והחזרה לעץ מחזירה את התצוגה.',
+            'From that moment their dossiers are fully private — you will not see them either. Nothing is deleted; adding them back restores the view.')
+        : L('הוא יישאר מאמן במועדון, אבל יפסיק לראות את התיקים של המאמנים האחרים.',
+            'They stay a coach in the club but stop seeing the other coaches’ dossiers.'),
+      confirmText: L('הסרה', 'Remove'), danger: true,
+    })
+    if (!ok) return
+    setBusy(true)
+    const { error } = await api.removeClubRole(row.id)
+    setBusy(false)
+    if (error) { toast.error(L('ההסרה נכשלה: ', 'Remove failed: ') + error.message); return }
+    load()
+  }
+
+  if (!club) {
+    return (
+      <div className="empty-state">
+        <span className="empty-ic"><Shield size={26} /></span>
+        <div className="empty-title">{L('אין מועדון בפרופיל', 'No club in your profile')}</div>
+        <p className="muted small">{L('רושמים את שם המועדון בפרופיל, ואז אפשר לבנות את הצוות.', 'Add your club name in the profile first.')}</p>
+      </div>
+    )
+  }
+  if (loading) return <SkeletonCards count={2} lines={4} />
+  if (err) return <ErrorState message={err} onRetry={load} />
+
+  return (
+    <div className="pd">
+      <header className="pd-head">
+        <div className="pd-head-tx">
+          <h2 className="pd-name">{club}</h2>
+          <span className="pd-meta">
+            {L('הצוות של המועדון — ומה שכל אחד רואה. מאמן שלא בעץ: התיקים שלו פרטיים לחלוטין.',
+               'The club staff — and what each of them sees. A coach outside the tree keeps fully private dossiers.')}
+          </span>
+        </div>
+        {iAmManager && free.length > 0 && (
+          <button type="button" className="btn-soft pd-add" onClick={() => setAddOpen((v) => !v)}>
+            <UserPlus size={15} aria-hidden="true" /> {L('צירוף מאמן', 'Add a coach')}
+          </button>
+        )}
+      </header>
+
+      {addOpen && (
+        <div className="pd-note-new">
+          <p className="muted small">
+            {L('מאמנים שרשמו את שם המועדון בפרופיל ועוד לא צורפו. צירוף = אתה רואה את התיקים שלו, והוא ממשיך לעבוד כרגיל.',
+               'Coaches who wrote this club in their profile and are not in the tree yet.')}
+          </p>
+          <div className="chips">
+            {free.map((c) => (
+              <button key={c.id} type="button" className="chip" disabled={busy} onClick={() => add(c.id, 'coach')}>
+                <UserPlus size={13} aria-hidden="true" /> {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="pd-grid">
+        <section className="pd-card pd-card--wide">
+          <div className="pd-card-h">
+            <h3><Shield size={16} aria-hidden="true" /> {L('הנהלה', 'Management')}</h3>
+          </div>
+          <ul className="pd-grants">
+            <li>
+              <b>{L('מנהל מועדון', 'Club manager')}</b>
+              <span className="pd-grant-lvl auto">
+                {managers.length
+                  ? managers.map((m) => m.name + (m.user_id === me ? L(' (אתה)', ' (you)') : '')).join(' · ')
+                  : L('לא מונה', 'Not appointed')}
+              </span>
+            </li>
+            <li>
+              <b>{L('מנהל מקצועי', 'Technical director')}</b>
+              {director ? (
+                <>
+                  <span className="pd-grant-lvl auto">{director.name}{director.user_id === me ? L(' (אתה)', ' (you)') : ''}</span>
+                  {iAmManager && (
+                    <button type="button" className="link-button danger" disabled={busy} onClick={() => remove(director)}>
+                      {L('ביטול מינוי', 'Remove')}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="pd-grant-lvl">{L('לא מונה', 'Not appointed')}</span>
+              )}
+            </li>
+          </ul>
+          <p className="muted small">
+            {L('מנהל מועדון נקבע רק בידי מנהל המערכת — זו שורת SQL אחת, ובכוונה. את המנהל המקצועי אתה ממנה מתוך המאמנים שבעץ.',
+               'The club manager is set by the system admin only. You appoint the technical director from the coaches in the tree.')}
+          </p>
+        </section>
+
+        <section className="pd-card pd-card--wide">
+          <div className="pd-card-h">
+            <h3><Users size={16} aria-hidden="true" /> {L('המאמנים בעץ', 'Coaches in the tree')}</h3>
+            <span className="muted small"><bdi dir="ltr">{inTree.length}</bdi></span>
+          </div>
+          {inTree.length === 0 ? (
+            <p className="muted small">
+              {L('עוד לא צורף אף מאמן. עד שתצרף — כל מאמן במועדון עובד לבד, והתיקים שלו פרטיים לחלוטין. זה מצב תקין, לא תקלה.',
+                 'No coach added yet. Until you add one, every coach works alone and their dossiers are fully private.')}
+            </p>
+          ) : (
+            <ul className="pd-grants">
+              {inTree.map((r) => (
+                <li key={r.id}>
+                  <b>{r.name}{r.user_id === me ? L(' (אתה)', ' (you)') : ''}</b>
+                  <button type="button" className="link-button" onClick={() => onBrowse({ id: r.user_id, name: r.name })}>
+                    <FolderOpen size={13} aria-hidden="true" /> {L('התיקים שלו', 'Their dossiers')}
+                  </button>
+                  {iAmManager && !director?.user_id && r.user_id !== me && (
+                    <button type="button" className="link-button" disabled={busy} onClick={() => add(r.user_id, 'technical_director')}>
+                      {L('מינוי כמנהל מקצועי', 'Make technical director')}
+                    </button>
+                  )}
+                  {iAmManager && (
+                    <button type="button" className="link-button danger" disabled={busy} onClick={() => remove(r)}>
+                      {L('הוצאה מהעץ', 'Remove')}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="muted small">
+            {L('צפייה בתיקים היא קריאה בלבד: הדירוג נשאר של מי שמאמן. אם צריך לתקן — מבקשים מהמאמן, או שהוא נותן גישת «עריכה» במסך «מי רואה».',
+               'Browsing is read-only: the rating belongs to the coach. To change one, ask them — or get “edit” access in the “Who sees” screen.')}
+          </p>
+        </section>
+      </div>
     </div>
   )
 }

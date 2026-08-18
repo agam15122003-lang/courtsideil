@@ -78,9 +78,10 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 37 | `supabase_schedule_board_4_8.sql` | **חובה** — זימון פגישה רק בין מאמנים (עד כה אפשר היה לזמן קטין), `location` ל-`schedule_entries`/`coach_meetings`, ואינדקס ראשון ל-`schedule_entries` |
 | 38 | `supabase_notebook_18_8.sql` | **חובה** — «המחברת המלאה» 18.8: `training_plans.body/ink/courts/team/session_date/duration_minutes/is_draft`, `practice_attendance.reason`, `player_assignments.plan_view`, RPC `plan_for_player` (מה השחקן רואה מתוכנית ששוגרה אליו) |
 | 39 | `supabase_dossier_18_8.sql` | **חובה לתיק שחקן** — `dossier_people` (זהות אחת לשחקן) + `team_players.person_id`, `dossier_metrics` (קטלוג: 16 דירוגים + 4 מדידות, ניתן לעריכה לכל מועדון), `dossier_entries`, `dossier_notes`, `dossier_access`, `club_roles`, ופונקציות ההרשאה `dossier_can_see`/`dossier_can_edit` |
+| 40 | `supabase_club_manage_19_8.sql` | **חובה למסך «המועדון»** — `club_manager_sees_coach()` ומדיניות `roster_club_manager_read` על `team_players`: מנהל מועדון/מנהל מקצועי רואה את הסגל של מאמן **שצורף לעץ** בלבד, לקריאה בלבד. בלי הקובץ הזה המסך של המנהל ריק |
 
 > **גל «עולם המשחק» (12.8–16.8) אינו בטבלה הזו** — שבעת הקבצים `supabase_game_*` מרוכזים
-> ב-`הרצת_SQL_12.8.md` עם סטטוס ההרצה בפועל. **`supabase_game_quiz_hardening_13_8.sql` טרם רץ.**
+> ב-`הרצת_SQL_12.8.md` עם סטטוס ההרצה בפועל. `supabase_game_quiz_hardening_13_8.sql` **רץ ואומת ב-18.8.2026 בערב.**
 
 > **הגל של 18.8 מרוכז ב-`הרצת_SQL_18.8.md`** — שני קבצים
 > (`supabase_notebook_18_8.sql` ואחריו `supabase_dossier_18_8.sql`),
