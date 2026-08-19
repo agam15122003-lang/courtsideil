@@ -29315,3 +29315,23 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   .sidebar { transition: none !important; }
 }
 html.a11y-motion .sidebar { transition: none !important; }
+
+/* =====================================================================
+   19.8 — תיקוני סקירה על העבודה של היום
+   ===================================================================== */
+/* ההדפסה יצאה דף ריק. שני בלוקי הדפסה ותיקים (שורות 955 ו-5264) מסתירים
+   `body *` ומחזירים ראות ל-.print-area / .notebook בלבד. דף התיק יושב על
+   ה-body בפורטל, ולכן `body *` תופס גם אותו — הבלוק הקודם קבע display
+   בלבד. כאן מחזירים ראות, בהיקף body.print-dossier בלבד, כדי שהדפסת
+   המחברת ודף התרגיל לא ייפגעו. */
+@media print {
+  body.print-dossier .pd-paper,
+  body.print-dossier .pd-paper * { visibility: visible; }
+}
+/* יעדי מגע שנשארו מתחת ל-44px בקוד של היום (DESIGN.md §7) */
+@media (pointer: coarse) {
+  .pd-cmp,
+  .pd-grants .link-button { min-height: 44px; }
+}
+/* --warning מוגדר פעם אחת בשורש ואין לו ערך למצב כהה; --warn יש לו */
+.pd-backdate svg { color: var(--warn); }

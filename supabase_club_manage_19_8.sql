@@ -9,8 +9,10 @@
 --
 -- מה נוסף כאן, ורק זה:
 --   1. club_manager_sees_coach(uuid) — «האם אני מנהל של המועדון שהמאמן
---      הזה צורף אליו». אותו היגיון בדיוק של dossier_manager_sees, אבל
---      על מאמן ולא על תיק.
+--      הזה צורף אליו, והמאמן אכן שייך למועדון הזה». אותו היגיון של
+--      dossier_manager_sees, כולל עוגן המועדון שלו — ראו §1.
+--   1ב. סגירת החור שהמדיניות נשענת עליו: צירוף לעץ מוגבל למי שהצהיר
+--      על אותו מועדון בפרופיל.
 --   2. מדיניות select נוספת על team_players. מדיניות **נוספת** — היא
 --      מתווספת ב-OR לקיימות ולא מחליפה אותן.
 --
@@ -24,6 +26,11 @@
 -- בטוח להרצה חוזרת. הרצה: Supabase → SQL Editor → הדבקה → Run.
 -- ביטול: drop policy roster_club_manager_read on public.team_players;
 --        (המסך יחזור להיות ריק למנהל, ושום נתון לא נפגע)
+--
+-- ⚠ מה המנהל רואה בפועל: המדיניות היא על **השורה**, ולכן מנהל שרואה סגל
+--    של מאמן בעץ רואה את כל עמודות הסגל — כולל מספר גופייה וטלפון (אצל
+--    קטין: טלפון ההורה). זה נגזר מהכלל שהבעלים קבע («המנהל רואה את
+--    התיקים של המאמנים בעץ»), אבל כדאי שייאמר במפורש ולא יתגלה אחר כך.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -32,6 +39,16 @@
 --    club_roles ישירות בלי להסתבך בהרשאות, ובטבלאות תפקידים קריאה
 --    ישירה כזו היא גם המקור לרקורסיה («infinite recursion in policy»).
 -- ---------------------------------------------------------------------
+-- «המועדון שהמאמן עצמו הצהיר עליו בפרופיל». security definer, כי
+-- הביטוי הזה נקרא גם מתוך WITH CHECK של מדיניות — שם ה-RLS על profiles
+-- חל על המשתמש הקורא, ותת-שאילתה ישירה הייתה נכשלת בשקט.
+create or replace function public.coach_declared_club(p_user uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select club from public.profiles where id = p_user;
+$$;
+revoke all on function public.coach_declared_club(uuid) from public;
+grant execute on function public.coach_declared_club(uuid) to authenticated;
+
 create or replace function public.club_manager_sees_coach(p_coach uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select auth.uid() is not null and p_coach is not null and exists (
@@ -43,10 +60,36 @@ returns boolean language sql stable security definer set search_path = public as
        and crd.user_id = p_coach
      where mgr.user_id = auth.uid()
        and mgr.role in ('club_manager', 'technical_director')
+       -- ⚠ העוגן. dossier_manager_sees מקבל את המועדון מהתיק עצמו
+       -- (p.club); כאן אין תיק, ולכן צריך לומר במפורש שהשורה בעץ שייכת
+       -- למועדון שהמאמן עצמו הצהיר עליו. בלי זה, מנהל שמכניס לעץ שלו
+       -- מזהה של מאמן זר — והוא היחיד שכותב לטבלה הזו — היה קורא את כל
+       -- הסגל של אותו מאמן, מכל מועדון בארץ.
+       and crd.club = public.coach_declared_club(p_coach)
   );
 $$;
 revoke all on function public.club_manager_sees_coach(uuid) from public;
 grant execute on function public.club_manager_sees_coach(uuid) to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- 1ב) והחור שהמדיניות נשענה עליו: מנהל יכול היה לצרף לעץ **כל** מזהה
+--     משתמש בארץ, כי club_roles_manager (18.8) בדקה רק שהוא מנהל של
+--     המועדון — לא שהמצורף שייך אליו. מהיום מצרפים רק מי שרשם את אותו
+--     מועדון בפרופיל שלו.
+--     ⚠ אם תריץ שוב את supabase_dossier_18_8.sql — הרץ שוב גם את זה,
+--     אחרת המדיניות הרפויה חוזרת בשקט.
+-- ---------------------------------------------------------------------
+drop policy if exists club_roles_manager on public.club_roles;
+create policy club_roles_manager on public.club_roles
+  for all to authenticated
+  using (role in ('technical_director', 'coach') and public.is_club_manager(club))
+  with check (
+    role in ('technical_director', 'coach')
+    and approved_by = auth.uid()
+    and public.is_club_manager(club)
+    and public.coach_declared_club(club_roles.user_id) = club_roles.club
+  );
 
 
 -- ---------------------------------------------------------------------

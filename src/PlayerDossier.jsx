@@ -142,7 +142,7 @@ function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
           <g>
             <line x1={pad.l} y1={y(teamAvg)} x2={w - pad.r} y2={y(teamAvg)} className="pd-team-line" />
             <text x={pad.l + 4} y={y(teamAvg) - 5} className="pd-team-lbl">
-              {L('ממוצע הקבוצה', 'Team average')} <tspan dir="ltr">{teamAvg}</tspan>
+              {L('ממוצע שאר הקבוצה', 'Rest of the team')} <tspan dir="ltr">{teamAvg}</tspan>
             </text>
           </g>
         )}
@@ -272,11 +272,14 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   }, [initialRosterId, roster.length])
 
   const teamRoster = useMemo(() => roster.filter((r) => r.team === team), [roster, team])
+  // תלוי בזהות המערך ולא ב«שם הקבוצה + מספר שחקנים»: לשני מאמנים באותו
+  // מועדון יש כמעט תמיד קבוצה באותו שם, ואם גם המספר זהה — הבדיקה הישנה
+  // לא הייתה רצה, ו-rosterId היה נשאר תקוע על שחקן של המאמן הקודם.
   useEffect(() => {
     if (!teamRoster.length) { setRosterId(null); return }
     if (!teamRoster.some((r) => r.id === rosterId)) setRosterId(teamRoster[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team, teamRoster.length])
+  }, [teamRoster])
 
   // מזהי האנשים של הקבוצה — לממוצע הקבוצה. **בלי לפתוח תיקים חדשים**:
   // פתיחת תיק היא פעולה של המאמן, לא תופעת לוואי של צפייה במסך.
@@ -366,6 +369,11 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   }
 
   const readOnly = !!viewCoach          // מנהל שגולש בתיקים של מאמן אחר
+  // גלישה של מנהל היא תמונת מצב של **היום**. תאריך הזנה שהמאמן בחר לעצמו
+  // אסור לו לדלוף לתיק של מאמן אחר — שם אין בורר תאריך שיגלה אותו, והתיק
+  // היה נראה ריק בלי סיבה נראית לעין. נגזר כאן ולא ב-setState, כדי שכל
+  // דרך עתידית להיכנס לגלישה תהיה מכוסה בלי לזכור לאפס.
+  const viewDate = readOnly ? api.today() : onDate
   const noTeams = teams.length === 0
   const rosterRow = teamRoster.find((r) => r.id === rosterId)
 
@@ -492,7 +500,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
               entries={entries}
               loadEntriesFor={loadEntriesFor}
               setValue={setValue}
-              onDate={onDate}
+              onDate={viewDate}
               teamPids={teamPids}
               readOnly={readOnly}
               rosterOwner={viewCoach?.id || me}
@@ -574,9 +582,14 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   // מה שהיה בתוקף בתאריך הנבחר — לא הדירוג האחרון בזמן
   const now = (key) => atDate(E[key], onDate).cur
   const prev = (key) => atDate(E[key], onDate).prev
-  // ממוצע הקבוצה למדד, באותו תאריך, לפי מי שכבר יש לו ערך
+  // ממוצע **שאר** הקבוצה למדד, באותו תאריך, לפי מי שכבר יש לו ערך.
+  // בלי להוציא את השחקן הנוכחי, קבוצה שדורגה בה רק הוא הייתה מציירת
+  // «ממוצע הקבוצה» בדיוק דרך הנקודה שלו — השוואה של שחקן לעצמו.
   const teamAvg = (key) => {
-    const vals = (teamPids || []).map((id) => atDate((entries[id] || {})[key], onDate).cur).filter((v) => v > 0)
+    const vals = (teamPids || [])
+      .filter((id) => id !== pid)
+      .map((id) => atDate((entries[id] || {})[key], onDate).cur)
+      .filter((v) => v > 0)
     return vals.length ? round1(vals.reduce((a, b) => a + b, 0) / vals.length) : 0
   }
   const trendMetric = catalog.all.find((m) => m.key === trendKey)
@@ -789,7 +802,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                   <b>{c.label}</b>
                   <span className="pd-cat-avg" dir="ltr">{avgNow ? avgNow.toFixed(1) : '—'}</span>
                   {avgTeam > 0 && (
-                    <span className="pd-teamv" title={L('ממוצע הקבוצה', 'Team average')}>
+                    <span className="pd-teamv" title={L('ממוצע שאר הקבוצה', 'Rest of the team')}>
                       <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{avgTeam}</bdi>
                     </span>
                   )}
@@ -803,7 +816,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                         <Dots value={now(m.key)} name={m.label} canClear={hasOn(E[m.key], onDate)} readOnly={readOnly}
                           onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
                         {cmp && teamAvg(m.key) > 0 ? (
-                          <span className="pd-teamv" title={L('ממוצע הקבוצה', 'Team average')}>
+                          <span className="pd-teamv" title={L('ממוצע שאר הקבוצה', 'Rest of the team')}>
                             <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{teamAvg(m.key)}</bdi>
                           </span>
                         ) : null}
@@ -857,7 +870,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                       <CalendarDays size={12} /> {fmtDate(n.on_date)}
                       {n.coach ? ` · ${[n.coach.first_name, n.coach.last_name].filter(Boolean).join(' ')}` : ''}
                     </span>
-                    {n.coach_id === me && (
+                    {!readOnly && n.coach_id === me && (
                       <button type="button" className="pd-note-del" onClick={() => delNote(n.id)} aria-label={L('מחיקה', 'Delete')}>
                         <Trash2 size={13} />
                       </button>
@@ -963,7 +976,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             <div className="pdp-notes">
               <h2>{L('רקע ושיחות', 'Background & talks')}</h2>
               {notes.map((n) => (
-                <p key={n.id}><b>{n.kind} · {fmtDate(n.on_date)}</b> {n.content}</p>
+                <p key={n.id}><b>{kindLabel(n.kind)} · {fmtDate(n.on_date)}</b> {n.content}</p>
               ))}
             </div>
           )}

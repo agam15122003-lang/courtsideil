@@ -666,8 +666,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                 onChange={(e) => onBirthDate(e.target.value)}
               />
               <span className="muted small">
-                {L('חשבון מאמן מיועד לבגירים (18+). התאריך משמש לאימות גיל בלבד, אינו מוצג לאף אחד ואינו נשלח לשום מקום.',
-                   'A coach account is for adults (18+). The date is used only to verify age; it is shown to nobody.')}
+                {L('חשבון מאמן מיועד לבגירים (18+). התאריך נשמר בחשבונך לאימות גיל בלבד, ואינו מוצג לאף משתמש אחר.',
+                   'A coach account is for adults (18+). The date is stored on your account for age verification only and is shown to no other user.')}
               </span>
             </label>
           </section>

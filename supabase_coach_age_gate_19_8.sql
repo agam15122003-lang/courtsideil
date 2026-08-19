@@ -69,6 +69,14 @@ set search_path = public
 as $$
 declare v_completing boolean; v_age int; v_require boolean;
 begin
+  -- ⚠ profiles.role הוא text בלי CHECK, ומדיניות העדכון על הפרופיל אינה
+  -- מגבילה את הערך — כלומר משתמש יכול לכתוב לעצמו כל מחרוזת. האפליקציה
+  -- מתייחסת לכל מה שאינו 'player' כמאמן, אבל שני השערים בדקו שוויון
+  -- מדויק: השער כאן על 'coach', ושער ההסכמות של הקטינים על 'player'.
+  -- מחרוזת שלישית ('Coach', 'coach ') הייתה חומקת בין שניהם — קטין בלי
+  -- אישור הורה ובלי בדיקת גיל. נרמול כאן, לפני כל החלטה.
+  new.role := case when new.role = 'player' then 'player' else 'coach' end;
+
   -- «הפרופיל מושלם עכשיו»: יצירה, או המעבר הראשון משם ריק לשם מלא.
   -- ⚠ חייב להישאר IF ולא ביטוי אחד עם OR: ב-INSERT הרשומה OLD אינה
   -- מוקצית, ו-plpgsql מעריך את הביטוי כולו — «record old is not
@@ -80,7 +88,8 @@ begin
                 and coalesce(new.first_name, '') <> '';
   end if;
 
-  if not v_completing or new.role is distinct from 'coach' then
+  -- אחרי הנרמול יש בדיוק שני ערכים, ולכן «כל מי שאינו שחקן» = מאמן.
+  if not v_completing or new.role = 'player' then
     return new;
   end if;
 
@@ -145,22 +154,26 @@ end $$;
 notify pgrst, 'reload schema';
 
 -- =====================================================================
---  אימות אחרי ההרצה (הרצו את שלושתם):
+--  אימות אחרי ההרצה — **בדיקה אחת, בטוחה, שלא משנה כלום:**
 --
---  1. העמודה קיימת וכבויה:
 --       select coach_birthdate_required, require_coach_birthdate
---         from public.game_settings;        -- false, false
+--         from public.game_settings;        -- אמור לחזור: false, false
 --
---  2. ההרשמה לא נשברה — השורה הריקה עדיין עוברת גם כשהמתג דלוק:
+--  שתי השורות false פירושן: הקובץ רץ, והשער עדיין כבוי. זהו.
+--
+--  ⚠ מה שהיה כאן קודם ונמחק בכוונה: בדיקה שהדליקה את המתג, יצרה שורת
+--    פרופיל, והציעה `delete from public.profiles where first_name is
+--    null` לניקוי. שלוש מלכודות בשורה אחת — היא משאירה את השער דלוק
+--    בפרוד לפני שהפרונט עלה, היא כותבת לטבלה חיה, וה-DELETE הזה מוחק
+--    **כל משתמש אמיתי שנרשם ועוד לא מילא פרופיל**. מסמך הרצה לא נותן
+--    לבעלים פקודת מחיקה בלי סינון. הענף שהיא ניסתה לבדוק (השורה הריקה
+--    של handle_new_user) מכוסה בתנאי `coalesce(new.first_name,'') <> ''`
+--    שכתוב למעלה, ואפשר לקרוא אותו בעיניים.
+--
+--  להדליק את השער — **רק אחרי שהפרונט של 19.8 באוויר**:
 --       update public.game_settings set coach_birthdate_required = true;
---       insert into public.profiles (id) values (gen_random_uuid());  -- אמור לעבור
---       -- ואז לנקות: delete from public.profiles where first_name is null and club is null;
 --
---  3. קטין מוצהר נחסם:
---       insert into public.profiles (id, role, first_name, birth_date)
---       values (gen_random_uuid(), 'coach', 'בדיקה', current_date - interval '15 years');
---       -- אמורה לחזור החריגה «חשבון מאמן מיועד לבגירים (18+)»
---
---  להדליק את השער רק אחרי שהפרונט של 19.8 באוויר:
---       update public.game_settings set coach_birthdate_required = true;
+--  ואז, כדי לוודא שההרשמה לא נשברה: להיכנס למסך ההרשמה באתר עצמו,
+--  לפתוח חשבון בדיקה, ולמחוק אותו אחר כך לפי המזהה שלו. בדיקה דרך
+--  המסך היא הבדיקה האמיתית; SQL על טבלה חיה הוא סיכון מיותר.
 -- =====================================================================
