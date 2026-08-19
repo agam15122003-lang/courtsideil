@@ -29,7 +29,19 @@ import * as api from './dossierApi'
 // שאסור לו. שחקנים והורים אינם רואים דבר מהתיק.
 
 const ICON_BY_MEASURE = { height: Ruler, weight: Weight, jump: MoveUp, sprint: Timer }
-const NOTE_KINDS = ['רקע', 'שיחה', 'פציעה', 'משפחה', 'לימודים']
+// המפתח נשאר עברית — הוא מה שכבר שמור ב-dossier_notes.kind בפרוד;
+// רק התווית מתורגמת (אותו דפוס כמו סיבות ההיעדרות ב-PlanNotebook).
+const NOTE_KINDS = [
+  { k: 'רקע', en: 'Background' },
+  { k: 'שיחה', en: 'Talk' },
+  { k: 'פציעה', en: 'Injury' },
+  { k: 'משפחה', en: 'Family' },
+  { k: 'לימודים', en: 'School' },
+]
+const kindLabel = (k) => {
+  const x = NOTE_KINDS.find((n) => n.k === k)
+  return x ? L(x.k, x.en) : k
+}
 
 const fmtDate = (iso) => {
   if (!iso) return ''
@@ -523,7 +535,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   const [trendKey, setTrendKey] = useState(catalog.measures[0]?.key || catalog.cats[0]?.metrics[0]?.key || '')
   const [notes, setNotes] = useState([])
   const [noteOpen, setNoteOpen] = useState(false)
-  const [noteKind, setNoteKind] = useState(NOTE_KINDS[0])
+  const [noteKind, setNoteKind] = useState(NOTE_KINDS[0].k)
   const [noteText, setNoteText] = useState('')
   const [history, setHistory] = useState([])
   const [auto, setAuto] = useState({})
@@ -817,8 +829,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
           {noteOpen && (
             <div className="pd-note-new">
               <div className="chips">
-                {NOTE_KINDS.map((k) => (
-                  <button key={k} type="button" className={noteKind === k ? 'chip selected' : 'chip'} onClick={() => setNoteKind(k)}>{k}</button>
+                {NOTE_KINDS.map((n) => (
+                  <button key={n.k} type="button" className={noteKind === n.k ? 'chip selected' : 'chip'}
+                    onClick={() => setNoteKind(n.k)}>{kindLabel(n.k)}</button>
                 ))}
               </div>
               <textarea className="finder-input" rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)}
@@ -839,7 +852,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
               {notes.map((n) => (
                 <li key={n.id} className="pd-note">
                   <span className="pd-note-top">
-                    <span className="pd-note-kind">{n.kind}</span>
+                    <span className="pd-note-kind">{kindLabel(n.kind)}</span>
                     <span className="muted small">
                       <CalendarDays size={12} /> {fmtDate(n.on_date)}
                       {n.coach ? ` · ${[n.coach.first_name, n.coach.last_name].filter(Boolean).join(' ')}` : ''}
@@ -1023,7 +1036,16 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
 
   if (prep) return <SkeletonCards count={1} lines={6} />
   if (!metrics.length) {
-    return <p className="muted small">{L('אין קטגוריות בקטלוג.', 'No categories in the catalog.')}</p>
+    return (
+      <div className="empty-state">
+        <span className="empty-ic"><ListChecks size={26} /></span>
+        <div className="empty-title">{L('אין קטגוריות בקטלוג', 'No categories in the catalog')}</div>
+        <p className="muted small">
+          {L('מנהל המועדון מפעיל קטגוריות בטאב «הקטלוג» — בלעדיהן אין מה לדרג.',
+             'The club manager enables categories under “Catalog” — without them there is nothing to rate.')}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -1168,6 +1190,8 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
   const [coaches, setCoaches] = useState([])
   const [pickOpen, setPickOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
+  const [retry, setRetry] = useState(0)
   const [personId, setPersonId] = useState(personByRoster[rosterRow?.id] || null)
 
   useEffect(() => {
@@ -1183,6 +1207,12 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
         pid ? api.loadAccess(pid) : Promise.resolve({ access: [] }),
       ])
       if (!alive) return
+      // מסך שמבטיח «אף אחד אחר לא רואה» חייב לדעת שהוא באמת בדק.
+      // שאילתה שנכשלה החזירה עד היום רשימה ריקה — כלומר הבטחה על סמך
+      // כלום. רשימת המאמנים לצירוף (c) היא נוחות בלבד ולכן רכה.
+      const bad = r.error || a.error
+      if (bad) { setErr(bad.message); setLoading(false); return }
+      setErr(null)
       setRoles(r.roles || [])
       setCoaches(c.coaches || [])
       setAccess(a.access || [])
@@ -1190,7 +1220,7 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [club, rosterRow?.id])
+  }, [club, rosterRow?.id, retry])
 
   const manager = roles.find((r) => r.role === 'club_manager')
   const director = roles.find((r) => r.role === 'technical_director')
@@ -1229,6 +1259,7 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
   }
 
   if (loading) return <SkeletonCards count={2} lines={4} />
+  if (err) return <ErrorState message={err} onRetry={() => setRetry((n) => n + 1)} />
 
   const seers = [L('אתה', 'you')]
   if (manager && manager.user_id !== me && iAmInTree) seers.push(`${manager.name} (${L('מנהל המועדון', 'club manager')})`)

@@ -108,7 +108,7 @@ export default function PlanSheet({ plan, attendance, items }) {
     return st.length > 1 || st.some((x) => (x.ink || []).length || (x.objects || []).length || (x.arrows || []).length)
   })
   const coach = plan.coach || {}
-  const statusLabel = (s) => (s === 'late' ? L('מאחר', 'Late') : s === 'absent' ? L('לא מגיע', 'Absent') : L('מגיע', 'Present'))
+  const statusLabel = (s) => (s === 'late' ? L('איחר', 'Late') : s === 'absent' ? L('נעדר', 'Absent') : L('נוכח', 'Present'))
 
   return (
     <div className="notebook nbk nbk-sheet" dir="rtl">
@@ -151,7 +151,7 @@ export default function PlanSheet({ plan, attendance, items }) {
               <div className="nbk-att-h">
                 <span>{L('נוכחות', 'Attendance')}</span>
                 <span className="muted small">
-                  <span dir="ltr">{attendance.filter((a) => a.status !== 'absent').length}/{attendance.length}</span> {L('מגיעים', 'attending')}
+                  <span dir="ltr">{attendance.filter((a) => a.status !== 'absent').length}/{attendance.length}</span> {L('נוכחים', 'present')}
                 </span>
               </div>
               <ul className="nbk-att-list ro">

@@ -30,7 +30,7 @@ import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import PlayerTeamHub from './PlayerTeamHub'
 import BasketballWorld from './BasketballWorld'
-import { MyGoals, GoalChart } from './PlayerGoals'
+import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import BasketballIcon from './BasketballIcon'
@@ -47,7 +47,7 @@ import {
 } from './consent'
 import { burstConfetti } from './confetti'
 import { expandSlots, expandSlotsRange } from './sessionId'
-import { safeUrl, COACHING_QUOTES, NEWS_SOURCES, NEWS_CACHE_KEY, VIDEO_CATEGORIES, PODCASTS } from './constants'
+import { safeUrl, COACHING_QUOTES, VIDEO_CATEGORIES, PODCASTS } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
 import { SkeletonCards, SkeletonMedia } from './Skeleton'
@@ -1973,7 +1973,7 @@ function HomeRsvp({ session, membership, next, variant }) {
             disabled={busy || restricted}
             aria-pressed={mine === 'yes'}
           >
-            <Check size={16} aria-hidden="true" /> {L('אני מגיע', "I'm coming")}
+            <Check size={16} aria-hidden="true" /> {L('מגיע', 'Coming')}
           </button>
           <button
             type="button"
@@ -2032,7 +2032,7 @@ function HomeRsvp({ session, membership, next, variant }) {
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
           onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
-          {L('לא אוכל', "Can't make it")}
+          {L('לא אגיע', "Can't make it")}
         </button>
       </div>
       {restricted && (

@@ -38,7 +38,7 @@ const STATUSES = [
   { key: 'active', he: 'פעיל', en: 'Active' },
   { key: 'injured', he: 'פצוע', en: 'Injured' },
   { key: 'sick', he: 'חולה', en: 'Sick' },
-  { key: 'absent', he: 'לא מגיע', en: 'Absent' },
+  { key: 'absent', he: 'לא פעיל', en: 'Inactive' },
 ]
 const statusLabel = (k) => L((STATUSES.find((x) => x.key === k) || STATUSES[0]).he, (STATUSES.find((x) => x.key === k) || STATUSES[0]).en)
 
