@@ -44,7 +44,14 @@
 -- חל על המשתמש הקורא, ותת-שאילתה ישירה הייתה נכשלת בשקט.
 create or replace function public.coach_declared_club(p_user uuid)
 returns text language sql stable security definer set search_path = public as $$
-  select club from public.profiles where id = p_user;
+  -- ⚠ תנאי המבקר, לא קישוט. security definer עוקף RLS, ובפרויקט הזה
+  -- אנונימי מצליח בפועל להריץ פונקציות ב-public גם אחרי revoke — נבדק
+  -- מול הפרוד ב-19.8 (גם is_club_manager הישנה נענית לאנונימי). בלי
+  -- השורה הזו, מי שמחזיק מזהה משתמש היה מקבל את שם המועדון שלו בלי
+  -- להתחבר בכלל. הפונקציות האחרות מחזירות בוליאני על **הקורא**; זו
+  -- מחזירה נתון על **אדם אחר**, ולכן היא היחידה שצריכה שער.
+  select case when auth.uid() is null then null
+              else (select club from public.profiles where id = p_user) end;
 $$;
 revoke all on function public.coach_declared_club(uuid) from public;
 grant execute on function public.coach_declared_club(uuid) to authenticated;
