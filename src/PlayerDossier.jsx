@@ -897,7 +897,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
               {auto.attendance != null && (
                 <span className="pd-auto-item">
                   <Activity size={15} /> {L('נוכחות', 'Attendance')} <b dir="ltr">{auto.attendance}%</b>
-                  <span className="muted small">(<bdi dir="ltr">{auto.sessions}</bdi> {L('אימונים', 'sessions')})</span>
+                  <span className="muted small">
+                    (<bdi dir="ltr">{auto.sessions}</bdi> {L('אימונים · איחור נספר כנוכחות', 'sessions · late counts as present')})
+                  </span>
                 </span>
               )}
               {auto.effort != null && (
@@ -965,7 +967,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             <p className="pdp-line">
               <b>{L('נאסף לבד: ', 'Collected automatically: ')}</b>
               {[
-                auto.attendance != null ? `${L('נוכחות', 'attendance')} ${auto.attendance}%` : null,
+                auto.attendance != null ? `${L('נוכחות (איחור נספר)', 'attendance (late counts)')} ${auto.attendance}%` : null,
                 auto.effort != null ? `${L('עומס מדווח', 'reported load')} ${auto.effort}/10` : null,
                 auto.tasks != null ? `${L('משימות שבוצעו', 'tasks done')} ${auto.tasks}` : null,
               ].filter(Boolean).join(' · ')}
