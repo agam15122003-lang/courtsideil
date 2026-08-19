@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
-import { L, trTeam, cnt } from './i18n'
+import { L, trTeam } from './i18n'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
 import { ChevronBack } from './DirIcon'

@@ -14329,25 +14329,9 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 @keyframes plRise { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .pl-home-rich .pl-stagger { animation: none; }
-  .pl-count-unit b, .pl-badge.earned { transition: none; }
+  .pl-count-unit b { transition: none; }
 }
 
-/* רצועת רמה + XP + רצף (בתוך ההירו) */
-.pl-level { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.14); }
-.pl-level-badge {
-  flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-weight: 900; font-size: 20px; color: #fff;
-  background: linear-gradient(150deg, var(--accent-fill), var(--accent-press));
-  box-shadow: 0 4px 14px rgba(232,118,58,0.4);
-}
-.pl-level-body { flex: 1; min-width: 0; }
-.pl-level-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pl-level-top strong { color: #fff; font-size: 14px; font-weight: 700; }
-.pl-streak { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; font-size: 13px; color: #FFB877; }
-.pl-xp-bar { height: 8px; border-radius: var(--radius-full); background: rgba(255,255,255,0.16); overflow: hidden; margin: 7px 0 5px; }
-.pl-xp-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #FFC978, var(--accent)); transition: width 0.6s cubic-bezier(0.2,0.8,0.3,1); }
-.pl-level .muted { color: rgba(255,255,255,0.7) !important; }
 
 /* טיימר ספירה לאחור לאימון הבא */
 .pl-count {
@@ -14376,19 +14360,6 @@ button.pr-signout:hover .pr-label { color: var(--error); }
 .pl-ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.7s cubic-bezier(0.2,0.8,0.3,1); }
 .pl-ring-val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 15px; color: var(--text); }
 
-/* תגי הישגים */
-.pl-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
-.pl-badge {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
-  padding: 12px 8px; border-radius: var(--radius-md); border: 1px solid var(--border);
-  background: var(--surface); opacity: 0.55; filter: grayscale(0.6);
-  transition: transform 0.15s, opacity 0.2s;
-}
-.pl-badge.earned { opacity: 1; filter: none; border-color: var(--accent-soft); background: var(--accent-soft); }
-.pl-badge.earned:hover { transform: translateY(-2px); }
-.pl-badge-ic { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); }
-.pl-badge.earned .pl-badge-ic { background: linear-gradient(150deg, var(--accent-fill), var(--accent-press)); color: #fff; }
-.pl-badge-lbl { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.2; }
 
 /* ציטוט */
 .pl-quote { position: relative; margin: 0; padding: 18px 20px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--accent-soft), var(--surface)); border: 1px solid var(--border); }
@@ -22369,8 +22340,6 @@ html.a11y-motion .pc-check { transition: none; }
 /* ===== [5] גרדיאנטים — חזרה לשתי המשפחות המותרות =====
    DESIGN.md מתיר שתי משפחות בלבד: hero נייבי ומילוי התקדמות כתום.
    כאן ממופים רק החריגים שהדוח מנה, ורק סלקטורים שאומתו בקובץ. */
-/* פס ה-XP של השחקן — היה hex גולמי (#FFC978); עכשיו משפחת ההתקדמות */
-.pl-xp-bar > span { background: linear-gradient(90deg, var(--brand), var(--orange-300)); }
 /* הסייד-בר — היה נייבי עם hex גולמי (#101B33); עכשיו משפחת ה-hero */
 .sidebar { background: linear-gradient(180deg, var(--hero-navy), var(--hero-navy-2)); }
 /* אירוע "פגישה" בלוח במצב כהה — היה hex גולמי (#101A2E) */
@@ -28936,19 +28905,6 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   border-bottom: 1px dashed var(--border);
 }
 .pd-metric-k { flex: 1; font-size: 14px; min-width: 0; }
-.pd-metric-note {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.pd-metric-note:hover { color: var(--accent-strong); border-color: var(--accent); }
 
 /* חמש הנקודות */
 .pd-dots { display: inline-flex; gap: 4px; flex: none; }
@@ -29012,78 +28968,8 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 }
 .pd-auto-item b { font-variant-numeric: tabular-nums; }
 
-/* --- סבב דירוג --- */
-.pd-round-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
-.pd-round { border-collapse: collapse; width: 100%; min-width: 720px; }
-.pd-round th, .pd-round td { padding: 8px 10px; text-align: start; border-bottom: 1px solid var(--border); }
-.pd-round thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--surface-alt);
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.pd-round tbody tr.is-done { background: color-mix(in srgb, var(--success) 7%, transparent); }
-.pd-round-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-weight: 700;
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: 44px;
-}
-.pd-round-name:hover { color: var(--accent-strong); }
-.pd-done {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.pd-done.on { background: var(--success); border-color: var(--success); color: #fff; }
 
 /* --- העץ והגישות --- */
-.pd-tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.pd-tree-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-alt);
-}
-.pd-tree-row.lvl1 { margin-inline-start: 18px; }
-.pd-tree-row.lvl2 { margin-inline-start: 36px; }
-.pd-tree-row.out { border-style: dashed; opacity: 0.86; }
-.pd-tree-role {
-  padding: 2px 9px;
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--text-muted);
-}
-.pd-tree-see { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
-.pd-tree-see.in { color: var(--success); font-weight: 700; }
-.pd-tree-see.out { color: var(--error); font-weight: 700; }
-.pd-tree-empty { color: var(--text-muted); font-size: 13px; }
-.pd-tree-btn { margin-top: 0; margin-inline-start: auto; padding: 8px 12px; min-height: 40px; font-size: 13px; }
 .pd-tree-note { margin: 4px 0 0; }
 .pd-grants { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .pd-grants li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
@@ -29103,26 +28989,8 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
   .pd-measures { grid-template-columns: 1fr; }
   .pd-head { padding: 12px; }
   .pd-name { font-size: 19px; }
-  .pd-tree-row.lvl1 { margin-inline-start: 10px; }
-  .pd-tree-row.lvl2 { margin-inline-start: 20px; }
 }
 /* --- תיקוני תצוגה לתיק (אחרי בדיקה על מסך אמיתי) --- */
-/* עמודת השם נדבקת: בטבלה שנגללת לצדדים חייב להישאר ברור מי השחקן */
-.pd-round tbody th,
-.pd-round thead th:first-child {
-  position: sticky;
-  inset-inline-start: 0;
-  z-index: 2;
-  background: var(--surface);
-  box-shadow: 1px 0 0 var(--border) inset;
-}
-.pd-round thead th:first-child { z-index: 3; background: var(--surface-alt); }
-.pd-round tbody tr.is-done th { background: color-mix(in srgb, var(--success) 7%, var(--surface)); }
-/* נקודות קומפקטיות בטבלה — שש קטגוריות חייבות להיכנס למסך סביר */
-.pd-round .pd-dot-btn { width: 21px; height: 30px; }
-.pd-round .pd-dot-btn span { width: 13px; height: 13px; }
-@media (pointer: coarse) { .pd-round .pd-dot-btn { width: 26px; height: 40px; } }
-.pd-round { min-width: 660px; }
 /* בכותרת התיק: שם ארוך בטלפון לא נדחס בין המספר לתג */
 @media (max-width: 640px) {
   .pd-head { align-items: flex-start; }
@@ -29132,9 +29000,6 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 .pd-trend svg { overflow: visible; }
 /* «עכשיו» ברור יותר מ«סבב קודם» */
 .pd-radar-now { fill: color-mix(in srgb, var(--primary) 26%, transparent); }
-/* שש הקטגוריות + השם נכנסות למסך מחשב בלי גלילה */
-.pd-round th, .pd-round td { padding: 7px 6px; }
-.pd-round tbody th { padding-inline: 10px; }
 
 /* --- סבב דירוג מחדש: מסך אחד בכל פעם, בלי טבלה --- */
 .pd-mode { display: flex; gap: 6px; padding: 4px; background: var(--surface-alt); border-radius: var(--radius-sm); align-self: flex-start; flex-wrap: wrap; }
@@ -29266,3 +29131,207 @@ html.a11y-motion .ps-coach, html.a11y-motion .ps-sheet, html.a11y-motion .ps-scr
 /* «תיק שחקן» מכותרת כרטיס השחקן */
 .pc-dossier-btn { margin-top: 0; margin-inline-start: auto; padding: 8px 14px; min-height: 40px; font-size: 13px; }
 @media (pointer: coarse) { .pc-dossier-btn { min-height: 44px; } }
+
+/* =====================================================================
+   19.8.2026 — «תיק שחקן», סגירת הפערים
+   תאריך הזנה · השוואה לממוצע הקבוצה · הדפסה · רמת גישה · עריכת הקטלוג
+   ===================================================================== */
+
+/* --- תאריך ההזנה --- */
+.pd-date { width: 150px; }
+.pd-date-back {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 4px 10px;
+  border: 1px solid var(--border-hover); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.pd-date-back:hover { background: var(--surface-alt); }
+.pd-backdate {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 10px; padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft); color: var(--text);
+  font-size: 13px; font-weight: 600; line-height: 1.5;
+}
+.pd-backdate svg { flex: none; color: var(--warning); }
+
+/* --- השוואה לממוצע הקבוצה --- */
+.pd-cmp {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 5px 12px;
+  border: 1px solid var(--border-hover); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-muted);
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.pd-cmp:hover { border-color: var(--accent); color: var(--text); }
+.pd-cmp.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.pd-teamv {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  padding: 2px 7px; border-radius: var(--radius-full);
+  background: var(--surface-alt); color: var(--text-muted);
+  font-size: 12px; font-weight: 800;
+}
+.pd-teamv.sm { padding: 1px 5px; font-size: 11px; }
+.pd-team-line {
+  stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .75;
+}
+.pd-team-lbl { fill: var(--text-muted); font-size: 10.5px; font-weight: 700; }
+
+/* --- רמת גישה: צפייה / גם עריכה --- */
+.pd-lvl { display: inline-flex; gap: 4px; flex: none; }
+.pd-lvl-b {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 32px; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-muted);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.pd-lvl-b:hover { border-color: var(--border-hover); color: var(--text); }
+.pd-lvl-b.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+@media (pointer: coarse) { .pd-lvl-b, .pd-date-back { min-height: 44px; } }
+
+/* --- הקטלוג של המועדון --- */
+.pd-cat-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 0 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm); background: var(--surface-alt);
+  color: var(--text-muted); font-size: 12.5px; line-height: 1.6;
+}
+.pd-cat-note svg { flex: none; margin-top: 2px; }
+.pd-cat-add { display: flex; flex-direction: column; gap: 10px; }
+.pd-cat-add label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; }
+.pd-cat-lower { flex-direction: row !important; align-items: center; font-weight: 600 !important; }
+.pd-cat-lower input { width: 18px; height: 18px; accent-color: var(--accent-fill); }
+.pd-cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pd-cat-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 9px 4px; border-bottom: 1px solid var(--border);
+}
+.pd-cat-row:last-child { border-bottom: 0; }
+.pd-cat-row.off { opacity: .6; }
+.pd-cat-nm {
+  display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin-inline-end: auto; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.pd-cat-kind { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.pd-cat-tag {
+  padding: 1px 7px; border-radius: var(--radius-full);
+  background: var(--accent-soft); color: var(--accent-strong);
+  font-size: 11px; font-weight: 800;
+}
+.pd-cat-tag.own { background: var(--c-blue-bg); color: var(--c-blue); }
+.pd-cat-tag.off { background: var(--surface-alt); color: var(--text-muted); }
+.pd-cat-row .link-button { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+@media (pointer: coarse) { .pd-cat-row .link-button { min-height: 44px; } }
+@media (max-width: 560px) {
+  .pd-cat-nm { width: 100%; margin-inline-end: 0; }
+  .pd-date { width: 138px; }
+}
+
+/* --- הדפסה/ייצוא של התיק --- */
+/* כפתור על באנר הכותרת הכהה — btn-soft בהיר היה נבלע בו */
+.pd-head .btn-soft {
+  flex: none;
+  min-height: 38px;
+  padding: 7px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.pd-head .btn-soft:hover { background: rgba(255, 255, 255, 0.22); }
+@media (pointer: coarse) { .pd-head .btn-soft { min-height: 44px; } }
+.pd-paper { display: none; }
+@media print {
+  /* דף התיק יושב על ה-body בפורטל; בהדפסה מסתירים את כל השאר.
+     נשאר בתוקף רק כשה-body מסומן — כדי שמסכים אחרים שמדפיסים
+     (המחברת, דף התרגיל) לא ייעלמו. */
+  body.print-dossier > *:not(.pd-paper) { display: none !important; }
+  body.print-dossier .pd-paper {
+    display: block;
+    padding: 0 4mm;
+    color: #000; background: #fff;
+    font-size: 11.5pt;
+  }
+  .pdp-head { border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
+  .pdp-head h1 { margin: 0 0 2px; font-size: 19pt; }
+  .pdp-head span { display: block; font-size: 10.5pt; }
+  .pdp-date { margin-top: 3px; font-weight: 700; }
+  .pdp-line { margin: 0 0 8px; font-size: 10.5pt; }
+  .pdp-tbl { width: 100%; border-collapse: collapse; margin-bottom: 10px; page-break-inside: avoid; }
+  .pdp-tbl caption {
+    text-align: start; font-weight: 800; font-size: 12pt;
+    padding: 4px 0; border-bottom: 1px solid #000;
+  }
+  .pdp-tbl th, .pdp-tbl td { padding: 3px 6px; font-size: 10.5pt; border-bottom: 1px solid #bbb; }
+  .pdp-tbl th { text-align: start; font-weight: 600; width: 46%; }
+  .pdp-tbl td { text-align: start; }
+  .pdp-notes { page-break-inside: avoid; }
+  .pdp-notes h2 { font-size: 12pt; margin: 10px 0 4px; border-bottom: 1px solid #000; }
+  .pdp-notes p { margin: 0 0 6px; font-size: 10.5pt; line-height: 1.45; }
+  .pdp-foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #000; font-size: 9pt; }
+}
+
+/* --- 19.8: מנהל מועדון גולש בתיקים של מאמן בעץ (קריאה בלבד) --- */
+.pd-viewing {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  color: var(--text); font-size: 13.5px; font-weight: 700;
+}
+.pd-viewing svg { flex: none; color: var(--info); }
+.pd-viewing span { margin-inline-end: auto; }
+.pd-viewing .btn-soft { flex: none; min-height: 38px; padding: 6px 12px; font-size: 13px; }
+@media (pointer: coarse) { .pd-viewing .btn-soft { min-height: 44px; } }
+/* נקודות הדירוג כשאין מה ללחוץ — אותו מראה, בלי משטח מגע */
+.pd-dots.ro { gap: 6px; padding-inline: 4px; }
+.pd-dot-ro {
+  width: 15px; height: 15px; border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-hover); background: var(--surface);
+}
+.pd-dot-ro.on { background: var(--primary); border-color: var(--primary); }
+
+/* --- 19.8: סגירת פינות שנמצאו בסריקה --- */
+/* בוחר צבע העט היה 28px במסך מגע — הכלי היחיד בסרגל שלא הועלה ל-44px
+   (DESIGN.md §7). הצבע נשאר עיגול קטן; שטח הנגיעה מורחב ב-::after,
+   והמרווח עולה ל-16px כדי ששני שטחי נגיעה שכנים לא יידרסו זה על זה. */
+@media (pointer: coarse) {
+  .ink-colors { gap: 16px; }
+  .ink-swatch { position: relative; }
+  .ink-swatch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+/* מגירת הניווט (טלפון, וגם טלפון מוטה) החליקה גם כשהמשתמש ביקש «בלי
+   תנועה» — שני הכללים המקוריים בבלוקים ישנים, ולכן העקיפה כאן. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none !important; }
+}
+html.a11y-motion .sidebar { transition: none !important; }
+
+/* =====================================================================
+   19.8 — תיקוני סקירה על העבודה של היום
+   ===================================================================== */
+/* ההדפסה יצאה דף ריק. שני בלוקי הדפסה ותיקים (שורות 955 ו-5264) מסתירים
+   `body *` ומחזירים ראות ל-.print-area / .notebook בלבד. דף התיק יושב על
+   ה-body בפורטל, ולכן `body *` תופס גם אותו — הבלוק הקודם קבע display
+   בלבד. כאן מחזירים ראות, בהיקף body.print-dossier בלבד, כדי שהדפסת
+   המחברת ודף התרגיל לא ייפגעו. */
+@media print {
+  body.print-dossier .pd-paper,
+  body.print-dossier .pd-paper * { visibility: visible; }
+}
+/* יעדי מגע שנשארו מתחת ל-44px בקוד של היום (DESIGN.md §7) */
+@media (pointer: coarse) {
+  .pd-cmp,
+  .pd-grants .link-button { min-height: 44px; }
+}
+/* --warning מוגדר פעם אחת בשורש ואין לו ערך למצב כהה; --warn יש לו */
+.pd-backdate svg { color: var(--warn); }

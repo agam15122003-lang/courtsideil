@@ -3,7 +3,7 @@ import { Dumbbell, ChevronDown, Check, Clock, Inbox, BellRing, Archive } from 'l
 import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { toast } from './toast'
-import { L, trTeam } from './i18n'
+import { L } from './i18n'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'

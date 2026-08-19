@@ -74,6 +74,10 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // בלי תאריך מלא (פרופיל ישן) — חישוב שמרני: קטין עד שבוודאות מלאו 18
     : birthYear ? new Date().getFullYear() - Number(birthYear) - 1 : null
   const isMinor = isPlayer && playerAge !== null && playerAge < 18
+  // מאמן שמשלים פרופיל עכשיו. **אותו תנאי בדיוק** שהטריגר במסד בודק
+  // (game_block_minor_coach: יצירה, או המעבר הראשון משם ריק לשם מלא) —
+  // כדי שמאמן ותיק בלי תאריך לידה לא ייחסם פתאום בעריכת פרופיל.
+  const isNewCoach = !isPlayer && !profile?.first_name
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -120,8 +124,16 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     e.preventDefault()
     setError(null)
     // שער גיל: בלי תאריך/שנת לידה אין דרך לדעת אם מדובר בקטין
-    if (isPlayer && !birthDate && !birthYear) {
+    if ((isPlayer || isNewCoach) && !birthDate && !birthYear) {
       setError(L('צריך למלא תאריך לידה.', 'A birth date is required.'))
+      return
+    }
+    // חשבון מאמן הוא לבגירים. השרת חוסם גם הוא (game_block_minor_coach),
+    // אבל הודעת חריגה של פוסטגרס אינה מסך — לכן נאמר את זה כאן, בעברית
+    // ובאנגלית, ובמקום שבו אפשר עוד לחזור אחורה ולבחור «שחקן».
+    if (isNewCoach && playerAge !== null && playerAge < 18) {
+      setError(L('חשבון מאמן מיועד לבגירים (18+). אם אתה שחקן — חזרו אחורה ובחרו «שחקן».',
+                 'A coach account is for adults (18+). If you are a player, go back and pick “Player”.'))
       return
     }
     if (isMinor && (!guardianEmail.trim() || !guardianName.trim())) {
@@ -196,6 +208,10 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       }
     } else {
       payload.age_groups = orderedTeams
+      // בלי שתי השורות האלה השדה מופיע על המסך ולא מגיע למסד, והטריגר
+      // game_block_minor_coach ממשיך לקבל null ולעולם לא חוסם.
+      payload.birth_date = birthDate || null
+      payload.birth_year = birthYear ? Number(birthYear) : null
     }
 
     // ---- שמירה בלי upsert (תוקן 3.8.2026 אחרי כשל בפרודקשן) ----
@@ -633,6 +649,28 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             <p className="muted small">{L('אחרי השמירה מתחברים לקבוצה עם קוד מהמאמן.', 'After saving you’ll join your team with a code from your coach.')}</p>
           </section>
         ) : (
+          <>
+          <section className="form-section">
+            <h3 className="form-section-title">
+              <ShieldCheck size={16} /> {L('אימות גיל', 'Age check')}
+            </h3>
+            <label className="pf-label">
+              {L('תאריך לידה', 'Date of birth')} {isNewCoach && <span className="pf-req">*</span>}
+              <input
+                type="date"
+                dir="ltr"
+                min="1940-01-01"
+                max={new Date().toISOString().slice(0, 10)}
+                required={isNewCoach && !birthYear}
+                value={birthDate}
+                onChange={(e) => onBirthDate(e.target.value)}
+              />
+              <span className="muted small">
+                {L('חשבון מאמן מיועד לבגירים (18+). התאריך נשמר בחשבונך לאימות גיל בלבד, ואינו מוצג לאף משתמש אחר.',
+                   'A coach account is for adults (18+). The date is stored on your account for age verification only and is shown to no other user.')}
+              </span>
+            </label>
+          </section>
           <section className="form-section">
             <h3 className="form-section-title">
               <Users2 size={16} /> {L('הקבוצות שאני מאמן', 'Teams I coach')}
@@ -646,6 +684,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               placeholder={L('בחר קבוצות...', 'Select teams...')}
             />
           </section>
+          </>
         )}
 
         {/* מה מוצג למאמנים אחרים — הפרטיות היא החלטה, ולכן היא מסוכמת

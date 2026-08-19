@@ -830,14 +830,14 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
               <div className="nbk-att-h">
                 <span className="nbk-att-title"><UserCheck size={16} /> {L('נוכחות', 'Attendance')}{team ? ` — ${trTeam(team)}` : ''}</span>
                 {team && roster.length > 0 && (
-                  <span className="muted small"><span dir="ltr">{attending}/{roster.length}</span> {L('מגיעים', 'attending')} · {fmtDateHe(date)}</span>
+                  <span className="muted small"><span dir="ltr">{attending}/{roster.length}</span> {L('נוכחים', 'present')} · {fmtDateHe(date)}</span>
                 )}
               </div>
               {!team ? (
                 <p className="muted small nbk-att-hint">
                   {noTeams
                     ? L('כדי לסמן נוכחות צריך קבוצה בפרופיל ושחקנים ב«הקבוצות שלי».', 'To mark attendance you need a team in your profile and players in “My teams”.')
-                    : L('בחרו קבוצה למעלה — השחקנים יופיעו כאן. כולם מסומנים «מגיע»; סמנו רק מי שמאחר או לא מגיע.', 'Pick a team above — the players will show here. Everyone starts as “Present”; mark only who is late or absent.')}
+                    : L('בחרו קבוצה למעלה — השחקנים יופיעו כאן. כולם מסומנים «נוכח»; סמנו רק מי שאיחר או נעדר.', 'Pick a team above — the players will show here. Everyone starts as “Present”; mark only who is late or absent.')}
                 </p>
               ) : rosterLoading ? (
                 <p className="muted small nbk-att-hint">{L('טוען סגל…', 'Loading roster…')}</p>
@@ -856,9 +856,9 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
                           {p.name}
                         </span>
                         <span className="nbk-att-seg" role="group" aria-label={L(`נוכחות ${p.name}`, `${p.name} attendance`)}>
-                          <button type="button" className={a.status === 'present' ? 'on' : ''} aria-pressed={a.status === 'present'} onClick={() => setStatus(p.id, 'present')}>{L('מגיע', 'Present')}</button>
-                          <button type="button" className={a.status === 'late' ? 'on late' : ''} aria-pressed={a.status === 'late'} onClick={() => setStatus(p.id, 'late')}>{L('מאחר', 'Late')}</button>
-                          <button type="button" className={a.status === 'absent' ? 'on absent' : ''} aria-pressed={a.status === 'absent'} onClick={() => setStatus(p.id, 'absent')}>{L('לא מגיע', 'Absent')}</button>
+                          <button type="button" className={a.status === 'present' ? 'on' : ''} aria-pressed={a.status === 'present'} onClick={() => setStatus(p.id, 'present')}>{L('נוכח', 'Present')}</button>
+                          <button type="button" className={a.status === 'late' ? 'on late' : ''} aria-pressed={a.status === 'late'} onClick={() => setStatus(p.id, 'late')}>{L('איחר', 'Late')}</button>
+                          <button type="button" className={a.status === 'absent' ? 'on absent' : ''} aria-pressed={a.status === 'absent'} onClick={() => setStatus(p.id, 'absent')}>{L('נעדר', 'Absent')}</button>
                         </span>
                         {a.status !== 'present' && (
                           <span className="nbk-att-reason-in">

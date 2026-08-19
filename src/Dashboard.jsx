@@ -964,7 +964,7 @@ export default function Dashboard({ session }) {
           Icon: item.Icon,
           badge: item.id === 'messages' ? unread : 0,
         }))}
-        all={[...NAV, ...(profile?.is_admin ? [ADMIN_NAV] : []), PROFILE_NAV].map((item) => ({
+        all={[...NAV, ...(profile?.is_admin ? [DOSSIER_NAV, ADMIN_NAV] : []), PROFILE_NAV].map((item) => ({
           id: item.id,
           label: t(item.key),
           Icon: item.Icon,

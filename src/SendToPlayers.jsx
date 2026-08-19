@@ -4,7 +4,6 @@ import {
   Send, Users, User, Dumbbell, ClipboardList, MonitorPlay, PencilLine,
   Search, Check, CalendarDays, Inbox, X, CheckCheck, Hash, Repeat2, BookOpen,
 } from 'lucide-react'
-import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
 import { loadRoster, sendAssignments, loadSentFeed } from './sendToPlayersApi'
