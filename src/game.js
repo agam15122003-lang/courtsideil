@@ -268,26 +268,6 @@ export async function challengeTop5(challengeId) {
   return callRpc('game_challenge_top5', { p_challenge: challengeId })
 }
 
-// רישום פרסום — חובה לפני הורדת קליפ. בלי המרשם, בקשת הורה למחוק הכל
-// אינה יכולה להצביע על הפוסט שכבר עלה.
-export async function recordPublication({ submissionId, challengeId, userId, url, note }) {
-  const { data: u } = await supabase.auth.getUser()
-  const { error } = await supabase.from('game_publications').insert({
-    submission_id: submissionId || null,
-    challenge_id: challengeId || null,
-    user_id: userId,
-    platform: 'instagram',
-    external_url: url || null,
-    posted_by: u?.user?.id || null,
-    note: note || null,
-  })
-  if (error) {
-    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
-    return { ok: false, reason: 'error', message: error.message }
-  }
-  return { ok: true }
-}
-
 // ===== שחקן: האתגר הפעיל =====
 
 const CHALLENGE_COLS = 'id, seq, title, subtitle, metric_label, metric_unit, metric_dir, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status, min_entries_for_prize'
@@ -335,41 +315,6 @@ export async function mySubmission(challengeId) {
   return { ok: true, submission: data || null, uid }
 }
 
-export async function submitChallenge({ challengeId, uid, mediaPath, score, allowPublish, noOthers, existingId }) {
-  const row = {
-    challenge_id: challengeId,
-    user_id: uid,
-    media_path: mediaPath,
-    reported_score: score,
-    allow_publish: !!allowPublish,
-    no_others_in_frame: !!noOthers,
-  }
-  // ⚠ .select('id') על העדכון: מדיניות ה-RLS (game_sub_update_own) מסננת
-  //   הגשות approved/blocked — PostgREST מעדכן 0 שורות **בלי שגיאה**, והלקוח
-  //   היה מכריז «ההגשה הוחלפה» על שורה שלא זזה (אחרי שכבר העלה קליפ).
-  const res = existingId
-    ? await supabase.from('game_challenge_submissions').update(row).eq('id', existingId).select('id')
-    : await supabase.from('game_challenge_submissions').insert(row)
-  if (!res.error && existingId && Array.isArray(res.data) && res.data.length === 0) {
-    return { ok: false, reason: 'closed', message: 'אי אפשר להחליף את ההגשה הזו — החלון נסגר או שהיא כבר אומתה/הוסרה.' }
-  }
-  if (res.error) {
-    const e = res.error
-    if (isNotDeployed(e)) return { ok: false, notDeployed: true }
-    if (e.code === '54000') return { ok: false, reason: 'too_many', message: e.message }
-    if (e.code === '42501' || /row-level security/i.test(e.message || '')) {
-      return { ok: false, reason: 'closed', message: 'חלון ההגשה נסגר, או שהחשבון עוד לא אושר.' }
-    }
-    return { ok: false, reason: 'error', message: e.message }
-  }
-  return { ok: true }
-}
-
-// ===== הפיד החי =====
-// דרך RPC בלבד — לא קריאת טבלה. הסקירה האדוורסרית תפסה שמדיניות SELECT
-// רחבה חושפת את כל העמודות (כולל age_flagged — החלטת מודרציה על קטין),
-// כי PostgREST מכבד כל select= שהקורא שולח. ה-RPC מחזירה עמודות בטוחות
-// בלבד, כבר ממוינות ועם שם התצוגה מוכן — גם אין יותר N+1 על השמות.
 export async function challengeFeed(challengeId) {
   return callRpc('game_challenge_feed', { p_challenge: challengeId })
 }

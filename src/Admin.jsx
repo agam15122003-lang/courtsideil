@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   ShieldCheck, Flag, Users, BarChart3, Search, Check, Ban,
   AlertTriangle, X, RefreshCw, UserCheck, Trash2, Clock, FileText,
-  Inbox, UserCog, Eye, ShieldAlert, Trophy,
+  Inbox, UserCog, Eye, ShieldAlert, Brain,
 } from 'lucide-react'
 import AdminChallenges from './AdminChallenges'
 import { supabase } from './supabaseClient'
@@ -505,10 +505,10 @@ export default function Admin({ session, profile }) {
         <button className={tab === 'consent' ? 'tab active' : 'tab'} onClick={() => setTab('consent')}>
           <UserCheck size={15} /> {L('הסכמות ומחיקות', 'Consents & deletions')}
         </button>
-        {/* עולם המשחק — האתגר השבועי. מסך נפרד לגמרי: הוא ניהול תוכן
-            ותור אישור, ולא ניהול משתמשים כמו שאר הלשוניות. */}
+        {/* עולם המשחק — החידונים. מסך נפרד לגמרי: הוא ניהול תוכן ולא
+            ניהול משתמשים כמו שאר הלשוניות. האתגר השבועי הוסר ב-19.8. */}
         <button className={tab === 'game' ? 'tab active' : 'tab'} onClick={() => setTab('game')}>
-          <Trophy size={15} /> {L('עולם הכדורסל', 'Basketball world')}
+          <Brain size={15} /> {L('חידונים', 'Quizzes')}
         </button>
         <button
           className="icon-btn"

@@ -272,7 +272,6 @@ export function noteImageError(url) {
 //  3. **תפוגה קצרה** (15 דקות במקום שעות): קישור חתום לקליפ של ילד
 //     שמסתובב בוואטסאפ שבוע הוא בדיוק מה שניסינו למנוע.
 
-const VIDEO_TTL = 900   // 15 דקות
 
 // משך הקליפ נמדד **לפני** ההעלאה. בלי זה המשתמש ממתין שלוש דקות
 // בהעלאה סלולרית ורק אז מגלה שהקליפ ארוך מדי.
@@ -294,54 +293,9 @@ function videoDuration(file) {
   })
 }
 
-// מחזירה את הנתיב בתוך ה-bucket. זורקת שגיאה עם הודעה בעברית.
-export async function uploadVideo(file, userId, challengeId, opts = {}) {
-  const maxMb = opts.maxMb || 50
-  const maxSec = opts.maxSeconds || 65
+// ⚠ 19.8.2026 — uploadVideo() ו-signedVideoUrl() הוסרו יחד עם האתגר
+// השבועי: הם היו נתיב ההעלאה והנגן היחידים של קליפי שחקנים, ואין יותר
+// מסך שמעלה או מנגן. **הקבצים עצמם לא נמחקו** — הם באחסון, ומדיניות
+// הקריאה עליהם לא נגעה; אפשר להגיע אליהם מלוח הבקרה של Supabase.
+// ההחזרה: revert של הקומיט (ראה supabase_game_challenge_off_19_8.sql).
 
-  if (!file) throw new Error('לא נבחר קובץ')
-  if (!file.type || !file.type.startsWith('video/')) {
-    throw new Error('צריך לבחור קובץ וידאו — לא תמונה')
-  }
-  if (file.size > maxMb * 1024 * 1024) {
-    throw new Error(`הקובץ גדול מדי (עד ${maxMb}MB). צלמו ב-720p ונסו שוב.`)
-  }
-
-  const dur = await videoDuration(file)
-  if (dur != null && dur > maxSec) {
-    throw new Error(`הקליפ ארוך מדי — עד ${Math.floor(maxSec / 5) * 5} שניות.`)
-  }
-
-  // ⚠ נתיב דטרמיניסטי + upsert: החלפת טייק **דורסת** את הקובץ הקודם.
-  //   נתיב אקראי היה משאיר יתומים שאף ניקוי לא מכיר ואף רטנשן לא סופר.
-  //   מוסכמת <folder>/<uid>/ נשמרת — היא מה שגורם למחיקת חשבון למחוק
-  //   גם את הקליפים, ולמדיניות ה-Storage לגזור בעלות.
-  const path = `challenges/${userId}/${challengeId}`
-
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    cacheControl: '0',
-    upsert: true,
-    contentType: file.type,
-  })
-  if (error) {
-    if (String(error.message || '').match(/exceeded|too large|413/i)) {
-      throw new Error(`הקובץ גדול מדי (עד ${maxMb}MB). צלמו ב-720p ונסו שוב.`)
-    }
-    throw error
-  }
-  return path
-}
-
-// קישור חתום לצפייה. null = אין הרשאה או שהקובץ אינו קיים — ולא נופלים
-// לשום כתובת ציבורית.
-export async function signedVideoUrl(path, expiresIn = VIDEO_TTL) {
-  const p = String(path || '').trim()
-  if (!p || !p.startsWith('challenges/')) return null
-  try {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(p, expiresIn)
-    if (error || !data?.signedUrl) return null
-    return data.signedUrl
-  } catch {
-    return null
-  }
-}

@@ -80,6 +80,8 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 39 | `supabase_dossier_18_8.sql` | **חובה לתיק שחקן** — `dossier_people` (זהות אחת לשחקן) + `team_players.person_id`, `dossier_metrics` (קטלוג: 16 דירוגים + 4 מדידות, ניתן לעריכה לכל מועדון), `dossier_entries`, `dossier_notes`, `dossier_access`, `club_roles`, ופונקציות ההרשאה `dossier_can_see`/`dossier_can_edit` |
 | 40 | `supabase_club_manage_19_8.sql` | **חובה למסך «המועדון»** — `club_manager_sees_coach()` ומדיניות `roster_club_manager_read` על `team_players`: מנהל מועדון/מנהל מקצועי רואה את הסגל של מאמן **שצורף לעץ** בלבד, לקריאה בלבד. בלי הקובץ הזה המסך של המנהל ריק |
 | 41 | `supabase_coach_age_gate_19_8.sql` | שער «מאמן קטין» — עמודה חדשה `game_settings.coach_birthdate_required` וגרסה מתוקנת של `game_block_minor_coach` (ענף «לא הצהיר» דורש גם שם מלא, אחרת השורה הריקה של `handle_new_user` נחסמת וכל הרשמה נשברת). **דורש שהפרונט של 19.8 יהיה באוויר לפני הדלקת המתג** |
+| 42 | `supabase_player_room_off_19_8.sql` | סגירת **חדר השחקנים הארצי** — מדיניות RESTRICTIVE שחוסמת הוספת הודעות ל-`player_messages`. שום הודעה לא נמחקת. ביטול: `drop policy "pmsg_room_closed"` |
+| 43 | `supabase_game_challenge_off_19_8.sql` | סגירת **האתגר השבועי והעלאות הווידאו** — שלילת INSERT/UPDATE על `game_challenge_submissions` ומחיקת מדיניות ההעלאה `media_insert_challenges`. שום קליפ ושום הגשה לא נמחקים, וכל מדיניות הקריאה נשארת |
 
 > **גל «עולם המשחק» (12.8–16.8) אינו בטבלה הזו** — שבעת הקבצים `supabase_game_*` מרוכזים
 > ב-`הרצת_SQL_12.8.md` עם סטטוס ההרצה בפועל. `supabase_game_quiz_hardening_13_8.sql` **רץ ואומת ב-18.8.2026 בערב.**

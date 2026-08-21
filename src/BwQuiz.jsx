@@ -497,7 +497,7 @@ export default function BwQuiz({ sum, reload, month, openRules }) {
           <div className="bw-score-col">
             <span className="bw-score-k">{L('הניקוד שלי בחידון', 'My quiz score')}{month ? ` · ${month}` : ''}</span>
             <span className="bw-score-big"><b dir="ltr" className="bw-num">{st?.points ?? 0}</b><span>{L('נק׳', 'pts')}</span></span>
-            <span className="bw-score-note">{L('ניקוד חידון בלבד · לא מתערבב עם אתגר או ניחושים', 'Quiz points only · never mixed with challenge or picks')}</span>
+            <span className="bw-score-note">{L('ניקוד חידון בלבד · לא מתערבב עם הניחושים', 'Quiz points only · never mixed with picks')}</span>
           </div>
           <span className="bw-score-box">
             <b dir="ltr" className="bw-num">{st && st.listed && st.rank > 0 ? `#${st.rank}` : '—'}</b>
