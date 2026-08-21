@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Brain, RefreshCw } from 'lucide-react'
+import { Brain, Play, RefreshCw } from 'lucide-react'
 import { L } from './i18n'
 import { toast } from './toast'
 import { adminQuizzes, buildQuiz, setQuizStatus } from './game'
@@ -18,13 +18,40 @@ import { adminQuizzes, buildQuiz, setQuizStatus } from './game'
 function QuizTab() {
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
+  const [state, setState] = useState('loading')   // loading · notDeployed · error · ready
   const [form, setForm] = useState({ title: '', count: 8, difficulty: '', seconds: 20 })
 
+  // ⚠ adminQuizzes מבדילה בין «הטבלה לא קיימת» לבין «נפלה שאילתה», ושתיהן
+  // נבלעו כאן קודם לרשימה ריקה — הבעלים היה רואה טופס תקין, ממלא, ומקבל
+  // שגיאה אדומה. שלושת המצבים חוזרים.
   const load = useCallback(async () => {
+    setState('loading')
     const r = await adminQuizzes()
-    setRows(r.ok ? (r.rows || []) : [])
+    if (r.notDeployed) { setState('notDeployed'); return }
+    if (!r.ok) { setState('error'); return }
+    setRows(r.rows || [])
+    setState('ready')
   }, [])
   useEffect(() => { load() }, [load])
+
+  if (state === 'loading') return <div className="loader" role="status" aria-label={L('טוען', 'Loading')} />
+  if (state === 'notDeployed') {
+    return (
+      <div className="empty-state">
+        <span className="empty-ic"><Brain size={26} /></span>
+        <div className="empty-title">{L('עולם המשחק עוד לא הותקן', 'The game world is not installed yet')}</div>
+        <p className="muted small">{L('צריך להריץ את קובצי ה-SQL של עולם המשחק.', 'Run the game-world SQL migrations first.')}</p>
+      </div>
+    )
+  }
+  if (state === 'error') {
+    return (
+      <div className="empty-state">
+        <div className="empty-title">{L('שגיאה בטעינה', 'Loading error')}</div>
+        <button type="button" className="btn-secondary" onClick={load}>{L('נסה שוב', 'Try again')}</button>
+      </div>
+    )
+  }
 
   const create = async () => {
     setBusy(true)

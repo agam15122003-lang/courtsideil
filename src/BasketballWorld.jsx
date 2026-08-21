@@ -26,7 +26,7 @@ import BwPred from './BwPred'
 //   או מחובר לנתון הקרוב ביותר — לא לנתוני דמה.
 
 export const BW_PAGES = {
-  home:      { kicker: ['COURTSIDE', 'COURTSIDE'], title: ['עולם הכדורסל', 'Basketball world'], sub: ['הכרטיס שלי · שלושה משחקים · מתאפס כל חודש', 'My card · three games · resets monthly'] },
+  home:      { kicker: ['COURTSIDE', 'COURTSIDE'], title: ['עולם הכדורסל', 'Basketball world'], sub: ['הכרטיס שלי · שני משחקים · מתאפס כל חודש', 'My card · two games · resets monthly'] },
   quiz:      { kicker: ['QUIZ · חידון', 'QUIZ'], title: ['חידון כדורסל', 'Basketball quiz'], sub: ['ניקוד חידון בלבד · לא מתערבב עם הניחושים', 'Quiz points only · never mixed with picks'] },
   pred:      { kicker: ['PICKS · ניחושים', 'PICKS'], title: ['ניחושי השבוע', 'Weekly picks'], sub: ['מנצחת ותוצאה מדויקת · אין תיקו', 'Winner and exact score · no draws'] },
 }

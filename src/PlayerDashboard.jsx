@@ -3580,6 +3580,11 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
       // 'community' הוסר 19.8 — התראה ישנה שמצביעה לחדר הארצי נוחתת בבית
       : v === 'community' ? 'home' : v === 'messages' ? 'coach' : 'drills'
   )
+  // ...ועם הסבר, אחרת הילד לוחץ על «הגיבו לך» ומוצא את עצמו בבית בלי סיבה
+  const navFromBell = (v) => {
+    if (v === 'community') toast.info(L('חדר השחקנים נסגר', "The players' room has closed"))
+    navFromNotification(v)
+  }
 
   const nav = PLAYER_NAV
   const label = (item) => L(item.label[0], item.label[1])
@@ -3592,7 +3597,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const isPs = !editing && PS_VIEWS.includes(view) && (hasTeam || !PS_TEAM_VIEWS.includes(view))
   // הפעמון יורד לתוך הבאנר של המסך (הסרגל העליון מוסתר שם במובייל).
   // אלמנט חדש בכל רינדור במכוון: ‎.main-inner ממילא ממותג ב-key לפי המסך.
-  const psBell = <Notifications session={session} onNavigate={navFromNotification} />
+  const psBell = <Notifications session={session} onNavigate={navFromBell} />
   const psCoachName = coach ? coachName(coach) : null
   // כפתור המאמן בכותרת מוביל ל«המאמן האישי». במסך הזה עצמו אין לאן ללכת.
   const psOnCoach = view === 'pcoach' ? null : () => setView('pcoach')
@@ -3691,10 +3696,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'boards':
         // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
-        return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromNotification} />} />
+        return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromBell} />} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
-      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} personalIds={personalIds} />
+      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromBell} personalIds={personalIds} />
     }
   }
 
@@ -3708,7 +3713,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
-          <Notifications session={session} onNavigate={navFromNotification} />
+          <Notifications session={session} onNavigate={navFromBell} />
           {/* ב-4 מהסקירה: תמה ושפה ירדו מהסרגל — הן במגירה ובפרופיל */}
         </div>
       </header>
@@ -3718,7 +3723,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         <div className="sidebar-brand">
           <Logo size={30} />
           <span>CourtSide</span>
-          <span className="sidebar-bell"><Notifications session={session} onNavigate={navFromNotification} /></span>
+          <span className="sidebar-bell"><Notifications session={session} onNavigate={navFromBell} /></span>
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>

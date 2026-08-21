@@ -223,7 +223,7 @@ export default function Notifications({ session, onNavigate }) {
           <details className="ntf-about">
             <summary>{L('מה מגיע לכאן?', 'What shows up here?')}</summary>
             <p>
-              {L('הודעות ממאמנים ומשחקנים, תגובות ולייקים בקהילה, אירועים שנפתחו, ומשימות שנשלחו אליך. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
+              {L('הודעות ממאמנים ומשחקנים, תגובות ולייקים בקהילת המאמנים, אירועים שנפתחו, ומשימות שנשלחו אליך. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
                  'Messages from coaches and players, community comments and likes, new events, and tasks sent to you. Everything stays inside the app — there are no phone push notifications, and none of this is emailed.')}
             </p>
           </details>

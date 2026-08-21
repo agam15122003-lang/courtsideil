@@ -159,40 +159,9 @@ export const messageKit = {
         'Under 18 — at the end you will get a short link to send your parents for approval.',
     ),
 
-  // תזכורת פתיחת אתגר.
-  // ⚠ המועד מגיע מהאתגר עצמו ואינו כתוב בקוד: הבעלים קובע יום ושעה לכל
-  // אתגר בנפרד, והודעה שאומרת «עד שבת» כשהחלון נסגר בחמישי גרועה מכלום.
-  challengeOpen: (title, closesAt, ref) => {
-    const when = closesAt
-      ? new Intl.DateTimeFormat('he-IL', {
-          weekday: 'long', day: 'numeric', month: 'numeric',
-          hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem',
-        }).format(new Date(closesAt))
-      : null
-    return L(
-      `🔥 אתגר חדש: *${title}*\n` +
-        (when ? `החלון פתוח עד ${when}.\n` : '') +
-        'הגשה אחת, טייק אחד, והטיימר חייב להיראות בפריים.\n' +
-        `${courtLink(ref)}`,
-      `🔥 New challenge: *${title}*\n` +
-        (when ? `Open until ${when}.\n` : '') +
-        'One submission, one take, timer visible in frame.\n' +
-        `${courtLink(ref)}`,
-    )
-  },
+  // ⚠ 19.8: challengeOpen ו-rejected הוסרו יחד עם האתגר — הן הבטיחו
+  // צילום, העלאה ופרסום שכבר אינם קיימים במוצר.
 
-  // דחיית הגשה — נשלחת מהתור, כדי שדחייה לא תיראה כהתעלמות
-  rejected: (name, reason) =>
-    L(
-      `היי ${name || ''}, ראיתי את הקליפ 🙏\n` +
-        `לא אישרתי אותו כי: ${reason}\n` +
-        'אפשר לצלם שוב ולהעלות — החלון עוד פתוח, וההגשה האחרונה היא זו שנספרת.',
-      `Hi ${name || ''}, I watched your clip 🙏\n` +
-        `I could not approve it because: ${reason}\n` +
-        'You can film again and re-upload — the window is still open, and the last submission counts.',
-    ),
-
-  // שיתוף מקום בטבלה — מנוע הצמיחה של הלולאה
   standing: (rank, ref) =>
     L(
       `אני במקום ${rank} בעולם הכדורסל של CourtSide החודש 🏀\nנראה אותך עוקף:\n${courtLink(ref)}`,
@@ -333,16 +302,6 @@ export async function displayNames(userIds) {
   return out
 }
 
-export async function deleteMySubmission(challengeId) {
-  const r = await callRpc('game_delete_my_submission', { p_challenge: challengeId })
-  const d = r.data || {}
-  // מחיקת הקובץ הפיזי — מחיקת שורה מ-storage.objects ב-SQL אינה מוחקת
-  // את הקובץ עצמו. best-effort: כישלון משאיר בלוב יתום, לא באג פונקציונלי.
-  if (r.ok && d.ok !== false && d.media_path) {
-    try { await supabase.storage.from('media').remove([d.media_path]) } catch { /* ignore */ }
-  }
-  return r
-}
 
 // ===== חידונים =====
 

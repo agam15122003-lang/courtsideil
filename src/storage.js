@@ -274,25 +274,6 @@ export function noteImageError(url) {
 
 
 // משך הקליפ נמדד **לפני** ההעלאה. בלי זה המשתמש ממתין שלוש דקות
-// בהעלאה סלולרית ורק אז מגלה שהקליפ ארוך מדי.
-function videoDuration(file) {
-  return new Promise((resolve) => {
-    try {
-      const el = document.createElement('video')
-      el.preload = 'metadata'
-      const url = URL.createObjectURL(file)
-      const done = (v) => { URL.revokeObjectURL(url); resolve(v) }
-      el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? el.duration : null)
-      el.onerror = () => done(null)
-      el.src = url
-      // דפדפן שלא קורא מטא-דאטה לא יתקע את ההגשה
-      setTimeout(() => done(null), 4000)
-    } catch {
-      resolve(null)
-    }
-  })
-}
-
 // ⚠ 19.8.2026 — uploadVideo() ו-signedVideoUrl() הוסרו יחד עם האתגר
 // השבועי: הם היו נתיב ההעלאה והנגן היחידים של קליפי שחקנים, ואין יותר
 // מסך שמעלה או מנגן. **הקבצים עצמם לא נמחקו** — הם באחסון, ומדיניות
