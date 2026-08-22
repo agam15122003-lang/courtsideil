@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { Maximize2, Trash2 } from 'lucide-react'
 import { CourtLines, ObjectShape, Arrow, courtDim } from './CourtDiagram'
 import { InkPaths, useInkTool } from './ink'
@@ -17,7 +17,7 @@ import { L } from './i18n'
 // ברירת המחדל במחברת: מגרש שלם **לאורך** — צר, ולכן משאיר רוחב לכתיבה
 export const emptyBoard = () => ({ fullCourt: true, portrait: true, steps: [{ objects: [], arrows: [], ink: [] }] })
 
-export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, index = 0 }) {
+function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, index = 0 }) {
   const svgRef = useRef(null)
   const b = board && board.steps && board.steps.length ? board : emptyBoard()
   const step = b.steps[0] || { objects: [], arrows: [], ink: [] }
@@ -99,3 +99,7 @@ export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen
     </div>
   )
 }
+
+// memo: המגרשים חיים לצד המחברת, וכל מחיקת דיו על **הדף** רינדרה מחדש
+// גם את שלושתם (SVG מלא כל אחד). ה-props שלהם לא השתנו — מדלגים.
+export default memo(MiniCourt)

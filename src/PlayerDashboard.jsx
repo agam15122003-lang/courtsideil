@@ -2337,7 +2337,9 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
     })()
   }, [membership, profile.id, refreshKey])
 
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  // הבוליאני «האימון עכשיו» מתחלף פעמיים ביום — טיקר של שנייה רינדר את
+  // כל הבית של השחקן 3,600 פעמים בשעה בשביל כלום. 30 שניות מספיקות.
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t) }, [])
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')

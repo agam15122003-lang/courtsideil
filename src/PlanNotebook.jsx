@@ -156,11 +156,13 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   const snapshot = useRef('')
 
   // חתימה של כל מה שנשמר — כדי לדעת אם יש שינויים שלא נשמרו.
-  // ב-useMemo: בלעדיו כל תו שמוקלד היה מסרק את כל הדיו והמגרשים ל-JSON
-  // פעמיים ברינדור — בדיוק במכשיר (טאבלט) שבו כותבים בעט.
+  // בשני שלבים בכוונה: הדיו והמגרשים הם 95% מהנפח ומשתנים רק בקו/מחיקה,
+  // בעוד הטקסט משתנה בכל הקשה. חתימה אחת הייתה מסרקת את כל הדיו ל-JSON
+  // מחדש על כל תו — בדיוק במכשיר (אייפד) שבו גם כותבים בעט וגם מקלידים.
+  const inkSer = useMemo(() => JSON.stringify({ ink, courts }), [ink, courts])
   const serialized = useMemo(
-    () => JSON.stringify({ name, team, date, duration, body, ink, courts, linked: linked.map((l) => l.drill_id), att, isDraft }),
-    [name, team, date, duration, body, ink, courts, linked, att, isDraft]
+    () => JSON.stringify({ name, team, date, duration, body, linked: linked.map((l) => l.drill_id), att, isDraft }) + inkSer,
+    [name, team, date, duration, body, linked, att, isDraft, inkSer]
   )
   const dirty = snapshot.current !== '' && serialized !== snapshot.current
 
