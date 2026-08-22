@@ -29665,3 +29665,321 @@ html.a11y-motion .sidebar { transition: none !important; }
 @media (min-width: 1000px) and (max-width: 1180px) and (pointer: coarse) {
   .nh-o-week { display: block; order: 5; }
 }
+
+/* =====================================================================
+   22.8.2026 — «תיק שחקן: אותו מבנה, לבוש חדש» (מסמך העיצוב 22.8)
+   אותן כרטיסיות, אותו דירוג 1–5, אותם פיצ'רים. השתנו צבע, רווח והיררכיה.
+   הכול תחת .pd-v2 — הכללים הישנים של pd-* נשארים, ואלה גוברים עליהם
+   בספציפיות. טוקנים בלבד; הנייבי של הכותרת הוא משפחת ה-hero המותרת.
+   ===================================================================== */
+
+/* --- שלד: טאבים בקו תחתון, סרגל בורר אפור, גלולת «נשמר» --- */
+.pd-v2.pd-screen { padding: 0; overflow: hidden; border-radius: var(--radius-lg); }
+.pd-v2 .pd-tabs {
+  margin: 0; padding: 0 22px; gap: 4px; border-bottom: 1px solid var(--border);
+  background: var(--surface); overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.pd-v2 .pd-tabs .tab {
+  flex: none; scroll-snap-align: start; background: none; border: 0; border-radius: 0;
+  border-bottom: 3px solid transparent; font-family: var(--font-display); font-size: 15px; font-weight: 500;
+  color: var(--text-muted); padding: 15px 14px 12px; white-space: nowrap; min-height: 0;
+}
+.pd-v2 .pd-tabs .tab.active { border-bottom-color: var(--accent-fill); color: var(--text); font-weight: 800; }
+.pd-v2 .pd-tabs .tab svg { display: none; }
+.pd-v2 .pd-picker {
+  margin: 0; padding: 13px 22px; gap: 10px; background: var(--surface-alt); border-bottom: 1px solid var(--border);
+}
+.pd-v2 .pd-picker .finder-input { font-size: 14px; font-weight: 500; border-radius: 10px; padding: 10px 13px; background: var(--surface); border: 1px solid var(--border-hover); }
+.pd-v2 .pd-saved {
+  margin-inline-start: auto; font-size: 13px; font-weight: 600; color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent); border-radius: 999px; padding: 8px 13px; white-space: nowrap;
+}
+.pd-v2 .pd-saved.busy { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--border); }
+.pd-v2 .pd-backdate { margin: 12px 22px 0; }
+.pd-v2 .pd-viewing {
+  margin: 0; border-radius: 0; padding: 12px 22px; border-bottom: 1px solid var(--accent-soft);
+  background: var(--accent-soft); color: var(--accent-strong); font-weight: 500;
+}
+.pd-v2 .pd-viewing svg { color: var(--accent-strong); }
+.pd-v2 .pd-viewing .btn-soft { background: var(--surface); color: var(--accent-strong); border: 1px solid var(--accent-soft); border-radius: 9px; }
+.pd-v2 > .empty-state { margin: 22px; }
+.pd-v2 .pd { gap: 0; }
+
+/* --- כותרת התיק: נייבי, המספר הגדול, העונות בפנים --- */
+.pd-v2 .pd-head {
+  position: relative; overflow: hidden; flex-direction: column; align-items: stretch; gap: 0;
+  margin: 0; padding: 26px 26px 22px; border-radius: 0;
+  background: linear-gradient(150deg, var(--hero-navy, #17264A), var(--hero-navy-2, #0A1428));
+}
+.pd-v2 .pd-head-court { position: absolute; inset-inline-end: -40px; top: -16px; width: 420px; height: 200px; opacity: .1; pointer-events: none; }
+.pd-v2 .pd-head-court rect, .pd-v2 .pd-head-court circle, .pd-v2 .pd-head-court line { fill: none; stroke: #E2EAF6; stroke-width: 2; }
+.pd-v2 .pd-head-row { position: relative; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.pd-v2 .pd-num {
+  width: auto; height: auto; padding: 0; background: none; border: 0; box-shadow: none;
+  font-family: var(--font-display); font-weight: 900; font-size: 68px; line-height: .78; color: #fff; letter-spacing: -.045em;
+}
+.pd-v2 .pd-head-tx { flex: 1; min-width: 140px; gap: 5px; }
+.pd-v2 .pd-name { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
+.pd-v2 .pd-meta { font-size: 14px; color: #C7D4E8; }
+.pd-v2 .pd-head-actions { flex: none; display: flex; align-items: center; gap: 10px; }
+.pd-v2 .pd-head .btn-soft { border-radius: 11px; padding: 11px 17px; font-size: 14px; }
+.pd-v2 .pd-lock { order: 0; flex-basis: auto; font-size: 12px; color: #9FB2CE; background: rgba(226, 234, 246, .1); padding: 8px 13px; white-space: nowrap; }
+.pd-v2 .pd-seasons { position: relative; margin: 18px 0 0; gap: 8px; }
+.pd-v2 .pd-season {
+  border-radius: 12px; padding: 9px 14px; gap: 8px; align-items: baseline;
+  background: rgba(226, 234, 246, .08); border: 1px solid rgba(226, 234, 246, .14);
+}
+.pd-v2 .pd-season b { font-family: var(--font-display); font-weight: 900; font-size: 15px; color: #C7D4E8; }
+.pd-v2 .pd-season span { font-size: 13px; font-weight: 500; color: #9FB2CE; }
+.pd-v2 .pd-season i { font-size: 12px; font-style: normal; color: #7E90AD; }
+.pd-v2 .pd-season.now { background: rgba(232, 118, 58, .18); border-color: rgba(240, 168, 120, .4); }
+.pd-v2 .pd-season.now b { color: #fff; }
+.pd-v2 .pd-season.now span { color: var(--orange-300); }
+.pd-v2 .pd-season.now i { color: #C79A7C; }
+.pd-v2 .pd-dups { margin: 14px 22px 0; }
+
+/* --- הרשת והכרטיסים --- */
+.pd-v2 .pd-grid { padding: 16px 22px 24px; gap: 14px; background: var(--surface-alt); }
+.pd-v2 .pd-card { border-radius: 16px; padding: 18px 20px; gap: 0; }
+.pd-v2 .pd-card-h { margin-bottom: 12px; align-items: baseline; }
+.pd-v2 .pd-card-h h3 { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
+
+/* --- עכביש --- */
+.pd-v2 .pd-radar { max-width: 300px; margin: 6px auto 4px; overflow: visible; }
+.pd-v2 .pd-radar-grid { fill: none; stroke: var(--border); stroke-width: 1.2; }
+.pd-v2 .pd-radar-spoke { stroke: var(--surface-alt); stroke-width: 1.2; }
+.pd-v2 .pd-radar-prev { fill: rgba(23, 38, 74, .09); stroke: var(--gray-500); stroke-width: 1.6; stroke-dasharray: 4 4; }
+.pd-v2 .pd-radar-now { fill: rgba(232, 118, 58, .24); stroke: var(--accent-fill); stroke-width: 2.6; stroke-linejoin: round; }
+.pd-v2 .pd-radar-pt { fill: var(--accent-fill); stroke: var(--surface); stroke-width: 1.6; }
+.pd-v2 .pd-radar-lbl { font-size: 12.5px; font-weight: 500; fill: var(--text-muted); }
+.pd-v2 .pd-radar-v { font-family: var(--font-display); font-weight: 800; font-size: 12px; fill: var(--accent-strong); }
+.pd-v2 .pd-legend { margin-top: 10px; gap: 16px; justify-content: center; font-size: 13px; color: var(--text-muted); }
+.pd-v2 .pd-sw { width: 16px; height: 10px; border-radius: 3px; }
+.pd-v2 .pd-sw.now { background: rgba(232, 118, 58, .3); border: 2px solid var(--accent-fill); }
+.pd-v2 .pd-sw.prev { background: rgba(23, 38, 74, .08); border: 2px dashed var(--gray-500); }
+
+/* --- מדידות: כרטיס לכל מדידה --- */
+.pd-v2 .pd-measures { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.pd-v2 .pd-measure {
+  flex-direction: column; align-items: stretch; gap: 5px; text-align: start; border-radius: 13px; padding: 13px 14px;
+  background: var(--surface-alt); border: 1px solid var(--border); min-height: 0;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.pd-v2 .pd-measure.on { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border-color: var(--accent); }
+.pd-v2 .pd-measure-k { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.pd-v2 .pd-measure-ic { width: 24px; height: 24px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-alt); color: var(--text-muted); }
+.pd-v2 .pd-measure.on .pd-measure-ic { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); color: var(--accent-strong); }
+.pd-v2 .pd-measure-v { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.pd-v2 .pd-measure-v b { font-family: var(--font-display); font-weight: 900; font-size: 25px; line-height: 1; color: var(--text); }
+.pd-v2 .pd-measure-v small { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.pd-v2 .pd-measure-team { font-size: 12px; color: var(--text-muted); }
+.pd-v2 .pd-measure-edit {
+  margin-top: 12px; padding: 13px 14px; border-radius: 13px; gap: 10px; align-items: flex-end;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.pd-v2 .pd-measure-edit label { font-size: 13px; font-weight: 600; color: var(--accent-strong); }
+
+/* --- פסי שינוי --- */
+.pd-v2 .pd-chip {
+  display: inline-block; flex: none; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 8px;
+  color: var(--text-muted); background: var(--surface-alt); line-height: 1.3; text-align: center; min-width: 34px;
+}
+.pd-v2 .pd-chip.up { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.pd-v2 .pd-chip.down { color: var(--c-red); background: var(--c-red-bg); }
+
+/* --- הגרף --- */
+.pd-v2 .pd-trend svg { overflow: visible; }
+.pd-v2 .pd-axis { stroke: var(--border); stroke-width: 1.5; }
+.pd-v2 .pd-area { fill: rgba(232, 118, 58, .1); }
+.pd-v2 .pd-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.pd-v2 .pd-line.up { stroke: var(--accent-fill); }
+.pd-v2 .pd-line.down { stroke: var(--gray-500); }
+.pd-v2 .pd-dot { fill: var(--surface); stroke: var(--orange-500); stroke-width: 2.5; }
+.pd-v2 .pd-dot.last { fill: var(--accent-fill); stroke: var(--surface); }
+.pd-v2 .pd-val { font-family: var(--font-display); font-weight: 800; font-size: 13px; fill: var(--text); }
+.pd-v2 .pd-val.last { fill: var(--accent-strong); }
+.pd-v2 .pd-tick { font-size: 11.5px; fill: var(--text-muted); }
+.pd-v2 .pd-tick.last { font-weight: 600; fill: var(--accent-strong); }
+.pd-v2 .pd-team-line { stroke: var(--gray-500); stroke-width: 1.5; stroke-dasharray: 6 5; opacity: 1; }
+.pd-v2 .pd-team-lbl { font-size: 12px; fill: var(--text-muted); }
+.pd-v2 .pd-trend-foot { margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+.pd-v2 .pd-trend-foot .pd-chip { font-size: 13px; padding: 6px 12px; }
+.pd-v2 .pd-cmp { border-radius: 10px; padding: 10px 15px; font-size: 14px; color: var(--primary); border-color: var(--border-hover); background: var(--surface); }
+.pd-v2 .pd-cmp.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pd-v2 .pd-select { border-radius: 10px; padding: 9px 12px; font-size: 14px; font-weight: 500; }
+
+/* --- דירוגים: כרטיס לקטגוריה --- */
+.pd-v2 .pd-cat { border-radius: 13px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; }
+.pd-v2 .pd-cat.open { background: color-mix(in srgb, var(--accent) 3%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.pd-v2 .pd-cat-h { padding: 13px 15px; gap: 11px; border: 0; background: none; width: 100%; min-height: 0; }
+.pd-v2 .pd-cat-h b { flex: 1; font-family: var(--font-display); font-weight: 800; font-size: 17px; text-align: start; }
+.pd-v2 .pd-chev {
+  flex: none; width: 8px; height: 8px; border-inline-end: 2px solid var(--gray-500); border-bottom: 2px solid var(--gray-500);
+  transform: rotate(45deg); transition: transform var(--dur-fast) ease;
+}
+.pd-v2 .pd-cat.open .pd-chev { transform: rotate(-135deg); }
+.pd-v2 .pd-mini { flex: none; display: flex; align-items: center; gap: 3px; }
+.pd-v2 .pd-mini i { width: 7px; height: 7px; border-radius: 999px; background: var(--border); display: block; }
+.pd-v2 .pd-mini i.on { background: var(--orange-500); }
+.pd-v2 .pd-cat-avg, .pd-v2 .pd-block .pd-cat-avg {
+  flex: none; font-family: var(--font-display); font-weight: 900; font-size: 16px; border-radius: 9px; padding: 6px 11px;
+  color: var(--text-muted); background: var(--surface-alt);
+}
+.pd-v2 .pd-cat-avg.t5 { color: #fff; background: var(--accent-fill); }
+.pd-v2 .pd-cat-avg.t4 { color: #fff; background: var(--orange-500); }
+.pd-v2 .pd-cat-avg.t3 { color: var(--orange-700); background: #F6C9AC; }
+.pd-v2 .pd-cat-avg.t2 { color: var(--accent-strong); background: var(--orange-100); }
+.pd-v2 .pd-cat-avg.t1 { color: var(--text-muted); background: var(--surface-alt); }
+.pd-v2 .pd-teamv { font-size: 12px; font-weight: 600; color: var(--text-muted); background: var(--surface-alt); border-radius: 999px; padding: 5px 10px; }
+.pd-v2 .pd-metrics { padding: 2px 15px 14px; }
+.pd-v2 .pd-metric { padding: 10px 0; border-top: 1px solid var(--surface-alt); gap: 12px; flex-wrap: wrap; }
+.pd-v2 .pd-metric-k { flex: 1; min-width: 120px; font-size: 15px; font-weight: 500; }
+.pd-v2 .pd-mval { flex: none; width: 26px; text-align: center; font-family: var(--font-display); font-weight: 900; font-size: 17px; color: var(--text); }
+.pd-v2 .pd-mval.none { color: var(--gray-500); }
+
+/* הנקודות: 34px, הנבחרת כהה יותר, ריקה עם נקודה אפורה בפנים */
+.pd-v2 .pd-dots { gap: 6px; }
+.pd-v2 .pd-dot-btn { width: 34px; height: 34px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-hover); transition: transform var(--dur-fast) ease; }
+.pd-v2 .pd-dot-btn span { width: 7px; height: 7px; border: 0; background: #C4D2E4; transition: none; }
+.pd-v2 .pd-dot-btn.on { background: var(--orange-500); border-color: transparent; }
+.pd-v2 .pd-dot-btn.on.last { background: var(--accent-fill); }
+.pd-v2 .pd-dot-btn.on span { width: 9px; height: 9px; background: #fff; }
+.pd-v2 .pd-dot-btn:hover { transform: scale(1.08); }
+.pd-v2 .pd-dot-btn:hover span { border-color: transparent; }
+.pd-v2 .pd-dots.ro { gap: 6px; padding: 0; }
+.pd-v2 .pd-dot-ro { width: 22px; height: 22px; border: 1px solid var(--border-hover); background: var(--surface); }
+.pd-v2 .pd-dot-ro.on { background: var(--orange-500); border-color: transparent; }
+.pd-v2 .pd-dot-ro.on.last { background: var(--accent-fill); }
+.pd-v2 .pd-metric.is-new { background: none; }
+.pd-v2 .pd-metric.is-new .pd-metric-k::after { color: var(--orange-500); }
+
+/* --- רקע ושיחות --- */
+.pd-v2 .pd-add { background: var(--accent-soft); color: var(--accent-strong); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 10px; padding: 10px 15px; font-size: 14px; margin: 0; }
+.pd-v2 .pd-note-new { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 13px; padding: 14px 15px; margin-bottom: 12px; }
+.pd-v2 .pd-note-new .chip.selected { background: var(--accent-soft); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.pd-v2 .pd-notes { gap: 9px; }
+.pd-v2 .pd-note { border-radius: 13px; padding: 13px 15px; border: 1px solid var(--border); background: var(--surface); }
+.pd-v2 .pd-note.talk { background: color-mix(in srgb, var(--accent) 3%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.pd-v2 .pd-note.hot { background: color-mix(in srgb, var(--c-red) 4%, var(--surface)); border-color: color-mix(in srgb, var(--c-red) 25%, var(--border)); }
+.pd-v2 .pd-note-kind { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 4px 10px; color: var(--text-muted); background: var(--surface-alt); }
+.pd-v2 .pd-note.talk .pd-note-kind { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.pd-v2 .pd-note.hot .pd-note-kind { color: var(--c-red); background: var(--c-red-bg); }
+.pd-v2 .pd-note-del { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: var(--c-red); }
+.pd-v2 .pd-note p { font-size: 15px; line-height: 1.65; }
+
+/* --- «נאסף לבד»: נייבי, כדי לסמן שזה לא נערך --- */
+.pd-v2 .pd-auto { background: linear-gradient(150deg, var(--hero-navy, #17264A), #142240); border: 0; }
+.pd-v2 .pd-auto .pd-card-h { margin-bottom: 14px; }
+.pd-v2 .pd-auto .pd-card-h h3 { color: #fff; }
+.pd-v2 .pd-auto .pd-card-h .muted { color: #9FB2CE; }
+.pd-v2 .pd-auto-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pd-v2 .pd-auto-tile {
+  display: flex; flex-direction: column; gap: 3px; border-radius: 13px; padding: 14px 15px;
+  background: rgba(226, 234, 246, .08); border: 1px solid rgba(226, 234, 246, .14);
+}
+.pd-v2 .pd-auto-tile.hot { background: rgba(232, 118, 58, .14); border-color: rgba(240, 168, 120, .28); }
+.pd-v2 .pd-auto-k { font-size: 12px; color: #9FB2CE; }
+.pd-v2 .pd-auto-tile.hot .pd-auto-k { color: var(--orange-300); }
+.pd-v2 .pd-auto-tile b { font-family: var(--font-display); font-weight: 900; font-size: 27px; line-height: 1; color: #fff; }
+.pd-v2 .pd-auto-sub { font-size: 12px; color: #7E90AD; }
+.pd-v2 .pd-auto-tile.hot .pd-auto-sub { color: #C79A7C; }
+
+/* --- סבב דירוג: כותרת, בוררים, רשת בלוקים --- */
+.pd-v2 .pd-round { padding: 16px 22px 24px; background: var(--surface-alt); display: flex; flex-direction: column; gap: 13px; }
+.pd-v2 .pd-round-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 20px; }
+.pd-v2 .pd-round-tx { display: flex; flex-direction: column; gap: 2px; }
+.pd-v2 .pd-round-tx b { font-family: var(--font-display); font-weight: 800; font-size: 19px; }
+.pd-v2 .pd-round-prog { margin-inline-start: auto; font-size: 13px; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; padding: 8px 13px; white-space: nowrap; }
+.pd-v2 .pd-mode { display: flex; gap: 4px; background: var(--surface-alt); border-radius: 11px; padding: 4px; align-self: auto; }
+.pd-v2 .pd-mode-btn { border: 0; border-radius: 8px; padding: 9px 15px; font-size: 14px; font-weight: 600; background: transparent; color: var(--text-muted); min-height: 0; }
+.pd-v2 .pd-mode-btn.on { background: var(--surface); color: var(--text); box-shadow: none; }
+.pd-v2 .pd-round-sel { display: flex; gap: 7px; flex-wrap: wrap; }
+.pd-v2 .pd-pill {
+  cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; border-radius: 999px; padding: 9px 16px;
+  background: var(--surface); color: var(--primary); border: 1px solid var(--border-hover); transition: background var(--dur-fast) ease;
+}
+.pd-v2 .pd-pill.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pd-v2 .pd-round-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.pd-v2 .pd-block { border-radius: 14px; padding: 14px 16px 15px; }
+.pd-v2 .pd-block-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pd-v2 .pd-block-h b { flex: 1; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.pd-v2 .pd-badge {
+  flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--surface-alt); color: var(--text-muted);
+  font-family: var(--font-display); font-weight: 900; font-size: 13px; font-style: normal; display: inline-flex; align-items: center; justify-content: center;
+}
+.pd-v2 .pd-block .pd-metric { padding: 9px 0; gap: 10px; }
+.pd-v2 .pd-block .pd-metric-k { min-width: 104px; font-size: 14px; }
+.pd-v2 .pd-block .pd-dots { gap: 5px; }
+.pd-v2 .pd-block .pd-mval { width: 22px; font-size: 16px; }
+
+/* --- מי רואה / המועדון / הקטלוג: אותה שפה --- */
+.pd-v2 .pd-answer { margin: 16px 22px 0; border-radius: 16px; padding: 22px 24px; }
+.pd-v2 .pd-answer p { font-size: 16px; line-height: 1.7; max-width: 64ch; }
+.pd-v2 .pd-grants li { padding: 13px 0; border: 0; border-top: 1px solid var(--surface-alt); border-radius: 0; gap: 13px; }
+.pd-v2 .pd-grants li:first-child { border-top: 0; }
+.pd-v2 .pd-ini {
+  flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-alt); color: var(--text-muted);
+  font-family: var(--font-display); font-weight: 900; font-size: 13px; font-style: normal; display: inline-flex; align-items: center; justify-content: center;
+}
+.pd-v2 .pd-ini.me { background: var(--accent-soft); color: var(--accent-strong); }
+.pd-v2 .pd-levels { gap: 0; }
+.pd-v2 .pd-level { padding: 13px 0; border-top: 1px solid var(--surface-alt); }
+.pd-v2 .pd-level:first-child { border-top: 0; }
+.pd-v2 .pd-level-n { border-radius: 10px; background: var(--surface-alt); color: var(--text-muted); }
+.pd-v2 .pd-level.me .pd-level-n { background: var(--accent-soft); color: var(--accent-strong); }
+.pd-v2 .pd-grant-lvl { font-size: 13px; font-weight: 600; border-radius: 999px; padding: 9px 15px; }
+.pd-v2 .pd-grant-lvl.owner, .pd-v2 .pd-grant-lvl.auto { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.pd-v2 .pd-lvl-b { border-radius: 999px; }
+.pd-v2 .pd-cat-list .pd-cat-row { padding: 11px 4px; }
+.pd-v2 .pd-cat-nm { font-size: 15px; }
+.pd-v2 .pd-cat-note { margin: 0 0 12px; border-radius: 13px; }
+
+/* --- טלפון: עמודה אחת, נקודות 44px, מספר וגודל שם קטנים יותר --- */
+@media (max-width: 640px) {
+  .pd-v2 .pd-tabs, .pd-v2 .pd-picker { padding-inline: 12px; }
+  .pd-v2 .pd-head { padding: 20px 16px; }
+  .pd-v2 .pd-num { font-size: 46px; }
+  .pd-v2 .pd-name { font-size: 24px; }
+  .pd-v2 .pd-grid, .pd-v2 .pd-round { padding: 12px; }
+  .pd-v2 .pd-auto-row, .pd-v2 .pd-round-grid { grid-template-columns: 1fr; }
+  .pd-v2 .pd-dot-btn { width: 44px; height: 44px; }
+  .pd-v2 .pd-lock { order: 0; flex-basis: auto; }
+  .pd-v2 .pd-head-actions { flex-wrap: wrap; }
+}
+@media (pointer: coarse) {
+  .pd-v2 .pd-dot-btn { width: 44px; height: 44px; }
+  .pd-v2 .pd-dots { gap: 4px; }
+  .pd-v2 .pd-pill, .pd-v2 .pd-mode-btn, .pd-v2 .pd-add, .pd-v2 .pd-cmp { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pd-v2 .pd-dot-btn, .pd-v2 .pd-chev, .pd-v2 .pd-measure, .pd-v2 .pd-pill { transition: none; }
+  .pd-v2 .pd-dot-btn:hover { transform: none; }
+}
+html.a11y-motion .pd-v2 .pd-dot-btn, html.a11y-motion .pd-v2 .pd-chev, html.a11y-motion .pd-v2 .pd-measure { transition: none; }
+html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
+/* --- 22.8 תיקונים אחרי צילום ההרנס --- */
+/* שם השחקן ירש navy מכלל h2 גלובלי ונעלם על הכותרת הכהה; גם בכותרות המשנה (סבב/מי רואה) */
+.pd-v2 .pd-name { color: #fff; }
+/* הטאבים: פס שטוח עם קו תחתון, לא קופסה מעוגלת */
+.pd-v2 .pd-tabs { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; }
+/* הערך והפס-שינוי במדידה — בשורה אחת */
+.pd-v2 .pd-measure-v { flex-wrap: nowrap; white-space: nowrap; }
+.pd-v2 .pd-measure-v b { font-size: 23px; }
+/* כותרת סבב הדירוג: הטקסט לוקח את הרוחב, הגלולה והמתג בצד */
+.pd-v2 .pd-round-tx { flex: 1 1 320px; min-width: 0; }
+/* העכביש: התוויות בצדדים נחתכו — ה-viewBox מקבל שוליים */
+.pd-v2 .pd-radar { max-width: 388px; }
+/* כותרת סבב הדירוג: .pd-card הישן הוא עמודה — כאן שורה */
+.pd-v2 .pd-round-top { flex-direction: row; }
+/* «הסדר במועדון»: הרמות כשורות שקופות על כרטיס לבן, לא קופסאות בז' על בז' */
+.pd-v2 .pd-level { background: transparent; border: 0; border-top: 1px solid var(--surface-alt); border-radius: 0; padding: 13px 0; }
+.pd-v2 .pd-level:first-child { border-top: 0; }
+.pd-v2 .pd-level.me { background: transparent; box-shadow: none; }
+.pd-v2 .pd-answer { border: 0; }
+/* כפתור פעולה בכותרות המשנה (המועדון/הקטלוג): כמו «הדפסה» — זכוכית על נייבי, לא פס כתום ברוחב מלא */
+.pd-v2 .pd-head > .pd-add {
+  align-self: flex-start; width: auto; margin-top: 14px;
+  background: rgba(255, 255, 255, .13); color: #fff; border: 1px solid rgba(226, 234, 246, .22);
+}
+.pd-v2 .pd-head > .pd-add:hover { background: rgba(255, 255, 255, .22); }
+.pd-v2 .pd-head > .pd-head-tx { position: relative; }

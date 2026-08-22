@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  FolderOpen, Users, Ruler, Weight, MoveUp, Timer, Plus, ChevronDown, ChevronUp,
-  TrendingUp, TrendingDown, Minus, Shield, UserPlus, Lock, Eye, Check, X, CalendarDays, Activity,
-  ListChecks, Link2, Database, Trash2, Printer, SlidersHorizontal, RotateCcw, EyeOff,
+  FolderOpen, Users, Ruler, Weight, MoveUp, Timer, Plus, Shield, UserPlus, Lock, Eye, Check, X,
+  CalendarDays, ListChecks, Link2, Database, Trash2, Printer, SlidersHorizontal, RotateCcw, EyeOff,
 } from 'lucide-react'
-// חצי «הבא/הקודם» מתהפכים לפי שפה — אסור לייבא ChevronLeft/Right ישירות
-import { ChevronBack as ChevronRight, ChevronFwd as ChevronLeft } from './DirIcon'
 import { L, trTeam } from './i18n'
 import { toast } from './toast'
 import { confirmDialog } from './confirm'
@@ -49,6 +46,24 @@ const fmtDate = (iso) => {
   return Number.isNaN(d.getTime()) ? iso : `${d.getDate()}.${d.getMonth() + 1}.${String(d.getFullYear()).slice(2)}`
 }
 const round1 = (n) => Math.round(n * 10) / 10
+const f1 = (n) => (n ? (Math.round(n * 10) / 10).toFixed(1) : '—')
+// גוון הממוצע (מסמך העיצוב 22.8): ככל שגבוה יותר — מלא יותר
+const avgTint = (v) => (!v ? 't0' : v >= 4.5 ? 't5' : v >= 3.8 ? 't4' : v >= 3 ? 't3' : v >= 2 ? 't2' : 't1')
+// ראשי תיבות לאווטאר («דור אביב» → «דא»)
+const initials = (name) => (name || '').trim().split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('') || '—'
+
+// פס שינוי מספרי — במקום חץ: «+0.7», «−1», «=», או «חדש» כשאין סבב קודם
+const DeltaChip = ({ from, to, lower = false, unit = '' }) => {
+  if (!to) return null
+  if (!from) return <span className="pd-chip flat">{L('חדש', 'new')}</span>
+  const d = round1(to - from)
+  const good = lower ? d < 0 : d > 0
+  return (
+    <span className={`pd-chip ${d === 0 ? 'flat' : good ? 'up' : 'down'}`} dir="ltr">
+      {d === 0 ? '=' : (d > 0 ? '+' : '−') + Math.abs(d)}{unit ? ` ${unit}` : ''}
+    </span>
+  )
+}
 // «עכשיו» ו«סבב קודם» **לתאריך שנבחר**: כשמזינים לתאריך אחר צריך לראות מה היה
 // בתוקף אז — לא את הדירוג האחרון בזמן. הסדרה מגיעה ממוינת בזמן מהמסד,
 // והעדכון האופטימי שומר על המיון.
@@ -76,37 +91,38 @@ function printDossier() {
 }
 
 // ---------- «עכביש» ----------
-function Radar({ cats, valNow, valPrev, size = 216 }) {
+// 300 במקום 216, טבעות+חישורים, נקודה על כל קודקוד, ושם+מספר ליד כל ציר
+function Radar({ cats, valNow, valPrev, size = 300 }) {
   if (cats.length < 3) return null
-  const cx = size / 2, cy = size / 2, r = size / 2 - 26
+  const cx = size / 2, cy = size / 2, r = size / 2 - 46
   const catAvg = (c, fn) => {
     const v = c.metrics.map((m) => fn(m.key)).filter((x) => x > 0)
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0
   }
-  const poly = (fn) =>
-    cats.map((c, i) => {
-      const a = (Math.PI * 2 * i) / cats.length - Math.PI / 2
-      const v = catAvg(c, fn) / 5
-      return [cx + Math.cos(a) * r * v, cy + Math.sin(a) * r * v].join(',')
-    }).join(' ')
+  const pt = (i, f) => {
+    const a = (Math.PI * 2 * i) / cats.length - Math.PI / 2
+    return [round1(cx + Math.cos(a) * r * f), round1(cy + Math.sin(a) * r * f)]
+  }
+  const poly = (fn) => cats.map((c, i) => pt(i, Math.min(1, catAvg(c, fn) / 5)).join(',')).join(' ')
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="pd-radar" role="img"
+    // שוליים אופקיים ב-viewBox: התוויות («גוף ואתלטיות») יוצאות מעבר לריבוע ונחתכו
+    <svg viewBox={`-44 0 ${size + 88} ${size}`} className="pd-radar" role="img"
       aria-label={L('תמונת מצב לפי תחומים', 'Snapshot by area')}>
       {[1, 0.75, 0.5, 0.25].map((f) => (
-        <polygon key={f} className="pd-radar-grid" points={cats.map((c, i) => {
-          const a = (Math.PI * 2 * i) / cats.length - Math.PI / 2
-          return [cx + Math.cos(a) * r * f, cy + Math.sin(a) * r * f].join(',')
-        }).join(' ')} />
+        <polygon key={f} className="pd-radar-grid" points={cats.map((c, i) => pt(i, f).join(',')).join(' ')} />
       ))}
+      {cats.map((c, i) => { const q = pt(i, 1); return <line key={c.key} className="pd-radar-spoke" x1={cx} y1={cy} x2={q[0]} y2={q[1]} /> })}
       <polygon points={poly(valPrev)} className="pd-radar-prev" />
       <polygon points={poly(valNow)} className="pd-radar-now" />
+      {cats.map((c, i) => { const q = pt(i, Math.min(1, catAvg(c, valNow) / 5)); return <circle key={c.key} className="pd-radar-pt" cx={q[0]} cy={q[1]} r="4.5" /> })}
       {cats.map((c, i) => {
         const a = (Math.PI * 2 * i) / cats.length - Math.PI / 2
+        const q = pt(i, 1.3)
+        const anchor = Math.abs(Math.cos(a)) < 0.3 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end'
         return (
-          <text key={c.key} x={cx + Math.cos(a) * (r + 16)} y={cy + Math.sin(a) * (r + 16)}
-            className="pd-radar-lbl" dominantBaseline="middle"
-            textAnchor={Math.abs(Math.cos(a)) < 0.3 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end'}>
-            {c.label}
+          <text key={c.key} x={q[0]} y={q[1] - 4} className="pd-radar-lbl" textAnchor={anchor}>
+            <tspan>{c.label}</tspan>
+            <tspan x={q[0]} dy="14" className="pd-radar-v" dir="ltr">{f1(catAvg(c, valNow))}</tspan>
           </text>
         )
       })}
@@ -115,7 +131,7 @@ function Radar({ cats, valNow, valPrev, size = 216 }) {
 }
 
 // ---------- גרף לאורך זמן ----------
-function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
+function Trend({ series, unit, lowerIsBetter, teamAvg = 0, label = '' }) {
   if (!series || series.length === 0) {
     return (
       <p className="muted small">
@@ -123,7 +139,7 @@ function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
       </p>
     )
   }
-  const w = 520, h = 132, pad = { t: 18, r: 16, b: 26, l: 34 }
+  const w = 620, h = 170, pad = { t: 22, r: 20, b: 38, l: 52 }
   const values = series.map((s) => s.value)
   // קו הקבוצה נכנס לחישוב הסקאלה, אחרת הוא היה נצמד לשפת הגרף ומשקר
   const scale = teamAvg > 0 ? [...values, teamAvg] : values
@@ -131,36 +147,40 @@ function Trend({ series, unit, lowerIsBetter, teamAvg = 0 }) {
   const span = max - min || 1
   const x = (i) => (series.length === 1 ? w / 2 : pad.l + (i * (w - pad.l - pad.r)) / (series.length - 1))
   const y = (v) => pad.t + (h - pad.t - pad.b) * (1 - (v - min) / span)
+  const base = h - pad.b
   const line = series.map((s, i) => `${i ? 'L' : 'M'}${x(i)},${y(s.value)}`).join(' ')
+  const area = `${line} L${x(series.length - 1)},${base} L${x(0)},${base} Z`
   const first = values[0], last = values[values.length - 1]
   const better = lowerIsBetter ? last < first : last > first
+  const lastI = series.length - 1
   return (
     <div className="pd-trend">
       <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={L('גרף התקדמות', 'Progress chart')}>
-        <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} className="pd-axis" />
+        <line x1={pad.l} y1={base} x2={w - pad.r} y2={base} className="pd-axis" />
         {teamAvg > 0 && (
           <g>
             <line x1={pad.l} y1={y(teamAvg)} x2={w - pad.r} y2={y(teamAvg)} className="pd-team-line" />
-            <text x={pad.l + 4} y={y(teamAvg) - 5} className="pd-team-lbl">
+            <text x={w - pad.r} y={y(teamAvg) - 6} className="pd-team-lbl" textAnchor="end">
               {L('ממוצע שאר הקבוצה', 'Rest of the team')} <tspan dir="ltr">{teamAvg}</tspan>
             </text>
           </g>
         )}
+        {series.length > 1 && <path d={area} className="pd-area" />}
         {series.length > 1 && <path d={line} className={better ? 'pd-line up' : 'pd-line down'} />}
         {series.map((s, i) => (
           <g key={s.on + '-' + i}>
-            <circle cx={x(i)} cy={y(s.value)} r="4" className="pd-dot" />
-            <text x={x(i)} y={y(s.value) - 10} className="pd-val" textAnchor="middle">{s.value}</text>
-            <text x={x(i)} y={h - 8} className="pd-tick" textAnchor="middle">{fmtDate(s.on)}</text>
+            <circle cx={x(i)} cy={y(s.value)} r={i === lastI ? 6.5 : 4.5} className={i === lastI ? 'pd-dot last' : 'pd-dot'} />
+            <text x={x(i)} y={y(s.value) - 12} className={i === lastI ? 'pd-val last' : 'pd-val'} textAnchor="middle">{s.value}</text>
+            <text x={x(i)} y={h - 10} className={i === lastI ? 'pd-tick last' : 'pd-tick'} textAnchor="middle">{fmtDate(s.on)}</text>
           </g>
         ))}
       </svg>
-      {series.length > 1 && (
-        <span className={better ? 'pd-delta up' : 'pd-delta down'}>
-          {better ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          <bdi dir="ltr">{(last - first > 0 ? '+' : '') + round1(last - first)}</bdi> {unit || ''}
+      <div className="pd-trend-foot">
+        {series.length > 1 && <DeltaChip from={first} to={last} lower={lowerIsBetter} unit={unit || ''} />}
+        <span className="muted small">
+          {L(`${series.length} נקודות מדידה`, `${series.length} data points`)}{label ? ` · ${label}` : ''}
         </span>
-      )}
+      </div>
     </div>
   )
 }
@@ -172,7 +192,7 @@ function Dots({ value, onChange, name, canClear = true, readOnly = false }) {
   if (readOnly) {
     return (
       <span className="pd-dots ro" role="img" aria-label={L(`${name}: ${value || '—'} מתוך 5`, `${name}: ${value || '—'} of 5`)}>
-        {[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= value ? 'pd-dot-ro on' : 'pd-dot-ro'} />)}
+        {[1, 2, 3, 4, 5].map((n) => <i key={n} className={n <= value ? (n === value ? 'pd-dot-ro on last' : 'pd-dot-ro on') : 'pd-dot-ro'} />)}
       </span>
     )
   }
@@ -180,20 +200,13 @@ function Dots({ value, onChange, name, canClear = true, readOnly = false }) {
     <span className="pd-dots" role="radiogroup" aria-label={name}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n}`}
-          className={n <= value ? 'pd-dot-btn on' : 'pd-dot-btn'}
+          className={n <= value ? (n === value ? 'pd-dot-btn on last' : 'pd-dot-btn on') : 'pd-dot-btn'}
           onClick={() => onChange(n === value && canClear ? 0 : n)}>
           <span />
         </button>
       ))}
     </span>
   )
-}
-
-const DeltaIcon = ({ from, to }) => {
-  if (!from || !to) return <span className="pd-chg flat" />
-  if (to > from) return <span className="pd-chg up" title={L('עלייה', 'Up')}><TrendingUp size={13} /></span>
-  if (to < from) return <span className="pd-chg down" title={L('ירידה', 'Down')}><TrendingDown size={13} /></span>
-  return <span className="pd-chg flat" title={L('בלי שינוי', 'No change')}><Minus size={13} /></span>
 }
 
 // =====================================================================
@@ -378,7 +391,7 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
   const rosterRow = teamRoster.find((r) => r.id === rosterId)
 
   return (
-    <div className="welcome-card pd-screen">
+    <div className="welcome-card pd-screen pd-v2">
       <div className="tabs pd-tabs">
         <button className={tab === 'dossier' ? 'tab active' : 'tab'} onClick={() => setTab('dossier')}>
           <FolderOpen size={15} aria-hidden="true" /> {L('תיק שחקן', 'Player dossier')}
@@ -472,7 +485,11 @@ export default function PlayerDossier({ session, profile, initialRosterId, onCon
                 )}
               </>
             )}
-            {saving && <span className="muted small">{L('שומר…', 'Saving…')}</span>}
+            {!readOnly && (
+              <span className={saving ? 'pd-saved busy' : 'pd-saved'} role="status">
+                {saving ? L('שומר…', 'Saving…') : L('נשמר אוטומטית', 'Saved automatically')}
+              </span>
+            )}
           </div>
 
           {tab !== 'access' && !readOnly && onDate !== api.today() && (
@@ -653,20 +670,42 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
   return (
     <div className="pd">
       <header className="pd-head">
-        {rosterRow.number ? <span className="pd-num" dir="ltr">{rosterRow.number}</span> : null}
-        <div className="pd-head-tx">
-          <h2 className="pd-name">{rosterRow.name}</h2>
-          <span className="pd-meta">
-            {[rosterRow.position, age ? `${age} ${L('שנים', 'yrs')}` : null, trTeam(rosterRow.team)].filter(Boolean).join(' · ')}
+        {/* קווי מגרש ברקע — קישוט, 10% */}
+        <svg className="pd-head-court" viewBox="0 0 600 170" aria-hidden="true">
+          <rect x="20" y="16" width="560" height="138" rx="8" />
+          <circle cx="300" cy="85" r="40" />
+          <line x1="300" y1="16" x2="300" y2="154" />
+          <circle cx="20" cy="85" r="66" />
+        </svg>
+        <div className="pd-head-row">
+          {rosterRow.number ? <b className="pd-num" dir="ltr">{rosterRow.number}</b> : null}
+          <div className="pd-head-tx">
+            <h2 className="pd-name">{rosterRow.name}</h2>
+            <span className="pd-meta">
+              {[rosterRow.position, age ? `${age} ${L('שנים', 'yrs')}` : null, trTeam(rosterRow.team)].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+          <span className="pd-head-actions">
+            <button type="button" className="btn-soft pd-print-btn" onClick={printDossier}>
+              <Printer size={15} aria-hidden="true" /> {L('הדפסה', 'Print')}
+            </button>
+            <span className="pd-lock">
+              <Lock size={13} />{' '}
+              {readOnly ? L('קריאה בלבד', 'Read only') : L('סגור — אתה והמנהלים מעליך', 'Private — you and your managers')}
+            </span>
           </span>
         </div>
-        <button type="button" className="btn-soft pd-print-btn" onClick={printDossier}>
-          <Printer size={15} aria-hidden="true" /> {L('הדפסה', 'Print')}
-        </button>
-        <span className="pd-lock">
-          <Lock size={13} />{' '}
-          {readOnly ? L('קריאה בלבד', 'Read only') : L('סגור — אתה והמנהלים מעליך', 'Private — you and your managers')}
-        </span>
+        {history.length > 1 && (
+          <div className="pd-seasons" aria-label={L('השנים בתיק', 'Seasons in the dossier')}>
+            {history.map((h) => (
+              <span key={h.id} className={h.id === rosterRow.id ? 'pd-season now' : 'pd-season'}>
+                <b dir="ltr">{new Date(h.created_at).getFullYear()}</b>
+                <span>{trTeam(h.team)}</span>
+                <i>{h.coachName}</i>
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       {dups.length > 0 && !readOnly && (
@@ -681,21 +720,12 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
         </div>
       )}
 
-      {history.length > 1 && (
-        <div className="pd-seasons" aria-label={L('השנים בתיק', 'Seasons in the dossier')}>
-          {history.map((h) => (
-            <span key={h.id} className={h.id === rosterRow.id ? 'pd-season now' : 'pd-season'}>
-              <b dir="ltr">{new Date(h.created_at).getFullYear()}</b>
-              <span>{trTeam(h.team)}</span>
-              <i>{h.coachName}</i>
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className="pd-grid">
         <section className="pd-card">
-          <div className="pd-card-h"><h3>{L('תמונת מצב', 'Snapshot')}</h3></div>
+          <div className="pd-card-h">
+            <h3>{L('תמונת מצב', 'Snapshot')}</h3>
+            <span className="muted small">{L('ממוצע לפי תחום', 'Average per area')}</span>
+          </div>
           <Radar cats={catalog.cats} valNow={now} valPrev={prev} />
           <div className="pd-legend">
             <span><i className="pd-sw now" /> {L('עכשיו', 'Now')}</span>
@@ -715,20 +745,18 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
               const Icon = ICON_BY_MEASURE[m.key] || Ruler
               const v = now(m.key)
               const p = prev(m.key)
-              const up = m.lower_is_better ? v < p : v > p
               return (
                 <button key={m.key} type="button"
                   className={trendKey === m.key ? 'pd-measure on' : 'pd-measure'}
                   onClick={() => { setTrendKey(m.key); if (!readOnly) setMeasureEdit({ key: m.key, value: v || '' }) }}>
-                  <span className="pd-measure-k"><Icon size={14} /> {m.label}</span>
-                  <b dir="ltr">{v ? v : '—'}{v ? <small> {m.unit}</small> : null}</b>
-                  {v && p ? (
-                    <span className={up ? 'pd-measure-d up' : 'pd-measure-d down'}>
-                      <bdi dir="ltr">{(v - p > 0 ? '+' : '') + round1(v - p)}</bdi>
-                    </span>
-                  ) : null}
+                  <span className="pd-measure-k"><i className="pd-measure-ic"><Icon size={13} /></i> {m.label}</span>
+                  <span className="pd-measure-v">
+                    <b dir="ltr">{v ? v : '—'}</b>
+                    {v ? <small>{m.unit}</small> : null}
+                    <DeltaChip from={p} to={v} lower={!!m.lower_is_better} />
+                  </span>
                   {cmp && teamAvg(m.key) > 0 ? (
-                    <span className="pd-teamv sm"><Users size={11} aria-hidden="true" /> <bdi dir="ltr">{teamAvg(m.key)}</bdi></span>
+                    <span className="pd-measure-team">{L('קבוצה', 'team')} <bdi dir="ltr">{teamAvg(m.key)}</bdi></span>
                   ) : null}
                 </button>
               )
@@ -771,7 +799,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             </button>
           </div>
           <Trend series={E[trendKey]} unit={trendMetric?.kind === 'number' ? trendMetric.unit : L('נק׳', 'pts')}
-            lowerIsBetter={!!trendMetric?.lower_is_better} teamAvg={cmp ? teamAvg(trendKey) : 0} />
+            lowerIsBetter={!!trendMetric?.lower_is_better} teamAvg={cmp ? teamAvg(trendKey) : 0} label={trendMetric?.label || ''} />
           {cmp && teamAvg(trendKey) === 0 && (
             <p className="muted small">
               {L('אין עוד ערכים לשאר הקבוצה במדד הזה — הממוצע יופיע אחרי שתדרגו עוד שחקנים.',
@@ -798,15 +826,18 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             return (
               <div key={c.key} className={open ? 'pd-cat open' : 'pd-cat'}>
                 <button type="button" className="pd-cat-h" onClick={() => setOpenCat(open ? '' : c.key)} aria-expanded={open}>
-                  {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <i className="pd-chev" aria-hidden="true" />
                   <b>{c.label}</b>
-                  <span className="pd-cat-avg" dir="ltr">{avgNow ? avgNow.toFixed(1) : '—'}</span>
+                  <span className="pd-mini" aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((k) => <i key={k} className={k <= Math.round(avgNow) ? 'on' : ''} />)}
+                  </span>
+                  <span className={`pd-cat-avg ${avgTint(avgNow)}`} dir="ltr">{f1(avgNow)}</span>
                   {avgTeam > 0 && (
                     <span className="pd-teamv" title={L('ממוצע שאר הקבוצה', 'Rest of the team')}>
-                      <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{avgTeam}</bdi>
+                      {L('קבוצה', 'team')} <bdi dir="ltr">{avgTeam}</bdi>
                     </span>
                   )}
-                  <DeltaIcon from={avgPrev} to={avgNow} />
+                  <DeltaChip from={round1(avgPrev)} to={round1(avgNow)} />
                 </button>
                 {open && (
                   <ul className="pd-metrics">
@@ -815,12 +846,13 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                         <span className="pd-metric-k">{m.label}</span>
                         <Dots value={now(m.key)} name={m.label} canClear={hasOn(E[m.key], onDate)} readOnly={readOnly}
                           onChange={(v) => setValue(pid, m.key, v, rosterRow.id)} />
+                        <b className={now(m.key) ? 'pd-mval' : 'pd-mval none'} dir="ltr">{now(m.key) || '—'}</b>
                         {cmp && teamAvg(m.key) > 0 ? (
                           <span className="pd-teamv" title={L('ממוצע שאר הקבוצה', 'Rest of the team')}>
-                            <Users size={12} aria-hidden="true" /> <bdi dir="ltr">{teamAvg(m.key)}</bdi>
+                            {L('קבוצה', 'team')} <bdi dir="ltr">{teamAvg(m.key)}</bdi>
                           </span>
                         ) : null}
-                        <DeltaIcon from={prev(m.key)} to={now(m.key)} />
+                        <DeltaChip from={prev(m.key)} to={now(m.key)} />
                       </li>
                     ))}
                   </ul>
@@ -835,7 +867,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             <h3>{L('רקע ושיחות', 'Background & talks')}</h3>
             {!readOnly && (
               <button type="button" className="btn-soft pd-add" onClick={() => setNoteOpen((v) => !v)}>
-                <Plus size={15} /> {L('רשומה חדשה', 'New entry')}
+                {noteOpen ? L('סגירה', 'Close') : <><Plus size={15} /> {L('רשומה חדשה', 'New entry')}</>}
               </button>
             )}
           </div>
@@ -863,7 +895,7 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
           ) : (
             <ul className="pd-notes">
               {notes.map((n) => (
-                <li key={n.id} className="pd-note">
+                <li key={n.id} className={`pd-note${n.kind === 'פציעה' ? ' hot' : n.kind === 'שיחה' ? ' talk' : ''}`}>
                   <span className="pd-note-top">
                     <span className="pd-note-kind">{kindLabel(n.kind)}</span>
                     <span className="muted small">
@@ -871,8 +903,8 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
                       {n.coach ? ` · ${[n.coach.first_name, n.coach.last_name].filter(Boolean).join(' ')}` : ''}
                     </span>
                     {!readOnly && n.coach_id === me && (
-                      <button type="button" className="pd-note-del" onClick={() => delNote(n.id)} aria-label={L('מחיקה', 'Delete')}>
-                        <Trash2 size={13} />
+                      <button type="button" className="pd-note-del" onClick={() => delNote(n.id)}>
+                        <Trash2 size={13} aria-hidden="true" /> {L('מחיקה', 'Delete')}
                       </button>
                     )}
                   </span>
@@ -888,28 +920,27 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             <h3>{L('נאסף לבד מהאפליקציה', 'Collected automatically')}</h3>
             <span className="muted small">{L('בלי להקליד כלום', 'Nothing to type')}</span>
           </div>
-          {Object.keys(auto).length === 0 ? (
-            <p className="muted small">
-              {L('אין עוד נתונים — נוכחות, מאמץ ומשימות יופיעו כאן ברגע שיהיו.', 'No data yet — attendance, effort and tasks appear here once they exist.')}
-            </p>
-          ) : (
-            <div className="pd-auto-row">
-              {auto.attendance != null && (
-                <span className="pd-auto-item">
-                  <Activity size={15} /> {L('נוכחות', 'Attendance')} <b dir="ltr">{auto.attendance}%</b>
-                  <span className="muted small">
-                    (<bdi dir="ltr">{auto.sessions}</bdi> {L('אימונים · איחור נספר כנוכחות', 'sessions · late counts as present')})
-                  </span>
-                </span>
-              )}
-              {auto.effort != null && (
-                <span className="pd-auto-item"><TrendingUp size={15} /> {L('עומס מדווח (ממוצע)', 'Reported load (avg)')} <b dir="ltr">{auto.effort}/10</b></span>
-              )}
-              {auto.tasks != null && (
-                <span className="pd-auto-item"><Check size={15} /> {L('משימות שבוצעו', 'Tasks done')} <b dir="ltr">{auto.tasks}</b></span>
-              )}
-            </div>
-          )}
+          <div className="pd-auto-row">
+            <span className="pd-auto-tile">
+              <span className="pd-auto-k">{L('נוכחות', 'Attendance')}</span>
+              <b dir="ltr">{auto.attendance != null ? `${auto.attendance}%` : '—'}</b>
+              <span className="pd-auto-sub">
+                {auto.attendance != null
+                  ? <><bdi dir="ltr">{auto.sessions}</bdi> {L('אימונים · איחור נספר כנוכחות', 'sessions · late counts as present')}</>
+                  : L('אין עדיין נוכחות רשומה', 'No attendance recorded yet')}
+              </span>
+            </span>
+            <span className="pd-auto-tile">
+              <span className="pd-auto-k">{L('עומס מדווח (ממוצע)', 'Reported load (avg)')}</span>
+              <b dir="ltr">{auto.effort != null ? `${auto.effort}/10` : '—'}</b>
+              <span className="pd-auto-sub">{L('מהדיווח שלו אחרי אימון', 'From his post-practice reports')}</span>
+            </span>
+            <span className="pd-auto-tile hot">
+              <span className="pd-auto-k">{L('משימות שבוצעו', 'Tasks done')}</span>
+              <b dir="ltr">{auto.tasks != null ? auto.tasks : '—'}</b>
+              <span className="pd-auto-sub">{L('מתוך המשימות שנשלחו לו', 'Out of the tasks sent to him')}</span>
+            </span>
+          </div>
         </section>
       </div>
 
@@ -997,9 +1028,10 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
 //  2. סבב דירוג — כל הקטגוריות, מסך אחד בכל פעם
 // =====================================================================
 function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, entries, loadEntriesFor, setValue, onDate }) {
-  const [mode, setMode] = useState('player')
-  const [pIdx, setPIdx] = useState(0)
-  const [mIdx, setMIdx] = useState(0)
+  // «לפי קטגוריה» (ברירת המחדל — כך ממלאים סבב מהר ועקבי) או «לפי שחקן»
+  const [mode, setMode] = useState('metric')
+  const [roundCat, setRoundCat] = useState(catalog.cats[0]?.key || '')
+  const [roundRid, setRoundRid] = useState(teamRoster[0]?.id || null)
   const [prep, setPrep] = useState(true)
   const [pids, setPids] = useState({}) // rosterId -> personId (נבנה כאן, לא תלוי ב-prop)
   const metrics = useMemo(
@@ -1031,23 +1063,9 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
   const pidOf = (r) => pids[r.id] || personByRoster[r.id]
   const seriesOf = (r, key) => (entries[pidOf(r)] || {})[key]
   const valOf = (r, key) => atDate(seriesOf(r, key), onDate).cur
-  const prevOf = (r, key) => atDate(seriesOf(r, key), onDate).prev
   // «הושלם» = יש ערך **לתאריך הנבחר** (לא ערך שנגרר מסבב קודם)
   const doneToday = (r, key) => hasOn(seriesOf(r, key), onDate)
-
-  const playerDone = (r) => metrics.length > 0 && metrics.every((m) => doneToday(r, m.key))
-  const metricDone = (m) => teamRoster.length > 0 && teamRoster.every((r) => doneToday(r, m.key))
-  const donePlayers = teamRoster.filter(playerDone).length
-  const doneMetrics = metrics.filter(metricDone).length
-
-  const player = teamRoster[Math.min(pIdx, teamRoster.length - 1)]
-  const metric = metrics[Math.min(mIdx, Math.max(0, metrics.length - 1))]
-  const atStart = mode === 'player' ? pIdx === 0 : mIdx === 0
-  const atEnd = mode === 'player' ? pIdx >= teamRoster.length - 1 : mIdx >= metrics.length - 1
-  const step = (d) => {
-    if (mode === 'player') setPIdx((i) => Math.min(teamRoster.length - 1, Math.max(0, i + d)))
-    else setMIdx((i) => Math.min(metrics.length - 1, Math.max(0, i + d)))
-  }
+  const mean = (arr) => { const g = arr.filter((x) => x > 0); return g.length ? g.reduce((a, b) => a + b, 0) / g.length : 0 }
 
   if (prep) return <SkeletonCards count={1} lines={6} />
   if (!metrics.length) {
@@ -1063,120 +1081,83 @@ function RatingRound({ team, teamRoster, catalog, personByRoster, ensurePerson, 
     )
   }
 
+  const byCat = mode === 'metric'
+  const cat = catalog.cats.find((c) => c.key === roundCat) || catalog.cats[0]
+  const player = teamRoster.find((r) => r.id === roundRid) || teamRoster[0]
+
+  // הבלוקים: לפי קטגוריה — בלוק לכל שחקן; לפי שחקן — בלוק לכל קטגוריה
+  const blocks = byCat
+    ? teamRoster.map((r) => ({
+        id: r.id, badge: r.number || '·', title: r.name, sub: r.position || '',
+        avg: mean(cat.metrics.map((m) => valOf(r, m.key))),
+        rows: cat.metrics.map((m) => ({ r, m })),
+      }))
+    : catalog.cats.map((c) => ({
+        id: c.key, badge: String(c.metrics.length), title: c.label, sub: '',
+        avg: mean(c.metrics.map((m) => valOf(player, m.key))),
+        rows: c.metrics.map((m) => ({ r: player, m })),
+      }))
+  const pairs = blocks.flatMap((b) => b.rows)
+  const done = pairs.filter(({ r, m }) => doneToday(r, m.key)).length
+
   return (
-    <div className="pd">
-      <header className="pd-head pd-head--round">
-        <div className="pd-head-tx">
-          <h2 className="pd-name">{L('סבב דירוג · ', 'Rating round · ')}{trTeam(team)}</h2>
-          <span className="pd-meta">
-            {mode === 'player'
-              ? L(`שחקן אחד על המסך, כל ${metrics.length} הקטגוריות. הדירוג נשמר ${isToday ? 'לתאריך של היום' : `לתאריך ${fmtDate(onDate)}`}.`,
-                   `One player, all ${metrics.length} categories. Saved under ${isToday ? 'today’s date' : fmtDate(onDate)}.`)
-              : L('קטגוריה אחת, כל הקבוצה — ככה הדירוג יוצא עקבי בין השחקנים.',
-                   'One category, the whole team — this keeps the scale consistent.')}
+    <div className="pd pd-round">
+      <div className="pd-card pd-round-top">
+        <span className="pd-round-tx">
+          <b>{L('סבב דירוג', 'Rating round')} · {trTeam(team)}</b>
+          <span className="muted small">
+            {byCat
+              ? L('קטגוריה אחת, כל הסגל — כך ממלאים סבב מהר ועקבי.', 'One category, the whole squad — fast and consistent.')
+              : L('שחקן אחד, כל הקטגוריות.', 'One player, every category.')}
+            {' '}{isToday ? L('נשמר לתאריך של היום.', 'Saved under today’s date.') : L(`נשמר לתאריך ${fmtDate(onDate)}.`, `Saved under ${fmtDate(onDate)}.`)}
           </span>
-        </div>
-        <span className="pd-round-count">
-          <bdi dir="ltr">{mode === 'player' ? `${donePlayers}/${teamRoster.length}` : `${doneMetrics}/${metrics.length}`}</bdi>{' '}
-          {mode === 'player' ? L('שחקנים הושלמו', 'players done') : L('קטגוריות הושלמו', 'categories done')}
         </span>
-      </header>
-
-      <div className="pd-mode" role="group" aria-label={L('כיוון העבודה', 'Working direction')}>
-        <button type="button" className={mode === 'player' ? 'pd-mode-btn on' : 'pd-mode-btn'}
-          aria-pressed={mode === 'player'} onClick={() => setMode('player')}>
-          <Users size={15} /> {L('שחקן אחרי שחקן', 'Player by player')}
-        </button>
-        <button type="button" className={mode === 'metric' ? 'pd-mode-btn on' : 'pd-mode-btn'}
-          aria-pressed={mode === 'metric'} onClick={() => setMode('metric')}>
-          <ListChecks size={15} /> {L('קטגוריה אחרי קטגוריה', 'Category by category')}
-        </button>
+        <span className="pd-round-prog" role="status">
+          {L(`דורגו ${done} מתוך ${pairs.length}`, `${done} of ${pairs.length} rated`)}
+        </span>
+        <span className="pd-mode" role="group" aria-label={L('כיוון העבודה', 'Working direction')}>
+          <button type="button" className={byCat ? 'pd-mode-btn on' : 'pd-mode-btn'} aria-pressed={byCat} onClick={() => setMode('metric')}>
+            {L('לפי קטגוריה', 'By category')}
+          </button>
+          <button type="button" className={!byCat ? 'pd-mode-btn on' : 'pd-mode-btn'} aria-pressed={!byCat} onClick={() => setMode('player')}>
+            {L('לפי שחקן', 'By player')}
+          </button>
+        </span>
       </div>
 
-      <div className="pd-prog" aria-hidden="true">
-        {(mode === 'player' ? teamRoster : metrics).map((x, i) => {
-          const cur = i === (mode === 'player' ? pIdx : mIdx)
-          const ok = mode === 'player' ? playerDone(x) : metricDone(x)
-          return <span key={x.id || x.key} className={`pd-prog-i${cur ? ' cur' : ''}${ok ? ' ok' : ''}`} />
-        })}
-      </div>
-
-      {mode === 'player' ? (
-        <section className="pd-card pd-sheet">
-          <div className="pd-sheet-h">
-            {player.number ? <span className="pd-num" dir="ltr">{player.number}</span> : null}
-            <div>
-              <b className="pd-sheet-name as-text">{player.name}</b>
-              <span className="pd-meta dark">{[player.position, trTeam(player.team)].filter(Boolean).join(' · ')}</span>
-            </div>
-            <span className="muted small pd-sheet-count">
-              <bdi dir="ltr">{metrics.filter((m) => doneToday(player, m.key)).length}/{metrics.length}</bdi>{' '}
-              {isToday ? L('עודכנו היום', 'updated today') : L(`עודכנו ב-${fmtDate(onDate)}`, `updated on ${fmtDate(onDate)}`)}
-            </span>
-          </div>
-          {catalog.cats.map((c) => (
-            <div key={c.key} className="pd-sheet-cat">
-              <h4>{c.label}</h4>
-              <ul className="pd-metrics">
-                {c.metrics.map((m) => (
-                  <li key={m.key} className={doneToday(player, m.key) ? 'pd-metric is-new' : 'pd-metric'}>
-                    <span className="pd-metric-k">{m.label}</span>
-                    <Dots value={valOf(player, m.key)} name={`${player.name} · ${m.label}`}
-                      canClear={doneToday(player, m.key)}
-                      onChange={(v) => setValue(pidOf(player), m.key, v, player.id)} />
-                    <DeltaIcon from={prevOf(player, m.key)} to={valOf(player, m.key)} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ) : (
-        <section className="pd-card pd-sheet">
-          <div className="pd-sheet-h">
-            <div>
-              <span className="pd-sheet-kick">{metric.catLabel}</span>
-              <b className="pd-sheet-name as-text">{metric.label}</b>
-            </div>
-            <span className="muted small pd-sheet-count">
-              <bdi dir="ltr">{mIdx + 1}/{metrics.length}</bdi> {L('קטגוריות', 'categories')}
-            </span>
-          </div>
-          <ul className="pd-metrics">
-            {teamRoster.map((r) => (
-              <li key={r.id} className={doneToday(r, metric.key) ? 'pd-metric is-new' : 'pd-metric'}>
-                <span className="pd-metric-k pd-metric-player">
-                  {r.number ? <span className="pd-num sm" dir="ltr">{r.number}</span> : null} {r.name}
-                </span>
-                <Dots value={valOf(r, metric.key)} name={`${r.name} · ${metric.label}`}
-                  canClear={doneToday(r, metric.key)}
-                  onChange={(v) => setValue(pidOf(r), metric.key, v, r.id)} />
-                <DeltaIcon from={prevOf(r, metric.key)} to={valOf(r, metric.key)} />
-              </li>
+      <div className="pd-round-sel" role="tablist" aria-label={byCat ? L('קטגוריה', 'Category') : L('שחקן', 'Player')}>
+        {byCat
+          ? catalog.cats.map((c) => (
+              <button key={c.key} type="button" role="tab" aria-selected={c.key === cat.key}
+                className={c.key === cat.key ? 'pd-pill on' : 'pd-pill'} onClick={() => setRoundCat(c.key)}>{c.label}</button>
+            ))
+          : teamRoster.map((r) => (
+              <button key={r.id} type="button" role="tab" aria-selected={r.id === player.id}
+                className={r.id === player.id ? 'pd-pill on' : 'pd-pill'} onClick={() => setRoundRid(r.id)}>
+                {r.number ? `${r.number} · ` : ''}{r.name}
+              </button>
             ))}
-          </ul>
-        </section>
-      )}
-
-      <div className="pd-nav">
-        <button type="button" className="btn-soft" onClick={() => step(-1)} disabled={atStart}>
-          <ChevronRight size={16} /> {L('הקודם', 'Previous')}
-        </button>
-        <span className="pd-nav-mid">
-          {mode === 'player'
-            ? L(`שחקן ${pIdx + 1} מתוך ${teamRoster.length}`, `Player ${pIdx + 1} of ${teamRoster.length}`)
-            : L(`קטגוריה ${mIdx + 1} מתוך ${metrics.length}`, `Category ${mIdx + 1} of ${metrics.length}`)}
-        </span>
-        <button type="button" className="btn-primary pd-nav-next" onClick={() => step(1)} disabled={atEnd}>
-          {L('הבא', 'Next')} <ChevronLeft size={16} />
-        </button>
       </div>
-      {atEnd && (
-        <p className="pd-nav-end">
-          {L(`זה האחרון. כל דירוג נשמר לתאריך ${isToday ? 'של היום' : fmtDate(onDate)}, והגרף בתיק קיבל נקודה חדשה.`,
-             `That was the last one. Every rating is saved under ${isToday ? 'today’s date' : fmtDate(onDate)} and the chart has a new point.`)}
-        </p>
-      )}
+
+      <div className="pd-round-grid">
+        {blocks.map((b) => (
+          <section key={b.id} className="pd-card pd-block">
+            <span className="pd-block-h">
+              <i className="pd-badge" dir="ltr">{b.badge}</i>
+              <b>{b.title}</b>
+              <span className={`pd-cat-avg ${avgTint(b.avg)}`} dir="ltr">{f1(b.avg)}</span>
+            </span>
+            {b.rows.map(({ r, m }) => (
+              <div key={m.key} className={doneToday(r, m.key) ? 'pd-metric is-new' : 'pd-metric'}>
+                <span className="pd-metric-k">{m.label}</span>
+                <Dots value={valOf(r, m.key)} name={`${r.name} · ${m.label}`} canClear={doneToday(r, m.key)}
+                  onChange={(v) => setValue(pidOf(r), m.key, v, r.id)} />
+                <b className={valOf(r, m.key) ? 'pd-mval' : 'pd-mval none'} dir="ltr">{valOf(r, m.key) || '—'}</b>
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
     </div>
   )
 }
@@ -1388,10 +1369,11 @@ function Access({ me, club, team, rosterRow, personByRoster, ensurePerson }) {
           <ul className="pd-grants">
             <li><b>{L('אתה', 'You')}</b> <span className="pd-grant-lvl owner">{L('בעל התיק', 'Owner')}</span></li>
             {manager && manager.user_id !== me && iAmInTree && (
-              <li><b>{manager.name}</b> <span className="pd-grant-lvl auto">{L('לפי המבנה — מנהל מועדון', 'By structure — club manager')}</span></li>
+              <li><i className="pd-ini">{initials(manager.name)}</i><b>{manager.name}</b> <span className="pd-grant-lvl auto">{L('לפי המבנה — מנהל מועדון', 'By structure — club manager')}</span></li>
             )}
             {access.map((a) => (
               <li key={a.coach_id}>
+                <i className="pd-ini">{initials(a.name)}</i>
                 <b>{a.name}</b>
                 <span className="pd-lvl" role="group" aria-label={L(`רמת הגישה של ${a.name}`, `${a.name}’s access level`)}>
                   <button type="button" className={a.level === 'edit' ? 'pd-lvl-b' : 'pd-lvl-b on'}
@@ -1847,6 +1829,7 @@ function ClubManage({ me, club, iAmManager, onBrowse }) {
             <ul className="pd-grants">
               {inTree.map((r) => (
                 <li key={r.id}>
+                  <i className={r.user_id === me ? 'pd-ini me' : 'pd-ini'}>{initials(r.name)}</i>
                   <b>{r.name}{r.user_id === me ? L(' (אתה)', ' (you)') : ''}</b>
                   <button type="button" className="link-button" onClick={() => onBrowse({ id: r.user_id, name: r.name })}>
                     <FolderOpen size={13} aria-hidden="true" /> {L('התיקים שלו', 'Their dossiers')}
