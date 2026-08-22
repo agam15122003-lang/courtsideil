@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { SkeletonConvos } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
 
@@ -223,8 +224,11 @@ export default function Notifications({ session, onNavigate }) {
           <details className="ntf-about">
             <summary>{L('מה מגיע לכאן?', 'What shows up here?')}</summary>
             <p>
-              {L('הודעות ממאמנים ומשחקנים, תגובות ולייקים בקהילת המאמנים, אירועים שנפתחו, ומשימות שנשלחו אליך. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
-                 'Messages from coaches and players, community comments and likes, new events, and tasks sent to you. Everything stays inside the app — there are no phone push notifications, and none of this is emailed.')}
+              {PLAYER_SIDE
+                ? L('הודעות ממאמנים ומשחקנים, תגובות ולייקים בקהילת המאמנים, אירועים שנפתחו, ומשימות שנשלחו אליך. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
+                    'Messages from coaches and players, community comments and likes, new events, and tasks sent to you. Everything stays inside the app — there are no phone push notifications, and none of this is emailed.')
+                : L('הודעות ממאמנים, תגובות ולייקים בקהילת המאמנים ואירועים שנפתחו. הכול נשאר בתוך האפליקציה — אין התראות דחיפה לטלפון, ואף אחת מההתראות לא נשלחת במייל.',
+                    'Messages from coaches, community comments and likes, and new events. Everything stays inside the app — there are no phone push notifications, and none of this is emailed.')}
             </p>
           </details>
         </div>

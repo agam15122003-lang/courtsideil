@@ -10,6 +10,7 @@ import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
 import { AGE_GROUPS, GENDERS, ISRAELI_CLUBS, teamLabel } from './constants'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { createConsentRequest, consentShareText, consentRequestError } from './consent'
 import { waShare, copyText } from './share'
 
@@ -46,7 +47,8 @@ function exactAge(dateStr) {
 export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   // משתמש חדש (עדיין אין שם) — תמיד מתחילים ממסך בחירת התפקיד, גם אם
   // ברירת המחדל של העמודה במסד היא 'coach' (אחרת מסך הבחירה נדלג).
-  const [role, setRole] = useState(profile?.first_name ? (profile?.role || '') : '') // '' = טרם נבחר, 'coach' | 'player'
+  // צד המאמן בלבד (22.8): אין מסך «מי אתם?» — כל משתמש חדש הוא מאמן.
+  const [role, setRole] = useState(PLAYER_SIDE ? (profile?.first_name ? (profile?.role || '') : '') : (profile?.role || 'coach')) // '' = טרם נבחר, 'coach' | 'player'
   const [firstName, setFirstName] = useState(profile?.first_name || '')
   const [lastName, setLastName] = useState(profile?.last_name || '')
   const [club, setClub] = useState(profile?.club || '')
@@ -404,7 +406,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
   return (
     <div className="welcome-card profile-form">
-      {isNew && (
+      {isNew && PLAYER_SIDE && (
         <button type="button" className="link-button" style={{ marginBottom: 8 }} onClick={() => setRole('')}>
           {L('← שינוי סוג משתמש', '← Change who you are')}
         </button>

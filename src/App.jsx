@@ -9,6 +9,9 @@ import Landing from './Landing'
 import PublicDrill from './PublicDrill'
 import { ConfirmHost } from './confirm'
 import { useLang } from './i18n'
+// 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
+// הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
+import { PLAYER_SIDE } from './flags'
 
 // מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
 const ParentConsent = lazy(() => import('./ParentConsent'))
@@ -58,6 +61,7 @@ function captureCourtEntry() {
 // נשמר ב-localStorage כדי שרענון באמצע ההרשמה לא יאבד את הבחירה.
 const ROLES = ['coach', 'player']
 function readRole() {
+  if (!PLAYER_SIDE) return 'coach' // צד המאמן בלבד — אין תפקיד אחר להירשם אליו
   try {
     const saved = localStorage.getItem('signup_role')
     return ROLES.includes(saved) ? saved : 'coach'
@@ -99,7 +103,7 @@ export default function App() {
 
   // תאימות לשער התרגיל הציבורי, שנשאר כפי שהיה: "פתיחת הדלת" = מסך בחירת התפקיד
   const setShowAuth = (open) => {
-    if (open) goAuth('role')
+    if (open) goAuth(PLAYER_SIDE ? 'role' : 'auth')
     else {
       setAuthStep(null)
       setAuthTrail([])
@@ -116,6 +120,12 @@ export default function App() {
   // הגעה מלינק הצטרפות: הקוד כבר נשמר, והמשתמש כבר הוכיח לאיזה צינור הוא שייך —
   // מדלגים על בחירת התפקיד ועל מסך הקוד ונכנסים ישר להרשמה כשחקן
   useEffect(() => {
+    // צד המאמן בלבד: קישור הצטרפות/מגרש ישן (מוואטסאפ) לא מוביל לשום
+    // הרשמת שחקן — מנקים את ה-hash ונוחתים בדף הנחיתה הרגיל.
+    if (!PLAYER_SIDE) {
+      if (/^#\/(join|court|r)\b/.test(window.location.hash)) window.location.hash = ''
+      return
+    }
     // שני הקישורים נבדקים בנפרד — #/join מצרף לקבוצה, #/court רק למגרש —
     // אבל שניהם מובילים לאותה נחיתה: הרשמה כשחקן, בלי מסכי ביניים.
     const fromJoin  = captureJoinCode()
@@ -132,6 +142,8 @@ export default function App() {
   // מעקב אחרי שינויי hash (ניווט קדימה/אחורה)
   useEffect(() => {
     const onHash = () => {
+      // צד המאמן בלבד: קישור הצטרפות/מגרש שהודבק אחרי הטעינה — מנקים גם כאן
+      if (!PLAYER_SIDE && /^#\/(join|court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
       setSharedDrill(publicDrillId())
       setConsentToken(consentTokenFromHash())
     }
@@ -329,7 +341,8 @@ export default function App() {
       {authStep === null && (
         <Landing
           onLogin={() => goAuth('auth', 'signin')}
-          onSignup={() => goAuth('role', 'signup')}
+          /* צד המאמן בלבד: «הרשמה» מדלגת על בחירת התפקיד ונוחתת ישר בהרשמת מאמן */
+          onSignup={() => goAuth(PLAYER_SIDE ? 'role' : 'auth', 'signup')}
         />
       )}
 
@@ -355,7 +368,7 @@ export default function App() {
           role={role}
           initialMode={authMode}
           onBack={backAuth}
-          onSignupFlow={() => goAuth('role', 'signup')}
+          onSignupFlow={() => goAuth(PLAYER_SIDE ? 'role' : 'auth', 'signup')}
         />
       )}
 

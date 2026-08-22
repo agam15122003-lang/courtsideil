@@ -4,12 +4,22 @@ import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { toast } from './toast'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 
 const taPad = (n) => String(n).padStart(2, '0')
 const taToday = () => { const d = new Date(); return `${d.getFullYear()}-${taPad(d.getMonth() + 1)}-${taPad(d.getDate())}` }
+
+// ===== צד המאמן בלבד (22.8) =====
+// עם צד שחקן פתוח: «מה נשלח ומי ביצע» — השחקן מסמן, המאמן רואה.
+// בלי צד שחקן: אותה רשימה, אבל המאמן הוא שמסמן «ביצע» (אחרי שבדק עם
+// השחקן באימון) — ב-assignment_coach_marks, על שורת הסגל (roster_id).
+// מפתח השחקן בכל המפות: חשבון (player_id) בצד שחקן, שורת סגל (id) בצד מאמן.
+const COACH_MODE = !PLAYER_SIDE
+const keyOf = (p) => (COACH_MODE ? p.id : p.player_id)
+const notDeployed = (e) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || /relation .* does not exist|could not find the table/i.test(e.message || ''))
 
 // «מה נשלח ומי ביצע» (מסמך ההשקה 1.6) — רק משימות פעילות; ארכוב אוטומטי
 // כשעבר התאריך או שכולם סיימו, סגירה ידנית של המאמן, ומסך «ארכיון משימות».
@@ -20,15 +30,19 @@ export default function TeamAssignments({ coachId, team }) {
   const [openId, setOpenId] = useState(null)
   const [reminding, setReminding] = useState(null)
   const [view, setView] = useState('active') // 'active' | 'archive'
+  const [marksMissing, setMarksMissing] = useState(false) // הטבלה של 22.8 עוד לא קיימת
+  const [progDraft, setProgDraft] = useState({}) // {`${assignmentId}:${rosterId}`: '120'}
 
   const load = useCallback(async () => {
     const { data: rp } = await supabase
       .from('team_players')
       .select('id, name, number, player_id')
       .eq('coach_id', coachId).eq('team', team).order('number')
-    const players = (rp || []).filter((p) => p.player_id) // מחוברים בלבד
+    // צד שחקן: מחוברים בלבד. צד מאמן: כל הסגל.
+    const players = COACH_MODE ? (rp || []) : (rp || []).filter((p) => p.player_id)
     setRoster(players)
-    const authIds = new Set(players.map((p) => p.player_id))
+    const authIds = new Set(players.map((p) => p.player_id).filter(Boolean))
+    const rosterIds = new Set(players.map((p) => p.id))
 
     const { data: asg, error: asgErr } = await supabase
       .from('player_assignments')
@@ -40,31 +54,46 @@ export default function TeamAssignments({ coachId, team }) {
     // את מצב הריק «עדיין לא שלחת מטלות לקבוצה הזו».
     if (asgErr) { setFailed(true); setItems([]); return }
     setFailed(false)
-    const mine = (asg || []).filter((a) => a.team === team || authIds.has(a.player_id))
+    const mine = (asg || []).filter((a) => a.team === team || authIds.has(a.player_id) || (a.roster_id && rosterIds.has(a.roster_id)))
     if (mine.length === 0) { setItems([]); return }
 
     // בוצע = done_at מלא; שורה בלי done_at = התקדמות חלקית. fallback אם המיגרציה טרם רצה.
-    let { data: compl, error } = await supabase
-      .from('assignment_completions')
-      .select('assignment_id, player_id, done_at, progress_value')
-      .in('assignment_id', mine.map((a) => a.id))
-    if (error) {
-      const legacy = await supabase.from('assignment_completions')
-        .select('assignment_id, player_id, done_at').in('assignment_id', mine.map((a) => a.id))
-      compl = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+    let compl = []
+    if (COACH_MODE) {
+      const { data, error } = await supabase
+        .from('assignment_coach_marks')
+        .select('assignment_id, roster_id, done_at, progress_value')
+        .in('assignment_id', mine.map((a) => a.id))
+      setMarksMissing(!!error && notDeployed(error))
+      compl = (data || []).map((c) => ({ ...c, who: c.roster_id }))
+    } else {
+      let { data, error } = await supabase
+        .from('assignment_completions')
+        .select('assignment_id, player_id, done_at, progress_value')
+        .in('assignment_id', mine.map((a) => a.id))
+      if (error) {
+        const legacy = await supabase.from('assignment_completions')
+          .select('assignment_id, player_id, done_at').in('assignment_id', mine.map((a) => a.id))
+        data = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+      }
+      compl = (data || []).map((c) => ({ ...c, who: c.player_id }))
     }
     const doneBy = {}
-    const progBy = {} // assignment_id -> { player_id: progress_value }
-    for (const c of compl || []) {
-      if (c.done_at) (doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.player_id)
-      if (Number(c.progress_value) > 0) (progBy[c.assignment_id] = progBy[c.assignment_id] || {})[c.player_id] = Number(c.progress_value)
+    const progBy = {} // assignment_id -> { who: progress_value }
+    for (const c of compl) {
+      if (c.done_at) (doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.who)
+      if (Number(c.progress_value) > 0) (progBy[c.assignment_id] = progBy[c.assignment_id] || {})[c.who] = Number(c.progress_value)
     }
 
     const rows = mine.map((a) => {
       const title = a.drill?.title || a.plan?.name || a.title || (a.video_url ? L('סרטון', 'Video') : L('משימה', 'Task'))
-      const targets = a.player_id ? players.filter((p) => p.player_id === a.player_id) : players
+      const targets = a.player_id
+        ? players.filter((p) => p.player_id === a.player_id)
+        : a.roster_id
+          ? players.filter((p) => p.id === a.roster_id)
+          : players
       const doneSet = doneBy[a.id] || new Set()
-      return { ...a, title, targets, doneSet, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(p.player_id)).length, total: targets.length }
+      return { ...a, title, targets, doneSet, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(keyOf(p))).length, total: targets.length }
     })
 
     // 1.6 — ארכוב אוטומטי: עבר תאריך היעד, או שכל המקבלים סיימו.
@@ -89,7 +118,7 @@ export default function TeamAssignments({ coachId, team }) {
   // א-1 — תזכורת לכל מי שטרם ביצע, באותו מנגנון של אישורי ההגעה
   const remindPending = async (a) => {
     setReminding(a.id)
-    const pending = a.targets.filter((p) => !a.doneSet.has(p.player_id))
+    const pending = a.targets.filter((p) => !a.doneSet.has(keyOf(p)))
     await Promise.all(pending.map((p) => sendNotification({
       to: p.player_id,
       actor: coachId,
@@ -101,12 +130,24 @@ export default function TeamAssignments({ coachId, team }) {
     toast.success(L('התזכורת נשלחה', 'Reminder sent'))
   }
 
-  // סגירה ידנית — המאמן מארכב משימה פעילה
-  const archiveNow = async (a) => {
-    const { error } = await supabase.from('player_assignments').update({ status: 'archived' }).eq('id', a.id)
-    if (error) { toast.error(L('הארכוב דורש את המיגרציה supabase_tasks_launch.sql', 'Archiving needs the supabase_tasks_launch.sql migration')); return }
-    setItems((cur) => cur.map((x) => (x.id === a.id ? { ...x, status: 'archived' } : x)))
-    toast.success(L('המשימה נסגרה והועברה לארכיון', 'Task closed and archived'))
+  // צד המאמן בלבד — סימון «ביצע» / התקדמות לשחקן, בשם המאמן
+  const writeMark = async (a, p, { done, progress }) => {
+    const target = Number(a.target_value) || 0
+    const prog = progress != null ? Math.max(0, progress) : (done ? target : (a.prog[p.id] || 0))
+    const isDone = done != null ? done : (target > 0 && prog >= target)
+    const { error } = await supabase.from('assignment_coach_marks').upsert({
+      assignment_id: a.id, roster_id: p.id, coach_id: coachId,
+      done_at: isDone ? new Date().toISOString() : null,
+      progress_value: isDone && target ? target : prog,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'assignment_id,roster_id' })
+    if (error) {
+      toast.error(notDeployed(error)
+        ? L('כדי לסמן ביצוע צריך להריץ את supabase_coach_only_22_8.sql', 'Marking done needs supabase_coach_only_22_8.sql')
+        : L('הסימון נכשל — נסה שוב', 'Failed to mark — try again'))
+      return
+    }
+    load()
   }
 
   if (items === null) return <SkeletonCards count={3} lines={2} />
@@ -124,7 +165,13 @@ export default function TeamAssignments({ coachId, team }) {
 
   return (
     <div className="team-section">
-      <h3 className="ta-title" style={{ marginTop: 18 }}><Dumbbell size={16} /> {L('מה נשלח ומי ביצע', 'Sent & done')}</h3>
+      <h3 className="ta-title" style={{ marginTop: 18 }}><Dumbbell size={16} /> {COACH_MODE ? L('המשימות ומי ביצע', 'Tasks & done') : L('מה נשלח ומי ביצע', 'Sent & done')}</h3>
+      {COACH_MODE && marksMissing && (
+        <p className="alert alert-error" style={{ marginBlockEnd: 10 }}>
+          {L('כדי לסמן «ביצע» צריך להריץ את supabase_coach_only_22_8.sql בסופאבייס. המשימות עצמן נשמרות גם בלי זה.',
+             'Marking “done” needs supabase_coach_only_22_8.sql in Supabase. The tasks themselves are saved regardless.')}
+        </p>
+      )}
       <div className="tabs ta-views">
         <button type="button" className={view === 'active' ? 'tab active' : 'tab'} onClick={() => setView('active')}>
           {L('פעילות', 'Active')}{activeItems.length > 0 && <> · <bdi dir="ltr">{activeItems.length}</bdi></>}
@@ -137,7 +184,9 @@ export default function TeamAssignments({ coachId, team }) {
         <div className="ta-summary">
           <span className="ta-summary-pct" dir="ltr">{pctAll}%</span>
           <span className="ta-summary-tx">
-            {L(`ביצוע כולל — ${doneAll} מתוך ${totalAll} שיגורים הושלמו`, `Overall completion — ${doneAll} of ${totalAll} deliveries done`)}
+            {COACH_MODE
+              ? L(`ביצוע כולל — ${doneAll} מתוך ${totalAll} סומנו «ביצע»`, `Overall completion — ${doneAll} of ${totalAll} marked done`)
+              : L(`ביצוע כולל — ${doneAll} מתוך ${totalAll} שיגורים הושלמו`, `Overall completion — ${doneAll} of ${totalAll} deliveries done`)}
           </span>
           <span className="ta-summary-bar" aria-hidden="true"><i style={{ width: `${pctAll}%` }} /></span>
         </div>
@@ -151,7 +200,9 @@ export default function TeamAssignments({ coachId, team }) {
           <p className="muted small">
             {view === 'archive'
               ? L('משימות שנסגרו — אוטומטית או על ידך — יופיעו כאן.', 'Closed tasks — automatic or manual — show up here.')
-              : L('בחר תרגיל למעלה ושלח — המעקב יופיע כאן.', 'Pick a drill above and send — tracking shows up here.')}
+              : COACH_MODE
+                ? L('כתוב משימה למעלה — המעקב יופיע כאן.', 'Write a task above — tracking shows up here.')
+                : L('בחר תרגיל למעלה ושלח — המעקב יופיע כאן.', 'Pick a drill above and send — tracking shows up here.')}
           </p>
         </div>
       ) : (
@@ -165,7 +216,7 @@ export default function TeamAssignments({ coachId, team }) {
                   <div className="ta-head-main">
                     <strong>{a.title}</strong>
                     <span className="muted small">
-                      {a.player_id ? L('אישי', 'Individual') : L('לכל הקבוצה', 'Whole team')}
+                      {(a.player_id || a.roster_id) ? L('אישי', 'Individual') : L('לכל הקבוצה', 'Whole team')}
                       {a.due_date ? ` · ${L('עד', 'by')} ${new Date(a.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}
                     </span>
                   </div>
@@ -174,7 +225,8 @@ export default function TeamAssignments({ coachId, team }) {
                 </button>
                 {isOpen && view === 'active' && (
                   <div className="ta-item-acts">
-                    {a.done < a.total && (
+                    {/* תזכורת — רק כשיש למי להודיע (צד שחקן פתוח) */}
+                    {PLAYER_SIDE && a.done < a.total && (
                       <button
                         type="button"
                         className="btn-soft ta-remind"
@@ -196,11 +248,13 @@ export default function TeamAssignments({ coachId, team }) {
                 {isOpen && (
                   <ul className="ta-players">
                     {a.targets.length === 0 ? (
-                      <li className="muted small" style={{ padding: '6px 4px' }}>{L('אין שחקנים מחוברים ליעד הזה.', 'No connected players for this target.')}</li>
+                      <li className="muted small" style={{ padding: '6px 4px' }}>{COACH_MODE ? L('אין שחקנים ליעד הזה.', 'No players for this target.') : L('אין שחקנים מחוברים ליעד הזה.', 'No connected players for this target.')}</li>
                     ) : a.targets.map((p) => {
-                      const done = a.doneSet.has(p.player_id)
-                      const prog = done && a.target_value ? Number(a.target_value) : (a.prog[p.player_id] || 0)
+                      const k = keyOf(p)
+                      const done = a.doneSet.has(k)
+                      const prog = done && a.target_value ? Number(a.target_value) : (a.prog[k] || 0)
                       const ppct = a.target_value ? Math.min(100, Math.round((prog / Number(a.target_value)) * 100)) : (done ? 100 : 0)
+                      const dk = `${a.id}:${p.id}`
                       return (
                         <li key={p.id} className="ta-player">
                           {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
@@ -209,10 +263,33 @@ export default function TeamAssignments({ coachId, team }) {
                           {a.target_value ? (
                             <span className="ta-pwrap">
                               <span className="ta-pbar" aria-hidden="true"><i className={done ? 'done' : ''} style={{ width: `${ppct}%` }} /></span>
-                              <span className="ta-partial" dir="ltr">{prog}/{a.target_value}</span>
+                              {COACH_MODE && view === 'active' && !done ? (
+                                /* המאמן מעדכן את ההתקדמות בעצמו — Enter או יציאה מהשדה שומרים */
+                                <input className="finder-input ta-prog-in" dir="ltr" inputMode="numeric"
+                                  value={progDraft[dk] ?? String(prog || '')}
+                                  placeholder="0"
+                                  aria-label={L(`התקדמות של ${p.name} מתוך ${a.target_value}`, `${p.name}'s progress of ${a.target_value}`)}
+                                  onChange={(e) => setProgDraft((d) => ({ ...d, [dk]: e.target.value.replace(/[^0-9]/g, '') }))}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                                  onBlur={() => {
+                                    const v = progDraft[dk]
+                                    if (v == null || v === '' || Number(v) === prog) return
+                                    setProgDraft((d) => { const n = { ...d }; delete n[dk]; return n })
+                                    writeMark(a, p, { progress: Number(v) })
+                                  }} />
+                              ) : null}
+                              <span className="ta-partial" dir="ltr">{COACH_MODE && !done && view === 'active' ? `/${a.target_value}` : `${prog}/${a.target_value}`}</span>
                             </span>
                           ) : null}
-                          <span className={done ? 'ta-status done' : 'ta-status'}>{done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('ממתין', 'Pending')}</>}</span>
+                          {COACH_MODE && view === 'active' ? (
+                            /* המאמן מסמן «ביצע» בעצמו — לחיצה נוספת מבטלת */
+                            <button type="button" className={done ? 'ta-status done ta-mark' : 'ta-status ta-mark'}
+                              aria-pressed={done} onClick={() => writeMark(a, p, { done: !done })}>
+                              {done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('סמן ביצע', 'Mark done')}</>}
+                            </button>
+                          ) : (
+                            <span className={done ? 'ta-status done' : 'ta-status'}>{done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('ממתין', 'Pending')}</>}</span>
+                          )}
                         </li>
                       )
                     })}
@@ -225,4 +302,12 @@ export default function TeamAssignments({ coachId, team }) {
       )}
     </div>
   )
+
+  // סגירה ידנית — המאמן מארכב משימה פעילה
+  async function archiveNow(a) {
+    const { error } = await supabase.from('player_assignments').update({ status: 'archived' }).eq('id', a.id)
+    if (error) { toast.error(L('הארכוב דורש את המיגרציה supabase_tasks_launch.sql', 'Archiving needs the supabase_tasks_launch.sql migration')); return }
+    setItems((cur) => cur.map((x) => (x.id === a.id ? { ...x, status: 'archived' } : x)))
+    toast.success(L('המשימה נסגרה והועברה לארכיון', 'Task closed and archived'))
+  }
 }

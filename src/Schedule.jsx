@@ -10,6 +10,7 @@ import SessionDetail from './SessionDetail'
 import { PlanSheetById } from './PlanSheet'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 import { useNetworkSmall } from './network'
 import WeekList from './WeekList'
@@ -360,12 +361,15 @@ export default function Schedule({ session, onNavigate }) {
         .gte('session_date', ymd(weekStart))
         .lte('session_date', ymd(weekEnd)),
       // אישורי הגעה השבוע — לצ'יפ "X/Y אישרו" (סובלני אם הטבלה עוד לא רצה)
-      supabase
-        .from('practice_rsvp')
-        .select('session_id, response')
-        .eq('coach_id', me)
-        .gte('session_date', ymd(weekStart))
-        .lte('session_date', ymd(weekEnd)),
+      // צד המאמן בלבד: אין מי שיאשר — לא שולפים ולא מציגים את הצ׳יפ
+      PLAYER_SIDE
+        ? supabase
+            .from('practice_rsvp')
+            .select('session_id, response')
+            .eq('coach_id', me)
+            .gte('session_date', ymd(weekStart))
+            .lte('session_date', ymd(weekEnd))
+        : Promise.resolve({ data: [], error: null }),
     ])
     if (entriesRes.error) {
       setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + entriesRes.error.message)
@@ -606,7 +610,7 @@ export default function Schedule({ session, onNavigate }) {
       days={weekDays}
       isCoach
       attMarked={attMarked}
-      rsvpYes={rsvpYes}
+      rsvpYes={PLAYER_SIDE ? rsvpYes : null}
       rosterCount={rosterCounts}
       onOpen={openFromList}
       onOpenPlan={(ev) => openPlan(ev.plan)}
@@ -1051,7 +1055,7 @@ export default function Schedule({ session, onNavigate }) {
             <div className="csx-card">
               <div className="csx-card-head">
                 <span className="csx-eyebrow csx-eyebrow-accent">{L('ימי אימון קבועים', 'Fixed practice days')}</span>
-                <span className="muted small">{L('מופיעים אוטומטית לשחקנים', 'Shown to players automatically')}</span>
+                <span className="muted small">{PLAYER_SIDE ? L('מופיעים אוטומטית לשחקנים', 'Shown to players automatically') : L('נכנסים ללו"ז השבועי אוטומטית', 'Added to the weekly schedule automatically')}</span>
               </div>
               <div className="csx-slotrows">
                 {slots.map((s) => (
@@ -1163,7 +1167,7 @@ export default function Schedule({ session, onNavigate }) {
           )}
           {selected.note && <p className="muted small" style={{ marginTop: 8 }}>{selected.note}</p>}
           {/* 1.3 — אישורי הגעה לאימון: אישרו / לא מגיעים / טרם ענו */}
-          {!selected.is_personal && selected.team && (
+          {PLAYER_SIDE && !selected.is_personal && selected.team && (
             <RsvpBreakdown coachId={me} team={selected.team} sessionId={selected.id} />
           )}
           {!selected.is_personal && selected.team && (

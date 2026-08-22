@@ -20,6 +20,7 @@ import TeamGoalsBoard from './TeamGoalsBoard'
 import TeamFocus from './TeamFocus'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
@@ -148,29 +149,41 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const [fbText, setFbText] = useState('')
   const [fbRating, setFbRating] = useState(0)
   const [fbHistory, setFbHistory] = useState([]) // 5 המשובים האחרונים לשחקן הפתוח
+  // צד המאמן בלבד (22.8): המשוב נשמר על שורת הסגל (roster_id) ולא על חשבון
+  // השחקן — ולכן זמין לכל שחקן, מחובר או לא. עם צד שחקן פתוח — כמו קודם.
+  const fbByRoster = !PLAYER_SIDE
+  const fbOpen = !!pEdit?.id && (fbByRoster || !!pEdit.player_id)
   useEffect(() => {
     // טיוטה של שחקן אחד לא נשארת בתיבה של השחקן הבא
     setFbText(''); setFbRating(0)
-    if (!pEdit?.player_id) { setFbHistory([]); return }
+    if (!fbOpen) { setFbHistory([]); return }
     ;(async () => {
-      const { data } = await supabase.from('player_feedback')
-        .select('id, content, rating, created_at')
-        .eq('coach_id', me).eq('player_id', pEdit.player_id)
+      const base = () => supabase.from('player_feedback').select('id, content, rating, created_at').eq('coach_id', me)
         .order('created_at', { ascending: false }).limit(5)
-      setFbHistory(data || [])
+      let { data, error } = await (fbByRoster ? base().eq('roster_id', pEdit.id) : base().eq('player_id', pEdit.player_id))
+      // מסד בלי roster_id (המיגרציה של 22.8 טרם רצה) — לשחקן מקושר קוראים לפי חשבון
+      if (error && fbByRoster && pEdit.player_id && /roster_id/i.test(error.message || '')) ({ data, error } = await base().eq('player_id', pEdit.player_id))
+      setFbHistory(error ? [] : (data || []))
     })()
-  }, [pEdit?.player_id, me])
+  }, [fbOpen, fbByRoster, pEdit?.id, pEdit?.player_id, me])
   const sendFeedback = async () => {
-    if (!pEdit?.player_id || !fbText.trim()) return
-    const { error } = await supabase.from('player_feedback').insert({
-      coach_id: me, player_id: pEdit.player_id,
+    if (!fbOpen || !fbText.trim()) return
+    const row = {
+      coach_id: me, player_id: pEdit.player_id || null, roster_id: pEdit.id,
       content: fbText.trim(), rating: fbRating || null,
-    })
-    if (error) { toast.error(L('שליחת המשוב נכשלה: ', 'Failed to send feedback: ') + error.message); return }
-    sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
+    }
+    let { error } = await supabase.from('player_feedback').insert(row)
+    // מסד שטרם הריץ supabase_coach_only_22_8.sql: בלי roster_id. לשחקן מחובר
+    // שומרים כמו פעם; לשחקן בלי חשבון אין לאן — אומרים את זה במפורש.
+    if (error && /roster_id/i.test(error.message || '')) {
+      if (pEdit.player_id) ({ error } = await supabase.from('player_feedback').insert({ ...row, roster_id: undefined }))
+      else { toast.error(L('כדי לשמור משוב צריך להריץ את supabase_coach_only_22_8.sql', 'Saving feedback needs supabase_coach_only_22_8.sql')); return }
+    }
+    if (error) { toast.error(L('שמירת המשוב נכשלה: ', 'Failed to save feedback: ') + error.message); return }
+    if (pEdit.player_id) sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText(''); setFbRating(0)
     setFbHistory((h) => [{ id: Date.now(), content: fbText.trim(), rating: fbRating || null, created_at: new Date().toISOString() }, ...h].slice(0, 5))
-    toast.success(L('המשוב נשלח לשחקן', 'Feedback sent to the player'))
+    toast.success(pEdit.player_id ? L('המשוב נשלח לשחקן', 'Feedback sent to the player') : L('המשוב נשמר בכרטיס השחקן', 'Feedback saved to the player card'))
   }
 
   // יעדים — בורר שבוע/חודש
@@ -265,7 +278,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     setReqs(rows.filter((r) => r.team === team))
     setReqsLoading(false)
   }
-  useEffect(() => { loadReqs() /* eslint-disable-next-line */ }, [me, team])
+  // צד המאמן בלבד: אין בקשות הצטרפות (אין חשבונות שחקן) — לא שולפים בכלל
+  useEffect(() => { if (PLAYER_SIDE) loadReqs(); else setReqsLoading(false) /* eslint-disable-next-line */ }, [me, team])
   useEffect(() => () => { reqTokenRef.current++ }, [])
 
   // רק בקשות שיש להן הקשר הסכמה אמיתי מוצגות כאן. במסד שטרם הריץ את
@@ -291,7 +305,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     setAgeRows(rows)
     setAgeLoading(false)
   }
-  useEffect(() => { loadAges() /* eslint-disable-next-line */ }, [me])
+  // צד המאמן בלבד: ההצלבה היא מול תאריך שהשחקן הזין בפרופיל — אין כזה
+  useEffect(() => { if (PLAYER_SIDE) loadAges(); else setAgeLoading(false) /* eslint-disable-next-line */ }, [me])
   useEffect(() => () => { ageTokenRef.current++ }, [])
 
   const teamAgeRows = ageRows.filter((r) => sameTeam(r.team, team))
@@ -588,7 +603,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               supabase_age_crosscheck.sql) הרשימה ריקה והמסך זהה להיום.
               כשל בדיקה כן מוצג — "אין פערים" ו"לא הצלחנו לבדוק" הם שני
               דברים שונים לגמרי, ואסור שייראו אותו דבר. */}
-          {ageLoading ? null : ageFailed ? (
+          {(!PLAYER_SIDE || ageLoading) ? null : ageFailed ? (
             <p className="alert alert-error" style={{ marginBlockStart: 12 }}>
               {L('לא הצלחנו לבדוק את תאריכי הלידה בסגל. זו תקלת בדיקה בלבד — שום נתון לא השתנה. ',
                  'We could not check the roster birth dates. This is a check failure only — nothing was changed. ')}
@@ -728,8 +743,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                   <button className={`status-pill status-${p.status}`} onClick={(e) => { e.stopPropagation(); cycleStatus(p) }} title={L('שנה סטטוס', 'Change status')}>
                     {statusLabel(p.status)}
                   </button>
-                  {p.player_id && (
-                    <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, name: p.name, team }) }} aria-label={L('יעדים', 'Goals')} title={L('יעדים אישיים', 'Personal goals')}><Target size={15} /></button>
+                  {/* צד המאמן בלבד: יעדים לכל שורת סגל, לא רק לשחקן מחובר */}
+                  {(PLAYER_SIDE ? p.player_id : true) && (
+                    <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, roster_id: p.id, name: p.name, team }) }} aria-label={L('יעדים', 'Goals')} title={L('יעדים אישיים', 'Personal goals')}><Target size={15} /></button>
                   )}
                   <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
                 </li>
@@ -743,7 +759,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               "טוען..." כאן רק הייתה מקפיצה את הפריסה בכל כניסה לסגל.
               שגיאת טעינה כן מוצגת — "אין בקשות" ו"לא הצלחנו לטעון" חייבים
               להיראות שונה. */}
-          {reqsLoading ? null : reqsFailed ? (
+          {(!PLAYER_SIDE || reqsLoading) ? null : reqsFailed ? (
             <p className="alert alert-error" style={{ marginTop: 14 }}>
               {L('לא הצלחנו לטעון את בקשות ההצטרפות. זו תקלת טעינה — הבקשות לא נמחקו. ',
                  'We could not load the join requests. This is a loading error — no request was deleted. ')}
@@ -804,7 +820,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               תפס את כל החלק העליון של המסך בכל כניסה.
               key: החלטה שהתקבלה בפאנל שלמעלה חייבת להיעלם גם מהרשימה שבפנים,
               אחרת נשארת שם בקשה שכבר הוכרעה. */}
-          <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />
+          {/* צד המאמן בלבד: אין קוד הצטרפות, QR ומד «מחוברים» — אין למי */}
+          {PLAYER_SIDE && <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />}
 
           {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת
               היחידה אליהם, והיא חייבת להיות בזרימה הראשית. */}
@@ -901,8 +918,11 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
            → יעדים אישיים לשחקנים. */
         <div className="team-section">
           <p className="tg-lede">
-            {L('המיקוד מגיע לכל השחקנים ונמדד בסוף כל אימון · יעדי שבוע/חודש/עונה הן התכנון שלך · יעד אישי מגיע לשחקן אחד.',
-               'The focus reaches every player and is measured after each practice · week/month/season goals are your planning · a personal goal reaches one player.')}
+            {PLAYER_SIDE
+              ? L('המיקוד מגיע לכל השחקנים ונמדד בסוף כל אימון · יעדי שבוע/חודש/עונה הן התכנון שלך · יעד אישי מגיע לשחקן אחד.',
+                  'The focus reaches every player and is measured after each practice · week/month/season goals are your planning · a personal goal reaches one player.')
+              : L('המיקוד הוא מה שהקבוצה עובדת עליו, ומסמנים בסקירת האימון מי עמד בו · יעדי שבוע/חודש/עונה הן התכנון שלך · יעד אישי הוא לשחקן אחד, ואתה מעדכן אותו אחרי האימון.',
+                  'The focus is what the team works on, and you mark in the practice review who met it · week/month/season goals are your planning · a personal goal is for one player, and you update it after practice.')}
           </p>
 
           <TeamFocus coachId={me} team={team} />
@@ -952,7 +972,13 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
 
           {/* «שיגורים» היה טאב נפרד — אבל שליחת משימה היא הדרך שבה מטרה
               הופכת לעבודה, ולכן היא יושבת כאן, מתחת ליעדים. */}
-          <h3 className="tg-section-title"><SendIcon size={17} /> {L('משימות לשחקנים', 'Player tasks')}</h3>
+          <h3 className="tg-section-title"><SendIcon size={17} /> {PLAYER_SIDE ? L('משימות לשחקנים', 'Player tasks') : L('משימות', 'Tasks')}</h3>
+          {!PLAYER_SIDE && (
+            <p className="muted small" style={{ margin: '-6px 0 10px' }}>
+              {L('רשימת המשימות שלך לשחקנים — מה ביקשת ממי ועד מתי. השחקן לא רואה אותה; אתה מסמן «ביצע» אחרי שבדקת איתו באימון.',
+                 'Your task list for the players — what you asked of whom and by when. Players do not see it; you tick “done” after checking with them at practice.')}
+            </p>
+          )}
           <SendToPlayers session={session} embedded initialTeam={team} key={team} />
           <TeamAssignments coachId={me} team={team} />
         </div>
@@ -1009,10 +1035,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               <button className="btn-ghost danger" onClick={() => delPlayer(pEdit.id)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
             </div>
 
-            {/* משוב אישי — רק לשחקן עם חשבון מחובר */}
-            {pEdit.player_id && (
+            {/* משוב אישי — לשחקן מחובר; בצד המאמן בלבד — לכל שורת סגל */}
+            {fbOpen && (
               <div className="tm-feedback">
-                <span className="field-label"><MessageSquareHeart size={15} /> {L('שליחת משוב לשחקן', 'Send feedback to player')}</span>
+                <span className="field-label"><MessageSquareHeart size={15} /> {pEdit.player_id ? L('שליחת משוב לשחקן', 'Send feedback to player') : L('משוב אישי לשחקן', 'Personal feedback')}</span>
                 <div className="tm-fb-stars" role="radiogroup" aria-label={L('דירוג', 'Rating')}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} type="button" className={n <= fbRating ? 'tm-star on' : 'tm-star'} onClick={() => setFbRating(n === fbRating ? 0 : n)} aria-label={L(`${n} כוכבים`, `${n} stars`)}>
@@ -1023,12 +1049,12 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 <textarea className="finder-input" rows={3} value={fbText} onChange={(e) => setFbText(e.target.value)} maxLength={2000}
                   placeholder={L('מה היה טוב באימון, ומה כדאי לשפר...', 'What went well, what to work on...')} />
                 <button className="btn-soft" style={{ marginTop: 8 }} onClick={sendFeedback} disabled={!fbText.trim()}>
-                  {L('שליחת המשוב', 'Send feedback')}
+                  {pEdit.player_id ? L('שליחת המשוב', 'Send feedback') : L('שמירת המשוב', 'Save feedback')}
                 </button>
                 {/* מה כבר כתבת — הטופס היה insert בלבד והמאמן לא ראה את עצמו */}
                 {fbHistory.length > 0 && (
                   <div className="tm-fb-history">
-                    <span className="tm-fb-history-lbl">{L('משובים אחרונים ששלחת', 'Recent feedback you sent')}</span>
+                    <span className="tm-fb-history-lbl">{pEdit.player_id ? L('משובים אחרונים ששלחת', 'Recent feedback you sent') : L('משובים אחרונים', 'Recent feedback')}</span>
                     <ul>
                       {fbHistory.map((f) => (
                         <li key={f.id}>
@@ -1042,10 +1068,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 )}
               </div>
             )}
-            {pEdit.player_id && (
-              <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} team={pEdit.team} playerName={pEdit.name} />
+            {(PLAYER_SIDE ? pEdit.player_id : true) && (
+              <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} rosterId={pEdit.id} team={pEdit.team} playerName={pEdit.name} />
             )}
-            {!pEdit.player_id && (
+            {PLAYER_SIDE && !pEdit.player_id && (
               <div className="tm-connect-hint">
                 <span className="tm-connect-hint-ic"><Target size={16} /></span>
                 <div>
@@ -1105,7 +1131,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               <button className="icon-btn" onClick={() => setGpEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
             <div className="tm-modal-body">
-              <PlayerGoalsEditor coachId={me} playerId={gpEdit.player_id} team={gpEdit.team} playerName={gpEdit.name} />
+              <PlayerGoalsEditor coachId={me} playerId={gpEdit.player_id} rosterId={gpEdit.roster_id} team={gpEdit.team} playerName={gpEdit.name} />
             </div>
           </div>
         </div>

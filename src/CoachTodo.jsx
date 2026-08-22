@@ -11,6 +11,7 @@ import {
 import { supabase } from './supabaseClient'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam, cnt } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { ChevronFwd } from './DirIcon'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -39,18 +40,28 @@ export default function CoachTodo({ session, onNavigate, variant }) {
           .eq('coach_id', me).gte('session_date', ymd(addDays(now, -60))),
         supabase.from('session_reviews').select('session_id').eq('coach_id', me).eq('session_type', 'practice'),
         supabase.from('team_players').select('id, name, team, player_id').eq('coach_id', me),
-        supabase.from('player_goals').select('player_id, status').eq('coach_id', me).neq('status', 'done'),
+        // select('*') — roster_id (22.8) עלול עוד לא להתקיים במסד
+        supabase.from('player_goals').select('*').eq('coach_id', me).neq('status', 'done'),
         supabase.from('team_goals').select('team, content').eq('coach_id', me)
           .eq('period', 'month').eq('period_key', monthKey),
-        supabase.from('player_assignments').select('id, team, player_id, due_date, title')
+        supabase.from('player_assignments').select('*')
           .eq('coach_id', me).not('due_date', 'is', null).lt('due_date', todayStr),
-        supabase.from('team_memberships').select('id', { count: 'exact', head: true })
-          .eq('coach_id', me).eq('status', 'pending'),
+        // צד המאמן בלבד: אין בקשות הצטרפות — לא שולפים
+        PLAYER_SIDE
+          ? supabase.from('team_memberships').select('id', { count: 'exact', head: true })
+              .eq('coach_id', me).eq('status', 'pending')
+          : Promise.resolve({ error: null, count: 0 }),
       ])
       if (!alive) return
 
       const roster = rosterRes.error ? [] : rosterRes.data || []
-      const linked = roster.filter((p) => p.player_id)
+      // צד שחקן: רק מחוברים. צד המאמן בלבד (22.8): כל הסגל — היעדים
+      // והמשימות נרשמים על שורת הסגל, ולכן «מפתח» השחקן הוא מזהה השורה.
+      const linked = PLAYER_SIDE ? roster.filter((p) => p.player_id) : roster
+      const keyOf = (p) => (PLAYER_SIDE ? p.player_id : p.id)
+      const byAuth = new Map(roster.filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
+      // שורת סגל → חשבון מקושר (למצב מתג דלוק: שורות שנרשמו על roster_id כשהמתג היה כבוי)
+      const authOfRoster = new Map(roster.filter((p) => p.player_id).map((p) => [p.id, p.player_id]))
       const teams = [...new Set(roster.map((p) => p.team).filter(Boolean))]
       const out = []
 
@@ -81,8 +92,10 @@ export default function CoachTodo({ session, onNavigate, variant }) {
 
       // 2 — שחקנים מחוברים בלי יעד פעיל
       {
-        const withGoal = new Set((goalsRes.error ? [] : goalsRes.data || []).map((g) => g.player_id).filter(Boolean))
-        const missing = linked.filter((p) => !withGoal.has(p.player_id))
+        const withGoal = new Set((goalsRes.error ? [] : goalsRes.data || [])
+          .map((g) => (PLAYER_SIDE ? (g.player_id || (g.roster_id && authOfRoster.get(g.roster_id))) : (g.roster_id || (g.player_id && byAuth.get(g.player_id)))))
+          .filter(Boolean))
+        const missing = linked.filter((p) => !withGoal.has(keyOf(p)))
         if (missing.length > 0) {
           const names = missing.slice(0, 3).map((p) => p.name).join(', ')
           out.push({
@@ -112,21 +125,28 @@ export default function CoachTodo({ session, onNavigate, variant }) {
         const overdue = asgRes.error ? [] : asgRes.data || []
         if (overdue.length > 0) {
           let comps = []
+          // צד המאמן בלבד: הסימונים של המאמן (assignment_coach_marks), לפי שורת סגל
           const { data: cData, error: cErr } = await supabase
-            .from('assignment_completions')
-            .select('assignment_id, player_id, done_at')
+            .from(PLAYER_SIDE ? 'assignment_completions' : 'assignment_coach_marks')
+            .select(PLAYER_SIDE ? 'assignment_id, player_id, done_at' : 'assignment_id, roster_id, done_at')
             .in('assignment_id', overdue.map((a) => a.id))
           if (!cErr) comps = cData || []
           if (!alive) return
           const doneBy = new Map()
-          for (const c of comps) if (c.done_at) {
-            if (!doneBy.has(c.assignment_id)) doneBy.set(c.assignment_id, new Set())
-            doneBy.get(c.assignment_id).add(c.player_id)
+          const markDone = (aid, who) => { if (!who) return; if (!doneBy.has(aid)) doneBy.set(aid, new Set()); doneBy.get(aid).add(who) }
+          for (const c of comps) if (c.done_at) markDone(c.assignment_id, PLAYER_SIDE ? c.player_id : c.roster_id)
+          // מתג דלוק: גם «ביצע» שהמאמן סימן כשהמתג היה כבוי סוגר את המשימה (הטבלה עשויה לא להתקיים — שקט)
+          if (PLAYER_SIDE) {
+            const cm = await supabase.from('assignment_coach_marks').select('assignment_id, roster_id, done_at').in('assignment_id', overdue.map((a) => a.id))
+            if (!alive) return
+            for (const c of cm.error ? [] : cm.data || []) if (c.done_at) markDone(c.assignment_id, authOfRoster.get(c.roster_id))
           }
           const stillOpen = overdue.filter((a) => {
             const recipients = a.player_id
-              ? [a.player_id]
-              : linked.filter((p) => p.team === a.team).map((p) => p.player_id)
+              ? [PLAYER_SIDE ? a.player_id : byAuth.get(a.player_id)].filter(Boolean)
+              : a.roster_id
+                ? [PLAYER_SIDE ? authOfRoster.get(a.roster_id) : a.roster_id].filter(Boolean)
+                : linked.filter((p) => p.team === a.team).map(keyOf)
             if (recipients.length === 0) return false
             const done = doneBy.get(a.id) || new Set()
             return recipients.some((id) => !done.has(id))

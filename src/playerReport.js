@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
+import { toast } from './toast'
 
 // א-6 — דוח התקדמות אישי לשחקן: דף אחד להדפסה / שמירה כ-PDF.
 // נבנה מנתונים שכבר נאספים — נוכחות, משימות, יעדים, משוב — בלי backend חדש.
@@ -32,21 +34,62 @@ async function loadAssignments(pid, team) {
   return { data: rows }
 }
 
-export async function printPlayerReport({ player, team, att }) {
-  // המשוב, המשימות והיעדים — רק לשחקן מחובר (player_id = profiles.id)
-  const pid = player.player_id
-  const [fb, goals, asg, compl] = await Promise.all([
-    pid
-      ? supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', pid).order('created_at', { ascending: false }).limit(3)
-      : Promise.resolve({ data: [] }),
-    pid
-      ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('player_id', pid).limit(10)
-      : Promise.resolve({ data: [] }),
-    pid ? loadAssignments(pid, team) : Promise.resolve({ data: [] }),
-    pid
-      ? supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', pid).not('done_at', 'is', null)
-      : Promise.resolve({ data: [] }),
+// צד המאמן בלבד (22.8): אותו דוח, אבל הכול נקרא לפי שורת הסגל (roster_id)
+async function loadAssignmentsByRoster(rid, team) {
+  const cols = 'id, team, roster_id'
+  const [mine, byTeam] = await Promise.all([
+    supabase.from('player_assignments').select(cols).eq('roster_id', rid),
+    team
+      ? supabase.from('player_assignments').select(cols).eq('team', team)
+      : Promise.resolve({ data: [], error: null }),
   ])
+  if (mine.error) console.error('playerReport assignments (roster):', mine.error.message)
+  if (byTeam.error) console.error('playerReport assignments (team):', byTeam.error.message)
+  const seen = new Set()
+  const rows = []
+  for (const r of [...(mine.data || []), ...(byTeam.data || [])]) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    rows.push(r)
+  }
+  return { data: rows, error: mine.error || null }
+}
+
+// שגיאה שמשמעותה «המיגרציה של 22.8 עוד לא רצה» (עמודה/טבלה חסרה)
+const missing22_8 = (e) => !!e && (e.code === '42703' || e.code === '42P01' || e.code === 'PGRST205' || /roster_id|does not exist|could not find the table/i.test(e.message || ''))
+
+export async function printPlayerReport({ player, team, att }) {
+  // המשוב, המשימות והיעדים — לשחקן מחובר (player_id = profiles.id);
+  // בצד המאמן בלבד — לכל שורת סגל (roster_id).
+  const pid = player.player_id
+  const rid = player.id
+  const byRoster = !PLAYER_SIDE && !!rid
+  const [fb, goals, asg, compl] = await Promise.all([
+    byRoster
+      ? supabase.from('player_feedback').select('content, rating, created_at').eq('roster_id', rid).order('created_at', { ascending: false }).limit(3)
+      : pid
+        ? supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', pid).order('created_at', { ascending: false }).limit(3)
+        : Promise.resolve({ data: [] }),
+    byRoster
+      ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('roster_id', rid).limit(10)
+      : pid
+        ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('player_id', pid).limit(10)
+        : Promise.resolve({ data: [] }),
+    byRoster ? loadAssignmentsByRoster(rid, team) : pid ? loadAssignments(pid, team) : Promise.resolve({ data: [] }),
+    byRoster
+      ? supabase.from('assignment_coach_marks').select('assignment_id, done_at').eq('roster_id', rid).not('done_at', 'is', null)
+      : pid
+        ? supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', pid).not('done_at', 'is', null)
+        : Promise.resolve({ data: [] }),
+  ])
+  // דוח עם אפסים מזויפים גרוע מאין דוח: כשל שליפה נאמר, לא מודפס
+  const errs = [fb.error, goals.error, asg.error, compl.error].filter(Boolean)
+  if (errs.length) {
+    toast.error(byRoster && errs.some(missing22_8)
+      ? L('כדי להפיק דוח התקדמות צריך להריץ את supabase_coach_only_22_8.sql', 'The progress report needs supabase_coach_only_22_8.sql')
+      : L('הפקת הדוח נכשלה: ', 'Report failed: ') + errs[0].message)
+    return
+  }
 
   const attPct = att && att.total ? Math.round((att.present / att.total) * 100) : null
   const doneCount = (compl.data || []).length
@@ -94,7 +137,7 @@ export async function printPlayerReport({ player, team, att }) {
 <div class="stats">
   <div class="stat"><b dir="ltr">${attPct == null ? '—' : attPct + '%'}</b><span>${L('נוכחות עונתית', 'Season attendance')}</span></div>
   <div class="stat"><b dir="ltr">${doneCount}</b><span>${L('משימות שבוצעו', 'Tasks completed')}</span></div>
-  <div class="stat"><b dir="ltr">${sentCount}</b><span>${L('משימות שנשלחו', 'Tasks assigned')}</span></div>
+  <div class="stat"><b dir="ltr">${sentCount}</b><span>${byRoster ? L('משימות שנרשמו', 'Tasks logged') : L('משימות שנשלחו', 'Tasks assigned')}</span></div>
 </div>
 <h2>${L('יעדים', 'Goals')}</h2>
 ${goalRows ? `<table>${goalRows}</table>` : `<p class="empty">${L('אין יעדים רשומים.', 'No goals on record.')}</p>`}

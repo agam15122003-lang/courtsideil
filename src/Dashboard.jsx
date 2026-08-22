@@ -20,6 +20,10 @@ import { confirmLeave } from './unsavedGuard'
 // isAdultPlayer עבר ל-consent.js: גם מסך ההמתנה צריך אותו כדי לזהות שחקן
 // שהגיע ל-18 בזמן שחיכה לאישור הורה.
 import { isAdultPlayer } from './consent'
+// 22.8 — השקת צד המאמן בלבד (ראו src/flags.js): «מתאמנים אישיים» יורד
+// מהניווט, וחשבון שחקן שמתחבר רואה מסך המתנה במקום את האפליקציה שלו.
+import { PLAYER_SIDE } from './flags'
+import PlayerSideClosed from './PlayerSideClosed'
 
 // ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
 // אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
@@ -163,6 +167,9 @@ const NAV = [
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
 ]
+// צד המאמן בלבד: «מתאמנים אישיים» הוא כולו קשר מאמן↔שחקן (השחקן מבקש,
+// ההורה מאשר) — בלי חשבונות שחקן אין לו מה להציג.
+const COACH_NAV = PLAYER_SIDE ? NAV : NAV.filter((item) => item.id !== 'trainees')
 
 // התפריט התחתון במובייל — **חמישה יעדים**, לפי מסקנת הביקורת בעמוד 22
 // במסמך המסירה («תפריט תחתון של 5 בשני העולמות במקום 11 יעדים»).
@@ -207,10 +214,14 @@ const PAGE_META = {
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: ClipboardList,
     title: L('בניית אימון', 'Build a practice'),
     subtitle: tab === 'drills'
-      ? L('מאגר התרגילים של הקהילה — חיפוש, דירוג ושליחה לשחקנים.', "The community's drill collection — search, rate and send to players.")
+      ? (PLAYER_SIDE
+          ? L('מאגר התרגילים של הקהילה — חיפוש, דירוג ושליחה לשחקנים.', "The community's drill collection — search, rate and send to players.")
+          : L('מאגר התרגילים של הקהילה — חיפוש, דירוג ושמירה למועדפים.', "The community's drill collection — search, rate and save favorites."))
       : tab === 'community'
         ? L('תוכניות ותרגילים שמאמנים אחרים שיתפו — צופים, מעתיקים אליכם וממשיכים משם.', "Plans and drills other coaches shared — browse, copy to your library and build on them.")
-        : L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.'),
+        : (PLAYER_SIDE
+            ? L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.')
+            : L('בונים מערך, מסדרים תרגילים לפי חלקים, ומריצים אותו מהמגרש.', 'Build a session, order the drills by part, and run it from the court.')),
   }),
   schedule: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,
@@ -481,6 +492,12 @@ export default function Dashboard({ session }) {
   // בלי תלות ב-loading: «בדיקת סטטוס» מפעילה loading=true לרגע, ובלעדי זה
   // המסך היה מהבהב אל מעטפת המאמן בכל לחיצה. הפרופיל הישן נשאר ב-state
   // עד שהטעינה מסתיימת, ולכן השער עדיין מחושב על נתונים אמיתיים.
+  // צד המאמן בלבד: חשבון שחקן לא נכנס לאפליקציה — מסך המתנה עם יציאה.
+  // יושב אחרי כל ה-hooks (כמו שאר היציאות המוקדמות שמתחת).
+  if (!PLAYER_SIDE && !loading && !loadError && isPlayer) {
+    return <PlayerSideClosed />
+  }
+
   if (!loadError && isComplete && suspended) {
     // «שינוי הפרטים של ההורה» — טופס הפרופיל לבדו, בלי המעטפת של המאמן
     if (editing) {
@@ -622,7 +639,7 @@ export default function Dashboard({ session }) {
               style={{ '--nm-y': `${navBox.y}px`, '--nm-h': `${navBox.h}px` }}
             />
           )}
-          {(profile?.is_admin ? [...NAV, DOSSIER_NAV, ADMIN_NAV] : NAV).map((item) => (
+          {(profile?.is_admin ? [...COACH_NAV, DOSSIER_NAV, ADMIN_NAV] : COACH_NAV).map((item) => (
             <button
               key={item.id}
               className={view === item.id ? 'nav-item active' : 'nav-item'}
@@ -967,7 +984,7 @@ export default function Dashboard({ session }) {
           Icon: item.Icon,
           badge: item.id === 'messages' ? unread : 0,
         }))}
-        all={[...NAV, ...(profile?.is_admin ? [DOSSIER_NAV, ADMIN_NAV] : []), PROFILE_NAV].map((item) => ({
+        all={[...COACH_NAV, ...(profile?.is_admin ? [DOSSIER_NAV, ADMIN_NAV] : []), PROFILE_NAV].map((item) => ({
           id: item.id,
           label: t(item.key),
           Icon: item.Icon,

@@ -11,6 +11,7 @@ import {
 import { supabase } from './supabaseClient'
 import { signedThumbUrls } from './storage'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { ChevronFwd } from './DirIcon'
 import CourtArt from './CourtArt'
 import Avatar from './Avatar'
@@ -354,7 +355,8 @@ export default function Home({ session, profile, onNavigate }) {
           onNavigate={onNavigate}
           onEntry={setNextEntry}
           variant="board"
-          rsvp={nextEntry?.team
+          /* אישורי הגעה — רק עם צד שחקן פתוח (השחקנים הם שמאשרים) */
+          rsvp={PLAYER_SIDE && nextEntry?.team
             ? <PracticeRsvp session={session} practice={{ ...nextEntry, session_id: nextEntry.id }} variant="board" />
             : null}
         />

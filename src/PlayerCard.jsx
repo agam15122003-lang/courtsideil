@@ -12,6 +12,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
 import { ChevronBack } from './DirIcon'
@@ -39,6 +40,11 @@ const AVAIL = [
 export default function PlayerCard({ coachId, team, player, onBack, onOpenDossier }) {
   const rosterId = player.id
   const authId = player.player_id || null
+  // צד המאמן בלבד (22.8): עומס, יעדים, משובים ומשימות נשמרים על שורת הסגל
+  // (roster_id) — ולכן זמינים לכל שחקן, גם בלי חשבון. עם צד שחקן פתוח —
+  // דרך החשבון, כמו קודם.
+  const byRoster = !PLAYER_SIDE
+  const hasPerson = byRoster || !!authId
 
   // ---------- פרטים יבשים (עריכה ישירה) ----------
   const [det, setDet] = useState({
@@ -83,10 +89,14 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       const [attRes, effRes] = await Promise.all([
         supabase.from('practice_attendance').select('status, session_date')
           .eq('coach_id', coachId).eq('player_id', rosterId).order('session_date', { ascending: false }),
-        authId
+        byRoster
+          // הדירוגים שהמאמן רשם על שורת הסגל (+ דירוג עצמי של שחקן מקושר, אם יש)
           ? supabase.from('session_effort').select('effort, session_date')
-              .eq('coach_id', coachId).eq('player_id', authId).order('session_date', { ascending: false })
-          : Promise.resolve({ data: [] }),
+              .eq('coach_id', coachId).eq('roster_id', rosterId).order('session_date', { ascending: false })
+          : authId
+            ? supabase.from('session_effort').select('effort, session_date')
+                .eq('coach_id', coachId).eq('player_id', authId).order('session_date', { ascending: false })
+            : Promise.resolve({ data: [] }),
       ])
       if (!alive) return
       const att = attRes.data || []
@@ -120,9 +130,16 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
         .select('*, drill:drills(title), plan:training_plans(name)')
         .eq('coach_id', coachId).order('created_at', { ascending: false }).limit(60)
       const mine = (asg || []).filter((a) =>
-        (a.status || 'active') !== 'archived' && (a.player_id === authId || (!a.player_id && a.team === team)))
+        (a.status || 'active') !== 'archived' &&
+        ((authId && a.player_id === authId) || (a.roster_id && a.roster_id === rosterId) || (!a.player_id && !a.roster_id && a.team === team)))
       let compl = []
-      if (mine.length && authId) {
+      if (mine.length && byRoster) {
+        // «ביצע» שהמאמן סימן (supabase_coach_only_22_8.sql) — אם הטבלה חסרה, פשוט אין סימונים
+        const { data } = await supabase.from('assignment_coach_marks')
+          .select('assignment_id, done_at, progress_value')
+          .eq('roster_id', rosterId).in('assignment_id', mine.map((a) => a.id))
+        compl = data || []
+      } else if (mine.length && authId) {
         const { data } = await supabase.from('assignment_completions')
           .select('assignment_id, done_at, progress_value')
           .eq('player_id', authId).in('assignment_id', mine.map((a) => a.id))
@@ -144,22 +161,35 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
   const [feedback, setFeedback] = useState(null)
   const [fbText, setFbText] = useState('')
   const loadFeedback = useCallback(async () => {
-    if (!authId) { setFeedback([]); return }
-    const { data } = await supabase.from('player_feedback')
+    if (!hasPerson) { setFeedback([]); return }
+    const base = () => supabase.from('player_feedback')
       .select('id, content, rating, created_at, session_date, session_type')
-      .eq('coach_id', coachId).eq('player_id', authId)
-      .order('created_at', { ascending: false }).limit(50)
+      .eq('coach_id', coachId).order('created_at', { ascending: false }).limit(50)
+    let { data, error } = await (byRoster ? base().eq('roster_id', rosterId) : base().eq('player_id', authId))
+    // מסד שטרם הריץ supabase_coach_only_22_8.sql — חוזרים לחשבון השחקן, אם יש.
+    // כשל שליפה לא מתחפש ל«עוד לא נכתב משוב».
+    if (error && byRoster && /roster_id/i.test(error.message || '')) {
+      if (authId) ({ data, error } = await base().eq('player_id', authId))
+      else { setFeedback([]); toast.error(L('להצגת משובים צריך להריץ את supabase_coach_only_22_8.sql', 'Showing feedback needs supabase_coach_only_22_8.sql')); return }
+    }
+    if (error) { setFeedback([]); toast.error(L('טעינת המשובים נכשלה', 'Failed to load feedback')); return }
     setFeedback(data || [])
-  }, [coachId, authId])
+  }, [coachId, authId, rosterId, byRoster, hasPerson])
   useEffect(() => { loadFeedback() }, [loadFeedback])
   const sendFeedback = async () => {
-    if (!authId || !fbText.trim()) return
-    const { error } = await supabase.from('player_feedback').insert({ coach_id: coachId, player_id: authId, content: fbText.trim() })
-    if (error) { toast.error(L('שליחת המשוב נכשלה', 'Failed to send feedback')); return }
-    sendNotification({ to: authId, actor: coachId, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
+    if (!hasPerson || !fbText.trim()) return
+    const row = { coach_id: coachId, player_id: authId, roster_id: rosterId, content: fbText.trim() }
+    let { error } = await supabase.from('player_feedback').insert(row)
+    // מסד שטרם הריץ supabase_coach_only_22_8.sql
+    if (error && /roster_id/i.test(error.message || '')) {
+      if (authId) ({ error } = await supabase.from('player_feedback').insert({ ...row, roster_id: undefined }))
+      else { toast.error(L('כדי לשמור משוב צריך להריץ את supabase_coach_only_22_8.sql', 'Saving feedback needs supabase_coach_only_22_8.sql')); return }
+    }
+    if (error) { toast.error(L('שמירת המשוב נכשלה', 'Failed to save feedback')); return }
+    if (authId) sendNotification({ to: authId, actor: coachId, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText('')
     loadFeedback()
-    toast.success(L('המשוב נשלח לשחקן', 'Feedback sent'))
+    toast.success(authId ? L('המשוב נשלח לשחקן', 'Feedback sent') : L('המשוב נשמר', 'Feedback saved'))
   }
 
   // ---------- הערות מאמן (פרטיות) ----------
@@ -292,8 +322,8 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       {/* ---------- היעדים שלו ---------- */}
       <section className="pc-sec">
         <h3 className="ta-title"><ClipboardList size={16} /> {L('היעדים שלו', 'Their goals')}</h3>
-        {authId
-          ? <PlayerGoalsEditor coachId={coachId} playerId={authId} team={team} playerName={player.name} />
+        {hasPerson
+          ? <PlayerGoalsEditor coachId={coachId} playerId={authId} rosterId={rosterId} team={team} playerName={player.name} />
           : <p className="muted small">{L('השחקן עוד לא חיבר חשבון — יעדים יהיו זמינים כשיצטרף בקוד.', 'The player has no linked account yet — goals unlock when they join with a code.')}</p>}
       </section>
 
@@ -324,7 +354,7 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       {/* ---------- ציר זמן משובים ---------- */}
       <section className="pc-sec">
         <h3 className="ta-title"><MessageSquare size={16} /> {L('משובים', 'Feedback')}</h3>
-        {authId ? (
+        {hasPerson ? (
           <>
             <div className="pc-fb-add">
               <input className="finder-input" value={fbText} maxLength={2000}
@@ -336,7 +366,7 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
               </button>
             </div>
             {feedback === null ? <SkeletonCards count={1} lines={1} /> : feedback.length === 0 ? (
-              <p className="muted small">{L('עוד לא נשלחו משובים לשחקן הזה.', 'No feedback sent to this player yet.')}</p>
+              <p className="muted small">{authId ? L('עוד לא נשלחו משובים לשחקן הזה.', 'No feedback sent to this player yet.') : L('עוד לא נכתב משוב לשחקן הזה.', 'No feedback written for this player yet.')}</p>
             ) : (
               <ul className="pc-fb-list">
                 {feedback.map((f) => (

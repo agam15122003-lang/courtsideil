@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Target, ChevronDown, Users2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import Avatar from './Avatar'
 import { PlayerGoalsEditor } from './PlayerGoals'
 
@@ -18,17 +19,24 @@ export default function TeamGoalsBoard({ coachId, team }) {
       .from('team_players')
       .select('id, name, number, player_id')
       .eq('coach_id', coachId).eq('team', team).order('number')
-    const connected = (rp || []).filter((p) => p.player_id)
+    // צד המאמן בלבד (22.8): כל הסגל, והיעדים נשמרים על שורת הסגל (roster_id).
+    // עם צד שחקן פתוח — רק מחוברים, לפי חשבון, כמו קודם.
+    const connected = PLAYER_SIDE ? (rp || []).filter((p) => p.player_id) : (rp || [])
     setPlayers(connected)
     if (connected.length === 0) return
+    // select('*') ולא רשימת עמודות: roster_id עלול עוד לא להתקיים במסד
     const { data: goals } = await supabase
       .from('player_goals')
-      .select('id, player_id, title, period, status, target_value, progress_value, unit')
+      .select('*')
       .eq('coach_id', coachId)
-      .in('player_id', connected.map((p) => p.player_id))
       .order('created_at', { ascending: false })
-    const by = {}
-    for (const g of goals || []) (by[g.player_id] = by[g.player_id] || []).push(g)
+    const byRoster = new Map(connected.map((p) => [p.id, p.id]))
+    const byAuth = new Map(connected.filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
+    const by = {} // roster_id -> goals
+    for (const g of goals || []) {
+      const rid = (g.roster_id && byRoster.get(g.roster_id)) || (g.player_id && byAuth.get(g.player_id))
+      if (rid) (by[rid] = by[rid] || []).push(g)
+    }
     setGoalsBy(by)
   }, [coachId, team])
   useEffect(() => { load() }, [load])
@@ -42,13 +50,15 @@ export default function TeamGoalsBoard({ coachId, team }) {
       {players.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={24} /></span>
-          <div className="empty-title">{L('אין עדיין שחקנים מחוברים', 'No connected players yet')}</div>
-          <p className="muted small">{L('שתפו את קוד ההצטרפות — וכשהשחקנים יתחברו תוכלו להציב להם יעדים כאן.', 'Share the join code — once players connect you can set their goals here.')}</p>
+          <div className="empty-title">{PLAYER_SIDE ? L('אין עדיין שחקנים מחוברים', 'No connected players yet') : L('אין עדיין שחקנים בסגל', 'No players in the roster yet')}</div>
+          <p className="muted small">{PLAYER_SIDE
+            ? L('שתפו את קוד ההצטרפות — וכשהשחקנים יתחברו תוכלו להציב להם יעדים כאן.', 'Share the join code — once players connect you can set their goals here.')
+            : L('הוסיפו שחקנים בטאב «סגל» — ואז תוכלו להציב לכל אחד יעדים כאן.', 'Add players in the roster tab — then you can set each one goals here.')}</p>
         </div>
       ) : (
         <ul className="gb-list">
           {players.map((p) => {
-            const goals = goalsBy[p.player_id] || []
+            const goals = goalsBy[p.id] || []
             const active = goals.filter((g) => g.status !== 'done')
             const isOpen = openId === p.id
             return (
@@ -68,7 +78,7 @@ export default function TeamGoalsBoard({ coachId, team }) {
                 </button>
                 {isOpen && (
                   <div className="gb-editor">
-                    <PlayerGoalsEditor coachId={coachId} playerId={p.player_id} team={team} playerName={p.name} />
+                    <PlayerGoalsEditor coachId={coachId} playerId={p.player_id} rosterId={p.id} team={team} playerName={p.name} />
                   </div>
                 )}
               </li>

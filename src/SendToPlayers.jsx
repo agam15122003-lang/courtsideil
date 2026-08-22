@@ -6,9 +6,59 @@ import {
 } from 'lucide-react'
 import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
-import { loadRoster, sendAssignments, loadSentFeed } from './sendToPlayersApi'
+import { PLAYER_SIDE } from './flags'
+import { loadRoster, sendAssignments, loadSentFeed, pickId } from './sendToPlayersApi'
 import Avatar from './Avatar'
 import useFocusTrap from './useFocusTrap'
+
+// ===== צד המאמן בלבד (22.8) =====
+// אותו מסך, אבל המשימה לא «נשלחת» לאף אחד — היא נרשמת ברשימה של המאמן
+// (על שורת הסגל), והמאמן מסמן «ביצע» אחרי שבדק עם השחקן באימון.
+// כל הניסוחים של «שליחה» עוברים דרך הטבלה הזו, כדי שהמסך לא יבטיח
+// התראה שאף שחקן לא יקבל.
+const T = PLAYER_SIDE ? {
+  emptyTitle: () => L('אין עדיין שחקנים מחוברים', 'No connected players yet'),
+  emptyText: () => L('שתפו את קוד ההצטרפות מ«הקבוצה שלי» — ברגע ששחקן מתחבר, אפשר לשלוח לו כאן.', 'Share the join code from “My team” — once a player connects, you can send to them here.'),
+  emptyMini: () => L('אין שחקנים מחוברים עדיין — שתפו את קוד ההצטרפות מטאב "סגל".', 'No connected players yet — share the join code from the roster tab.'),
+  what: () => L('מה שולחים?', 'What are you sending?'),
+  whom: () => L('למי שולחים?', 'Send to whom?'),
+  targetHintNum: () => L('השחקן ידווח התקדמות מול היעד — למשל 100 מתוך 200.', 'The player reports progress against the target — e.g. 100 of 200.'),
+  targetHintTick: () => L('בלי מספר — השחקן פשוט יסמן «סיימתי».', 'Without a number the player just ticks “done”.'),
+  repeatHint: () => L('אותה משימה תישלח לכל שבוע, עם תאריך יעד משלה', 'The task repeats weekly, each with its own due date'),
+  notePh: () => L('הערה לשחקנים (לא חובה)', 'Note to players (optional)'),
+  pick: () => L('בחרו מה לשלוח', 'Pick what to send'),
+  sendN: (n) => L(`שלח ל-${n} שחקנים`, `Send to ${n} players`),
+  sendBar: (n) => L(n === 1 ? 'שליחה לשחקן' : `שליחה ל-${n}`, n === 1 ? 'Send to 1 player' : `Send to ${n}`),
+  sentTitle: (label) => L(`נשלח ל${label}`, `Sent to ${label}`),
+  sentNext: () => L('השחקנים קיבלו התראה, וזה מופיע אצלם ב«המשימות שלי». ההתקדמות תופיע לך במעקב.', 'Your players got a notification, and it now shows under “My tasks”. Their progress appears in your tracking.'),
+  again: () => L('שליחה נוספת', 'Send another'),
+  sheetTitle: () => L('שליחה לשחקנים', 'Send to players'),
+  toast: (label) => L(`נשלח ל-${label}`, `Sent to ${label}`),
+  feedTitle: () => L('מה שלחתי לאחרונה', 'Recently sent'),
+  feedEmpty: () => L('עוד לא שלחת תרגולים.', 'You haven’t sent any training yet.'),
+  fail: () => L('השליחה נכשלה: ', 'Failed to send: '),
+} : {
+  emptyTitle: () => L('אין עדיין שחקנים בסגל', 'No players in the roster yet'),
+  emptyText: () => L('הוסיפו שחקנים בטאב «סגל» של הקבוצה — ואז אפשר לרשום להם משימות כאן.', 'Add players in the team’s roster tab — then you can log tasks for them here.'),
+  emptyMini: () => L('אין שחקנים בסגל עדיין — הוסיפו אותם בטאב "סגל".', 'No players in the roster yet — add them in the roster tab.'),
+  what: () => L('מה המשימה?', 'What is the task?'),
+  whom: () => L('למי?', 'For whom?'),
+  targetHintNum: () => L('את ההתקדמות מול היעד תעדכן במעקב למטה — למשל 100 מתוך 200.', 'You update progress against the target in the tracking below — e.g. 100 of 200.'),
+  targetHintTick: () => L('בלי מספר — תסמן «ביצע» אחרי שבדקת עם השחקן.', 'Without a number — tick “done” after checking with the player.'),
+  repeatHint: () => L('אותה משימה תירשם לכל שבוע, עם תאריך יעד משלה', 'The task is logged weekly, each with its own due date'),
+  notePh: () => L('הערה (לא חובה)', 'Note (optional)'),
+  pick: () => L('כתבו את המשימה', 'Write the task'),
+  sendN: (n) => L(`רישום ל-${n} שחקנים`, `Log for ${n} players`),
+  sendBar: (n) => L(n === 1 ? 'רישום לשחקן' : `רישום ל-${n}`, n === 1 ? 'Log for 1 player' : `Log for ${n}`),
+  sentTitle: (label) => L(`נרשם ל${label}`, `Logged for ${label}`),
+  sentNext: () => L('המשימה שמורה ברשימה שלך. אחרי שתבדוק עם השחקן באימון — סמן «ביצע» במעקב למטה.', 'The task is saved to your list. After checking with the player at practice — tick “done” in the tracking below.'),
+  again: () => L('משימה נוספת', 'Another task'),
+  sheetTitle: () => L('משימה לשחקנים', 'Task for players'),
+  toast: (label) => L(`נרשם ל-${label}`, `Logged for ${label}`),
+  feedTitle: () => L('משימות אחרונות', 'Recent tasks'),
+  feedEmpty: () => L('עוד לא רשמת משימות.', 'No tasks logged yet.'),
+  fail: () => L('הרישום נכשל: ', 'Failed to log: '),
+}
 
 // «שלח לשחקנים» — פריט 4 במסמך המסירה.
 //
@@ -104,13 +154,13 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     setSending(true)
     const res = await sendAssignments({
       coachId: me, mode, team,
-      players: roster.players.filter((p) => picked.has(p.player_id)),
+      players: roster.players.filter((p) => picked.has(pickId(p))),
       content: buildContent(), note: note.trim(), dueDate: dueDate || null,
       target: Number(target) > 0 ? target : null, unit: Number(target) > 0 ? unit : '',
       repeatWeeks: dueDate ? repeatWeeks : 1,
     })
     setSending(false)
-    if (!res.ok) { toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + res.error); return }
+    if (!res.ok) { toast.error(T.fail() + res.error); return }
     if (res.warn) toast.error(res.warn)
     const label = mode === 'team' ? trTeam(team) : L(cnt(res.count, 'שחקן אחד', 'שחקנים'), `${res.count} players`)
     // אישור כמסך ולא כטוסט: השליחה היא סוף תהליך, וצריך לראות מה יצא
@@ -118,7 +168,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     resetForm()
     setRepeatWeeks(1)
     if (!embedded && !variant) refreshFeed(roster)
-    if (embedded) toast.success(L(`נשלח ל-${label}`, `Sent to ${label}`))
+    if (embedded) toast.success(T.toast(label))
   }
 
   const noConnected = roster.players.length === 0
@@ -139,9 +189,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
           placeholder={L('זריקות', 'shots')} maxLength={30} aria-label={L('יחידה', 'Unit')} />
       </div>
       <p className="muted small sp-target-hint">
-        {Number(target) > 0
-          ? L('השחקן ידווח התקדמות מול היעד — למשל 100 מתוך 200.', 'The player reports progress against the target — e.g. 100 of 200.')
-          : L('בלי מספר — השחקן פשוט יסמן «סיימתי».', 'Without a number the player just ticks “done”.')}
+        {Number(target) > 0 ? T.targetHintNum() : T.targetHintTick()}
       </p>
     </div>
   )
@@ -165,7 +213,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
               {lbl}
             </button>
           ))}
-          {repeatWeeks > 1 && <span className="muted small sp-repeat-hint">{L('אותה משימה תישלח לכל שבוע, עם תאריך יעד משלה', 'The task repeats weekly, each with its own due date')}</span>}
+          {repeatWeeks > 1 && <span className="muted small sp-repeat-hint">{T.repeatHint()}</span>}
         </div>
       )}
     </div>
@@ -175,18 +223,15 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const sentPanel = () => (
     <div className="sp-sent-ok" role="status">
       <span className="sp-sent-ic"><CheckCheck size={34} /></span>
-      <h2 className="sp-sent-title">{L(`נשלח ל${sent.label}`, `Sent to ${sent.label}`)}</h2>
+      <h2 className="sp-sent-title">{T.sentTitle(sent.label)}</h2>
       <p className="muted">{sent.title}{sent.due ? L(` · עד ${ilDate(sent.due)}`, ` · by ${ilDate(sent.due)}`) : ''}</p>
-      <p className="sp-sent-next muted small">
-        {L('השחקנים קיבלו התראה, וזה מופיע אצלם ב«המשימות שלי». ההתקדמות תופיע לך במעקב.',
-           'Your players got a notification, and it now shows under “My tasks”. Their progress appears in your tracking.')}
-      </p>
+      <p className="sp-sent-next muted small">{T.sentNext()}</p>
       <div className="sp-sent-acts">
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={() => { setSent(null); onClose ? onClose() : null }}>
           {onClose ? L('סגירה', 'Close') : L('סיימתי', 'Done')}
         </button>
         <button type="button" className="btn-soft" style={{ marginTop: 0 }} onClick={() => setSent(null)}>
-          <Repeat2 size={16} /> {L('שליחה נוספת', 'Send another')}
+          <Repeat2 size={16} /> {T.again()}
         </button>
       </div>
     </div>
@@ -198,7 +243,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     return (
       <div className="sp-mini">
         {noConnected ? (
-          <p className="muted small">{L('אין שחקנים מחוברים עדיין — שתפו את קוד ההצטרפות מטאב "סגל".', 'No connected players yet — share the join code from the roster tab.')}</p>
+          <p className="muted small">{T.emptyMini()}</p>
         ) : (
           <>
             {/* מלל חופשי בלבד (בקשת הבעלים) */}
@@ -213,9 +258,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
             {mode === 'players' && (
               <ul className="sp-players sp-items-mini">
                 {roster.players.filter((p) => p.team === team).map((p) => (
-                  <li key={p.player_id}>
-                    <button className={picked.has(p.player_id) ? 'sp-player on' : 'sp-player'} onClick={() => togglePick(p.player_id)}>
-                      <span className="sp-check">{picked.has(p.player_id) ? <Check size={14} /> : null}</span>
+                  <li key={pickId(p)}>
+                    <button className={picked.has(pickId(p)) ? 'sp-player on' : 'sp-player'} onClick={() => togglePick(pickId(p))}>
+                      <span className="sp-check">{picked.has(pickId(p)) ? <Check size={14} /> : null}</span>
                       {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
                       <span className="sp-player-name">{p.name}</span>
                     </button>
@@ -232,7 +277,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
             <button className="btn-primary sp-send" onClick={doSend} disabled={!canSend} aria-busy={sending}>
               {sending && <span className="btn-spinner" aria-hidden="true" />}
-              <Send size={17} /> {targetCount > 0 ? L(`שלח ל-${targetCount} שחקנים`, `Send to ${targetCount} players`) : L('בחרו מה לשלוח', 'Pick what to send')}
+              <Send size={17} /> {targetCount > 0 ? T.sendN(targetCount) : T.pick()}
             </button>
           </>
         )}
@@ -247,8 +292,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
       {noConnected ? (
         <div className="empty-state">
           <span className="empty-ic"><Users size={26} /></span>
-          <div className="empty-title">{L('אין עדיין שחקנים מחוברים', 'No connected players yet')}</div>
-          <p className="muted small">{L('שתפו את קוד ההצטרפות מ«הקבוצה שלי» — ברגע ששחקן מתחבר, אפשר לשלוח לו כאן.', 'Share the join code from “My team” — once a player connects, you can send to them here.')}</p>
+          <div className="empty-title">{T.emptyTitle()}</div>
+          <p className="muted small">{T.emptyText()}</p>
         </div>
       ) : sent ? (
         sentPanel()
@@ -256,7 +301,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
         <>
           {/* 1 — מה שולחים */}
           <section className="sp-card">
-            <h3 className="sp-h3"><Send size={16} /> {L('מה שולחים?', 'What are you sending?')}</h3>
+            <h3 className="sp-h3"><Send size={16} /> {T.what()}</h3>
 
             {lockedContent ? (
               <>
@@ -267,8 +312,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
                     {lockedContent.sub && <span className="muted small">{lockedContent.sub}</span>}
                   </span>
                 </div>
-                {/* 18.8 — תוכנית מהמחברת: המאמן בוחר בכל שליחה מה השחקנים יראו */}
-                {source === 'plan' && (
+                {/* 18.8 — תוכנית מהמחברת: המאמן בוחר בכל שליחה מה השחקנים יראו
+                    (צד שחקן פתוח בלבד — בלי שחקנים אין מה לבחור) */}
+                {PLAYER_SIDE && source === 'plan' && (
                   <div className="sp-plan-view">
                     <span className="muted small">{L('מה השחקנים יראו?', 'What will the players see?')}</span>
                     <div className="sp-seg">
@@ -295,7 +341,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
           {/* 2 — למי */}
           <section className="sp-card">
-            <h3 className="sp-h3"><Users size={16} /> {L('למי שולחים?', 'Send to whom?')}</h3>
+            <h3 className="sp-h3"><Users size={16} /> {T.whom()}</h3>
             <div className="sp-seg">
               <button className={mode === 'team' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setMode('team')}><Users size={15} /> {L('כל הקבוצה', 'Whole team')}</button>
               <button className={mode === 'players' ? 'sp-seg-btn active' : 'sp-seg-btn'} onClick={() => setMode('players')}><User size={15} /> {L('שחקנים ספציפיים', 'Specific players')}</button>
@@ -314,9 +360,9 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
                 <div className="sp-search"><Search size={15} /><input className="finder-input" value={pQuery} onChange={(e) => setPQuery(e.target.value)} placeholder={L('חיפוש שחקן...', 'Search player...')} /></div>
                 <ul className="sp-players">
                   {roster.players.filter((p) => !pQuery || p.name?.includes(pQuery)).map((p) => (
-                    <li key={p.player_id}>
-                      <button className={picked.has(p.player_id) ? 'sp-player on' : 'sp-player'} onClick={() => togglePick(p.player_id)}>
-                        <span className="sp-check">{picked.has(p.player_id) ? <Check size={14} /> : null}</span>
+                    <li key={pickId(p)}>
+                      <button className={picked.has(pickId(p)) ? 'sp-player on' : 'sp-player'} onClick={() => togglePick(pickId(p))}>
+                        <span className="sp-check">{picked.has(pickId(p)) ? <Check size={14} /> : null}</span>
                         {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={30} />}
                         <span className="sp-player-name">{p.name}</span>
                         <span className="muted small">{trTeam(p.team)}{p.position ? ` · ${p.position}` : ''}</span>
@@ -338,7 +384,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
           <section className="sp-card">
             <h3 className="sp-h3"><CalendarDays size={16} /> {L('עד מתי?', 'By when?')}</h3>
             {duePicker()}
-            <textarea className="finder-input sp-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={L('הערה לשחקנים (לא חובה)', 'Note to players (optional)')} rows={2} maxLength={400} />
+            <textarea className="finder-input sp-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={T.notePh()} rows={2} maxLength={400} />
           </section>
         </>
       )}
@@ -351,11 +397,11 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
         {hasContent
           ? L(`${cnt(targetCount, 'מקבל אחד', 'מקבלים')} · ${Number(target) > 0 ? `יעד ${target} ${unit || ''}`.trim() : 'סימון «סיימתי»'}`,
               `${targetCount} recipients · ${Number(target) > 0 ? `target ${target} ${unit || ''}`.trim() : 'a check'}`)
-          : L('בחרו מה לשלוח', 'Pick what to send')}
+          : T.pick()}
       </span>
       <button className="btn-primary sp-send" onClick={doSend} disabled={!canSend} aria-busy={sending}>
         {sending && <span className="btn-spinner" aria-hidden="true" />}
-        <Send size={17} /> {L(targetCount === 1 ? 'שליחה לשחקן' : `שליחה ל-${targetCount}`, targetCount === 1 ? 'Send to 1 player' : `Send to ${targetCount}`)}
+        <Send size={17} /> {T.sendBar(targetCount)}
       </button>
     </div>
   )
@@ -366,10 +412,10 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
          Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap על הגיליון עצמו. */
       <div className="sp-sheet-wrap" onClick={onClose}>
         <div className="sp-sheet" ref={sheetRef} role="dialog" aria-modal="true"
-          aria-label={L('שליחה לשחקנים', 'Send to players')} onClick={(e) => e.stopPropagation()}>
+          aria-label={T.sheetTitle()} onClick={(e) => e.stopPropagation()}>
           <header className="sp-sheet-head">
             <button type="button" className="icon-btn" onClick={onClose} aria-label={L('סגירה', 'Close')}><X size={19} /></button>
-            <h2>{L('שליחה לשחקנים', 'Send to players')}</h2>
+            <h2>{T.sheetTitle()}</h2>
           </header>
           <div className="sp-sheet-body">{body}</div>
           {sendBar}
@@ -385,11 +431,11 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
 
       {/* מה שלחתי לאחרונה */}
       <section className="sp-card sp-feed">
-        <h3 className="sp-h3"><Inbox size={16} /> {L('מה שלחתי לאחרונה', 'Recently sent')}</h3>
+        <h3 className="sp-h3"><Inbox size={16} /> {T.feedTitle()}</h3>
         {feed === null ? (
           <SkeletonCards count={2} lines={1} />
         ) : feed.length === 0 ? (
-          <p className="muted small">{L('עוד לא שלחת תרגולים.', 'You haven’t sent any training yet.')}</p>
+          <p className="muted small">{T.feedEmpty()}</p>
         ) : (
           <ul className="sp-sent">
             {feed.map((f) => {
@@ -399,12 +445,12 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
                   <div className="sp-sent-main">
                     <strong>{f.title}</strong>
                     <span className="muted small">
-                      {f.player_id ? L('לשחקן', 'To a player') : `${trTeam(f.team)}`}
+                      {(f.player_id || f.roster_id) ? L('לשחקן', 'To a player') : `${trTeam(f.team)}`}
                       {f.due_date ? ` · ${L('עד', 'by')} ${new Date(f.due_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}
                     </span>
                   </div>
                   <span className={pct >= 100 ? 'sp-ratio done' : 'sp-ratio'}>
-                    {f.player_id ? (f.done > 0 ? L('בוצע ✓', 'Done ✓') : L('ממתין', 'Pending')) : `${f.done}/${f.total} ✓`}
+                    {(f.player_id || f.roster_id) ? (f.done > 0 ? L('בוצע ✓', 'Done ✓') : L('ממתין', 'Pending')) : `${f.done}/${f.total} ✓`}
                   </span>
                 </li>
               )

@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { burstConfetti } from './confetti'
 import { SkeletonCards } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
@@ -29,7 +30,11 @@ const dueLabel = (d) => { const x = new Date(d + 'T00:00'); return isNaN(x) ? ''
 // ---------- עורך יעדים (מאמן, בתוך חלון עריכת השחקן) ----------
 // טופס נקי לפי מסמך ההשקה (1.5): טווח · מה היעד · עד מתי. בלי הצעות
 // אוטומטיות ובלי נתוני עומס — רק היעד עצמו.
-export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
+// rosterId (22.8, צד המאמן בלבד): היעדים נשמרים על שורת הסגל ולא על חשבון
+// השחקן — וכך יש יעדים גם לשחקן בלי חשבון. עם צד שחקן פתוח, playerId מנצח
+// ו-roster_id נכתב לצידו כדי שהשורה תחזיק את שני המזהים.
+export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerName }) {
+  const byRoster = !PLAYER_SIDE && !!rosterId
   const [goals, setGoals] = useState(null)
   const [period, setPeriod] = useState('session')
   const [title, setTitle] = useState('')
@@ -46,7 +51,15 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
 
   const load = useCallback(async () => {
     // בלי בדיקת error כישלון שליפה נראה כמו «אין יעדים» — בדיוק ההיפוך המסוכן
-    const { data, error } = await supabase.from('player_goals').select('*').eq('coach_id', coachId).eq('player_id', playerId).order('created_at', { ascending: false })
+    const base = () => supabase.from('player_goals').select('*').eq('coach_id', coachId).order('created_at', { ascending: false })
+    // צד שחקן פתוח + שני המזהים ידועים: גם יעדים שנרשמו על שורת הסגל כשהמתג
+    // היה כבוי (roster_id בלי player_id) שייכים לאותו שחקן
+    let { data, error } = await (byRoster
+      ? base().eq('roster_id', rosterId)
+      : rosterId && playerId
+        ? base().or(`player_id.eq.${playerId},roster_id.eq.${rosterId}`)
+        : base().eq('player_id', playerId))
+    if (error && !byRoster && rosterId && playerId && /roster_id/i.test(error.message || '')) ({ data, error } = await base().eq('player_id', playerId))
     if (error) { setLoadErr(error); setGoals([]); setLogsBy({}); return }
     setLoadErr(null)
     setGoals(data || [])
@@ -58,7 +71,7 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
       for (const r of logs || []) (by[r.goal_id] = by[r.goal_id] || []).push(r)
       setLogsBy(by)
     } else setLogsBy({})
-  }, [coachId, playerId])
+  }, [coachId, playerId, rosterId, byRoster])
   useEffect(() => { load() }, [load])
 
   const insertGoal = async (goalTitle) => {
@@ -66,17 +79,24 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
     setBusy(true)
     const tv = Number(target) > 0 ? Number(target) : null
     const row = {
-      coach_id: coachId, player_id: playerId, team,
+      coach_id: coachId, player_id: playerId || null, team,
       period, title: goalTitle.trim(), due_date: dueDate || null,
       target_value: tv, unit: tv ? (unit.trim() || null) : null,
       metric_type: tv ? 'count' : 'checkbox',
     }
+    // roster_id (supabase_coach_only_22_8.sql) נכתב תמיד כשהוא ידוע
+    if (rosterId) row.roster_id = rosterId
     // created_by (supabase_goals_launch.sql) — אם העמודה טרם נוספה, שומרים בלעדיה
     let { error } = await supabase.from('player_goals').insert({ ...row, created_by: coachId })
     if (error) ({ error } = await supabase.from('player_goals').insert(row))
+    // מסד בלי roster_id: לשחקן מחובר שומרים כמו פעם; בלי חשבון — אין לאן
+    if (error && row.roster_id && /roster_id/i.test(error.message || '')) {
+      if (playerId) ({ error } = await supabase.from('player_goals').insert({ ...row, roster_id: undefined }))
+      else { setBusy(false); toast.error(L('כדי לשמור יעדים צריך להריץ את supabase_coach_only_22_8.sql', 'Saving goals needs supabase_coach_only_22_8.sql')); return false }
+    }
     setBusy(false)
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
-    sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
+    if (playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
     load()
     return true
   }
@@ -93,14 +113,14 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
     const done = g.target_value ? next >= g.target_value : g.status === 'done'
     const { error } = await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     if (error) { failToast(); return }
-    if (done && g.status !== 'done') sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (done && g.status !== 'done' && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
   const toggleDone = async (g) => {
     const done = g.status !== 'done'
     const { error } = await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     if (error) { failToast(); return }
-    if (done) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (done && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
   }
   const del = async (id) => {
@@ -136,8 +156,12 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
         </div>
         <p className="muted small pg-due-line">
           {Number(target) > 0
-            ? L(`השחקן ידווח התקדמות עד ${target} ${unit.trim()}`.trim(), `The player logs progress up to ${target} ${unit.trim()}`.trim())
-            : L('בלי מספר — השחקן פשוט מסמן שהיעד הושג.', 'Without a number the player just ticks the goal off.')}
+            ? (byRoster
+                ? L(`תעדכן כאן את ההתקדמות עד ${target} ${unit.trim()}`.trim(), `You update the progress here up to ${target} ${unit.trim()}`.trim())
+                : L(`השחקן ידווח התקדמות עד ${target} ${unit.trim()}`.trim(), `The player logs progress up to ${target} ${unit.trim()}`.trim()))
+            : (byRoster
+                ? L('בלי מספר — מסמנים ✓ כשהיעד הושג.', 'Without a number — tick it when the goal is met.')
+                : L('בלי מספר — השחקן פשוט מסמן שהיעד הושג.', 'Without a number the player just ticks the goal off.'))}
           {dueDate ? L(` · עד ${dueLabel(dueDate)}`, ` · due ${dueLabel(dueDate)}`) : ''}
         </p>
       </div>
@@ -148,7 +172,11 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
         <div className="empty-state" role="alert">
           <span className="empty-ic"><Target size={26} /></span>
           <div className="empty-title">{L('לא הצלחנו לטעון את היעדים', 'Could not load the goals')}</div>
-          <p className="muted small">{L('היעדים לא נמחקו — זו תקלת טעינה.', 'No goals were deleted — this is a loading error.')}</p>
+          <p className="muted small">
+            {byRoster && /roster_id/i.test(loadErr.message || '')
+              ? L('צריך להריץ את supabase_coach_only_22_8.sql — עד אז אין איפה לשמור יעדים לשחקן בלי חשבון.', 'Run supabase_coach_only_22_8.sql — until then there is nowhere to keep goals for a player without an account.')
+              : L('היעדים לא נמחקו — זו תקלת טעינה.', 'No goals were deleted — this is a loading error.')}
+          </p>
           <button type="button" className="btn-soft empty-cta" onClick={() => { setGoals(null); setLoadErr(null); load() }}>
             {L('נסה שוב', 'Try again')}
           </button>
@@ -173,8 +201,11 @@ export function PlayerGoalsEditor({ coachId, playerId, team, playerName }) {
                       <TrendingUp size={14} />
                     </button>
                   )}
-                  <button className="icon-btn" onClick={() => bump(g, -1)} disabled={restricted} aria-label="-"><Minus size={14} /></button>
-                  <button className="icon-btn" onClick={() => bump(g, 1)} disabled={restricted} aria-label="+"><Plus size={14} /></button>
+                  {/* ⚠ היה כאן disabled={restricted} — משתנה שקיים רק ב-MyGoals (השחקן).
+                      בעורך של המאמן הוא לא מוגדר, וכל יעד מספרי הפיל את כרטיס
+                      השחקן ב-ReferenceError (נתפס בבוחן 22.8). המאמן אינו «מוגבל». */}
+                  <button className="icon-btn" onClick={() => bump(g, -1)} aria-label="-"><Minus size={14} /></button>
+                  <button className="icon-btn" onClick={() => bump(g, 1)} aria-label="+"><Plus size={14} /></button>
                 </div>
               ) : (
                 <button className={g.status === 'done' ? 'pg-check on' : 'pg-check'} onClick={() => toggleDone(g)} aria-label={L('הושג', 'Done')}><Check size={14} /></button>

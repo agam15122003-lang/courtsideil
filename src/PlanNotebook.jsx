@@ -8,6 +8,7 @@ import { ArrowBack } from './DirIcon'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 import { registerUnsaved } from './unsavedGuard'
 import { INK_COLORS } from './ink'
@@ -656,7 +657,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
           </button>
           {savedId && (
             <button type="button" className="btn-soft" onClick={() => setSending(true)}>
-              <Send size={16} /> {L('שלח לשחקנים', 'Send to players')}
+              <Send size={16} /> {PLAYER_SIDE ? L('שלח לשחקנים', 'Send to players') : L('כמשימה לשחקנים', 'As a task for players')}
             </button>
           )}
         </div>

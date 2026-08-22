@@ -30034,3 +30034,57 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .pd-v2 .pd-saved.err { color: var(--c-red); background: var(--c-red-bg); }
 /* הטאבים נחתכים ב-overflow של המסך — טבעת הפוקוס פנימה */
 .pd-v2 .pd-tabs .tab:focus-visible { outline-offset: -3px; }
+
+/* =====================================================================
+   22.8.2026 — השקת צד המאמן בלבד (PLAYER_SIDE=false, src/flags.js)
+   מסך ההמתנה לחשבון שחקן · טיזר «בקרוב» בדף הנחיתה · בורר העומס וסימוני
+   היעדים בסקירת האימון · סימון «ביצע» של המאמן במעקב המשימות.
+   ===================================================================== */
+/* --- מסך ההמתנה (PlayerSideClosed) --- */
+.pso-card { max-width: 440px; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.pso-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; color: var(--navy-900, var(--text)); }
+.pso-ic { margin: 4px auto 0; }
+.pso-title { margin: 0; font-size: 22px; }
+.pso-card .btn-soft { margin-top: 4px; }
+
+/* --- דף הנחיתה: הטיזר --- */
+.land-soon { position: relative; }
+.land-soon-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--accent-soft, rgba(232, 118, 58, 0.14)); color: var(--accent-strong);
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.02em;
+  margin-block-end: 10px;
+}
+.land-soon .land-lead { margin-block-end: 22px; }
+/* הצעדים בטיזר הם עתידיים — מעט מעומעמים, כדי שלא ייקראו כפיצ׳ר קיים */
+.land-soon .land-loop-step { opacity: 0.88; }
+
+/* --- סקירת אימון: העומס שהמאמן רושם + «עמד ביעד?» --- */
+.sd-eff-pick { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; color: var(--text-muted); }
+.sd-eff-pick > svg { color: var(--accent-strong); flex: none; }
+.sd-eff-sel {
+  min-height: 36px; padding: 4px 8px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: inherit; font-size: 14px; font-weight: 700; min-width: 84px;
+}
+.sd-eff-sel:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.sd-gm-row { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }
+.sd-gm {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 4px 10px; border-radius: 999px;
+  border: 1px dashed var(--border); background: transparent; color: var(--text-muted);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.sd-gm:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.sd-gm.met { border-style: solid; border-color: var(--success); background: var(--success-soft, rgba(22, 163, 74, 0.12)); color: var(--success); }
+.sd-gm.miss { border-style: solid; border-color: var(--c-red); background: var(--c-red-bg); color: var(--c-red); }
+.sd-gm-team { font-size: 10.5px; font-weight: 700; opacity: 0.75; margin-inline-start: 2px; }
+@media (pointer: coarse) { .sd-gm, .sd-eff-sel { min-height: 44px; } }
+
+/* --- מעקב משימות: המאמן מסמן «ביצע» ומעדכן התקדמות --- */
+.ta-mark { cursor: pointer; border: 1px solid var(--border); background: var(--surface); font: inherit; white-space: nowrap; }
+.ta-mark:not(.done):hover { border-color: var(--accent-strong); color: var(--accent-strong); }
+.ta-mark:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.ta-prog-in { width: 56px; min-height: 32px; padding: 2px 6px; font-size: 13px; text-align: center; }
+@media (pointer: coarse) { .ta-mark { min-height: 44px; } .ta-prog-in { min-height: 40px; } }

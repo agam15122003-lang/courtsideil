@@ -3,6 +3,7 @@ import { CalendarClock, Plus, ClipboardCheck, CalendarDays } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 import { WEEKDAYS, expandSlots } from './sessionId'
 import ScheduleGrid from './ScheduleGrid'
@@ -61,7 +62,7 @@ export default function TeamSlots({ coachId, team, onReview }) {
     setBusy(false)
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return }
     setLoc('')
-    toast.success(L('יום האימון נוסף — מופיע עכשיו לשחקנים', 'Practice day added — now visible to players'))
+    toast.success(PLAYER_SIDE ? L('יום האימון נוסף — מופיע עכשיו לשחקנים', 'Practice day added — now visible to players') : L('יום האימון נוסף', 'Practice day added'))
     load()
   }
 

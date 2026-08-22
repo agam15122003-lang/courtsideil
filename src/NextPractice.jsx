@@ -5,6 +5,7 @@ import { downloadIcs } from './ics'
 import SessionDetail from './SessionDetail'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 
 const pad = (n) => String(n).padStart(2, '0')
 const ilNum = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear() }
@@ -96,12 +97,16 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       const done = all.filter((e) => e.team && !e.is_personal && !isNaN(endOf(e)) && endOf(e) < nowTs)
       const last = done[done.length - 1] || null
       if (last && me) {
+        // צד המאמן בלבד (22.8): המכנה הוא כל הסגל, והמונה — מה שהמאמן רשם
+        const rosterQ = supabase.from('team_players').select('id').eq('coach_id', me).eq('team', last.team)
         const [{ data: eff }, { data: roster }] = await Promise.all([
-          supabase.from('session_effort').select('effort').eq('coach_id', me).eq('session_id', last.id),
-          supabase.from('team_players').select('id').eq('coach_id', me).eq('team', last.team).not('player_id', 'is', null),
+          // select('*'): העמודה source (22.8) עשויה עוד לא להתקיים — כוכבית לא נופלת עליה
+          supabase.from('session_effort').select('*').eq('coach_id', me).eq('session_id', last.id),
+          PLAYER_SIDE ? rosterQ.not('player_id', 'is', null) : rosterQ,
         ])
         if (!alive) return
-        const vals = (eff || []).map((r) => r.effort)
+        // עם צד שחקן פתוח סופרים רק דירוג עצמי — שורות שהמאמן רשם כשהמתג היה כבוי אינן «מילאו סיכום»
+        const vals = (eff || []).filter((r) => !PLAYER_SIDE || r.source !== 'coach').map((r) => r.effort)
         setRecent({
           id: last.id, team: last.team, date: last.date, start_time: last.start_time, location: last.location,
           rated: vals.length, total: (roster || []).length,
@@ -145,9 +150,9 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       <span className="np-report-body">
         <strong>{L('דוח האימון האחרון', 'Last practice report')} · {trTeam(recent.team)}</strong>
         <span className="np-report-meta">
-          {recent.total > 0 && <span>{recent.rated}/{recent.total} {L('מילאו סיכום', 'checked in')}</span>}
+          {recent.total > 0 && <span>{recent.rated}/{recent.total} {PLAYER_SIDE ? L('מילאו סיכום', 'checked in') : L('עומס נרשם', 'load logged')}</span>}
           {recent.avg != null && <span className="np-report-avg"><Flame size={12} /> {L('עומס ממוצע', 'avg load')} {recent.avg.toFixed(1)}</span>}
-          {recent.total > 0 && recent.rated === 0 && <span>{L('ממתין לשחקנים...', 'waiting for players...')}</span>}
+          {recent.total > 0 && recent.rated === 0 && <span>{PLAYER_SIDE ? L('ממתין לשחקנים...', 'waiting for players...') : L('עוד לא נרשם עומס', 'no load logged yet')}</span>}
         </span>
       </span>
       <span className="np-report-cta">{L('פתח', 'Open')}</span>

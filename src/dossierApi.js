@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 
 // כל הקריאות והכתיבות של «תיק שחקן» במקום אחד.
 // המסך (PlayerDossier.jsx) לא מדבר עם המסד ישירות — כך גם קל להחליף
@@ -336,7 +337,22 @@ export async function loadAutoStats({ rosterId, playerId, coachId, team }) {
     out.attendance = Math.round((here / rows.length) * 100)
     out.sessions = rows.length
   }
-  if (playerId) {
+  // צד המאמן בלבד (22.8): העומס והמשימות נרשמים על שורת הסגל (roster_id),
+  // לא על חשבון השחקן. מסד שטרם הריץ supabase_coach_only_22_8.sql מחזיר
+  // שגיאה על העמודה — ואז פשוט לא מציגים את המספר (כמו כל השאר כאן).
+  if (!PLAYER_SIDE && rosterId) {
+    // עומס מדווח הוא 1–10 (supabase_effort.sql), לא 1–5
+    const ef = await supabase.from('session_effort').select('effort').eq('roster_id', rosterId).limit(200)
+    if (!ef.error && (ef.data || []).length) {
+      const v = ef.data.map((r) => Number(r.effort)).filter((n) => !Number.isNaN(n))
+      if (v.length) out.effort = Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10
+    }
+    const done = await supabase
+      .from('assignment_coach_marks')
+      .select('assignment_id', { count: 'exact', head: true })
+      .eq('roster_id', rosterId).not('done_at', 'is', null)
+    if (!done.error && typeof done.count === 'number') out.tasks = done.count
+  } else if (playerId) {
     // עומס מדווח הוא 1–10 (supabase_effort.sql), לא 1–5
     const ef = await supabase.from('session_effort').select('effort').eq('player_id', playerId).limit(200)
     if (!ef.error && (ef.data || []).length) {

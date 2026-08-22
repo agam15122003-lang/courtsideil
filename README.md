@@ -82,6 +82,7 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 | 41 | `supabase_coach_age_gate_19_8.sql` | שער «מאמן קטין» — עמודה חדשה `game_settings.coach_birthdate_required` וגרסה מתוקנת של `game_block_minor_coach` (ענף «לא הצהיר» דורש גם שם מלא, אחרת השורה הריקה של `handle_new_user` נחסמת וכל הרשמה נשברת). **דורש שהפרונט של 19.8 יהיה באוויר לפני הדלקת המתג** |
 | 42 | `supabase_player_room_off_19_8.sql` | סגירת **חדר השחקנים הארצי** — מדיניות RESTRICTIVE שחוסמת הוספת הודעות ל-`player_messages`. שום הודעה לא נמחקת. ביטול: `drop policy "pmsg_room_closed"` |
 | 43 | `supabase_game_challenge_off_19_8.sql` | סגירת **האתגר השבועי והעלאות הווידאו** — שלילת INSERT/UPDATE על `game_challenge_submissions` ומחיקת מדיניות ההעלאה `media_insert_challenges`. שום קליפ ושום הגשה לא נמחקים, וכל מדיניות הקריאה נשארת |
+| 44 | `supabase_coach_only_22_8.sql` | **חובה להשקת צד המאמן בלבד** (ראו «השקת צד המאמן» למטה) — `roster_id` על `session_effort` / `player_goals` / `player_feedback` / `session_goal_marks` / `player_assignments`, `session_effort.source` ('player'/'coach'), טבלה חדשה `assignment_coach_marks`, ומדיניות כתיבה למאמן. בלי הקובץ הזה המאמן לא יכול לרשום עומס, יעדים ומשוב לשחקן בלי חשבון. אדיטיבי — לא מוחק כלום |
 
 > **גל «עולם המשחק» (12.8–16.8) אינו בטבלה הזו** — שבעת הקבצים `supabase_game_*` מרוכזים
 > ב-`הרצת_SQL_12.8.md` עם סטטוס ההרצה בפועל. `supabase_game_quiz_hardening_13_8.sql` **רץ ואומת ב-18.8.2026 בערב.**
@@ -105,6 +106,34 @@ VITE_SUPABASE_ANON_KEY=<anon public key>
 > `select * from public.schema_migrations order by ran_at;`
 > `supabase_cleanup_drills.sql` — אופציונלי, מוחק תרגילי דוגמה.
 > נדרש גם bucket בשם `media` ב-Storage; מ-35 ואילך הוא נעשה פרטי, והגישה אליו רק ב-Signed URLs.
+
+## השקת צד המאמן בלבד (22.8.2026)
+
+ההשקה הראשונה היא **למאמנים בלבד**. צד השחקן **מוסתר, לא מחוק**: המתג
+`PLAYER_SIDE` ב-`src/flags.js` (כרגע `false`) שולט על הכול.
+
+**מה מוסתר כשהמתג כבוי:** בחירת תפקיד והרשמה כשחקן, קישורי `#/join` ו-`#/court`,
+`PlayerDashboard` (חשבון שחקן שמתחבר רואה מסך המתנה — `PlayerSideClosed.jsx`),
+קוד הצטרפות / QR / בקשות הצטרפות / הצלבת גילאים בסגל, אישורי הגעה (RSVP),
+צ׳אט הקבוצה במסך ההודעות, «מתאמנים אישיים», התראות לשחקנים, ופרסום סיכום
+האימון לצ׳אט. דף הנחיתה מציג גרסה למאמנים עם טיזר «בקרוב: צד השחקן».
+
+**מה נשאר ועובר לרישום של המאמן** (על שורת הסגל `team_players.id` → `roster_id`,
+דורש את קובץ #44): עומס אחרי אימון (בורר 1–10 בסקירת האימון, `session_effort.source='coach'`),
+«עמד ביעד?» (המאמן מסמן בסקירה — `session_goal_marks.roster_id`), יעדים אישיים
+(`player_goals.roster_id`), משוב אישי (`player_feedback.roster_id`), ומשימות
+(`player_assignments.roster_id` + סימון «ביצע» של המאמן ב-`assignment_coach_marks`).
+
+**להחזיר את צד השחקן:** `PLAYER_SIDE = true` ו-`npm run verify`. לפני כן:
+1. `pg_player_read` כבר מסנן `roster_id is null` מיעדי הקבוצה (קובץ #44) — לוודא שרץ.
+2. שחקן שיתחבר לשורת סגל שכבר יש עליה יעדים/משובים/משימות (`roster_id` בלי `player_id`)
+   צריך **מיזוג**: `update ... set player_id = <auth> where roster_id = <row> and player_id is null`
+   על `player_goals` / `player_feedback` / `player_assignments` **בלבד** — עדיין לא נכתב, ולא צריך עד
+   שיש שחקנים. ⚠ **לא** על `session_effort` ו-`session_goal_marks`: שם שורות המאמן נשארות עם
+   `player_id` ריק לתמיד (unique של הדירוג העצמי עדיין בתוקף — שורה עם שני המזהים הייתה מתנגשת
+   בשורת השחקן ונכתבת דרך המדיניות שלו). הקריאה ממילא הולכת דרך `roster_id` קודם.
+3. `assignment_coach_marks` (סימוני המאמן) ו-`assignment_completions` (סימוני השחקן)
+   הן שתי אמיתות נפרדות — להחליט מי מנצח במסך «מה נשלח ומי ביצע».
 
 ## פריסה
 

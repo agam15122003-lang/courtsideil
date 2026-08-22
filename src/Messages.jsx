@@ -9,6 +9,7 @@ import Avatar from './Avatar'
 import TeamChat from './TeamChat'
 import { SkeletonConvos } from './Skeleton'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 
 // בונה רשימת שיחות מקובצות לפי המאמן השני בשיחה
@@ -460,7 +461,9 @@ export default function Messages({ session, profile, onNavigate }) {
 
   return (
     <div className="msg-screen">
-      {/* מסך 7a: מסילת טאבים אחת מתחת לבאנר — אישי (עם מונה) והקבוצה */}
+      {/* מסך 7a: מסילת טאבים אחת מתחת לבאנר — אישי (עם מונה) והקבוצה.
+          צד המאמן בלבד: צ׳אט הקבוצה הוא עם השחקנים — אין אותם, אין טאב. */}
+      {PLAYER_SIDE && (
       <div className="tabs msg-tabs">
         <button className={tab === 'personal' ? 'tab active' : 'tab'} onClick={() => setTab('personal')}>
           <MessageSquare size={15} aria-hidden="true" /> {L('אישי', 'Direct')}
@@ -470,8 +473,9 @@ export default function Messages({ session, profile, onNavigate }) {
           <Users2 size={15} aria-hidden="true" /> {L('הקבוצה', 'Team')}
         </button>
       </div>
+      )}
 
-      {tab === 'team' ? (
+      {PLAYER_SIDE && tab === 'team' ? (
         myTeams.length === 0 ? (
           <div className="empty-state">
             <span className="empty-ic"><Users2 size={26} /></span>
@@ -504,7 +508,7 @@ export default function Messages({ session, profile, onNavigate }) {
               type="search"
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
-              placeholder={L('חיפוש מאמן או שחקן...', 'Search coach or player...')}
+              placeholder={PLAYER_SIDE ? L('חיפוש מאמן או שחקן...', 'Search coach or player...') : L('חיפוש מאמן...', 'Search coach...')}
               aria-label={L('חיפוש שיחה', 'Search conversation')}
             />
             <button className="icon-btn" onClick={loadMessages} aria-label={L('רענון', 'Refresh')} title={L('רענון', 'Refresh')}>

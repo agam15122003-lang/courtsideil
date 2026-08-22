@@ -114,7 +114,8 @@ export default function WeekList({
                           <ClipboardCheck size={13} /> {attDone ? L('נוכחות סומנה', 'Attendance done') : L('נוכחות', 'Attendance')}
                         </button>
                       )}
-                      {ev.kind === 'practice' && !isPast && total > 0 && (
+                      {/* rsvpYes=null (צד המאמן בלבד) — אין צ׳יפ אישורים בכלל */}
+                      {ev.kind === 'practice' && !isPast && rsvpYes && total > 0 && (
                         <button type="button" className="wl-chip soft" onClick={onOpen ? () => onOpen(ev) : undefined}>
                           <bdi dir="ltr">{yes}/{total}</bdi> {L('אישרו', 'confirmed')}
                         </button>

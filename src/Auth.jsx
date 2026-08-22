@@ -7,6 +7,7 @@ import { toast } from './toast'
 import { COACHING_QUOTES, ISRAELI_CLUBS, SITE_URL, TERMS_VERSION, checkPassword, passwordServerError } from './constants'
 import { passwordStrength, PasswordRules } from './ResetPassword'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 
 // מייל בלי סיום דומיין — הודעת שדה ליד הקלט, לא באנר בתחתית המסך
 const emailLooksWhole = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
@@ -501,7 +502,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
                 ״{L(quote.text, quote.text_en)}״ <cite>— {L(quote.author, quote.author_en)}</cite>
               </p>
               <ul className="auth-hero-caps">
-                <li>{L('הבית של מאמנים ושחקנים', 'A home for coaches and players')}</li>
+                <li>{PLAYER_SIDE ? L('הבית של מאמנים ושחקנים', 'A home for coaches and players') : L('הבית של מאמני הכדורסל', 'A home for basketball coaches')}</li>
                 <li>{L('ידע שמשתפים יחד', 'Knowledge shared together')}</li>
                 <li>{L('קהילה שגדלה יחד', 'A community growing together')}</li>
               </ul>
@@ -512,7 +513,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
             <>
               {/* 1c — הקישור חוזר לבחירת התפקיד, לא להתחברות (README §1c) */}
               <button type="button" className="csa-back csa-back--push" onClick={onBack}>
-                <ChevronBack size={17} /> {L('חזרה לבחירת תפקיד', 'Back to role selection')}
+                <ChevronBack size={17} /> {PLAYER_SIDE ? L('חזרה לבחירת תפקיד', 'Back to role selection') : L('חזרה', 'Back')}
               </button>
               <h1 className="csa-title">
                 {L('מצטרפים ל-CourtSide', 'Joining CourtSide')}

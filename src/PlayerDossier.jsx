@@ -5,6 +5,7 @@ import {
   CalendarDays, ListChecks, Link2, Database, Trash2, Printer, SlidersHorizontal, RotateCcw, EyeOff,
 } from 'lucide-react'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { toast } from './toast'
 import { confirmDialog } from './confirm'
 import { SkeletonCards } from './Skeleton'
@@ -941,12 +942,12 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
             <span className="pd-auto-tile">
               <span className="pd-auto-k">{L('עומס מדווח (ממוצע)', 'Reported load (avg)')}</span>
               <b dir="ltr">{auto.effort != null ? `${auto.effort}/10` : '—'}</b>
-              <span className="pd-auto-sub">{L('מהדיווח שלו אחרי אימון', 'From his post-practice reports')}</span>
+              <span className="pd-auto-sub">{PLAYER_SIDE ? L('מהדיווח שלו אחרי אימון', 'From his post-practice reports') : L('מהעומס שהמאמן רשם אחרי אימון', 'From the load the coach logged after practice')}</span>
             </span>
             <span className="pd-auto-tile hot">
               <span className="pd-auto-k">{L('משימות שבוצעו', 'Tasks done')}</span>
               <b dir="ltr">{auto.tasks != null ? auto.tasks : '—'}</b>
-              <span className="pd-auto-sub">{L('מתוך המשימות שנשלחו לו', 'Out of the tasks sent to him')}</span>
+              <span className="pd-auto-sub">{PLAYER_SIDE ? L('מתוך המשימות שנשלחו לו', 'Out of the tasks sent to him') : L('מתוך המשימות שנרשמו לו', 'Out of the tasks logged for him')}</span>
             </span>
           </div>
         </section>

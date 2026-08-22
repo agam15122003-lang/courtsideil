@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Flame, Crown, StickyNote, Save, Check, Minus } from 'lucide-react'
+import { X, Flame, Crown, StickyNote, Save, Check, Minus, Target } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
 import { MOOD_BY_KEY } from './FeedbackSheet'
@@ -15,8 +16,19 @@ const ATT = [
   { id: 'absent', label: ['נעדר', 'Absent'], tone: 'red' },
 ]
 
+// ===== צד המאמן בלבד (22.8) =====
+// עם צד שחקן פתוח: המאמץ מדורג על ידי השחקנים, וכאן המאמן רק רואה דוח.
+// בלי צד שחקן: המאמן שואל את השחקנים בסוף האימון («כמה קשה היה, 1–10?»)
+// ורושם בעצמו — וגם מסמן לכל שחקן אם עמד ביעד (המיקוד הקבוצתי + יעדים
+// אישיים). הכול נשמר על שורת הסגל (roster_id), ראו supabase_coach_only_22_8.sql.
+// השורות שהשחקן דירג בעצמו (אם יהיו בעתיד) ממשיכות להיקרא ולהיות מוצגות.
+const COACH_MODE = !PLAYER_SIDE
+const EFFORT_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const MARK_PERIODS = ['session', 'week', 'month'] // אותם טווחים שגיליון השחקן שואל עליהם
+const missingCol = (e, col) => !!e && new RegExp(col, 'i').test(e.message || '')
+const SQL_HINT = () => L('כדי לרשום עומס ויעדים לשחקנים צריך להריץ את supabase_coach_only_22_8.sql', 'Logging load and goals per player needs supabase_coach_only_22_8.sql')
+
 // דף סקירת אימון/משחק למאמן — נוכחות + משוב אישי + הערה כללית + MVP.
-// המאמץ מדורג על ידי השחקנים בעצמם; כאן המאמן רואה דוח + ממוצע קבוצתי.
 // props: session, entry {id, team, date, start_time, session_type?, opponent?}, onClose
 export default function SessionDetail({ session, entry, onClose }) {
   const me = session.user.id
@@ -26,12 +38,16 @@ export default function SessionDetail({ session, entry, onClose }) {
   const sessionDate = entry.date
   const [roster, setRoster] = useState(null)
   const [att, setAtt] = useState({})        // {rosterId: status}
-  const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — קריאה בלבד (דירוג עצמי של השחקן)
+  const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — דירוג עצמי של השחקן (קריאה בלבד)
+  const [coachEff, setCoachEff] = useState({}) // {rosterId: 1..10} — מה שהמאמן רשם
   const [acks, setAcks] = useState({}) // {rosterId: {auth, acked}} — 'ראיתי' על סיכום השחקן
   const [playerNotes, setPlayerNotes] = useState({}) // {rosterId: מה שהשחקן רשם}
   const [moods, setMoods] = useState({})     // {rosterId: moodKey}
   const [focuses, setFocuses] = useState({}) // {rosterId: [labels]}
-  const [goalMarks, setGoalMarks] = useState({})     // {rosterId: [{title, met}]}
+  const [goalMarks, setGoalMarks] = useState({})     // {rosterId: [{title, met}]} — סימוני השחקן
+  const [goalOpts, setGoalOpts] = useState({})       // {rosterId: [{id, title}]} — מה שהמאמן יכול לסמן
+  const [coachMarks, setCoachMarks] = useState({})   // {rosterId: {goalId: true|false}}
+  const loadedMarks = useRef({})                     // מה שהיה שמור בפתיחה — כדי למחוק סימון שבוטל
   const [note, setNote] = useState({})      // {rosterId: text}
   const [openNote, setOpenNote] = useState({})
   const [fbId, setFbId] = useState({})      // {rosterId: existing feedback row id}
@@ -48,50 +64,66 @@ export default function SessionDetail({ session, entry, onClose }) {
     const players = rp || []
     setRoster(players)
     const byAuth = {}; for (const p of players) if (p.player_id) byAuth[p.player_id] = p.id
+    // שורה → מזהה סגל: roster_id (22.8) כשיש, אחרת דרך חשבון השחקן
+    const ridOf = (r) => r.roster_id || (r.player_id ? byAuth[r.player_id] : null)
 
     const attP = sessionType === 'game'
       ? supabase.from('game_attendance').select('player_id, status').eq('game_id', sessionId)
       : supabase.from('practice_attendance').select('player_id, status').eq('coach_id', me).eq('team', team).eq('session_date', sessionDate)
-    const [{ data: aRows }, { data: fRows }, { data: rev }, effRes, { data: gmRows }] = await Promise.all([
+    // select('*') בכל מקום: העמודות של 22.8 (roster_id/source) ושל
+    // engagement2 (coach_ack) עשויות עוד לא להתקיים — כוכבית לא נופלת עליהן.
+    const [{ data: aRows }, { data: fRows }, { data: rev }, { data: eRows }, { data: gmRows }, goalsRes] = await Promise.all([
       attP,
-      supabase.from('player_feedback').select('id, player_id, content').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('player_feedback').select('*').eq('coach_id', me).eq('session_id', sessionId),
       supabase.from('session_reviews').select('*').eq('coach_id', me).eq('session_type', sessionType).eq('session_id', sessionId).maybeSingle(),
-      supabase.from('session_effort').select('player_id, effort, note, mood, focus, coach_ack').eq('coach_id', me).eq('session_id', sessionId),
-      supabase.from('session_goal_marks').select('player_id, met, goal:player_goals(title)').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_effort').select('*').eq('coach_id', me).eq('session_id', sessionId),
+      supabase.from('session_goal_marks').select('*, goal:player_goals(title)').eq('coach_id', me).eq('session_id', sessionId),
+      COACH_MODE
+        ? supabase.from('player_goals').select('*').eq('coach_id', me).eq('status', 'active').in('period', MARK_PERIODS)
+        : Promise.resolve({ data: [] }),
     ])
-    // עמודת coach_ack עוד לא קיימת (supabase_engagement2.sql לא רץ)? נופלים
-    // לשליפה הישנה — שתצוגת המאמץ/מצב הרוח לא תיעלם למאמן בגלל פיצ'ר חדש.
-    let eRows = effRes.data
-    let ackSupported = !effRes.error
-    if (effRes.error) {
-      const legacy = await supabase.from('session_effort')
-        .select('player_id, effort, note, mood, focus').eq('coach_id', me).eq('session_id', sessionId)
-      eRows = legacy.data
-    }
     const a = {}; for (const r of aRows || []) a[r.player_id] = r.status; setAtt(a)
     const nt = {}, fid = {}
     for (const r of fRows || []) {
-      const rid = byAuth[r.player_id]; if (!rid) continue
+      const rid = ridOf(r); if (!rid) continue
       if (r.content) nt[rid] = r.content
       fid[rid] = r.id
     }
     setNote(nt); setFbId(fid)
-    const ef = {}, pn = {}, md = {}, fc = {}, ak = {}
+    const ef = {}, ce = {}, pn = {}, md = {}, fc = {}, ak = {}
     for (const r of eRows || []) {
-      const rid = byAuth[r.player_id]; if (!rid) continue
+      const rid = ridOf(r); if (!rid) continue
+      if (r.source === 'coach') { ce[rid] = r.effort; continue }
       ef[rid] = r.effort
       if (r.note) pn[rid] = r.note
       if (r.mood) md[rid] = r.mood
       if (Array.isArray(r.focus) && r.focus.length) fc[rid] = r.focus
-      if (ackSupported) ak[rid] = { auth: r.player_id, acked: r.coach_ack === true }
+      if (r.player_id && 'coach_ack' in r) ak[rid] = { auth: r.player_id, acked: r.coach_ack === true }
     }
-    setEfforts(ef); setPlayerNotes(pn); setMoods(md); setFocuses(fc); setAcks(ak)
-    const gm = {}; for (const r of gmRows || []) { const rid = byAuth[r.player_id]; if (rid) (gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('יעד', 'Goal'), met: r.met }) }
-    setGoalMarks(gm)
+    setEfforts(ef); setCoachEff(ce); setPlayerNotes(pn); setMoods(md); setFocuses(fc); setAcks(ak)
+    const gm = {}, cm = {}
+    for (const r of gmRows || []) {
+      const rid = ridOf(r); if (!rid) continue
+      if (r.roster_id) { (cm[rid] = cm[rid] || {})[r.goal_id] = r.met === true; continue }
+      ;(gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('יעד', 'Goal'), met: r.met })
+    }
+    setGoalMarks(gm); setCoachMarks(cm); loadedMarks.current = cm
+    // מה המאמן יכול לסמן לכל שחקן: המיקוד הקבוצתי + היעדים האישיים שלו
+    if (COACH_MODE) {
+      const goals = goalsRes.data || []
+      const focus = goals.filter((g) => !g.player_id && !g.roster_id && g.team === team)
+      const opts = {}
+      for (const p of players) {
+        const mine = goals.filter((g) => (g.roster_id && g.roster_id === p.id) || (g.player_id && p.player_id && g.player_id === p.player_id))
+        opts[p.id] = [...focus, ...mine].map((g) => ({ id: g.id, title: g.title, team: !g.player_id && !g.roster_id }))
+      }
+      setGoalOpts(opts)
+    }
     setHadReview(!!rev)
     if (rev) {
       setOverall(rev.overall_note || '')
       if (rev.mvp_player_id && byAuth[rev.mvp_player_id]) setMvp(byAuth[rev.mvp_player_id])
+      else if (rev.mvp_name) { const p = players.find((x) => x.name === rev.mvp_name); if (p) setMvp(p.id) }
     }
   }, [me, team, sessionDate, sessionId, sessionType])
 
@@ -103,11 +135,20 @@ export default function SessionDetail({ session, entry, onClose }) {
   }, [onClose])
 
   const setP = (setter) => (rid, val) => setter((c) => ({ ...c, [rid]: val }))
+  // סימון יעד: ריק → עמד ✓ → לא עמד — → ריק
+  const cycleMark = (rid, goalId) => setCoachMarks((c) => {
+    const cur = c[rid]?.[goalId]
+    const next = cur === undefined ? true : cur === true ? false : undefined
+    const row = { ...(c[rid] || {}) }
+    if (next === undefined) delete row[goalId]; else row[goalId] = next
+    return { ...c, [rid]: row }
+  })
 
   const save = async () => {
     if (!roster) return
     setSaving(true)
     const byId = Object.fromEntries(roster.map((p) => [p.id, p]))
+    let sqlMissing = false
 
     // 1) נוכחות
     const marks = Object.entries(att).filter(([, s]) => s)
@@ -119,21 +160,73 @@ export default function SessionDetail({ session, entry, onClose }) {
       }
     }
 
-    // 2) משוב אישי (הערה) — לשחקנים מחוברים
+    // 1ב) עומס שהמאמן רשם (צד המאמן בלבד) — שורה לכל שחקן, על שורת הסגל
+    if (COACH_MODE) {
+      // ⚠ player_id נשאר ריק בכוונה גם לשחקן מקושר: unique (session_id, player_id)
+      // של הדירוג העצמי עדיין בתוקף, ושורת מאמן עם player_id הייתה מתנגשת
+      // בשורת השחקן (ונכתבת דרך המדיניות שלו). roster_id הוא הזהות היחידה.
+      const rows = Object.entries(coachEff).filter(([, v]) => v).map(([rid, effort]) => ({
+        coach_id: me, team, session_type: sessionType, session_id: sessionId, session_date: sessionDate,
+        roster_id: rid, player_id: null, effort: Number(effort), source: 'coach',
+      }))
+      if (rows.length) {
+        const { error } = await supabase.from('session_effort').upsert(rows, { onConflict: 'session_id,roster_id' })
+        if (error) { if (missingCol(error, 'roster_id|source')) sqlMissing = true; else toast.error(L('שמירת העומס נכשלה: ', 'Saving the load failed: ') + error.message) }
+      }
+      // עומס שנמחק (הבורר חזר ל«עומס») — מפתח עם ערך ריק קיים רק אם נטען
+      // מהמסד או נבחר ובוטל; בלי המחיקה הערך הישן היה חוזר בפתיחה הבאה.
+      const cleared = Object.entries(coachEff).filter(([, v]) => !v).map(([rid]) => rid)
+      if (cleared.length) {
+        const { error } = await supabase.from('session_effort').delete()
+          .eq('coach_id', me).eq('session_id', sessionId).eq('source', 'coach').in('roster_id', cleared)
+        if (error && !missingCol(error, 'roster_id|source')) toast.error(L('מחיקת העומס נכשלה: ', 'Clearing the load failed: ') + error.message)
+      }
+      // 1ג) «עמד ביעד» — סימוני המאמן
+      const gmRows = []
+      for (const [rid, byGoal] of Object.entries(coachMarks)) {
+        for (const [goalId, met] of Object.entries(byGoal)) {
+          if (met === undefined) continue
+          gmRows.push({ coach_id: me, session_id: sessionId, goal_id: goalId, roster_id: rid, player_id: null, met: !!met })
+        }
+      }
+      if (gmRows.length) {
+        const { error } = await supabase.from('session_goal_marks').upsert(gmRows, { onConflict: 'session_id,goal_id,roster_id' })
+        if (error) { if (missingCol(error, 'roster_id')) sqlMissing = true; else toast.error(L('שמירת סימוני היעדים נכשלה: ', 'Saving the goal marks failed: ') + error.message) }
+      }
+      // סימון שהיה שמור ובוטל (חזר ל«ריק») — מוחקים, אחרת הוא חוזר בפתיחה הבאה
+      const gone = []
+      for (const [rid, byGoal] of Object.entries(loadedMarks.current)) {
+        for (const goalId of Object.keys(byGoal)) if (coachMarks[rid]?.[goalId] === undefined) gone.push({ rid, goalId })
+      }
+      if (gone.length) {
+        const res = await Promise.all(gone.map(({ rid, goalId }) =>
+          supabase.from('session_goal_marks').delete().match({ session_id: sessionId, goal_id: goalId, roster_id: rid, coach_id: me })))
+        const err = res.find((r) => r.error)?.error
+        if (err && !missingCol(err, 'roster_id')) toast.error(L('מחיקת סימון יעד נכשלה: ', 'Clearing a goal mark failed: ') + err.message)
+      }
+    }
+
+    // 2) משוב אישי (הערה) — לשחקנים מחוברים; בצד המאמן בלבד — לכל שורת סגל
     const notified = new Set()
     for (const p of roster) {
-      if (!p.player_id) continue
+      if (!COACH_MODE && !p.player_id) continue
       const nt = (note[p.id] || '').trim() || null
       if (!nt && !fbId[p.id]) continue
       const payload = {
-        coach_id: me, player_id: p.player_id, content: nt,
+        coach_id: me, player_id: p.player_id || null, roster_id: p.id, content: nt,
         session_type: sessionType, session_id: sessionId, session_date: sessionDate,
         opponent: entry.opponent || null,
       }
-      if (fbId[p.id]) await supabase.from('player_feedback').update(payload).eq('id', fbId[p.id])
-      else {
-        await supabase.from('player_feedback').insert(payload)
-        if (nt) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
+      if (fbId[p.id]) {
+        let { error } = await supabase.from('player_feedback').update(payload).eq('id', fbId[p.id])
+        if (error && missingCol(error, 'roster_id')) ({ error } = await supabase.from('player_feedback').update({ ...payload, roster_id: undefined }).eq('id', fbId[p.id]))
+      } else {
+        let { error } = await supabase.from('player_feedback').insert(payload)
+        if (error && missingCol(error, 'roster_id')) {
+          if (p.player_id) ({ error } = await supabase.from('player_feedback').insert({ ...payload, roster_id: undefined }))
+          else { sqlMissing = true; continue }
+        }
+        if (!error && nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
       }
     }
 
@@ -152,7 +245,8 @@ export default function SessionDetail({ session, entry, onClose }) {
 
     // סיכום אוטומטי לצ'אט הקבוצה — בשמירה הראשונה בלבד, כדי לא להציף בעריכות.
     // סוגר את המעגל: השחקנים רואים את השורה בלי שהמאמן יקליד אותה פעמיים.
-    if (!hadReview) {
+    // (צד המאמן בלבד: אין צ׳אט קבוצתי ואין מי שיקרא)
+    if (PLAYER_SIDE && !hadReview) {
       const dateLbl2 = sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : ''
       const parts = [
         sessionType === 'game'
@@ -167,7 +261,7 @@ export default function SessionDetail({ session, entry, onClose }) {
     }
 
     // התראה אחת "הסיכום מוכן" לשחקנים שלא קיבלו התראה אישית — רק בשמירה הראשונה
-    if (!hadReview) {
+    if (PLAYER_SIDE && !hadReview) {
       const dateLbl = sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) : ''
       for (const p of roster) {
         if (!p.player_id || notified.has(p.player_id)) continue
@@ -182,13 +276,17 @@ export default function SessionDetail({ session, entry, onClose }) {
     }
 
     setSaving(false)
+    if (sqlMissing) { toast.error(SQL_HINT()); return }
     toast.success(L('הסקירה נשמרה', 'Session saved'))
     onClose()
   }
 
   const present = Object.values(att).filter((s) => s && s !== 'absent').length
   const marked = Object.values(att).filter(Boolean).length
-  const effVals = Object.values(efforts)
+  // ממוצע קבוצתי: מה שהמאמן רשם + מה שהשחקנים דירגו (שחקן שיש לו שניהם — של המאמן)
+  const effVals = roster
+    ? roster.map((p) => Number(coachEff[p.id]) || efforts[p.id] || null).filter(Boolean)
+    : []
   const avgEffort = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length) : null
 
   const body = (
@@ -204,12 +302,17 @@ export default function SessionDetail({ session, entry, onClose }) {
             {marked > 0 ? ` · ${L('נוכחות', 'Attendance')} ${present}/${marked}` : ''}
           </span>
           {avgEffort != null && (
-            <span className="sd-avg"><Flame size={14} /> {L('מאמץ קבוצתי ממוצע', 'Team avg effort')} {avgEffort.toFixed(1)}/10 · {effVals.length} {L('דירגו', 'rated')}</span>
+            <span className="sd-avg"><Flame size={14} /> {L('עומס קבוצתי ממוצע', 'Team avg load')} {avgEffort.toFixed(1)}/10 · {effVals.length} {COACH_MODE ? L('נרשמו', 'logged') : L('דירגו', 'rated')}</span>
           )}
         </header>
 
         <div className="sd-scroll">
-          <p className="sd-hint">{L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}</p>
+          <p className="sd-hint">
+            {COACH_MODE
+              ? L('נוכחות, עומס, יעדים ומילה אישית — הכול נרשם על ידך. שאל את השחקנים בסוף האימון «כמה קשה היה, 1 עד 10?» ורשום לכל אחד.',
+                  'Attendance, load, goals and a personal line — all logged by you. Ask the players at the end of practice “how hard was it, 1 to 10?” and log it per player.')
+              : L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}
+          </p>
 
           {roster === null ? (
             <SkeletonRoster count={6} />
@@ -218,14 +321,27 @@ export default function SessionDetail({ session, entry, onClose }) {
           ) : (
             <ul className="sd-roster">
               {roster.map((p) => {
-                const connected = !!p.player_id
+                // בצד המאמן בלבד כל שורת סגל «מחוברת» — הכול נרשם עליה
+                const connected = COACH_MODE || !!p.player_id
                 const eff = efforts[p.id]
+                const opts = goalOpts[p.id] || []
                 return (
                   <li key={p.id} className="sd-row">
                     <div className="sd-row-top">
                       {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={30} />}
                       <span className="sd-name">{p.name}{!connected && <span className="muted small"> · {L('לא מחובר', 'not connected')}</span>}</span>
-                      {connected && (
+                      {COACH_MODE ? (
+                        /* עומס שהמאמן רושם — בורר 1–10 (נפתח כגלגלת בטלפון) */
+                        <label className="sd-eff-pick" title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
+                          <Flame size={13} aria-hidden="true" />
+                          <select className="sd-eff-sel" dir="ltr" value={coachEff[p.id] || ''} onChange={(e) => setP(setCoachEff)(p.id, e.target.value ? Number(e.target.value) : '')}
+                            aria-label={L(`עומס לשחקן ${p.name}`, `Load for ${p.name}`)}>
+                            <option value="">{L('עומס', 'Load')}</option>
+                            {EFFORT_OPTS.map((n) => <option key={n} value={n}>{n}/10</option>)}
+                          </select>
+                          {eff && !coachEff[p.id] && <span className="muted small" dir="ltr">{L('השחקן: ', 'Player: ')}{eff}/10</span>}
+                        </label>
+                      ) : connected && (
                         <span className={eff ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('מאמץ (דירוג עצמי)', 'Effort (self-rated)')}>
                           <Flame size={13} /> {eff ? `${eff}/10` : L('טרם דירג', '—')}
                         </span>
@@ -251,6 +367,24 @@ export default function SessionDetail({ session, entry, onClose }) {
                     {connected && (openNote[p.id] || note[p.id]) && (
                       <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
                     )}
+                    {/* «עמד ביעד?» — המאמן מסמן (צד המאמן בלבד): ריק → ✓ → — → ריק */}
+                    {COACH_MODE && opts.length > 0 && (
+                      <div className="sd-gm-row" role="group" aria-label={L(`יעדים של ${p.name}`, `${p.name}'s goals`)}>
+                        {opts.map((g) => {
+                          const m = coachMarks[p.id]?.[g.id]
+                          return (
+                            <button key={g.id} type="button"
+                              className={'sd-gm' + (m === true ? ' met' : m === false ? ' miss' : '')}
+                              onClick={() => cycleMark(p.id, g.id)}
+                              aria-pressed={m === true}
+                              title={m === true ? L('עמד ביעד', 'Met') : m === false ? L('לא עמד', 'Missed') : L('לא סומן', 'Not marked')}>
+                              {m === true ? <Check size={12} /> : m === false ? <Minus size={12} /> : <Target size={12} />}
+                              {g.title}{g.team ? <span className="sd-gm-team">{L('קבוצתי', 'team')}</span> : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                     {connected && (moods[p.id] || focuses[p.id]) && (
                       <div className="sd-mf">
                         {moods[p.id] && MOOD_BY_KEY[moods[p.id]] && (
@@ -264,8 +398,8 @@ export default function SessionDetail({ session, entry, onClose }) {
                     {connected && playerNotes[p.id] && (
                       <div className="sd-player-note"><span className="sd-player-note-lbl">{L('השחקן רשם:', 'Player wrote:')}</span> {playerNotes[p.id]}</div>
                     )}
-                    {/* "ראיתי 👍" — טאפ אחד שאומר לנער שהסיכום שלו לא נעלם לחלל */}
-                    {connected && acks[p.id] && (
+                    {/* "ראיתי 👍" — טאפ אחד שאומר לנער שהסיכום שלו לא נעלם לחלל (צד שחקן פתוח בלבד) */}
+                    {PLAYER_SIDE && connected && acks[p.id] && (
                       acks[p.id].acked ? (
                         <span className="sd-ack done"><Check size={13} /> {L('סימנת שראית', 'Marked as seen')}</span>
                       ) : (
@@ -295,7 +429,7 @@ export default function SessionDetail({ session, entry, onClose }) {
           )}
 
           <label className="sd-overall">
-            <span>{L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים)', 'Session summary (saved to history, visible to players)')}</span>
+            <span>{COACH_MODE ? L('סיכום האימון (נשמר להיסטוריה)', 'Session summary (saved to history)') : L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים)', 'Session summary (saved to history, visible to players)')}</span>
             <textarea className="finder-input" value={overall} onChange={(e) => setOverall(e.target.value)} rows={3} placeholder={L('איך היה האימון? על מה עבדנו, מה בלט...', 'How was the session? What we worked on, what stood out...')} maxLength={2000} />
           </label>
         </div>

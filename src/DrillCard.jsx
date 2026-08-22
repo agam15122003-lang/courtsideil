@@ -5,6 +5,7 @@ import { Star, Bookmark, BookOpen, X, Clock, Users, Package, Gauge, Plus, Pencil
 import { waShare, drillLink } from './share'
 import { supabase } from './supabaseClient'
 import { L, tr, trTeam , cnt } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
 import { safeUrl } from './constants'
 import { useSignedMediaUrl } from './SignedImg'
@@ -223,8 +224,9 @@ export default function DrillCard({
               </button>
             )}
             {onSend && (
-              <button className="btn-toplan secondary" onClick={() => onSend(drill)} title={L('שליחה לשחקנים', 'Send to players')}>
-                <Send size={15} /> {L('לשחקנים', 'To players')}
+              /* צד המאמן בלבד: התרגיל נרשם כמשימה ברשימה של המאמן, לא «נשלח» */
+              <button className="btn-toplan secondary" onClick={() => onSend(drill)} title={PLAYER_SIDE ? L('שליחה לשחקנים', 'Send to players') : L('רישום כמשימה לשחקנים', 'Log as a task for players')}>
+                <Send size={15} /> {PLAYER_SIDE ? L('לשחקנים', 'To players') : L('כמשימה', 'As a task')}
               </button>
             )}
             <button

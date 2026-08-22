@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { sendNotification } from './notify'
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 
 // "המיקוד של הקבוצה" — עד שלוש נקודות קצרות שכל שחקני הקבוצה רואים אצלם,
 // ונשאלים עליהן בסיכום האימון. מחליף שלוש תיבות טקסט חופשי (שבוע/חודש/עונה)
@@ -36,7 +37,7 @@ export default function TeamFocus({ coachId, team }) {
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
+    const base = () => supabase
       .from('player_goals')
       .select('id, title, created_at')
       .eq('coach_id', coachId)
@@ -44,6 +45,11 @@ export default function TeamFocus({ coachId, team }) {
       .is('player_id', null)
       .neq('status', 'done')
       .order('created_at', { ascending: true })
+    // roster_id ריק (22.8): יעד אישי לשורת סגל הוא גם player_id ריק — ובלי
+    // הסינון הזה הוא היה מופיע כאן כנקודת מיקוד של כל הקבוצה.
+    // מסד שטרם הריץ supabase_coach_only_22_8.sql: נופלים לשאילתה בלי העמודה.
+    let { data, error } = await base().is('roster_id', null)
+    if (error && /roster_id/i.test(error.message || '')) ({ data, error } = await base())
     if (error) { setPoints([]); return }
     const rows = (data || []).slice(0, MAX)
     setPoints(rows)
@@ -113,10 +119,13 @@ export default function TeamFocus({ coachId, team }) {
         return
       }
       // מודיעים לשחקנים המחוברים — זו כל ההבטחה של המסך הזה
-      const { data: members } = await supabase
-        .from('team_memberships')
-        .select('player_id')
-        .eq('coach_id', coachId).eq('team', team).eq('status', 'approved')
+      // (צד המאמן בלבד: אין חברויות ואין למי להודיע)
+      const { data: members } = PLAYER_SIDE
+        ? await supabase
+            .from('team_memberships')
+            .select('player_id')
+            .eq('coach_id', coachId).eq('team', team).eq('status', 'approved')
+        : { data: [] }
       for (const m of members || []) {
         sendNotification({
           to: m.player_id, actor: coachId, type: 'message',
@@ -129,7 +138,7 @@ export default function TeamFocus({ coachId, team }) {
     setBusy(false)
     setEditing(false)
     toast.success(wanted.length
-      ? L('המיקוד נשמר ונשלח לשחקנים', 'Focus saved and sent to the players')
+      ? (PLAYER_SIDE ? L('המיקוד נשמר ונשלח לשחקנים', 'Focus saved and sent to the players') : L('המיקוד נשמר', 'Focus saved'))
       : L('המיקוד הנוכחי הסתיים', 'Current focus ended'))
     load()
   }
@@ -138,7 +147,9 @@ export default function TeamFocus({ coachId, team }) {
 
   const metLine = (id) => {
     const arr = metBy[id]
-    if (!arr || !arr.length) return L('עדיין לא סומן — יופיע אחרי האימון הבא', 'Not marked yet — appears after the next practice')
+    if (!arr || !arr.length) return PLAYER_SIDE
+      ? L('עדיין לא סומן — יופיע אחרי האימון הבא', 'Not marked yet — appears after the next practice')
+      : L('עדיין לא סומן — מסמנים בסקירת האימון', 'Not marked yet — mark it in the practice review')
     const a = arr[arr.length - 1]
     return L(`באימון האחרון · ${a.met} מתוך ${a.total} סימנו`, `Last practice · ${a.met} of ${a.total} marked it`)
   }
@@ -170,7 +181,9 @@ export default function TeamFocus({ coachId, team }) {
               </li>
             ))}
           </ol>
-          <p className="tf-note"><Check size={14} /> {L('כל השחקנים רואים את זה, ובסוף כל אימון נשאלים אם עמדו בו.', 'Every player sees this, and is asked after each practice whether they met it.')}</p>
+          <p className="tf-note"><Check size={14} /> {PLAYER_SIDE
+            ? L('כל השחקנים רואים את זה, ובסוף כל אימון נשאלים אם עמדו בו.', 'Every player sees this, and is asked after each practice whether they met it.')
+            : L('בסקירת כל אימון תסמן לכל שחקן אם עמד בזה — וכאן תראה את המגמה.', 'In each practice review you mark per player whether they met it — and the trend shows here.')}</p>
           <button type="button" className="btn-soft tf-cta" onClick={() => setEditing(true)}>
             <Pencil size={15} /> {L('שינוי המיקוד', 'Change the focus')}
           </button>
@@ -203,7 +216,7 @@ export default function TeamFocus({ coachId, team }) {
           </div>
           <button type="button" className="btn-primary tf-cta" onClick={save} disabled={busy}>
             <SendIcon size={15} /> {draft.some((d) => d.trim())
-              ? L('שמירה ושליחה לשחקנים', 'Save and send to players')
+              ? (PLAYER_SIDE ? L('שמירה ושליחה לשחקנים', 'Save and send to players') : L('שמירת המיקוד', 'Save the focus'))
               : L('סיום המיקוד הנוכחי', 'End the current focus')}
           </button>
           {points.length > 0 && (

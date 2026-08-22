@@ -10,6 +10,7 @@ import {
 import { searchYouTube, fetchVideoDetails, ytConfigured, cleanVideoTitle } from './youtube'
 import { SkeletonMedia } from './Skeleton'
 import { L, tr } from './i18n'
+import { PLAYER_SIDE } from './flags'
 import { ErrorState } from './states'
 import { confirmDialog } from './confirm'
 
@@ -187,7 +188,7 @@ export default function Videos({ session, profile }) {
     const next = v.approved !== true // undefined (עמודה חסרה) => לאשר, לא לבטל
     const { error } = await supabase.rpc('set_video_approved', { p_id: v.id, p_approved: next })
     if (error) { toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message); return }
-    toast.success(next ? L('הסרטון אושר לשחקנים', 'Video approved') : L('האישור בוטל', 'Approval removed'))
+    toast.success(next ? (PLAYER_SIDE ? L('הסרטון אושר לשחקנים', 'Video approved') : L('הסרטון אושר', 'Video approved')) : L('האישור בוטל', 'Approval removed'))
     load()
   }
 
@@ -312,13 +313,13 @@ export default function Videos({ session, profile }) {
                   <a className="icon-btn" href={safeUrl(v.url) || undefined} target="_blank" rel="noopener noreferrer" title={L('פתיחה ביוטיוב', 'Open on YouTube')}><ExternalLink size={15} /></a>
                   {isAdmin && (
                     <button type="button" className={v.featured ? 'icon-btn vco-on' : 'icon-btn'} onClick={() => toggleFeatured(v)}
-                      title={L('מדף «המאמן ממליץ» אצל השחקנים', "Players' recommended shelf")}>
+                      title={PLAYER_SIDE ? L('מדף «המאמן ממליץ» אצל השחקנים', "Players' recommended shelf") : L('מדף «המאמן ממליץ»', 'Recommended shelf')}>
                       <Star size={15} fill={v.featured ? 'currentColor' : 'none'} />
                     </button>
                   )}
                   {isAdmin && (
                     <button type="button" className="icon-btn" onClick={() => toggleApproved(v)}
-                      title={v.approved === false ? L('אישור לשחקנים', 'Approve for players') : L('ביטול אישור', 'Unapprove')}>
+                      title={v.approved === false ? (PLAYER_SIDE ? L('אישור לשחקנים', 'Approve for players') : L('אישור הסרטון', 'Approve video')) : L('ביטול אישור', 'Unapprove')}>
                       {v.approved === false ? <Check size={15} /> : <X size={15} />}
                     </button>
                   )}
