@@ -29983,3 +29983,54 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 }
 .pd-v2 .pd-head > .pd-add:hover { background: rgba(255, 255, 255, .22); }
 .pd-v2 .pd-head > .pd-head-tx { position: relative; }
+/* --- 22.8 תיקוני סקירה על «הלבוש החדש» --- */
+/* הרשת: שני טורים שווים (המסמך), לא auto-fit של 280 — בגללו העכביש והמדידות ישבו בשליש רוחב */
+.pd-v2 .pd-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 640px) { .pd-v2 .pd-grid { grid-template-columns: 1fr; } }
+/* העכביש: תוויות HTML מעל ה-SVG, והעכביש חוזר ל-300 מלאים */
+.pd-v2 .pd-radar-wrap { position: relative; max-width: 300px; margin: 6px auto 4px; }
+.pd-v2 .pd-radar { max-width: none; margin: 0; width: 100%; height: auto; display: block; }
+.pd-v2 .pd-radar-tag {
+  position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 1px;
+  white-space: nowrap; font-size: 12.5px; font-weight: 500; color: var(--text-muted); line-height: 1.2; pointer-events: none;
+}
+.pd-v2 .pd-radar-tag b { font-family: var(--font-display); font-weight: 800; font-size: 12px; color: var(--accent-strong); }
+/* גווני הממוצע — AA גם באור וגם בחושך (המסמך עצמו נפל ב-t4: לבן על כתום בהיר)
+   t5 כהה ביותר, t4 מילוי-המותג, t3/t2 רכים מטוקנים שמתהפכים עם הערכה */
+.pd-v2 .pd-cat-avg.t5 { color: #fff; background: var(--orange-700); }
+.pd-v2 .pd-cat-avg.t4 { color: #fff; background: var(--accent-fill); }
+.pd-v2 .pd-cat-avg.t3 { color: var(--text); background: color-mix(in srgb, var(--orange-500) 35%, var(--surface)); }
+.pd-v2 .pd-cat-avg.t2 { color: var(--accent-strong); background: var(--accent-soft); }
+/* הנקודה הריקה: טוקן ולא hex — במצב כהה #C4D2E4 נראה כנקודה מלאה */
+.pd-v2 .pd-dot-btn span { background: var(--border-hover); }
+/* העונות בכותרת: שורה אחת (שנה · קבוצה · מאמן), לא עמודה */
+.pd-v2 .pd-season { flex-direction: row; flex-wrap: wrap; }
+/* טקסט על נייבי: 12px ב-#7E90AD היה 3.7:1 — עולים לגוון הקריא */
+.pd-v2 .pd-season i, .pd-v2 .pd-auto-sub { color: #9FB2CE; }
+.pd-v2 .pd-auto-tile.hot .pd-auto-sub { color: var(--orange-300); }
+.pd-v2 .pd-auto { background: linear-gradient(150deg, var(--hero-navy, #17264A), var(--hero-navy-2, #0A1428)); }
+/* «הסדר במועדון»: קו המחבר הישן בין הרמות נשאר תלוי באוויר */
+.pd-v2 .pd-level + .pd-level { margin-top: 0; }
+.pd-v2 .pd-level + .pd-level::before { content: none; }
+/* מחיקת רשומה: יעד מגע */
+.pd-v2 .pd-note-del { min-height: 32px; padding: 4px 6px; margin-inline-end: -6px; font-size: 13px; }
+@media (pointer: coarse) { .pd-v2 .pd-note-del { min-height: 44px; } }
+/* «מי רואה»: התשובה בכרטיס נייבי, כמו במסמך */
+.pd-v2 .pd-answer {
+  background: linear-gradient(150deg, var(--hero-navy, #17264A), var(--hero-navy-2, #0A1428));
+  color: #C7D4E8; border-radius: 16px; padding: 22px 24px;
+}
+.pd-v2 .pd-answer p { color: #C7D4E8; }
+.pd-v2 .pd-answer b { color: #fff; }
+.pd-v2 .pd-answer svg { color: var(--orange-300); }
+.pd-v2 .pd-answer .pd-answer-no { color: var(--orange-300); }
+/* הגלולות בסבב: סימון «הושלם» */
+.pd-v2 .pd-pill { display: inline-flex; align-items: center; gap: 6px; }
+.pd-v2 .pd-pill.ok { border-color: var(--success); }
+.pd-v2 .pd-pill.ok svg { color: var(--success); }
+.pd-v2 .pd-pill.on.ok svg { color: #fff; }
+.pd-v2 .pd-block-h b small { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+/* הגלולה «נשמר» במצב שגיאה */
+.pd-v2 .pd-saved.err { color: var(--c-red); background: var(--c-red-bg); }
+/* הטאבים נחתכים ב-overflow של המסך — טבעת הפוקוס פנימה */
+.pd-v2 .pd-tabs .tab:focus-visible { outline-offset: -3px; }
