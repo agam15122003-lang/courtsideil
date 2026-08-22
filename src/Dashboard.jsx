@@ -378,7 +378,10 @@ export default function Dashboard({ session }) {
   useEffect(() => {
     const el = sidebarRef.current
     if (!el) return
-    const mq = window.matchMedia('(max-width: 768px)')
+    // עד 840 — גם אייפד עומד (19.8) מקבל את המגירה. ברוחבים שמעל, המגירה
+    // קיימת רק בזמן עריכה, ושם visibility:hidden על המגירה החונה (CSS) מוציא
+    // אותה מסדר ה-Tab ומעץ הנגישות בלי צורך ב-inert.
+    const mq = window.matchMedia('(max-width: 840px)')
     const apply = () => { el.inert = mq.matches && !drawerOpen }
     apply()
     mq.addEventListener('change', apply)

@@ -100,6 +100,10 @@ function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, ind
   )
 }
 
-// memo: המגרשים חיים לצד המחברת, וכל מחיקת דיו על **הדף** רינדרה מחדש
-// גם את שלושתם (SVG מלא כל אחד). ה-props שלהם לא השתנו — מדלגים.
-export default memo(MiniCourt)
+// memo: המגרשים חיים לצד המחברת, וכל מחיקת דיו על **הדף** וכל הקשה רינדרו
+// מחדש גם את שלושתם (SVG מלא כל אחד). ההשוואה מתעלמת מה-callbacks בכוונה:
+// PlanNotebook יוצר אותם מחדש בכל רינדור, אבל הם סוגרים רק על מזהה
+// המגרש ועל setState פונקציונלי — השוואה שטוחה עליהם הייתה מבטלת את
+// ה-memo לחלוטין. מה שמשנה את הציור הוא board/tool/color/index.
+export default memo(MiniCourt, (a, b) =>
+  a.board === b.board && a.tool === b.tool && a.color === b.color && a.index === b.index)

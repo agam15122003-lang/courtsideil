@@ -154,16 +154,23 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   const [sending, setSending] = useState(false)
   const [savedId, setSavedId] = useState(planId || null)
   const snapshot = useRef('')
+  const snapParts = useRef(null) // { base, ink, att } — חלקי הצילום, כדי לעדכן חלק בלי לפרסר
 
   // חתימה של כל מה שנשמר — כדי לדעת אם יש שינויים שלא נשמרו.
   // בשני שלבים בכוונה: הדיו והמגרשים הם 95% מהנפח ומשתנים רק בקו/מחיקה,
   // בעוד הטקסט משתנה בכל הקשה. חתימה אחת הייתה מסרקת את כל הדיו ל-JSON
   // מחדש על כל תו — בדיוק במכשיר (אייפד) שבו גם כותבים בעט וגם מקלידים.
-  const inkSer = useMemo(() => JSON.stringify({ ink, courts }), [ink, courts])
-  const serialized = useMemo(
-    () => JSON.stringify({ name, team, date, duration, body, linked: linked.map((l) => l.drill_id), att, isDraft }) + inkSer,
-    [name, team, date, duration, body, linked, att, isDraft, inkSer]
+  // שלושה חלקים — base (משתנה בכל הקשה, זול), ink (כבד, משתנה רק בקו/מחיקה),
+  // att (הנוכחות, שנטענת מאוחר ומתעדכנת בצילום בלי לפרסר אותו).
+  // ⚠ כל מי שכותב לצילום (ready, save, att-load) חייב לבנות אותו מאותם
+  //   שלושה חלקים, אחרת ההשוואה לעולם לא שווה והדף «לא שמור» לנצח.
+  const baseSer = useMemo(
+    () => JSON.stringify({ name, team, date, duration, body, linked: linked.map((l) => l.drill_id), isDraft }),
+    [name, team, date, duration, body, linked, isDraft]
   )
+  const inkSer = useMemo(() => JSON.stringify({ ink, courts }), [ink, courts])
+  const attSer = useMemo(() => JSON.stringify(att), [att])
+  const serialized = baseSer + inkSer + attSer
   const dirty = snapshot.current !== '' && serialized !== snapshot.current
 
   // ---------- טעינה ----------
@@ -227,7 +234,10 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   // עד אז dirty=false (אין למה להשוות).
   const ready = !loading && (!team || attReady)
   useEffect(() => {
-    if (ready && !snapshot.current) snapshot.current = serialized
+    if (ready && !snapshot.current) {
+      snapshot.current = serialized
+      snapParts.current = { base: baseSer, ink: inkSer, att: attSer }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready])
 
@@ -281,8 +291,10 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
         setAtt(next)
         attTouched.current = false
         // טעינה אינה «שינוי»: מעדכנים בצילום רק את חלק הנוכחות
-        if (snapshot.current) {
-          try { const s = JSON.parse(snapshot.current); s.att = next; snapshot.current = JSON.stringify(s) } catch { /* לא קריטי */ }
+        if (snapshot.current && snapParts.current) {
+          const p = { ...snapParts.current, att: JSON.stringify(next) }
+          snapParts.current = p
+          snapshot.current = p.base + p.ink + p.att
         }
       }
       setRosterLoading(false)
@@ -533,7 +545,13 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
     // במסד שטרם עודכן נשמר רק השם, ולכן הצילום **לא** מתעדכן: הדף עדיין
     // «לא שמור», וכל יציאה ממנו תזהיר במקום לאבד את הכתוב בשקט.
     if (!usedLegacy) {
-      snapshot.current = JSON.stringify({ name, team, date, duration, body, ink, courts, linked: nextLinked.map((l) => l.drill_id), att, isDraft: !!draft })
+      const p = {
+        base: JSON.stringify({ name, team, date, duration, body, linked: nextLinked.map((l) => l.drill_id), isDraft: !!draft }),
+        ink: JSON.stringify({ ink, courts }),
+        att: JSON.stringify(att),
+      }
+      snapParts.current = p
+      snapshot.current = p.base + p.ink + p.att
     }
     if (usedLegacy) {
       toast.error(L('נשמר השם בלבד! הטקסט, כתב היד והמגרשים לא נשמרו — צריך להריץ במסד את supabase_notebook_18_8.sql.', 'Only the name was saved! The text, handwriting and courts were not — run supabase_notebook_18_8.sql on the database.'))
@@ -561,7 +579,8 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
     id: l.key, drill: { title: l.title, description: l.description }, duration_minutes: l.duration_minutes, title: l.title,
   }))
   if (running) {
-    return <PlanRunner items={runnerItems} planName={name} onExit={() => setRunning(false)} />
+    // nbk-focus: שלד «מסך לתוכן» של האייפד נשאר גם במריץ, במקום לקפוץ חזרה
+    return <div className="nbk-focus"><PlanRunner items={runnerItems} planName={name} onExit={() => setRunning(false)} /></div>
   }
 
   const sheetPlan = {
@@ -574,7 +593,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
 
   if (preview) {
     return (
-      <div className="welcome-card">
+      <div className="welcome-card nbk-focus">
         <div className="nb-actions">
           <button type="button" className="btn-ghost" onClick={() => setPreview(false)}>
             <Pencil size={16} /> {L('חזרה לעריכה', 'Back to editing')}
@@ -611,7 +630,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   const noTeams = teams.length === 0
 
   return (
-    <div className="welcome-card nbk-editor">
+    <div className="welcome-card nbk-editor nbk-focus">
       <button className="link-button" onClick={cancel}>
         <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>

@@ -29376,19 +29376,19 @@ html.a11y-motion .sidebar { transition: none !important; }
    דף התרגיל: הבאנר והציטוט מתקפלים, הטאבים נשארים — הם הדרך היחידה
    לצאת מלשונית «בניית תרגיל». */
 @media (min-width: 700px) and (pointer: coarse) {
-  .cs-page:has(.nbk-editor) .cs-hero,
-  .cs-page:has(.nbk-editor) .cs-hero-bar,
-  .cs-page:has(.nbk-editor) .work-tabs,
+  .cs-page:has(.nbk-focus) .cs-hero,
+  .cs-page:has(.nbk-focus) .cs-hero-bar,
+  .cs-page:has(.nbk-focus) .work-tabs,
   .cs-page:has(.drillform-head) .cs-hero,
   .cs-page:has(.drillform-head) .cs-hero-bar,
-  .layout:has(.nbk-editor) .quote-strip,
+  .layout:has(.nbk-focus) .quote-strip,
   .layout:has(.drillform-head) .quote-strip,
   .nbk-editor .nbk-head p { display: none; }
 }
 /* אייפד מיני עומד (744–768, שלד הטלפון): גם הגלולה הצפה יורדת בזמן
    עריכה — היא ריחפה מעל שורת הנוכחות. הניווט נשאר בהמבורגר. */
 @media (min-width: 700px) and (max-width: 768px) and (pointer: coarse) {
-  .layout:has(.nbk-editor) .pkn,
+  .layout:has(.nbk-focus) .pkn,
   .layout:has(.drillform-head) .pkn { display: none; }
 }
 
@@ -29442,7 +29442,6 @@ html.a11y-motion .sidebar { transition: none !important; }
     padding: var(--space-5) var(--space-4);
     border-inline-end: none;
     border-inline-start: 1px solid var(--border);
-    background: var(--surface);
     box-shadow: -8px 0 28px rgba(10, 37, 64, 0.18);
     z-index: 60;
     transform: translateX(100%);
@@ -29463,7 +29462,7 @@ html.a11y-motion .sidebar { transition: none !important; }
     height: 44px;
     border: none;
     background: none;
-    color: var(--text-muted);
+    color: rgba(226, 234, 246, 0.85);
     cursor: pointer;
     border-radius: var(--radius-sm);
   }
@@ -29475,9 +29474,9 @@ html.a11y-motion .sidebar { transition: none !important; }
    בשאר המסכים הסרגל נשאר כמו היום (בקשת הבעלים); כשנפתחת המחברת או
    דף התרגיל — הסרגל מפנה את המסך והופך למגירה בהמבורגר. */
 @media (min-width: 841px) and (max-width: 1400px) and (pointer: coarse) {
-  .layout:has(.nbk-editor),
+  .layout:has(.nbk-focus),
   .layout:has(.drillform-head) { display: block; }
-  .layout:has(.nbk-editor) .mobile-topbar,
+  .layout:has(.nbk-focus) .mobile-topbar,
   .layout:has(.drillform-head) .mobile-topbar {
     display: flex;
     align-items: center;
@@ -29490,9 +29489,9 @@ html.a11y-motion .sidebar { transition: none !important; }
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
-  .layout:has(.nbk-editor) .mobile-topbar .sidebar-brand,
+  .layout:has(.nbk-focus) .mobile-topbar .sidebar-brand,
   .layout:has(.drillform-head) .mobile-topbar .sidebar-brand { padding: 0; flex: 1; font-size: var(--text-base); }
-  .layout:has(.nbk-editor) .drawer-toggle,
+  .layout:has(.nbk-focus) .drawer-toggle,
   .layout:has(.drillform-head) .drawer-toggle {
     display: inline-flex;
     align-items: center;
@@ -29505,7 +29504,7 @@ html.a11y-motion .sidebar { transition: none !important; }
     cursor: pointer;
     border-radius: var(--radius-sm);
   }
-  .layout:has(.nbk-editor) .drawer-overlay,
+  .layout:has(.nbk-focus) .drawer-overlay,
   .layout:has(.drillform-head) .drawer-overlay {
     display: block;
     position: fixed;
@@ -29513,7 +29512,7 @@ html.a11y-motion .sidebar { transition: none !important; }
     background: rgba(10, 14, 24, 0.45);
     z-index: 55;
   }
-  .layout:has(.nbk-editor) .sidebar,
+  .layout:has(.nbk-focus) .sidebar,
   .layout:has(.drillform-head) .sidebar {
     position: fixed;
     top: 0;
@@ -29527,18 +29526,17 @@ html.a11y-motion .sidebar { transition: none !important; }
     padding: var(--space-5) var(--space-4);
     border-inline-end: none;
     border-inline-start: 1px solid var(--border);
-    background: var(--surface);
     box-shadow: -8px 0 28px rgba(10, 37, 64, 0.18);
     z-index: 60;
     transform: translateX(100%);
     transition: transform 0.25s ease-out;
     overflow-y: auto;
   }
-  .layout:has(.nbk-editor) .sidebar.open,
+  .layout:has(.nbk-focus) .sidebar.open,
   .layout:has(.drillform-head) .sidebar.open { transform: translateX(0); }
-  .layout:has(.nbk-editor) .sidebar-brand,
+  .layout:has(.nbk-focus) .sidebar-brand,
   .layout:has(.drillform-head) .sidebar-brand { position: relative; }
-  .layout:has(.nbk-editor) .drawer-close,
+  .layout:has(.nbk-focus) .drawer-close,
   .layout:has(.drillform-head) .drawer-close {
     display: inline-flex;
     align-items: center;
@@ -29551,24 +29549,24 @@ html.a11y-motion .sidebar { transition: none !important; }
     height: 44px;
     border: none;
     background: none;
-    color: var(--text-muted);
+    color: rgba(226, 234, 246, 0.85);
     cursor: pointer;
     border-radius: var(--radius-sm);
   }
-  .layout:has(.nbk-editor) .main-content,
+  .layout:has(.nbk-focus) .main-content,
   .layout:has(.drillform-head) .main-content { padding: var(--space-4) var(--space-5); }
   /* רוחב שורה נעים גם ב-1366 — לא נותנים לשורות המחברת להימתח לאינסוף */
-  .layout:has(.nbk-editor) .main-inner,
+  .layout:has(.nbk-focus) .main-inner,
   .layout:has(.drillform-head) .main-inner { max-width: 1120px; }
   /* הרוחב שהתפנה מהסרגל הולך קודם למגרשים */
-  .layout:has(.nbk-editor) .nbk-courts { flex-basis: 188px; }
+  .layout:has(.nbk-focus) .nbk-courts { flex-basis: 188px; }
 }
 
 /* --- ה. תיקוני מסכים ברוחבי אייפד --- */
 /* הלו״ז: touch-action:none על עמודות הימים (רמז גרירה לעכבר) הפך את
    הלוח כולו לאזור מת לגלילת אצבע */
 @media (pointer: coarse) {
-  .cal-daycol { touch-action: pan-y; cursor: default; }
+  .cal-daycol { touch-action: pan-x pan-y; cursor: default; }
 }
 /* הלו״ז בשוכב 1100–1279: שתי העמודות דחסו את לוח השבוע מתחת למינימום */
 @media (min-width: 1100px) and (max-width: 1279px) and (pointer: coarse) {
@@ -29593,14 +29591,16 @@ html.a11y-motion .sidebar { transition: none !important; }
   .team-chat-wrap { height: calc(100dvh - 240px); }
 }
 /* טקסט המשוב היה 14px — ספארי מגדיל את כל הדף בכל פוקוס */
-.fbs-note { font-size: 16px; }
+@media (pointer: coarse) { .fbs-note { font-size: 16px; } }
 /* מדיה: שורת סרטון ברוחב מלא נמתחה קומית ב-1024+ — שני טורים */
-@media (min-width: 900px) {
+@media (min-width: 900px) and (pointer: coarse) {
   .md-screen .video-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
   }
+  /* הכרטיס המודגש הראשון נבנה לשורה מלאה — פורש על שתי העמודות */
+  .md-screen .video-grid > .video-card:first-child { grid-column: 1 / -1; }
 }
 /* יעדי מגע ≥44px (DESIGN.md §7) — הכללים הישנים חיו רק בבלוקים של
    הטלפון, ואייפד קיבל 34–40px */
@@ -29615,11 +29615,13 @@ html.a11y-motion .sidebar { transition: none !important; }
 
 /* --- ו. עט מול אצבע, וביצועים במגע --- */
 /* עם עט ביד: העט מצייר, האצבע גוללת. touch-action לא חל על עט בספארי,
-   ולכן pan-y משאיר את הציור בעט חופשי ומחזיר לאצבע את גלילת הדף —
-   שנחסמה לגמרי בכל מצב «עט». דחיית כף היד עצמה נוספה ב-ink.jsx. */
+   ולכן pan-y משאיר את הציור בעט חופשי ומחזיר לאצבע את גלילת הדף.
+   ⚠ רק תחת html.has-pen — המחלקה ש-ink.jsx מדליק כשנראה עט. בלי עט
+   (טלפון, אייפד בלי Pencil) האצבע היא כלי הציור, ו-pan-y היה הופך כל קו
+   אנכי לגלילה ומוחק את הטיוטה. דחיית כף היד עצמה נוספה ב-ink.jsx. */
 @media (pointer: coarse) {
-  .nbk-body.is-drawing .nbk-ink { touch-action: pan-y; }
-  .mini-court.is-edit .mini-court-svg.is-drawing { touch-action: pan-y; }
+  html.has-pen .nbk-body.is-drawing .nbk-ink { touch-action: pan-y; }
+  html.has-pen .mini-court.is-edit .mini-court-svg.is-drawing { touch-action: pan-y; }
 }
 /* blur על שכבות דביקות מצויר מחדש בכל פריים של גלילה — רוצח הביצועים
    הקלאסי של WebKit. במגע: רקע אטום במקום זכוכית. */
@@ -29630,4 +29632,36 @@ html.a11y-motion .sidebar { transition: none !important; }
   /* אנימציות אינסופיות שמציירות כל פריים לנצח */
   .auth-hero-court { animation: none; }
   .land .land-eyebrow::before { animation: none; }
+}
+
+/* --- ז. תיקוני סקירה על הבלוק הזה (19.8, אחרי סקירה אדוורסרית) --- */
+/* המגירה החונה (769–840 תמיד; 841–1400 בזמן עריכה): כמו בטלפון —
+   מחוץ לעץ הפריסה כשהיא סגורה (visibility), בלי גלילה אופקית לעברה,
+   בלי פעמון כפול (יש אחד בטופ-בר), ואזור בטוח בתחתית. */
+@media (min-width: 769px) and (max-width: 840px) and (pointer: coarse) {
+  html, body { overflow-x: hidden; overscroll-behavior-x: none; }
+  .sidebar:not(.open) { visibility: hidden; transition: transform 0.25s ease-out, visibility 0s linear 0.25s; }
+  .sidebar.open { visibility: visible; transition: transform 0.25s ease-out, visibility 0s; }
+  .sidebar { padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+  .sidebar-bell { display: none; }
+  /* הבר הדביק של הבאנר נכנס מתחת לטופ-בר הדביק (60px) */
+  .cs-hero-bar { top: calc(60px + env(safe-area-inset-top)); }
+  /* פאנל ההתראות נפתח מהטופ-בר — מוצמד למסך, לא נחתך */
+  .topbar-actions .ntf-panel { position: fixed; top: calc(60px + env(safe-area-inset-top)); inset-inline: 12px; width: auto; }
+}
+@media (min-width: 841px) and (max-width: 1400px) and (pointer: coarse) {
+  .layout:has(.nbk-focus) .sidebar:not(.open),
+  .layout:has(.drillform-head) .sidebar:not(.open) { visibility: hidden; transition: transform 0.25s ease-out, visibility 0s linear 0.25s; }
+  .layout:has(.nbk-focus) .sidebar.open,
+  .layout:has(.drillform-head) .sidebar.open { visibility: visible; transition: transform 0.25s ease-out, visibility 0s; }
+  .layout:has(.nbk-focus) .sidebar,
+  .layout:has(.drillform-head) .sidebar { padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+  .layout:has(.nbk-focus) .sidebar-bell,
+  .layout:has(.drillform-head) .sidebar-bell { display: none; }
+  .layout:has(.nbk-focus) .topbar-actions .ntf-panel,
+  .layout:has(.drillform-head) .topbar-actions .ntf-panel { position: fixed; top: calc(60px + env(safe-area-inset-top)); inset-inline: 12px; width: auto; max-width: 420px; margin-inline-start: auto; }
+}
+/* הבית ב-1000–1180: כרטיס הלו״ז היה קופץ לראש הערימה (order:0) */
+@media (min-width: 1000px) and (max-width: 1180px) and (pointer: coarse) {
+  .nh-o-week { display: block; order: 5; }
 }

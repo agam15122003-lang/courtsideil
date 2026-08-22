@@ -21,9 +21,23 @@ export const INK_WIDTH = 3
 const round1 = (n) => Math.round(n * 10) / 10
 
 // «יש עט בסביבה»: מרגע שנראתה נגיעת עט, מגע אצבע אינו מצייר במשך
-// הפרק הזה (מודולרי בכוונה — עט על מגרש אחד משתיק כף יד גם על השכן)
+// הפרק הזה (מודולרי בכוונה — עט על מגרש אחד משתיק כף יד גם על השכן).
+// 8 שניות, לא דקה: מספיק כדי לגשר על כף יד שנוחתת לפני החוד, ולא
+// מספיק כדי להפוך לוח שלם לאזור מת למי שהניח את העט ועבר לאצבע.
+// המחלקה html.has-pen מדליקה ב-CSS את «האצבע גוללת, העט מצייר» — רק
+// כשבאמת יש עט; בלי עט, אצבע ממשיכה לצייר כרגיל (טלפון, אייפד בלי Pencil).
 let lastPenAt = 0
-const PEN_SESSION_MS = 60000
+let penTimer = 0
+const PEN_SESSION_MS = 8000
+const notePen = () => {
+  const now = Date.now()
+  lastPenAt = now
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (!root.classList.contains('has-pen')) root.classList.add('has-pen')
+  clearTimeout(penTimer)
+  penTimer = setTimeout(() => root.classList.remove('has-pen'), PEN_SESSION_MS)
+}
 
 // path של קו: נקודה בודדת מצוירת כנקודה (קו באורך 0.1 עם ראש עגול)
 export function inkPath(p) {
@@ -142,8 +156,9 @@ export function useInkTool(svgRef, dim, opts) {
     // דחיית כף היד: ברגע שנראה עט (Apple Pencil), מגע אצבע/כף יד מפסיק
     // לצייר לגמרי. באייפד כף היד נוגעת במסך **לפני** חוד העט — בלי זה
     // המגע תופס את תור הציור, מורח קו, והעט נדחה עד שהיד עוזבת.
-    if (e.pointerType === 'pen') lastPenAt = Date.now()
-    if (e.pointerType === 'touch' && Date.now() - lastPenAt < PEN_SESSION_MS) return true
+    if (e.pointerType === 'pen') notePen()
+    // המחק מותר באצבע גם כשיש עט — ההרגל של «מוחקים באצבע בזמן שהעט ביד»
+    if (e.pointerType === 'touch' && tool !== 'eraser' && Date.now() - lastPenAt < PEN_SESSION_MS) return true
     if (active.current) {
       // העט גובר על מגע שהקדים אותו: הטיוטה של כף היד נזרקת והעט מצייר
       if (e.pointerType === 'pen' && active.current.pointerType === 'touch') {
@@ -173,6 +188,8 @@ export function useInkTool(svgRef, dim, opts) {
   const onPointerMove = (e) => {
     if (!drawing || !active.current) return false
     if (e.pointerId !== active.current.pointerId) return true
+    // העט ממשיך לצייר — החלון מתרענן (בלי לרוץ 120 פעמים בשנייה)
+    if (e.pointerType === 'pen' && Date.now() - lastPenAt > 1000) notePen()
     const pt = toSvg(e)
     if (!pt) return true
     if (tool === 'eraser') {
