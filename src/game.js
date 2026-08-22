@@ -159,40 +159,9 @@ export const messageKit = {
         'Under 18 — at the end you will get a short link to send your parents for approval.',
     ),
 
-  // תזכורת פתיחת אתגר.
-  // ⚠ המועד מגיע מהאתגר עצמו ואינו כתוב בקוד: הבעלים קובע יום ושעה לכל
-  // אתגר בנפרד, והודעה שאומרת «עד שבת» כשהחלון נסגר בחמישי גרועה מכלום.
-  challengeOpen: (title, closesAt, ref) => {
-    const when = closesAt
-      ? new Intl.DateTimeFormat('he-IL', {
-          weekday: 'long', day: 'numeric', month: 'numeric',
-          hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem',
-        }).format(new Date(closesAt))
-      : null
-    return L(
-      `🔥 אתגר חדש: *${title}*\n` +
-        (when ? `החלון פתוח עד ${when}.\n` : '') +
-        'הגשה אחת, טייק אחד, והטיימר חייב להיראות בפריים.\n' +
-        `${courtLink(ref)}`,
-      `🔥 New challenge: *${title}*\n` +
-        (when ? `Open until ${when}.\n` : '') +
-        'One submission, one take, timer visible in frame.\n' +
-        `${courtLink(ref)}`,
-    )
-  },
+  // ⚠ 19.8: challengeOpen ו-rejected הוסרו יחד עם האתגר — הן הבטיחו
+  // צילום, העלאה ופרסום שכבר אינם קיימים במוצר.
 
-  // דחיית הגשה — נשלחת מהתור, כדי שדחייה לא תיראה כהתעלמות
-  rejected: (name, reason) =>
-    L(
-      `היי ${name || ''}, ראיתי את הקליפ 🙏\n` +
-        `לא אישרתי אותו כי: ${reason}\n` +
-        'אפשר לצלם שוב ולהעלות — החלון עוד פתוח, וההגשה האחרונה היא זו שנספרת.',
-      `Hi ${name || ''}, I watched your clip 🙏\n` +
-        `I could not approve it because: ${reason}\n` +
-        'You can film again and re-upload — the window is still open, and the last submission counts.',
-    ),
-
-  // שיתוף מקום בטבלה — מנוע הצמיחה של הלולאה
   standing: (rank, ref) =>
     L(
       `אני במקום ${rank} בעולם הכדורסל של CourtSide החודש 🏀\nנראה אותך עוקף:\n${courtLink(ref)}`,
@@ -268,26 +237,6 @@ export async function challengeTop5(challengeId) {
   return callRpc('game_challenge_top5', { p_challenge: challengeId })
 }
 
-// רישום פרסום — חובה לפני הורדת קליפ. בלי המרשם, בקשת הורה למחוק הכל
-// אינה יכולה להצביע על הפוסט שכבר עלה.
-export async function recordPublication({ submissionId, challengeId, userId, url, note }) {
-  const { data: u } = await supabase.auth.getUser()
-  const { error } = await supabase.from('game_publications').insert({
-    submission_id: submissionId || null,
-    challenge_id: challengeId || null,
-    user_id: userId,
-    platform: 'instagram',
-    external_url: url || null,
-    posted_by: u?.user?.id || null,
-    note: note || null,
-  })
-  if (error) {
-    if (isNotDeployed(error)) return { ok: false, notDeployed: true }
-    return { ok: false, reason: 'error', message: error.message }
-  }
-  return { ok: true }
-}
-
 // ===== שחקן: האתגר הפעיל =====
 
 const CHALLENGE_COLS = 'id, seq, title, subtitle, metric_label, metric_unit, metric_dir, rules_text, prize, sponsor_name, rules_url, opens_at, closes_at, decide_at, status, min_entries_for_prize'
@@ -335,41 +284,6 @@ export async function mySubmission(challengeId) {
   return { ok: true, submission: data || null, uid }
 }
 
-export async function submitChallenge({ challengeId, uid, mediaPath, score, allowPublish, noOthers, existingId }) {
-  const row = {
-    challenge_id: challengeId,
-    user_id: uid,
-    media_path: mediaPath,
-    reported_score: score,
-    allow_publish: !!allowPublish,
-    no_others_in_frame: !!noOthers,
-  }
-  // ⚠ .select('id') על העדכון: מדיניות ה-RLS (game_sub_update_own) מסננת
-  //   הגשות approved/blocked — PostgREST מעדכן 0 שורות **בלי שגיאה**, והלקוח
-  //   היה מכריז «ההגשה הוחלפה» על שורה שלא זזה (אחרי שכבר העלה קליפ).
-  const res = existingId
-    ? await supabase.from('game_challenge_submissions').update(row).eq('id', existingId).select('id')
-    : await supabase.from('game_challenge_submissions').insert(row)
-  if (!res.error && existingId && Array.isArray(res.data) && res.data.length === 0) {
-    return { ok: false, reason: 'closed', message: 'אי אפשר להחליף את ההגשה הזו — החלון נסגר או שהיא כבר אומתה/הוסרה.' }
-  }
-  if (res.error) {
-    const e = res.error
-    if (isNotDeployed(e)) return { ok: false, notDeployed: true }
-    if (e.code === '54000') return { ok: false, reason: 'too_many', message: e.message }
-    if (e.code === '42501' || /row-level security/i.test(e.message || '')) {
-      return { ok: false, reason: 'closed', message: 'חלון ההגשה נסגר, או שהחשבון עוד לא אושר.' }
-    }
-    return { ok: false, reason: 'error', message: e.message }
-  }
-  return { ok: true }
-}
-
-// ===== הפיד החי =====
-// דרך RPC בלבד — לא קריאת טבלה. הסקירה האדוורסרית תפסה שמדיניות SELECT
-// רחבה חושפת את כל העמודות (כולל age_flagged — החלטת מודרציה על קטין),
-// כי PostgREST מכבד כל select= שהקורא שולח. ה-RPC מחזירה עמודות בטוחות
-// בלבד, כבר ממוינות ועם שם התצוגה מוכן — גם אין יותר N+1 על השמות.
 export async function challengeFeed(challengeId) {
   return callRpc('game_challenge_feed', { p_challenge: challengeId })
 }
@@ -388,16 +302,6 @@ export async function displayNames(userIds) {
   return out
 }
 
-export async function deleteMySubmission(challengeId) {
-  const r = await callRpc('game_delete_my_submission', { p_challenge: challengeId })
-  const d = r.data || {}
-  // מחיקת הקובץ הפיזי — מחיקת שורה מ-storage.objects ב-SQL אינה מוחקת
-  // את הקובץ עצמו. best-effort: כישלון משאיר בלוב יתום, לא באג פונקציונלי.
-  if (r.ok && d.ok !== false && d.media_path) {
-    try { await supabase.storage.from('media').remove([d.media_path]) } catch { /* ignore */ }
-  }
-  return r
-}
 
 // ===== חידונים =====
 

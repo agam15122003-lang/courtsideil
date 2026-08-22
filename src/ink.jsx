@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 
 // «דיו» — ציור חופשי (עט/אצבע/עכבר) שמשותף לשלושה מקומות:
 //   1. לוח הטקטיקה (TacticsBoard) — כלי «עט» ו«מחק» לצד החצים והשחקנים.
@@ -20,6 +20,25 @@ export const INK_WIDTH = 3
 
 const round1 = (n) => Math.round(n * 10) / 10
 
+// «יש עט בסביבה»: מרגע שנראתה נגיעת עט, מגע אצבע אינו מצייר במשך
+// הפרק הזה (מודולרי בכוונה — עט על מגרש אחד משתיק כף יד גם על השכן).
+// 8 שניות, לא דקה: מספיק כדי לגשר על כף יד שנוחתת לפני החוד, ולא
+// מספיק כדי להפוך לוח שלם לאזור מת למי שהניח את העט ועבר לאצבע.
+// המחלקה html.has-pen מדליקה ב-CSS את «האצבע גוללת, העט מצייר» — רק
+// כשבאמת יש עט; בלי עט, אצבע ממשיכה לצייר כרגיל (טלפון, אייפד בלי Pencil).
+let lastPenAt = 0
+let penTimer = 0
+const PEN_SESSION_MS = 8000
+const notePen = () => {
+  const now = Date.now()
+  lastPenAt = now
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (!root.classList.contains('has-pen')) root.classList.add('has-pen')
+  clearTimeout(penTimer)
+  penTimer = setTimeout(() => root.classList.remove('has-pen'), PEN_SESSION_MS)
+}
+
 // path של קו: נקודה בודדת מצוירת כנקודה (קו באורך 0.1 עם ראש עגול)
 export function inkPath(p) {
   if (!p || p.length < 2) return ''
@@ -29,35 +48,47 @@ export function inkPath(p) {
   return d
 }
 
-// שכבת הקווים — קבוצה אחת בתוך SVG (משמשת גם בתצוגה לקריאה בלבד)
+// שכבת הקווים — קבוצה אחת בתוך SVG (משמשת גם בתצוגה לקריאה בלבד).
+// הקווים השמורים ממורשמים בנפרד מקו הטיוטה: בזמן ציור בעט מגיעות עד
+// 120 תנועות בשנייה, וכל אחת מעדכנת state — בלי ה-memo כל תנועה בנתה
+// מחדש את ה-path של **כל** הדיו על הדף, וזה בדיוק ה«תקיעות» באייפד.
+const StrokePath = ({ s }) => (
+  <path
+    d={inkPath(s.p)}
+    stroke={s.c || INK_COLORS[0].c}
+    strokeWidth={s.w || INK_WIDTH}
+    // עובי הקו נמדד בפיקסלים של המסך ולא ביחידות ה-viewBox: אותו קו
+    // נראה באותו עובי על מגרש קטן (216px), על הלוח במסך מלא, ובהדפסה.
+    vectorEffect="non-scaling-stroke"
+  />
+)
+const CommittedInk = memo(function CommittedInk({ strokes }) {
+  return strokes.map((s) => <StrokePath key={s.id} s={s} />)
+})
 export function InkPaths({ strokes, draft }) {
-  const list = draft ? [...(strokes || []), draft] : strokes || []
-  if (!list.length) return null
+  if (!(strokes || []).length && !draft) return null
   return (
     <g data-ink="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      {list.map((s) => (
-        <path
-          key={s.id}
-          d={inkPath(s.p)}
-          stroke={s.c || INK_COLORS[0].c}
-          strokeWidth={s.w || INK_WIDTH}
-          // עובי הקו נמדד בפיקסלים של המסך ולא ביחידות ה-viewBox: אותו קו
-          // נראה באותו עובי על מגרש קטן (216px), על הלוח במסך מלא, ובהדפסה.
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      <CommittedInk strokes={strokes || []} />
+      {draft && <StrokePath s={draft} />}
     </g>
   )
 }
 
-// האם נקודה (x,y) קרובה לקו — למחק
-export function hitStroke(s, x, y, r) {
+// האם נקודה (x,y) קרובה לקו — למחק.
+// rx/ry נפרדים: על שכבת המחברת ה-viewBox אינו אחיד (x ב-0..1000, y
+// בפיקסלים, preserveAspectRatio="none") — רדיוס שהומר לפי הרוחב בלבד
+// הפך על הדף לאליפסה בגובה 24-31px שמחקה גם את השורה השכנה. הבדיקה
+// מנרמלת כל ציר לרדיוס שלו: (dx/rx)2 + (dy/ry)2 <= 1.
+export function hitStroke(s, x, y, rx, ry = rx) {
   const p = s.p || []
-  const r2 = r * r
+  const near = (dx, dy) => {
+    const nx = dx / rx
+    const ny = dy / ry
+    return nx * nx + ny * ny <= 1
+  }
   for (let i = 0; i < p.length; i += 2) {
-    const dx = p[i] - x
-    const dy = p[i + 1] - y
-    if (dx * dx + dy * dy <= r2) return true
+    if (near(p[i] - x, p[i + 1] - y)) return true
   }
   // גם בין נקודות רחוקות (תנועה מהירה): מרחק לקטע
   for (let i = 2; i < p.length; i += 2) {
@@ -66,9 +97,7 @@ export function hitStroke(s, x, y, r) {
     const len2 = vx * vx + vy * vy || 1
     let t = ((x - ax) * vx + (y - ay) * vy) / len2
     t = Math.max(0, Math.min(1, t))
-    const dx = ax + t * vx - x
-    const dy = ay + t * vy - y
-    if (dx * dx + dy * dy <= r2) return true
+    if (near(ax + t * vx - x, ay + t * vy - y)) return true
   }
   return false
 }
@@ -104,10 +133,12 @@ export function useInkTool(svgRef, dim, opts) {
   const erase = (x, y) => {
     const rect = svgRef.current?.getBoundingClientRect()
     const px = eraseRadius || 12
-    const r = rect && rect.width ? (px * dim.w) / rect.width : Math.max(8, dim.w / 80)
+    const rx = rect && rect.width ? (px * dim.w) / rect.width : Math.max(8, dim.w / 80)
+    // ציר y מומר בנפרד — ראו ההערה על hitStroke
+    const ry = rect && rect.height ? (px * dim.h) / rect.height : rx
     // כל הקווים שנפגעו נמחקים יחד: קריאה אחת עם רשימת מזהים. קודם נשלחה
     // קריאה לכל קו, וכל אחת חושבה מאותו מצב ישן — כך שרק האחרון נמחק.
-    const hit = (strokes || []).filter((s) => hitStroke(s, x, y, r)).map((s) => s.id)
+    const hit = (strokes || []).filter((s) => hitStroke(s, x, y, rx, ry)).map((s) => s.id)
     if (hit.length) onErase?.(hit)
   }
 
@@ -122,8 +153,23 @@ export function useInkTool(svgRef, dim, opts) {
 
   const onPointerDown = (e) => {
     if (!drawing) return false
-    // רק מצביע אחד בכל רגע. אם עט (stylus) כבר מצייר — מגע של כף היד מתעלם.
-    if (active.current) return true
+    // דחיית כף היד: ברגע שנראה עט (Apple Pencil), מגע אצבע/כף יד מפסיק
+    // לצייר לגמרי. באייפד כף היד נוגעת במסך **לפני** חוד העט — בלי זה
+    // המגע תופס את תור הציור, מורח קו, והעט נדחה עד שהיד עוזבת.
+    if (e.pointerType === 'pen') notePen()
+    // המחק מותר באצבע גם כשיש עט — ההרגל של «מוחקים באצבע בזמן שהעט ביד»
+    if (e.pointerType === 'touch' && tool !== 'eraser' && Date.now() - lastPenAt < PEN_SESSION_MS) return true
+    if (active.current) {
+      // העט גובר על מגע שהקדים אותו: הטיוטה של כף היד נזרקת והעט מצייר
+      if (e.pointerType === 'pen' && active.current.pointerType === 'touch') {
+        active.current = null
+        draftRef.current = null
+        setDraftState(null)
+      } else {
+        // רק מצביע אחד בכל רגע — עט שכבר מצייר מתעלם ממגע נוסף
+        return true
+      }
+    }
     if (e.button != null && e.button !== 0 && e.pointerType === 'mouse') return true
     const pt = toSvg(e)
     if (!pt) return true
@@ -142,6 +188,8 @@ export function useInkTool(svgRef, dim, opts) {
   const onPointerMove = (e) => {
     if (!drawing || !active.current) return false
     if (e.pointerId !== active.current.pointerId) return true
+    // העט ממשיך לצייר — החלון מתרענן (בלי לרוץ 120 פעמים בשנייה)
+    if (e.pointerType === 'pen' && Date.now() - lastPenAt > 1000) notePen()
     const pt = toSvg(e)
     if (!pt) return true
     if (tool === 'eraser') {
@@ -168,6 +216,16 @@ export function useInkTool(svgRef, dim, opts) {
     return true
   }
 
+  // מחווה שהדפדפן ביטל (למשל: הפכה לגלילה) לא הופכת לקו שמור — קודם
+  // pointercancel נכנס ל-finish והשאיר נקודה/קשקוש בכל גלילת אצבע.
+  const cancel = (e) => {
+    if (!active.current) return false
+    if (e && e.pointerId != null && e.pointerId !== active.current.pointerId) return true
+    active.current = null
+    setDraft(null)
+    return true
+  }
+
   return {
     draft,
     drawing,
@@ -175,7 +233,7 @@ export function useInkTool(svgRef, dim, opts) {
       onPointerDown,
       onPointerMove,
       onPointerUp: finish,
-      onPointerCancel: finish,
+      onPointerCancel: cancel,
       onLostPointerCapture: finish,
     },
   }

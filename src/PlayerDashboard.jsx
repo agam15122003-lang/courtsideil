@@ -25,7 +25,6 @@ import Notifications from './Notifications'
 import ProfileForm from './ProfileForm'
 import ChangePassword from './ChangePassword'
 import { FbReact } from './PlayerTimeline'
-import PlayerCommunity from './PlayerCommunity'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import PlayerTeamHub from './PlayerTeamHub'
@@ -98,14 +97,12 @@ function RestrictedNote({ children, block = false }) {
 }
 
 // הסבר ברמת מסך, למסכים שהכתיבה בהם חיה בקומפוננטות אחרות (הצ'אטים,
-// הקהילה, היעדים, מרכז הקבוצה). התוכן עצמו נשאר גלוי — *קריאה* מותרת.
+// היעדים, מרכז הקבוצה). התוכן עצמו נשאר גלוי — *קריאה* מותרת.
 const RESTRICTED_SCREEN = {
   coach: () => L('אפשר לקרוא כאן הכול, אבל שליחת הודעה למאמן נפתחת רק אחרי אישור ההורה.',
     'You can read everything here, but messaging your coach opens only after your parent approves.'),
   teamchat: () => L('אפשר לקרוא את צ׳אט הקבוצה, אבל הכתיבה בו נפתחת רק אחרי אישור ההורה.',
     'You can read the team chat, but writing in it opens only after your parent approves.'),
-  community: () => L('אפשר לקרוא את הקהילה, אבל פרסום פוסט, תגובה או לייק נפתחים רק אחרי אישור ההורה.',
-    'You can read the community, but posting, commenting and liking open only after your parent approves.'),
   goals: () => L('אפשר לראות את היעדים שלך, אבל הוספה ותיעוד התקדמות נפתחים רק אחרי אישור ההורה.',
     'You can see your goals, but adding one and logging progress open only after your parent approves.'),
   schedule: () => L('אפשר לראות את הקבוצה והלו״ז, אבל אישור הגעה וכתיבה בצ׳אט נפתחים רק אחרי אישור ההורה.',
@@ -2340,7 +2337,9 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
     })()
   }, [membership, profile.id, refreshKey])
 
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  // הבוליאני «האימון עכשיו» מתחלף פעמיים ביום — טיקר של שנייה רינדר את
+  // כל הבית של השחקן 3,600 פעמים בשעה בשביל כלום. 30 שניות מספיקות.
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t) }, [])
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? L('בוקר טוב', 'Good morning') : hour < 18 ? L('צהריים טובים', 'Good afternoon') : L('ערב טוב', 'Good evening')
@@ -3450,7 +3449,11 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 // האפליקציה של השחקן — מעטפת + ניווט
 // ============================================================
 // ניווט ממוקד (משוב הבעלים 25.7): "הקבוצה שלי" מוזג לתוך הלו"ז, צ'אט הקבוצה
-// עלה לניווט, והקהילה (0 פוסטים) ירדה — המסך נשאר בקוד וניתן להחזרה.
+// עלה לניווט, והקהילה (0 פוסטים) ירדה מהניווט.
+// 19.8 — **חדר השחקנים הארצי הוסר**: הוא חיבר ילדים מכל הארץ בטקסט חופשי
+// בלי מבוגר מפקח. המסך נמחק מהקוד; החזרה = revert של הקומיט. הכתיבה
+// לטבלה נחסמה גם במסד (supabase_player_room_off_19_8.sql), כי אפליקציית
+// אנדרואיד מותקנת ממשיכה להריץ את הגרסה הישנה מהמכשיר.
 // 1.13 — הצ'אטים אוחדו לתוך «הקבוצה והלו״ז» (ארבע לשוניות), והטאבים
 // הנפרדים שלהם ירדו מהניווט. יעדי עומק ישנים (coach/teamchat) עדיין עובדים.
 const PLAYER_NAV = [
@@ -3574,10 +3577,16 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // ⚠ יעד שאינו ברשימה נופל ל«המשימות שלי» — ולכן התראת «זכית באתגר»
   // הייתה פותחת את מסך המשימות. כל יעד חדש חייב להיכנס לכאן.
   const navFromNotification = (v) => setView(
-    ['coach', 'goals', 'feedback', 'community', 'drills', 'teamchat', 'schedule', 'boards'].includes(v)
+    ['coach', 'goals', 'feedback', 'drills', 'teamchat', 'schedule', 'boards'].includes(v)
       ? v
-      : v === 'messages' ? 'coach' : 'drills'
+      // 'community' הוסר 19.8 — התראה ישנה שמצביעה לחדר הארצי נוחתת בבית
+      : v === 'community' ? 'home' : v === 'messages' ? 'coach' : 'drills'
   )
+  // ...ועם הסבר, אחרת הילד לוחץ על «הגיבו לך» ומוצא את עצמו בבית בלי סיבה
+  const navFromBell = (v) => {
+    if (v === 'community') toast.info(L('חדר השחקנים נסגר', "The players' room has closed"))
+    navFromNotification(v)
+  }
 
   const nav = PLAYER_NAV
   const label = (item) => L(item.label[0], item.label[1])
@@ -3590,7 +3599,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const isPs = !editing && PS_VIEWS.includes(view) && (hasTeam || !PS_TEAM_VIEWS.includes(view))
   // הפעמון יורד לתוך הבאנר של המסך (הסרגל העליון מוסתר שם במובייל).
   // אלמנט חדש בכל רינדור במכוון: ‎.main-inner ממילא ממותג ב-key לפי המסך.
-  const psBell = <Notifications session={session} onNavigate={navFromNotification} />
+  const psBell = <Notifications session={session} onNavigate={navFromBell} />
   const psCoachName = coach ? coachName(coach) : null
   // כפתור המאמן בכותרת מוביל ל«המאמן האישי». במסך הזה עצמו אין לאן ללכת.
   const psOnCoach = view === 'pcoach' ? null : () => setView('pcoach')
@@ -3621,7 +3630,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     }
     // בלי קבוצה המסך ממילא מציג «הצטרפו עם קוד» (LockedFeature) — ודווקא
     // *זו* הפעולה שהשרת מתיר. הסבר על צ'אט חסום מעליה רק היה מבלבל.
-    const note = restricted && (hasTeam || view === 'community')
+    const note = restricted && hasTeam
       ? RESTRICTED_SCREEN[view]?.()
       : null
     const content = renderScreen()
@@ -3679,7 +3688,6 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('צ׳אט הקבוצה', 'Team chat')}
               desc={L('צ׳אט הקבוצה נפתח ברגע שהמאמן מאשר אתכם. הצטרפו עם קוד מהמאמן.', 'Team chat opens once your coach approves you. Join with a code from your coach.')} />
-      case 'community': return <PlayerCommunity session={session} profile={profile} restricted={restricted} />
       case 'team':
         // קישורים ישנים ממשיכים לעבוד — נפתח על לשונית «הקבוצה שלי»
         return hasTeam
@@ -3690,10 +3698,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'boards':
         // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
-        return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromNotification} />} />
+        return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromBell} />} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
-      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromNotification} personalIds={personalIds} />
+      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromBell} personalIds={personalIds} />
     }
   }
 
@@ -3707,7 +3715,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           <span>CourtSide</span>
         </div>
         <div className="topbar-actions">
-          <Notifications session={session} onNavigate={navFromNotification} />
+          <Notifications session={session} onNavigate={navFromBell} />
           {/* ב-4 מהסקירה: תמה ושפה ירדו מהסרגל — הן במגירה ובפרופיל */}
         </div>
       </header>
@@ -3717,7 +3725,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         <div className="sidebar-brand">
           <Logo size={30} />
           <span>CourtSide</span>
-          <span className="sidebar-bell"><Notifications session={session} onNavigate={navFromNotification} /></span>
+          <span className="sidebar-bell"><Notifications session={session} onNavigate={navFromBell} /></span>
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>
@@ -3768,7 +3776,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           {/* ציטוט מעורר השראה בכל המסכים (חוץ מהצ'אטים — שם הגובה קבוע והוא שובר את שורת הכתיבה) */}
           {/* הציטוט אינו במוקאפ של הבית (3b), של «עולם הכדורסל», ולא של
               ששת מסכי PlayerScreens (17.8) — הם נסגרים בכרטיס משלהם */}
-          {!editing && !isPs && !['home', 'teamchat', 'coach', 'community', 'boards'].includes(view) && <PlayerQuote />}
+          {!editing && !isPs && !['home', 'teamchat', 'coach', 'boards'].includes(view) && <PlayerQuote />}
         </div>
       </main>
 

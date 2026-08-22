@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { Maximize2, Trash2 } from 'lucide-react'
 import { CourtLines, ObjectShape, Arrow, courtDim } from './CourtDiagram'
 import { InkPaths, useInkTool } from './ink'
@@ -17,7 +17,7 @@ import { L } from './i18n'
 // ברירת המחדל במחברת: מגרש שלם **לאורך** — צר, ולכן משאיר רוחב לכתיבה
 export const emptyBoard = () => ({ fullCourt: true, portrait: true, steps: [{ objects: [], arrows: [], ink: [] }] })
 
-export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, index = 0 }) {
+function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, index = 0 }) {
   const svgRef = useRef(null)
   const b = board && board.steps && board.steps.length ? board : emptyBoard()
   const step = b.steps[0] || { objects: [], arrows: [], ink: [] }
@@ -99,3 +99,11 @@ export default function MiniCourt({ board, onChange, tool = 'pen', color, onOpen
     </div>
   )
 }
+
+// memo: המגרשים חיים לצד המחברת, וכל מחיקת דיו על **הדף** וכל הקשה רינדרו
+// מחדש גם את שלושתם (SVG מלא כל אחד). ההשוואה מתעלמת מה-callbacks בכוונה:
+// PlanNotebook יוצר אותם מחדש בכל רינדור, אבל הם סוגרים רק על מזהה
+// המגרש ועל setState פונקציונלי — השוואה שטוחה עליהם הייתה מבטלת את
+// ה-memo לחלוטין. מה שמשנה את הציור הוא board/tool/color/index.
+export default memo(MiniCourt, (a, b) =>
+  a.board === b.board && a.tool === b.tool && a.color === b.color && a.index === b.index)

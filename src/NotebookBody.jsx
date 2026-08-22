@@ -43,13 +43,21 @@ export default function NotebookBody({
   const [size, setSize] = useState({ w: 0, h: 0 })
   const editable = typeof onChange === 'function'
 
-  // ה-textarea גדל עם הטקסט (בלי גלילה פנימית — הדף עצמו הוא הגלילה)
+  // ה-textarea גדל עם הטקסט (בלי גלילה פנימית — הדף עצמו הוא הגלילה).
+  // בצמיחה מודדים פעם אחת (הקופסה קטנה מהתוכן החדש ולכן scrollHeight
+  // מדויק); האיפוס ל-auto — שכופה פריסה שנייה של כל עמודת המחברת —
+  // נעשה רק כשהטקסט התקצר. באייפד זה ההבדל בין הקלדה חלקה לתקיעה קלה.
+  const lastLen = useRef(0)
   useLayoutEffect(() => {
     if (!editable) return
     const el = taRef.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
+    const len = (value || '').length
+    const grew = len >= lastLen.current
+    lastLen.current = len
+    if (!grew) el.style.height = 'auto'
+    const h = `${el.scrollHeight}px`
+    if (el.style.height !== h) el.style.height = h
   }, [value, editable, taRef])
 
   // מודדים את הדף כדי לגזור viewBox לדיו (רוחב 1000, גובה יחסי)

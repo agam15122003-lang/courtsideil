@@ -62,8 +62,8 @@ export default function BwPred({ sum, month, openRules }) {
           <CalendarClock size={26} aria-hidden="true" />
           <b>{L('הניחושים ייפתחו עם פתיחת הליגה', 'Picks open when the league starts')}</b>
           <p className="bw-mut12">
-            {L('בכל מחזור: בוחרים מנצחת (אין תיקו בכדורסל) ואפשר להוסיף תוצאה מדויקת. הניחוש ננעל בשריקת הפתיחה — ואז נפתחים ניחושי החברים. עד אז יש אתגר שבועי וחידון.',
-               'Each round: pick a winner (no draws in basketball) and optionally an exact score. Picks lock at tip-off — then friends’ picks open. Until then there is a weekly challenge and a quiz.')}
+            {L('בכל מחזור: בוחרים מנצחת (אין תיקו בכדורסל) ואפשר להוסיף תוצאה מדויקת. הניחוש ננעל בשריקת הפתיחה — ואז נפתחים ניחושי החברים. עד אז יש חידון ודו-קרב.',
+               'Each round: pick a winner (no draws in basketball) and optionally an exact score. Picks lock at tip-off — then friends’ picks open. Until then there is a quiz and duels.')}
           </p>
         </div>
       </div>

@@ -1,44 +1,39 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Home, Globe, Flame, Sparkles, Sun, Moon, Volume2, VolumeX, X } from 'lucide-react'
-import { L, cnt } from './i18n'
+import { Home, Globe, Sparkles, Sun, Moon, Volume2, VolumeX, X } from 'lucide-react'
+import { L } from './i18n'
 import useFocusTrap from './useFocusTrap'
 import { soundOn, setSound, playSound } from './bwSound'
 import {
-  gameMe, myStanding, myPoints, soloLeft, periodKeys, activeChallenge, mySubmission,
-  challengeFeed, scoringRules, quizSettings, serverNow, syncServerClock,
+  gameMe, myStanding, myPoints, soloLeft, periodKeys,
+  scoringRules, quizSettings, syncServerClock,
 } from './game'
-import { monthLabel, relTime, initials, quizStreak, withUnit, prevSeasonKey, reduced, lockApp, useBoundaryTick } from './bwUtil'
+import { monthLabel, quizStreak, prevSeasonKey, reduced, lockApp } from './bwUtil'
 import BwQuiz from './BwQuiz'
-import BwChallenge from './BwChallenge'
 import BwPred from './BwPred'
 
 // BasketballWorld — «עולם הכדורסל» של השחקן, לפי מסמך העיצוב
-// BasketballWorldV2 (ארבעה דפים: בית · חידון · אתגר · ניחושים).
+// BasketballWorldV2. במקור ארבעה דפים; **האתגר השבועי הוסר ב-19.8**
+// יחד עם העלאת הווידאו, ונשארו שלושה: בית · חידון · ניחושים.
 //
-// כל דף עם הזרקור (באנר בצבע שלו) והניקוד שלו — חידון, אתגר וניחושים
-// אינם מתערבבים, כמו בפנקס בשרת. הבית הוא כרטיס אישי: שלושה מספרים,
-// שלוש שורות משחק, ומה קרה השבוע במגרש.
+// כל דף עם הזרקור (באנר בצבע שלו) והניקוד שלו — חידון וניחושים אינם
+// מתערבבים, כמו בפנקס בשרת. הבית הוא כרטיס אישי.
 //
 // מרחב השמות bw-* חדש במכוון (index.css הוא append-only; ראה nh-*/pkn-*).
-// הרכיבים המסחריים של המגרש (ChallengeCard/ChallengeFeed) לא שוכפלו —
-// הם קיבלו את השפה החזותית דרך .bw ומרקאפ מעודכן.
 //
 // ⚠ אין כאן שום נתון מומצא: כל מספר על המסך מגיע מ-game.js. פיצ׳ר שאין
 //   לו עדיין שרת (ניחושים לפני פתיחת הליגה, «חברים») מוצג במצב ריק כן
 //   או מחובר לנתון הקרוב ביותר — לא לנתוני דמה.
 
 export const BW_PAGES = {
-  home:      { kicker: ['COURTSIDE', 'COURTSIDE'], title: ['עולם הכדורסל', 'Basketball world'], sub: ['הכרטיס שלי · שלושה משחקים · מתאפס כל חודש', 'My card · three games · resets monthly'] },
-  quiz:      { kicker: ['QUIZ · חידון', 'QUIZ'], title: ['חידון כדורסל', 'Basketball quiz'], sub: ['ניקוד חידון בלבד · לא מתערבב עם אתגר או ניחושים', 'Quiz points only · never mixed with challenge or picks'] },
-  challenge: { kicker: ['CHALLENGE · אתגר', 'CHALLENGE'], title: ['האתגר השבועי', 'Weekly challenge'], sub: ['מגישים קליפ · המאמן מאמת · התוצאה קובעת מקום', 'Submit a clip · coach verifies · score sets your rank'] },
+  home:      { kicker: ['COURTSIDE', 'COURTSIDE'], title: ['עולם הכדורסל', 'Basketball world'], sub: ['הכרטיס שלי · שני משחקים · מתאפס כל חודש', 'My card · two games · resets monthly'] },
+  quiz:      { kicker: ['QUIZ · חידון', 'QUIZ'], title: ['חידון כדורסל', 'Basketball quiz'], sub: ['ניקוד חידון בלבד · לא מתערבב עם הניחושים', 'Quiz points only · never mixed with picks'] },
   pred:      { kicker: ['PICKS · ניחושים', 'PICKS'], title: ['ניחושי השבוע', 'Weekly picks'], sub: ['מנצחת ותוצאה מדויקת · אין תיקו', 'Winner and exact score · no draws'] },
 }
 
 const TABS = [
   { id: 'home',      Icon: Home,     label: ['בית', 'Home'] },
   { id: 'quiz',      Icon: Globe,    label: ['חידון', 'Quiz'] },
-  { id: 'challenge', Icon: Flame,    label: ['אתגר', 'Challenge'] },
   { id: 'pred',      Icon: Sparkles, label: ['ניחושים', 'Picks'] },
 ]
 
@@ -47,37 +42,28 @@ function useBwSummary() {
   const [sum, setSum] = useState({ state: 'loading' })
   const load = useCallback(async () => {
     syncServerClock()
-    const [me, k, sQz, sCh, sPr, left, ch, ptsQz, rules, qset] = await Promise.all([
+    const [me, k, sQz, sPr, left, ptsQz, rules, qset] = await Promise.all([
       gameMe(), periodKeys(),
-      myStanding({ scope: 'quiz' }), myStanding({ scope: 'challenge' }), myStanding({ scope: 'predictions' }),
-      soloLeft(), activeChallenge(), myPoints({ scope: 'quiz', period: 'season' }), scoringRules(), quizSettings(),
+      myStanding({ scope: 'quiz' }), myStanding({ scope: 'predictions' }),
+      soloLeft(), myPoints({ scope: 'quiz', period: 'season' }), scoringRules(), quizSettings(),
     ])
-    if (ch.notDeployed || (me.notDeployed)) { setSum({ state: 'notDeployed' }); return }
-    // ⚠ כשגם «מי אני» וגם «האתגר הפעיל» נכשלו — זו תקלת רשת, לא מסך ריק.
-    //   מצב ריק בטוח-בעצמו הוא שקר: השחקן חושב שאין לו נקודות ואין אתגר.
-    if (!me.ok && !ch.ok) { setSum({ state: 'error' }); return }
-    let sub = null; let feed = []
+    if (me.notDeployed) { setSum({ state: 'notDeployed' }); return }
+    // ⚠ שתי קריאות שונות שנכשלו — זו תקלת רשת, לא מסך ריק. מצב ריק
+    //   בטוח-בעצמו הוא שקר: השחקן חושב שאין לו נקודות בכלל.
+    if (!me.ok && !sQz.ok) { setSum({ state: 'error' }); return }
     // הרצף נגזר מהפנקס של העונה; ב-1 בספטמבר מפתח העונה מתחלף וכל הימים
     // שלפניו נעלמים — לכן מצרפים גם את העונה הקודמת (רק בחודש הראשון שלה,
     // כשזה בכלל משנה).
     let prevRows = []
     const prevKey = k.ok ? prevSeasonKey(k.keys) : null
-    const [my, f, prev] = await Promise.all([
-      ch.ok && ch.challenge ? mySubmission(ch.challenge.id) : null,
-      ch.ok && ch.challenge ? challengeFeed(ch.challenge.id) : null,
-      prevKey ? myPoints({ scope: 'quiz', period: 'season', key: prevKey }) : null,
-    ])
-    if (my?.ok) sub = my.submission
-    if (f?.ok) feed = f.rows || []
+    const prev = prevKey ? await myPoints({ scope: 'quiz', period: 'season', key: prevKey }) : null
     if (prev?.ok) prevRows = prev.rows || []
     setSum({
       state: 'ready',
       me: me.ok ? me.me : null,
       keys: k.ok ? k.keys : null,
-      standing: { quiz: sQz.ok ? sQz.standing : null, challenge: sCh.ok ? sCh.standing : null, pred: sPr.ok ? sPr.standing : null },
+      standing: { quiz: sQz.ok ? sQz.standing : null, pred: sPr.ok ? sPr.standing : null },
       scoredLeft: left,
-      challenge: ch.ok ? ch.challenge : null,
-      sub, feed,
       streak: quizStreak([...(ptsQz.ok ? ptsQz.rows : []), ...prevRows]),
       rules, qset,
     })
@@ -150,19 +136,15 @@ function rulesFor(page, r, qs) {
     `+${r.quiz_correct} לתשובה נכונה · בונוס מהירות עד +${r.quiz_speed} לפי הזמן שנשאר · חידון מושלם +${r.quiz_perfect} · ${soloTx}, השאר לכיף · רצף הימים נספר מהפנקס: יום שבו נרשמו לך נקודות חידון (חידון שנספר לטבלה, או דו-קרב שניצחת או סיימת בתיקו) · דו-קרב נספר לטבלת החידון: ניצחון +${r.duel_win}, תיקו +${r.duel_draw}, עד ${qs.duel_scored_per_day} ביום.`,
     `+${r.quiz_correct} per correct answer · speed bonus up to +${r.quiz_speed} by time left · perfect quiz +${r.quiz_perfect} · ${soloTxEn}, the rest are for fun · day streak comes from the ledger: a day you were credited quiz points (a counted quiz, or a duel you won or drew) · duels count toward the quiz board: win +${r.duel_win}, draw +${r.duel_draw}, up to ${qs.duel_scored_per_day} a day.`,
   )
-  const c = L(
-    `מגישים קליפ אחד עד סגירת החלון (עד 5 גרסאות — האחרונה קובעת) · טייק אחד רצוף, הטיימר והסל בפריים · הגשה שעל הפיד +${r.chal_participate} · טופ-5 +${r.chal_top5} (מ-${r.chal_top5_min} הגשות) · ניצחון +${r.chal_win} · שלושה אתגרים ברצף +${r.chal_streak3} · המאמן מאמת את התוצאות ורשאי להסיר הגשה — ואז הנקודות שלה יורדות.`,
-    `One clip until the window closes (up to 5 versions — the last one counts) · one continuous take, timer and hoop in frame · an entry on the feed +${r.chal_participate} · top-5 +${r.chal_top5} (from ${r.chal_top5_min} entries) · win +${r.chal_win} · three challenges in a row +${r.chal_streak3} · the coach verifies scores and may remove an entry — its points then go away.`,
-  )
   const p = L(
     `אין תיקו בכדורסל — בוחרים קבוצה מנצחת · כיוון נכון +${r.pred_direction} · תוצאה מדויקת עוד +${r.pred_exact} · מחזור מושלם +${r.pred_perfect_round} (לפחות ${r.pred_perfect_round_min} משחקים) · הניחוש ננעל בשריקת הפתיחה ואז נפתחים ניחושי החברים · הניחושים נפתחים עם פתיחת הליגה.`,
     `No draws in basketball — pick a winner · right direction +${r.pred_direction} · exact score another +${r.pred_exact} · perfect round +${r.pred_perfect_round} (at least ${r.pred_perfect_round_min} games) · picks lock at tip-off, then friends' picks open · picks open with the league season.`,
   )
   const h = L(
-    'כל אזור מנהל ניקוד משלו — נכנסים לדף של החידון, האתגר או הניחושים כדי לראות את הניקוד והטבלה שלו.',
-    'Each area keeps its own points — open the quiz, challenge or picks page to see its score and board.',
+    'כל אזור מנהל ניקוד משלו — נכנסים לדף של החידון או של הניחושים כדי לראות את הניקוד והטבלה שלו.',
+    'Each area keeps its own points — open the quiz or picks page to see its score and board.',
   )
-  return { home: h, quiz: q, challenge: c, pred: p }[page]
+  return { home: h, quiz: q, pred: p }[page]
 }
 
 function RulesSheet({ page, rules, qset, onClose }) {
@@ -190,8 +172,8 @@ function RulesSheet({ page, rules, qset, onClose }) {
         )}
         <b className="bw-sheet-sub">{L('כללי לכל עולם הכדורסל', 'For the whole basketball world')}</b>
         <p className="bw-sheet-body">
-          {L('כל משחק מנהל ניקוד נפרד — חידון, אתגר וניחושים לא מתערבבים · הטבלאות מתאפסות בתחילת כל חודש (ויש גם טבלת עונה) · קטינים משתתפים באישור הורה · שפה מכבדת בלבד, המאמן רשאי להסיר הגשות · תקלה טכנית מזכה בהגשה חוזרת.',
-             'Every game keeps separate points — quiz, challenge and picks never mix · boards reset at the start of each month (there is a season board too) · minors play with parental approval · respectful language only, the coach may remove entries · a technical failure earns a resubmission.')}
+          {L('כל משחק מנהל ניקוד נפרד — חידון וניחושים לא מתערבבים · הטבלאות מתאפסות בתחילת כל חודש (ויש גם טבלת עונה) · קטינים משתתפים באישור הורה · שפה מכבדת בלבד · תקלה טכנית מזכה בניסיון חוזר.',
+             'Every game keeps separate points — quiz and picks never mix · boards reset at the start of each month (there is a season board too) · minors play with parental approval · respectful language only · a technical failure earns a retry.')}
         </p>
       </div>
     </div>,
@@ -200,44 +182,10 @@ function RulesSheet({ page, rules, qset, onClose }) {
 }
 
 // ---------- הבית ----------
-// ארבעת מצבי ההגשה (game_challenge_submissions.status) — אותה שפה כמו
-// ב-ChallengeCard: הגשה שהוסרה איננה «ממתינה לאימות».
-const SUB_TX = {
-  approved: ['אומת ✓', 'verified ✓'],
-  pending: ['ממתין לאימות', 'awaiting verification'],
-  rejected: ['הוסרה — אפשר להגיש שוב', 'removed — you can resubmit'],
-  rejectedClosed: ['הוסרה', 'removed'],
-  blocked: ['הוסרה על ידי המאמן', 'removed by the coach'],
-}
-function opensText(iso) {
-  if (!iso) return ''
-  return new Intl.DateTimeFormat(L('he-IL', 'en-GB'), { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }).format(new Date(iso))
-}
-function chLeftText(closesAt) {
-  if (!closesAt) return null
-  const ms = new Date(closesAt).getTime() - serverNow().getTime()
-  if (!Number.isFinite(ms) || ms <= 0) return L('נסגר', 'Closed')
-  const d = Math.floor(ms / 86400000); const h = Math.floor(ms / 3600000); const m = Math.max(1, Math.floor(ms / 60000))
-  if (d >= 1) return L(`נסגר בעוד ${d === 1 ? 'יום' : d === 2 ? 'יומיים' : `${d} ימים`}`, `closes in ${d}d`)
-  if (h >= 1) return L(`נסגר בעוד ${h === 1 ? 'שעה' : h === 2 ? 'שעתיים' : `${h} שע׳`}`, `closes in ${h}h`)
-  return L(`נסגר בעוד ${m === 1 ? 'דקה' : `${m} דק׳`}`, `closes in ${m}m`)
-}
-
 function BwHome({ sum, onPage }) {
   const st = sum.standing || {}
-  useBoundaryTick([sum.challenge?.opens_at, sum.challenge?.closes_at])
   const rankOf = (s) => (s && s.listed && s.rank > 0 ? `#${s.rank}` : '—')
-  const ch = sum.challenge
-  const notYetOpen = !!ch && ch.status === 'open' && !!ch.opens_at && new Date(ch.opens_at).getTime() > serverNow().getTime()
-  const open = !!ch && ch.status === 'open' && !notYetOpen && new Date(ch.closes_at).getTime() > serverNow().getTime()
-  const sub = sum.sub
   const streak = sum.streak?.streak ?? 0
-
-  // «השבוע במגרש»: ההגשות האחרונות לאתגר — הנתון החברתי הקרוב ביותר
-  // שיש לנו (אין עדיין «חברים» בשרת).
-  const recent = [...(sum.feed || [])]
-    .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
-    .slice(0, 3)
 
   const qzSub = () => {
     const s = st.quiz
@@ -251,37 +199,16 @@ function BwHome({ sum, onPage }) {
     if (sum.scoredLeft > 0) return L(sum.scoredLeft === 1 ? 'עוד אחד נספר היום' : `עוד ${sum.scoredLeft} נספרים היום`, sum.scoredLeft === 1 ? '1 more counts today' : `${sum.scoredLeft} more count today`)
     return L('לכיף בלבד היום · המקסימום נצבר', 'For fun today · daily max reached')
   }
-  // «אפשר להגיש שוב» רק כשבאמת אפשר: החלון פתוח וטרם מוצו 5 הגרסאות
-  const subTx = sub ? (SUB_TX[sub.status === 'rejected' && (!open || (sub.version ?? 0) >= 5) ? 'rejectedClosed' : sub.status] || SUB_TX.pending) : null
   const nQ = sum.qset?.solo_questions
 
   return (
     <div className="bw-page bw-home">
       <div className="bw-stats">
         <div className="bw-stat bw-stat--qz"><span className="bw-stat-emoji">🔥</span><b dir="ltr" className="bw-stat-num">{streak}</b><span className="bw-stat-lbl">{L('ימים ברצף בחידון', 'quiz day streak')}</span></div>
-        <div className="bw-stat bw-stat--ch"><span className="bw-stat-emoji">🥇</span><b dir="ltr" className="bw-stat-num">{rankOf(st.challenge)}</b><span className="bw-stat-lbl">{L('מקום באתגר', 'challenge rank')}</span></div>
         <div className="bw-stat bw-stat--pr"><span className="bw-stat-emoji">🎯</span><b dir="ltr" className="bw-stat-num">{rankOf(st.pred)}</b><span className="bw-stat-lbl">{L('בטבלת הניחושים', 'on the picks board')}</span></div>
       </div>
 
       <span className="bw-lbl">{L('המשחקים שלי', 'MY GAMES')}</span>
-
-      <button type="button" className="bw-game" onClick={() => onPage('challenge')}>
-        <span className="bw-tile bw-tile--ch" aria-hidden="true">🎬</span>
-        <span className="bw-game-tx">
-          <b>{ch ? L(`אתגר · ${ch.title}`, `Challenge · ${ch.title}`) : L('האתגר השבועי', 'Weekly challenge')}</b>
-          <span>
-            {!ch ? L('אין אתגר פתוח כרגע — הבא נפתח בקרוב', 'No open challenge — the next one opens soon')
-              : sub ? L(`הגשת ${withUnit(sub.approved_score ?? sub.reported_score, ch.metric_unit)} · ${subTx[0]}`,
-                        `You submitted ${withUnit(sub.approved_score ?? sub.reported_score, ch.metric_unit)} · ${subTx[1]}`)
-              : notYetOpen ? L(`נפתח ב${opensText(ch.opens_at)} — עוד לא מגישים`, `opens ${opensText(ch.opens_at)} — not yet`)
-              : open ? L(`${cnt(sum.feed?.length || 0, 'הגשה אחת בפיד', 'הגשות בפיד')} · עוד לא הגשת`, `${cnt(sum.feed?.length || 0, '1 entry on the feed', 'entries on the feed')} · you haven't submitted`)
-              : ch.status === 'decided'
-                ? L('האתגר הוכרע — התוצאות בפנים', 'Decided — the results are in')
-                : L('החלון נסגר — התוצאות בדרך', 'Window closed — results coming')}
-          </span>
-        </span>
-        <span className="bw-pill bw-pill--ch">{ch && open ? chLeftText(ch.closes_at) : ch && notYetOpen ? L('נפתח בקרוב', 'Opens soon') : ch?.status === 'decided' ? L('הוכרע', 'Decided') : ch ? L('נסגר', 'Closed') : L('בקרוב', 'Soon')}</span>
-      </button>
 
       <button type="button" className="bw-game" onClick={() => onPage('pred')}>
         <span className="bw-tile bw-tile--pr" aria-hidden="true">🔮</span>
@@ -301,26 +228,6 @@ function BwHome({ sum, onPage }) {
         <span className="bw-pill bw-pill--qz">{nQ ? L(`${nQ} שאלות`, `${nQ} questions`) : L('חידון', 'Quiz')}</span>
       </button>
 
-      <span className="bw-lbl">{L('השבוע במגרש', 'THIS WEEK ON COURT')}</span>
-      <div className="bw-card">
-        {recent.length === 0 && (
-          <p className="bw-mut12">
-            {ch ? L('עוד אין הגשות לאתגר — תהיה הראשון על הפיד 🔥', 'No entries yet — be first on the feed 🔥')
-                : L('שקט במגרש. האתגר הבא נפתח בקרוב.', 'Quiet on court. The next challenge opens soon.')}
-          </p>
-        )}
-        {recent.map((r) => (
-          <div key={r.id} className="bw-actv">
-            <span className="bw-avN" aria-hidden="true">{initials(r.display_name)}</span>
-            <span className="bw-txt13">
-              {r.is_mine ? L('אתה הגשת', 'You submitted') : L(`${r.display_name || 'שחקן'} הגיש`, `${r.display_name || 'A player'} submitted`)}
-              {' '}<b><bdi>{withUnit(r.score, ch?.metric_unit)}</bdi></b> {L('באתגר', 'in the challenge')}
-              {r.verified ? ' ✓' : ''}
-            </span>
-            <span className="bw-mut11">{relTime(r.submitted_at)}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -371,7 +278,7 @@ export default function BasketballWorld({ bell = null }) {
         {sum.state === 'notDeployed' && (
           <div className="bw-card bw-empty">
             <b>{L('עולם הכדורסל עוד לא נפתח', 'The basketball world is not open yet')}</b>
-            <p className="bw-mut12">{L('הטבלאות ייפתחו עם האתגר הראשון.', 'Standings open with the first challenge.')}</p>
+            <p className="bw-mut12">{L('הטבלאות ייפתחו עם החידון הראשון.', 'Standings open with the first quiz.')}</p>
           </div>
         )}
         {sum.state === 'error' && (
@@ -383,7 +290,6 @@ export default function BasketballWorld({ bell = null }) {
         )}
         {sum.state === 'ready' && page === 'home' && <BwHome sum={sum} onPage={go} />}
         {sum.state === 'ready' && page === 'quiz' && <BwQuiz {...ctx} />}
-        {sum.state === 'ready' && page === 'challenge' && <BwChallenge {...ctx} />}
         {sum.state === 'ready' && page === 'pred' && <BwPred {...ctx} />}
       </div>
 
