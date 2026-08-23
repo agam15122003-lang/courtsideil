@@ -96,13 +96,17 @@ export default function TeamAssignments({ coachId, team }) {
       return { ...a, title, targets, doneSet, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(keyOf(p))).length, total: targets.length }
     })
 
-    // 1.6 — ארכוב אוטומטי: עבר תאריך היעד, או שכל המקבלים סיימו.
+    // 1.6 — ארכוב אוטומטי: כשכל המקבלים סומנו «ביצע».
+    // ⚠ בצד המאמן בלבד אין ארכוב לפי תאריך היעד: המאמן הוא שמסמן «ביצע»,
+    //   והוא עושה את זה באימון הבא — כלומר אחרי שהתאריך כבר עבר. ארכוב
+    //   בתאריך היה מעלים את המשימה מהטאב הפעיל לפני שהספיק לסמן. סגירה
+    //   לפי תאריך נשארת בידיו, בכפתור «סגירה וארכוב».
     // הכתיבה סובלנית — אם עמודת status (supabase_tasks_launch.sql) טרם
     // נוספה, הסינון פשוט לא ישרוד רענון, והמסך ממשיך לעבוד.
     const todayStr = taToday()
     const toArchive = rows.filter((a) =>
       (a.status || 'active') === 'active' &&
-      ((a.due_date && a.due_date < todayStr) || (a.total > 0 && a.done >= a.total)))
+      ((!COACH_MODE && a.due_date && a.due_date < todayStr) || (a.total > 0 && a.done >= a.total)))
     if (toArchive.length > 0) {
       supabase.from('player_assignments').update({ status: 'archived' })
         .in('id', toArchive.map((a) => a.id)).then(() => {})
@@ -146,6 +150,13 @@ export default function TeamAssignments({ coachId, team }) {
         ? L('כדי לסמן ביצוע צריך להריץ את supabase_coach_only_22_8.sql', 'Marking done needs supabase_coach_only_22_8.sql')
         : L('הסימון נכשל — נסה שוב', 'Failed to mark — try again'))
       return
+    }
+    // ביטול סימון של משימה שכבר בארכיון מחזיר אותה לפעילה: סימון בטעות של
+    // המקבל האחרון ארכב אותה מיד, ובלי זה לא הייתה דרך חזרה.
+    if (!isDone && (a.status || 'active') === 'archived') {
+      const { error: unErr } = await supabase.from('player_assignments').update({ status: 'active' }).eq('id', a.id)
+      if (unErr) toast.error(L('הסימון בוטל, אבל החזרת המשימה לפעילות נכשלה', 'The mark was cleared, but restoring the task to active failed'))
+      else if (view === 'archive') toast.success(L('המשימה חזרה לרשימת המשימות הפעילות', 'The task is back in the active list'))
     }
     load()
   }
@@ -281,8 +292,9 @@ export default function TeamAssignments({ coachId, team }) {
                               <span className="ta-partial" dir="ltr">{COACH_MODE && !done && view === 'active' ? `/${a.target_value}` : `${prog}/${a.target_value}`}</span>
                             </span>
                           ) : null}
-                          {COACH_MODE && view === 'active' ? (
-                            /* המאמן מסמן «ביצע» בעצמו — לחיצה נוספת מבטלת */
+                          {COACH_MODE ? (
+                            /* המאמן מסמן «ביצע» בעצמו — לחיצה נוספת מבטלת.
+                               גם בארכיון: ביטול שם מחזיר את המשימה לפעילה. */
                             <button type="button" className={done ? 'ta-status done ta-mark' : 'ta-status ta-mark'}
                               aria-pressed={done} onClick={() => writeMark(a, p, { done: !done })}>
                               {done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('סמן ביצע', 'Mark done')}</>}

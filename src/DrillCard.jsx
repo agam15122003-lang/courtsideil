@@ -153,7 +153,9 @@ export default function DrillCard({
           {/* מסך 5a — תרשים חצי-מגרש אמיתי כתמונה ממוזערת בקצה הכרטיס */}
           {hasBoard && (
             <span className="drill-thumb" aria-hidden="true">
-              <CourtDiagram full={!!drill.board.fullCourt} step={drill.board.steps[0]} index={0} />
+              {/* portrait חייב לעבור: בלעדיו לוח «לאורך» צויר במערכת צירים
+                  אחרת — השחקנים והדיו נחתו מחוץ למגרש בתמונה הממוזערת */}
+              <CourtDiagram full={!!drill.board.fullCourt} portrait={!!drill.board.portrait} step={drill.board.steps[0]} index={0} />
             </span>
           )}
           <div className="drill-compact-head">

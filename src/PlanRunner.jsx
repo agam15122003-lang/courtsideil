@@ -43,6 +43,9 @@ export default function PlanRunner({ items, planName, onExit }) {
   const hasDur = totalSeconds > 0
   const deadlineRef = useRef(null)
   const beepedRef = useRef(false)
+  // AudioContext יחיד לכל חיי המסך. iOS פותח אותו מושהה כשלא נוצר מתוך
+  // מגע אמיתי, ולכן צריך גם ליצור וגם resume מתוך מחווה — ולא לסגור אותו.
+  const audioCtxRef = useRef(null)
 
   // ---- נעילת גלילה מאחורי המסך המלא ----
   useEffect(() => {
@@ -57,12 +60,16 @@ export default function PlanRunner({ items, planName, onExit }) {
     const request = async () => {
       try {
         if (!('wakeLock' in navigator)) return
-        lock = await navigator.wakeLock.request('screen')
+        const l = await navigator.wakeLock.request('screen')
+        // הבקשה נפתרה אחרי שהמסך נסגר — משחררים מיד, אחרת הנעילה דולפת
+        if (!alive) { try { await l.release() } catch { /* כבר שוחרר */ } return }
+        lock = l
       } catch { /* נדחה (סוללה חלשה / אין תמיכה) — ממשיכים בלי */ }
     }
     request()
-    // חזרה מרקע משחררת את הנעילה — מבקשים אותה מחדש
-    const onVis = () => { if (alive && !document.hidden && !lock?.released) request() }
+    // חזרה מרקע משחררת את הנעילה — מבקשים מחדש **רק** כשאין נעילה חיה.
+    // התנאי הקודם היה הפוך: אחרי release הוא דווקא נמנע מלבקש, והמסך נכבה.
+    const onVis = () => { if (alive && !document.hidden && (!lock || lock.released)) request() }
     document.addEventListener('visibilitychange', onVis)
     return () => {
       alive = false
@@ -71,14 +78,19 @@ export default function PlanRunner({ items, planName, onExit }) {
     }
   }, [])
 
-  // ---- מעבר תרגיל — איפוס הטיימר למשך של התרגיל החדש ----
-  useEffect(() => {
-    setSecondsLeft((Number(items[index]?.duration_minutes) || 0) * 60)
+  // ---- מעבר תרגיל — נקודת מעבר אחת ----
+  // קודם האיפוס ישב באפקט נפרד על [index], ולכן קרה **אחרי** הרינדור:
+  // אפקט הטיימר הספיק לראות את השניות של התרגיל הקודם, והתרגיל הבא התחיל
+  // מהזמן שנשאר (או מיד ב-00:00 עם «הזמן נגמר» וביפ). כאן הכול באותו רינדור.
+  const goTo = useCallback((i) => {
+    const n = Math.min(Math.max(i, 0), Math.max(items.length - 1, 0))
+    setIndex(n)
+    setSecondsLeft((Number(items[n]?.duration_minutes) || 0) * 60)
     setPaused(false)
     setShowDetail(false)
     beepedRef.current = false
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index])
+    setResetKey((k) => k + 1)
+  }, [items])
 
   // ---- הטיימר ----
   useEffect(() => {
@@ -100,6 +112,18 @@ export default function PlanRunner({ items, planName, onExit }) {
   const timeUp = hasDur && secondsLeft === 0
   const frac = hasDur ? secondsLeft / totalSeconds : 0 // חלק הזמן שנותר (0..1)
 
+  // ---- שחרור האודיו ממחווה אמיתית ----
+  // ב-iPad הביפ היה שותק: AudioContext שנוצר מחוץ למגע נפתח suspended ואף
+  // אחד לא החזיר אותו ל-running (ו-navigator.vibrate לא קיים ב-iOS בכלל).
+  const unlockAudio = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (!Ctx) return
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctx()
+      if (audioCtxRef.current.state !== 'running') audioCtxRef.current.resume()
+    } catch { /* אין תמיכה באודיו — נשארים עם הרטט וההבהוב */ }
+  }, [])
+
   // ---- סוף תרגיל: ביפ + רטט, פעם אחת לכל תרגיל ----
   const beep = useCallback(() => {
     try { navigator.vibrate && navigator.vibrate([140, 70, 140]) } catch { /* לא נתמך */ }
@@ -107,7 +131,10 @@ export default function PlanRunner({ items, planName, onExit }) {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext
       if (!Ctx) return
-      const ctx = new Ctx()
+      // משתמשים ב-ctx המשוחרר; יצירת אחד חדש כאן הייתה נולדת מושהית
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctx()
+      const ctx = audioCtxRef.current
+      if (ctx.state !== 'running') ctx.resume()
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'sine'
@@ -117,7 +144,8 @@ export default function PlanRunner({ items, planName, onExit }) {
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5)
       osc.connect(gain); gain.connect(ctx.destination)
       osc.start(); osc.stop(ctx.currentTime + 0.52)
-      osc.onended = () => ctx.close()
+      // מנתקים ולא סוגרים: close() היה הורג את ה-ctx המשוחרר עד סוף האימון
+      osc.onended = () => { try { osc.disconnect(); gain.disconnect() } catch { /* כבר מנותק */ } }
     } catch { /* דפדפן שחוסם אודיו בלי אינטראקציה — הרטט מספיק */ }
   }, [muted])
 
@@ -125,8 +153,8 @@ export default function PlanRunner({ items, planName, onExit }) {
     if (timeUp && !beepedRef.current) { beepedRef.current = true; beep() }
   }, [timeUp, beep])
 
-  const next = () => setIndex((i) => Math.min(i + 1, items.length - 1))
-  const prev = () => setIndex((i) => Math.max(i - 1, 0))
+  const next = () => goTo(index + 1)
+  const prev = () => goTo(index - 1)
   const resetTimer = () => {
     setSecondsLeft(totalSeconds)
     setPaused(false)
@@ -152,8 +180,9 @@ export default function PlanRunner({ items, planName, onExit }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+    // index בתלויות: בלעדיו next/prev כאן היו סוגרים על אינדקס ישן
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length])
+  }, [items.length, index, goTo])
 
   const nextItem = items[index + 1]
   const nextTitle = nextItem ? nextItem.drill?.title || nextItem.title : null
@@ -163,6 +192,33 @@ export default function PlanRunner({ items, planName, onExit }) {
   // aria-modal="true" בלי מלכודת פוקוס הוא הצהרה לא נכונה: הסיידבר
   // והתפריט התחתון נשארים בסדר ה-Tab מתחת לשכבה האטומה.
   const fsRef = useFocusTrap(true, onExit)
+
+  // עם מקלדת חיצונית מלכודת הפוקוס נחתה על כפתור ה-X, ורווח «השהיה» היה
+  // מפעיל אותו ויוצא מהאימון. אפקטים רצים לפי סדר ההצהרה, ולכן המיקוד כאן
+  // מגיע אחרי המיקוד ההתחלתי של המלכודת ומנצח אותו.
+  const playRef = useRef(null)
+  useEffect(() => { playRef.current?.focus?.() }, [])
+
+  // כל נגיעה/הקשה בתוך מסך הריצה משחררת את האודיו (iOS דורש מחווה),
+  // וגם חזרה מרקע — iPadOS משהה את ה-AudioContext כשהדף לא גלוי.
+  useEffect(() => {
+    const node = fsRef.current
+    const onVis = () => { if (!document.hidden) unlockAudio() }
+    node?.addEventListener('pointerdown', unlockAudio, { capture: true, passive: true })
+    node?.addEventListener('keydown', unlockAudio, true)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      node?.removeEventListener('pointerdown', unlockAudio, { capture: true })
+      node?.removeEventListener('keydown', unlockAudio, true)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [unlockAudio, fsRef])
+
+  // סוגרים את ה-ctx פעם אחת בלבד — ביציאה מהמסך
+  useEffect(() => () => {
+    try { audioCtxRef.current?.close() } catch { /* כבר סגור */ }
+    audioCtxRef.current = null
+  }, [])
 
   return (
     <div ref={fsRef} className={timeUp ? 'runner-fs time-up' : 'runner-fs'} role="dialog" aria-modal="true"
@@ -198,7 +254,7 @@ export default function PlanRunner({ items, planName, onExit }) {
             key={it.id}
             type="button"
             className={i < index ? 'runner-step done' : i === index ? 'runner-step current' : 'runner-step'}
-            onClick={() => setIndex(i)}
+            onClick={() => goTo(i)}
             aria-label={L(`מעבר לתרגיל ${i + 1}`, `Go to drill ${i + 1}`)}
             aria-current={i === index ? 'step' : undefined}
           />
@@ -249,11 +305,11 @@ export default function PlanRunner({ items, planName, onExit }) {
           </button>
 
           {hasDur ? (
-            <button type="button" className="runner-play" onClick={() => setPaused((p) => !p)} disabled={timeUp}>
+            <button ref={playRef} type="button" className="runner-play" onClick={() => setPaused((p) => !p)} disabled={timeUp}>
               {paused ? <><Play size={20} /> {L('המשך', 'Resume')}</> : <><Pause size={20} /> {L('השהה', 'Pause')}</>}
             </button>
           ) : (
-            <button type="button" className="runner-play" onClick={next} disabled={isLast}>
+            <button ref={playRef} type="button" className="runner-play" onClick={next} disabled={isLast}>
               {L('סיימנו — לתרגיל הבא', 'Done — next drill')}
             </button>
           )}

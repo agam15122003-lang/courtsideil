@@ -179,7 +179,10 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         <div className="nh-next nh-next-empty">
           <span className="nh-next-tag"><CalendarClock size={12} aria-hidden="true" /> {L('האימון הקרוב', 'Next practice')}</span>
           <h2 className="nh-next-title">{L('אין אימון קרוב בלו״ז', 'No upcoming practice')}</h2>
-          <p className="nh-next-meta">{L('קבעו ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ואצל השחקנים.', 'Set fixed practice days in My teams — they show up here and for your players.')}</p>
+          {/* צד המאמן בלבד: אין שחקנים שיראו את הימים הקבועים */}
+          <p className="nh-next-meta">{PLAYER_SIDE
+            ? L('קבעו ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ואצל השחקנים.', 'Set fixed practice days in My teams — they show up here and for your players.')
+            : L('קבעו ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ובלו״ז השבועי.', 'Set fixed practice days in My teams — they show up here and in your weekly schedule.')}</p>
           <div className="nh-next-acts">
             <button type="button" className="nh-btn nh-btn-primary" onClick={() => onNavigate('teams')}>
               <CalendarPlus size={16} aria-hidden="true" /> {L('קביעת ימי אימון', 'Set practice days')}
@@ -194,7 +197,10 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       <div className="np-card np-empty">
         <span className="np-eyebrow"><CalendarClock size={15} /> {L('האימון הבא', 'Next practice')}</span>
         <h3 className="np-empty-title">{L('אין אימון קרוב בלו"ז', 'No upcoming practice')}</h3>
-        <p className="muted small">{L('קבע ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ואצל השחקנים.', 'Set fixed practice days in My teams — they show up here and for your players.')}</p>
+        {/* צד המאמן בלבד: אין שחקנים שיראו את הימים הקבועים */}
+        <p className="muted small">{PLAYER_SIDE
+          ? L('קבע ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ואצל השחקנים.', 'Set fixed practice days in My teams — they show up here and for your players.')
+          : L('קבע ימי אימון קבועים בקבוצות שלי — והם יופיעו כאן ובלו״ז השבועי.', 'Set fixed practice days in My teams — they show up here and in your weekly schedule.')}</p>
         <button className="btn-primary np-cta" onClick={() => onNavigate('teams')}>
           <CalendarPlus size={17} /> {L('קביעת ימי אימון', 'Set practice days')}
         </button>
@@ -266,7 +272,20 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
           <button
             type="button"
             className="nh-btn nh-btn-primary"
-            onClick={() => onNavigate(entry.team && !entry.is_personal ? 'teams' : 'schedule')}
+            /* «סימון נוכחות» ניווט לטאב הסגל בקבוצה — מסך אחר לגמרי.
+               עכשיו הוא פותח את גיליון הנוכחות והמשוב של האימון הקרוב עצמו;
+               אימון אישי או אירוע בלי קבוצה נופלים ללו"ז, כמו קודם. */
+            onClick={() => {
+              if (entry.team && !entry.is_personal) {
+                setReport({
+                  id: entry.id, team: entry.team, date: entry.date, start_time: entry.start_time,
+                  session_type: isGame ? 'game' : 'practice', opponent: entry.opponent,
+                  location: entry.location,
+                })
+              } else {
+                onNavigate('schedule')
+              }
+            }}
           >
             <UserCheck size={16} aria-hidden="true" /> {L('סימון נוכחות', 'Mark attendance')}
           </button>

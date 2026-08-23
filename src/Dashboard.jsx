@@ -416,11 +416,21 @@ export default function Dashboard({ session }) {
   }, [drawerOpen, view])
 
   useEffect(() => {
-    const onPop = () => {
+    const onPop = async () => {
       if (backGuardRef.current === 0) return // הרשומה שלנו כבר נצרכה
       backGuardRef.current = 0
       if (drawerOpen) { setDrawerOpen(false); return }
-      if (view !== 'home') setView('home')
+      if (view === 'home') return
+      // מחוות ה-Back של הדפדפן (החלקה מקצה המסך באייפד) פירקה את המחברת
+      // בלי לשאול — כל מה שנכתב מאז השמירה האחרונה נעלם. עכשיו היא עוברת
+      // דרך אותו שומר כמו הסרגל וניווט־הכיס; ביטול מחזיר את רשומת ההיסטוריה
+      // כדי שה-Back הבא ייתפס שוב.
+      if (!(await confirmLeave())) {
+        try { window.history.pushState({ csGuard: 'screen' }, '') } catch { /* ignore */ }
+        backGuardRef.current = 1
+        return
+      }
+      setView('home')
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -645,6 +655,10 @@ export default function Dashboard({ session }) {
               className={view === item.id ? 'nav-item active' : 'nav-item'}
               onClick={async () => {
                 if (!(await confirmLeave())) return
+                // עורך הפרופיל (showForm) מאפיל על ה-view, ולכן בלי איפוסו
+                // לחיצה על פריט בסרגל/מגירה לא עשתה כלום. שאר מסלולי הניווט
+                // כבר מאפסים אותו.
+                setEditing(false)
                 setView(item.id)
                 setDrawerOpen(false)
               }}
@@ -853,7 +867,14 @@ export default function Dashboard({ session }) {
             </Page>
           ) : view === 'messages' ? (
             <Page {...PAGE_META.messages(navigate)}>
-              <Messages session={session} profile={profile} onNavigate={navigate} />
+              {/* onRead — מסך ההודעות מדווח כמה הודעות סימן «נקרא», והבאדג׳
+                  יורד מיד במקום להישאר תקוע עד ה-poll הבא (60 שנ׳). */}
+              <Messages
+                session={session}
+                profile={profile}
+                onNavigate={navigate}
+                onRead={(n) => setUnread((u) => Math.max(0, u - n))}
+              />
             </Page>
           ) : (
             /* הפרופיל היה המסך היחיד בלי באנר ובלי H1 — PAGE_META.profile

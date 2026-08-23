@@ -149,6 +149,9 @@ function Comments({ post, myId, onChanged }) {
   }
 
   const remove = async (id) => {
+    // מחיקת תגובה הייתה מיידית ובלתי הפיכה — הכפתור שקוף וזעיר, ובמגע קל
+    // לפגוע בו בטעות. אותו שער בדיוק כמו במחיקת פוסט.
+    if (!(await confirmDialog({ message: L('למחוק את התגובה?', 'Delete this comment?'), danger: true }))) return
     const { error } = await supabase.from('community_post_comments').delete().eq('id', id)
     if (error) {
       toast.error(L('המחיקה נכשלה: ', 'Failed to delete: ') + error.message)

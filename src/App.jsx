@@ -93,7 +93,9 @@ export default function App() {
 
   const goAuth = (next, mode) => {
     if (mode) setAuthMode(mode)
-    setAuthTrail((trail) => [...trail, authStep])
+    // ניווט אל אותו מסך אינו "צעד" — דחיפת רשומה כזאת לשביל החזרה גרמה
+    // ל«חזרה» לדרוש כמה הקשות עד שמשהו קרה.
+    if (next !== authStep) setAuthTrail((trail) => [...trail, authStep])
     setAuthStep(next)
   }
   const backAuth = () => {
@@ -227,6 +229,9 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
+      // יציאה מיד אחרי הרשמה באותו סשן נחתה על טופס «יצירת חשבון» —
+      // authMode נשאר 'signup' מההרשמה. התנתקות מחזירה למסך הכניסה.
+      if (event === 'SIGNED_OUT') setAuthMode('signin')
       // אם Supabase מזהה אירוע של שחזור סיסמה — מציג את מסך הסיסמה החדשה
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryMode(true)
@@ -368,7 +373,10 @@ export default function App() {
           role={role}
           initialMode={authMode}
           onBack={backAuth}
-          onSignupFlow={() => goAuth(PLAYER_SIDE ? 'role' : 'auth', 'signup')}
+          /* צד המאמן בלבד: אין מסך בחירת תפקיד, ולכן אין לאן לנווט — בלי
+             ה-prop הזה טאב «הרשמה» מחליף מצב בתוך Auth עצמו (goMode) במקום
+             לנווט מחדש לאותו מסך ולא לעשות כלום. */
+          onSignupFlow={PLAYER_SIDE ? () => goAuth('role', 'signup') : undefined}
         />
       )}
 

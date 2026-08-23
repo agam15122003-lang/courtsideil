@@ -30088,3 +30088,327 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .ta-mark:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
 .ta-prog-in { width: 56px; min-height: 32px; padding: 2px 6px; font-size: 13px; text-align: center; }
 @media (pointer: coarse) { .ta-mark { min-height: 44px; } .ta-prog-in { min-height: 40px; } }
+
+/* =====================================================================
+   23.8.2026 — סבב תיקוני אייפד (סקירה רב-סוכנית)
+   ---------------------------------------------------------------------
+   append-only: אין כאן עריכה של אף כלל קיים. הכול נוסף בסוף הקובץ,
+   וכללים מאוחרים גוברים. המידות (73px לכותרת הלוח הטקטי, 61px לסרגל
+   העליון) נמדדו חי ב-768×1024 עם hasTouch, ולא נוחשו.
+   ===================================================================== */
+
+/* --- 1. הלו״ז: הטור הצדדי היה חסר עיצוב מתחת ל-1100 ---
+   כל כללי csx-* חיו בתוך @media (min-width: 1100px), ולכן בכל רוחב
+   אייפד שלושת הכרטיסים נשפכו כ-HTML חשוף מתחת ללוח השבוע. כאן חוזרים
+   רק הכללים החזותיים — בלי גריד שתי העמודות, בלי sticky, ובלי
+   cursor: crosshair על עמודות הימים (שם המגע צריך לגלול). */
+.csx-quick {
+  background: linear-gradient(160deg, var(--navy), var(--navy-2));
+  color: #fff;
+  border-radius: 16px;
+  padding: 14px;
+}
+.csx-eyebrow {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-block-end: 10px;
+}
+.csx-eyebrow-accent { color: var(--accent-strong); }
+.csx-quick-row {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: start;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  padding: 9px 12px;
+  color: inherit;
+  cursor: pointer;
+}
+.csx-quick-row + .csx-quick-row { margin-block-start: 7px; }
+.csx-quick-row b { display: block; font-size: 13.5px; }
+.csx-quick-row .muted { color: rgba(255, 255, 255, 0.72); }
+
+.csx-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-start: 8px;
+  padding: 0 2px;
+}
+.csx-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.csx-dot {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.csx-dot.practice { background: var(--navy); }
+.csx-dot.personal { background: var(--c-orange-bg); border: 1px solid var(--accent); }
+.csx-dot.meeting  { background: var(--accent-fill); }
+.csx-dot.game     { background: var(--ink-900); }
+
+.csx-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.csx-stats > div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 8px;
+  text-align: center;
+}
+.csx-stats .stat-num { display: block; font-size: 24px; }
+
+.csx-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 15px;
+}
+.csx-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 9px;
+}
+.csx-card-head .csx-eyebrow { margin-block-end: 0; }
+.csx-next-title {
+  font-family: 'Heebo', system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 17px;
+  margin: 7px 0 3px;
+}
+.csx-next-meta { margin: 0 0 10px; }
+.csx-next-actions { display: flex; gap: 7px; }
+.csx-next-actions .btn-primary { flex: 1; }
+.csx-slotrows { display: grid; gap: 6px; }
+.csx-slotrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 11px;
+}
+.csx-slotrow > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.csx-slotrow b {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.csx-slotrow-when {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.csx-slots-note { margin: 0; padding: 0 2px; }
+/* מתחת ל-1100 הטור הוא ערימה מתחת ללוח, בלי דביקות ובלי גלילה משלו */
+@media (max-width: 1099.98px) {
+  .csx-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-block-start: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) { .csx-quick-row { transition: none; } }
+
+/* --- 2. הלוח הטקטי במסך מלא: הסרגל הדביק כיסה את «סיום — חזרה למחברת» ---
+   .tb-toolbar יושב ב-z-index 25 מול 2 של הכותרת, ונדבק ב-top:8px.
+   הכותרת נמדדה 73px, ולכן הסרגל נעצר 8px מתחתיה. */
+.tb-fs-head { z-index: 30; }
+.tb-fullscreen .tb-toolbar { top: 81px; }
+
+/* --- 3. פס ההתקדמות בהרצת אימון: יעד המגע נחתך ---
+   ה-::after בגובה 44px נחתך על ידי overflow-x: auto של הרצועה ונשאר
+   פס של כ-7px. ריפוד אנכי מכניס אותו לתוך תיבת החיתוך, ומרג׳ין שלילי
+   זהה מחזיר את הרצועה למקומה. */
+.runner-fs .runner-steps {
+  padding-block: 18px;
+  margin-block: -18px;
+  overflow-x: auto;
+}
+
+/* --- 4. סקירת אימון: יעדי מגע 27–34px במסך שהמאמן נוגע בו הכי הרבה --- */
+@media (pointer: coarse) {
+  .sd-att-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 16px;
+  }
+  .sd-mvp, .sd-note-btn { width: 44px; height: 44px; }
+}
+
+/* --- 5. כפתור הסגירה של הסקירה כיסה את «סקירת אימון» ---
+   ה-X ממוקם ב-inset-inline-start: 12px וברוחב 44px במגע, ולכן הכותרת
+   שומרת לו פינה בעזרת ריפוד לוגי (12 + 44 + 10). */
+.sd-hero { padding-inline-start: 66px; }
+
+/* --- 6. המחברת באייפד: טור המגרשים הדביק נכנס מתחת לסרגל העליון ---
+   בטווח העריכה הסרגל הדביק נמדד 61px, והמרווח המקורי הוא 12px. */
+@media (min-width: 841px) and (max-width: 1400px) and (pointer: coarse) {
+  .layout:has(.nbk-focus) .nbk-courts { top: calc(73px + env(safe-area-inset-top)); }
+}
+
+/* --- 7. סרגל המגרש הקטן צויר מעל משטח הציור ---
+   שני כפתורי 44px ישבו על פינת המגרש, והקו הראשון של העט פגע בהם.
+   מתחת ל-720px המגרש כולו כפתור פתיחה (אין שם ציור כלל) ולכן הטווח
+   מתחיל ב-721px, שם גם יש רוחב טור לשורה. */
+@media (min-width: 721px) and (pointer: coarse) {
+  .mini-court-tools {
+    position: static;
+    opacity: 1;
+    justify-content: flex-end;
+    margin-block-start: 4px;
+  }
+}
+
+/* --- 8. הקבוצות באייפד שוכב: הפאנל הצדדי הופיע פעם שנייה ---
+   ב-941–1120 .team-split מתקפל לעמודה אחת, אבל .team-side נשאר גלוי,
+   ו«המשחק הבא» + טבלת הליגה חזרו מתחת לסגל. הכלל של מתחת ל-940 כבר מסתיר. */
+@media (min-width: 941px) and (max-width: 1120px) and (pointer: coarse) {
+  .team-side { display: none; }
+}
+
+/* --- 9. מחיקת יום אימון קבוע: יעד של 19px ---
+   הכפתור כבר position: absolute, ולכן שטח מגע שקוף סביבו לא מזיז כלום. */
+@media (pointer: coarse) {
+  .sg-del::after { content: ''; position: absolute; inset: -13px; }
+}
+
+/* --- 10. מחיקת תגובה בקהילה: opacity 0 עד hover ---
+   באייפד אין ריחוף — הכפתור היה בלתי נראה אך לחיץ. */
+@media (hover: none) {
+  .cm-comment-del { opacity: 0.6; }
+}
+@media (pointer: coarse) {
+  .cm-comment-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* --- 11. מחיקה באצבע בזמן שהעט ביד ---
+   html.has-pen מרשה pan-y כדי שהאצבע תגלול, אבל במצב מחיקה שפשוף
+   אנכי גלל את הדף וביטל את המחיקה. את המחלקה is-erasing מוסיפים
+   NotebookBody ו-MiniCourt; כאן רק מחזירים touch-action: none. */
+@media (pointer: coarse) {
+  html.has-pen .nbk-body.is-erasing .nbk-ink { touch-action: none; }
+  html.has-pen .mini-court.is-edit .mini-court-svg.is-erasing { touch-action: none; }
+}
+
+/* --- 12. הבאנר ב-769–840: מרג׳ינים שליליים בגודל של הטלפון ---
+   .main-content שם מרפד 16px, אבל .cs-page משך 24px לצדדים ו-32px
+   למעלה — הבאנר נכנס מתחת לסרגל והפינות המעוגלות נחתכו. */
+@media (min-width: 769px) and (max-width: 840px) and (pointer: coarse) {
+  .cs-page {
+    margin-block-start: calc(var(--space-4) * -1);
+    margin-inline: calc(var(--space-4) * -1);
+  }
+}
+
+/* --- 13. בורר העומס: 14px הוא זום אוטומטי בספארי --- */
+.sd-eff-sel { font-size: 16px; }
+
+/* --- 14. מחלקות חדשות שסוכנים אחרים מוסיפים בסבב הזה --- */
+/* שורת העומס בכרטיס השחקן בסקירה */
+.sd-effort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-block-start: 8px;
+}
+.sd-effort .sd-effort-lbl {
+  flex: none;
+  margin-block-end: 0;
+  margin-inline-end: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* צ׳יפ עומס 1..10 — ריבוע קטן במשפחת .sd-gm ו-.pg-period */
+.sd-e {
+  min-inline-size: 34px;
+  min-block-size: 34px;
+  height: auto;
+  border-radius: 10px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  touch-action: manipulation;
+}
+.sd-effort .sd-e { flex: none; }
+.sd-e:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+/* נבחר: מילוי אקצנט עם לבן. --accent-fill הוא הטוקן שנבדק ל-4.5:1 מול לבן */
+.sd-e.on {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: #fff;
+}
+/* «כולם נוכחים» מעל רשימת הסגל */
+.sd-allpresent {
+  align-self: start;
+  margin-block-end: 8px;
+}
+@media (pointer: coarse) {
+  .sd-e { min-inline-size: 44px; min-block-size: 44px; }
+  .sd-allpresent { min-height: 44px; }
+  /* «הושג» יושב ליד פח מחיקה — יעד קטן מדי ליד פעולה הרסנית */
+  .pg-check { width: 44px; height: 44px; }
+}
+
+/* --- 15. השלמות שנמצאו באימות החי של הבלוק הזה --- */
+/* 6ב. אותו באג בדיוק גם ב-769–840: שם המגירה היא שלד הטלפון, הסרגל
+   העליון דביק ב-61px, וטור המגרשים המשיך להידבק ב-12px ונכנס מתחתיו.
+   נמדד חי ב-820×1180. */
+@media (min-width: 769px) and (max-width: 840px) and (pointer: coarse) {
+  .layout:has(.nbk-focus) .nbk-courts { top: calc(73px + env(safe-area-inset-top)); }
+}
+/* 12ב. אותו פער מרג׳ין גם בבלוק העריכה (841–1400): שם הריפוד הצדדי הוא
+   space-5 מול משיכה של space-6, ודף המחברת יצא 8px מרוחב המסך
+   (נמדד 1032px ב-1024×768). הבאנר מוסתר ממילא במצב עריכה. */
+@media (min-width: 841px) and (max-width: 1400px) and (pointer: coarse) {
+  .layout:has(.nbk-focus) .cs-page,
+  .layout:has(.drillform-head) .cs-page {
+    margin-block-start: calc(var(--space-4) * -1);
+    margin-inline: calc(var(--space-5) * -1);
+  }
+}
+/* 1ב. מצב כהה: --navy מוגדר שם כ---text (כמעט לבן), ולכן הגרדיאנט של
+   כרטיס ההוספה המהירה יצא בהיר וטקסט לבן עליו נעלם. זוג ה-hero כהה
+   בשתי הערכות, ולכן הוא הבסיס הנכון כאן. נצפה חי ב-768×1024 כהה. */
+[data-theme='dark'] .csx-quick {
+  background: linear-gradient(160deg, var(--hero-navy), var(--hero-navy-2));
+}

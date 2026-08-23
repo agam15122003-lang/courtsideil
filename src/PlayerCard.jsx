@@ -13,6 +13,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE } from './flags'
+import { confirmDialog } from './confirm'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
 import { ChevronBack } from './DirIcon'
@@ -31,10 +32,13 @@ const ageOf = (birthDate, birthYear) => {
   return null
 }
 
+// 'absent' חסר כאן: שחקן «לא פעיל» בסגל הוצג ככשיר, וכל לחיצה על כפתור
+// זמינות החזירה אותו בשקט לפעיל. הרשימה חייבת לכסות את כל סטטוסי הסגל.
 const AVAIL = [
   { id: 'active', label: ['כשיר', 'Fit'], tone: 'ok' },
   { id: 'injured', label: ['פצוע', 'Injured'], tone: 'bad' },
   { id: 'sick', label: ['חולה', 'Sick'], tone: 'warn' },
+  { id: 'absent', label: ['לא פעיל', 'Inactive'], tone: 'warn' },
 ]
 
 export default function PlayerCard({ coachId, team, player, onBack, onOpenDossier }) {
@@ -68,7 +72,8 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
   }
 
   // ---------- זמינות ----------
-  const [avail, setAvail] = useState(player.status === 'injured' || player.status === 'sick' ? player.status : 'active')
+  // אתחול מהסטטוס האמיתי בסגל, ולא «כל מה שאינו פצוע/חולה הוא כשיר»
+  const [avail, setAvail] = useState(AVAIL.some((a) => a.id === player.status) ? player.status : 'active')
   const [availNote, setAvailNote] = useState(player.injury_note || '')
   const [availSince, setAvailSince] = useState(player.availability_since || null)
   const saveAvail = async (nextStatus, note) => {
@@ -210,7 +215,16 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
     loadNotes()
   }
   const delNote = async (id) => {
-    await supabase.from('coach_notes').delete().eq('id', id)
+    // הערה פרטית נמחקה בלחיצה אחת, וכישלון מחיקה נראה בדיוק כמו הצלחה
+    const ok = await confirmDialog({
+      title: L('למחוק את ההערה?', 'Delete this note?'),
+      message: L('ההערה הפרטית תימחק לצמיתות. אי אפשר לשחזר.', 'The private note will be permanently deleted. This cannot be undone.'),
+      confirmText: L('מחיקה', 'Delete'),
+      danger: true,
+    })
+    if (!ok) return
+    const { error } = await supabase.from('coach_notes').delete().eq('id', id)
+    if (error) { toast.error(L('המחיקה נכשלה — נסו שוב בעוד רגע.', 'Delete failed — try again in a moment.')); return }
     setNotes((cur) => (cur || []).filter((n) => n.id !== id))
   }
 
@@ -303,7 +317,8 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
                 {stats.trend === -1 && <TrendingDown size={13} className="pc-trend down" aria-label={L('במגמת ירידה', 'Declining')} />}
                 {stats.trend === 0 && <Minus size={13} className="pc-trend" aria-hidden="true" />}
               </span>
-              <span className="gb-stat">{L('ממוצע קושי', 'Avg load')} <b dir="ltr">{stats.avgEffort ?? '—'}</b></span>
+              {/* «עומס» בכל האפליקציה — כאן זה נקרא «קושי», ונראה כמו מדד אחר */}
+              <span className="gb-stat">{L('ממוצע עומס', 'Avg load')} <b dir="ltr">{stats.avgEffort ?? '—'}</b></span>
               <span className="gb-stat">{L('חיסורים רצופים', 'Absent streak')} <b dir="ltr">{stats.absentRun}</b></span>
             </div>
             {stats.absentRun >= 3 && (
@@ -311,7 +326,7 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
             )}
             {stats.recentEff.length > 0 && (
               <p className="muted small">
-                {L('דיווחי הקושי האחרונים: ', 'Recent load reports: ')}
+                {L('דיווחי העומס האחרונים: ', 'Recent load reports: ')}
                 {stats.recentEff.map((r) => `${r.session_date ? ilShort(r.session_date).slice(0, -5) : ''} ${r.effort}/10`).join(' · ')}
               </p>
             )}
@@ -357,9 +372,10 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
         {hasPerson ? (
           <>
             <div className="pc-fb-add">
-              <input className="finder-input" value={fbText} maxLength={2000}
+              {/* textarea ולא input: במקלדת של אייפד Enter שלח משוב חצי-כתוב,
+                  ולא הייתה שום דרך לכתוב שורה שנייה. */}
+              <textarea className="finder-input" rows={2} value={fbText} maxLength={2000}
                 onChange={(e) => setFbText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendFeedback()}
                 placeholder={L('משוב אישי לשחקן…', 'Personal feedback…')} />
               <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={sendFeedback} disabled={!fbText.trim()} aria-label={L('שליחה', 'Send')}>
                 <Send size={15} />
@@ -373,7 +389,9 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
                   <li key={f.id} className="pc-fb">
                     <span className="muted small pc-fb-when">
                       {ilShort((f.created_at || '').slice(0, 10))}
-                      {f.session_type === 'game' ? ` · ${L('משחק', 'Game')}` : f.session_id ? ` · ${L('אימון', 'Practice')}` : ''}
+                      {/* session_id לא נשלף כאן, ולכן משוב מאימון מעולם לא תוייג.
+                          session_type כן נשלף — ולפיו מתייגים את שני הסוגים. */}
+                      {f.session_type === 'game' ? ` · ${L('משחק', 'Game')}` : f.session_type === 'practice' ? ` · ${L('אימון', 'Practice')}` : ''}
                     </span>
                     <span className="pc-fb-tx">{f.content}</span>
                   </li>
@@ -391,9 +409,9 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
         <h3 className="ta-title"><Lock size={16} /> {L('הערות מאמן', 'Coach notes')}</h3>
         <p className="muted small">{L('נראה רק לך — השחקן לא רואה את זה לעולם.', 'Visible only to you — the player never sees this.')}</p>
         <div className="pc-fb-add">
-          <input className="finder-input" value={noteText} maxLength={2000}
+          {/* גם כאן textarea — הערה פרטית היא לרוב יותר משורה אחת */}
+          <textarea className="finder-input" rows={2} value={noteText} maxLength={2000}
             onChange={(e) => setNoteText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addNote()}
             placeholder={L('הערה פרטית…', 'Private note…')} />
           <button type="button" className="btn-soft" style={{ marginTop: 0 }} onClick={addNote} disabled={!noteText.trim()}>
             {L('הוספה', 'Add')}

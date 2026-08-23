@@ -26,39 +26,65 @@ const palette = () => [
 // לחיצה ארוכה למחיקה (מפרט המסמך). דאבל-קליק פשוט לא קיים במגע —
 // עד היום אי אפשר היה למחוק אובייקט או חץ מהטלפון בכלל.
 // מחזיר handlers שמתאימים גם לעכבר וגם למגע; תזוזה מבטלת (זו גרירה).
-const LONG_PRESS_MS = 550
+// 23.8 — המחיקה קרתה כשהטיימר הבשיל (550ms), ואובייקטים נעלמו תוך כדי
+// סידור: לחיצה־והחזקה לפני גרירה היא התנהגות רגילה במגע. עכשיו הסף 800ms,
+// המצביע חייב לא לזוז, והמחיקה עצמה קורית **בשחרור** ולא בהבשלת הטיימר.
+const LONG_PRESS_MS = 800
 function useLongPress(onLongPress, enabled) {
   const timer = useRef(null)
   const start = useRef({ x: 0, y: 0 })
-  const fired = useRef(false)
+  const armed = useRef(false) // הטיימר הבשיל — שחרור במקום ימחק
+  const pid = useRef(null)
+  const off = useRef(null) // מנתק את מאזיני החלון
+  const cb = useRef(onLongPress)
+  cb.current = onLongPress
 
-  const clear = () => {
+  const stop = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    armed.current = false
+    pid.current = null
+    if (off.current) { off.current(); off.current = null }
   }
+  // ניקוי בהסרת הרכיב — טיימר/מאזינים ששרדו מחיקה היו יורים על אובייקט שאיננו
+  useEffect(() => stop, [])
+
   if (!enabled) return {}
 
-  // מוחזרים handlers בלבד — כדי שאפשר יהיה לפרוס אותם ישירות על אלמנט DOM
+  // מוחזר handler אחד — ההמשך מנוהל במאזיני חלון, כי ה-svg לוכד את המצביע
+  // בתחילת גרירה ולכן pointermove/up כבר לא מגיעים לאובייקט עצמו. בלי זה
+  // כל גרירה איטית הייתה מוחקת את מה שגררו.
   return {
     onPointerDown: (e) => {
-      fired.current = false
+      stop()
+      pid.current = e.pointerId
       start.current = { x: e.clientX, y: e.clientY }
-      clear()
+      const onMove = (ev) => {
+        if (ev.pointerId !== pid.current) return
+        const dx = Math.abs(ev.clientX - start.current.x)
+        const dy = Math.abs(ev.clientY - start.current.y)
+        if (dx > 8 || dy > 8) stop() // זו גרירה, לא לחיצה ארוכה
+      }
+      const onEnd = (ev) => {
+        if (ev.pointerId !== pid.current) return
+        const go = armed.current && ev.type === 'pointerup'
+        stop()
+        if (go) cb.current()
+      }
+      window.addEventListener('pointermove', onMove, true)
+      window.addEventListener('pointerup', onEnd, true)
+      window.addEventListener('pointercancel', onEnd, true)
+      off.current = () => {
+        window.removeEventListener('pointermove', onMove, true)
+        window.removeEventListener('pointerup', onEnd, true)
+        window.removeEventListener('pointercancel', onEnd, true)
+      }
       timer.current = setTimeout(() => {
-        fired.current = true
-        // רטט קצר במכשירים שתומכים — משוב שהמחיקה קרתה
+        timer.current = null
+        armed.current = true
+        // רטט קצר במכשירים שתומכים — «האצבע במקום; שחרור ימחק»
         if (navigator.vibrate) navigator.vibrate(18)
-        onLongPress()
       }, LONG_PRESS_MS)
     },
-    onPointerMove: (e) => {
-      if (!timer.current) return
-      const dx = Math.abs(e.clientX - start.current.x)
-      const dy = Math.abs(e.clientY - start.current.y)
-      if (dx > 8 || dy > 8) clear() // זו גרירה, לא לחיצה ארוכה
-    },
-    onPointerUp: clear,
-    onPointerCancel: clear,
-    onPointerLeave: clear,
   }
 }
 
@@ -274,6 +300,15 @@ function Board({
     dragId.current = null
   }
 
+  // מחווה שהדפדפן ביטל (גלילה/מחוות מערכת) אינה מחויבת: עד היום pointercancel
+  // נכנס ל-onUp — וכל ביטול הפך חץ חצי-מצויר לחץ שמור. הדיו מבטל דרך הכלי
+  // שלו (cancel), החץ בטיוטה נזרק, והגרירה משתחררת.
+  const onCancel = (e) => {
+    if (ink.drawing) { ink.handlers.onPointerCancel(e); return }
+    setDraft(null)
+    dragId.current = null
+  }
+
   return (
     <div className="board-block">
       <div className="court-controls">
@@ -323,7 +358,7 @@ function Board({
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        onPointerCancel={onUp}
+        onPointerCancel={onCancel}
       >
         <defs>
           <marker
@@ -576,22 +611,11 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
     setCurrent(Math.max(0, Math.min(current, next.length - 1)))
   }
 
-  const setCourt = (full) => {
-    if (full !== fullCourt) {
-      setFullCourt(full)
-      commit(steps, full)
-    }
-  }
-  // סיבוב הלוח: המיקומים נשמרים כפי שהם ולכן מסובבים גם אותם, אחרת
-  // השחקנים היו נופלים מחוץ למגרש אחרי המעבר לאורך.
-  const setPortraitCourt = (p) => {
-    if (p === portrait) return
-    const from = courtDim(fullCourt, portrait)
-    const to = courtDim(fullCourt, p)
-    const mapX = (x, y) => (p ? to.w - (y * to.w) / from.h : (y * to.w) / from.h)
-    const mapY = (x) => (p ? (x * to.h) / from.w : to.h - (x * to.h) / from.w)
-    const r1 = (n) => Math.round(n * 10) / 10
-    const next = steps.map((st) => ({
+  // מיפוי כל הציור (אובייקטים, חצים ודיו) מקופסת מגרש אחת לאחרת —
+  // משותף לסיבוב «לאורך/לרוחב» ולמעבר «חצי מגרש / מגרש שלם».
+  const r1 = (n) => Math.round(n * 10) / 10
+  const remapSteps = (list, mapX, mapY) =>
+    list.map((st) => ({
       ...st,
       objects: (st.objects || []).map((o) => ({ ...o, x: r1(mapX(o.x, o.y)), y: r1(mapY(o.x, o.y)) })),
       arrows: (st.arrows || []).map((a) => ({
@@ -607,6 +631,27 @@ export default function TacticsBoard({ value, onChange, readOnly, autoPlay, star
         return { ...k, p: pts }
       }),
     }))
+
+  // מגרש שלם ↔ חצי מגרש: הקופסה משנה גודל, ולכן הציור נמתח/מכווץ איתה.
+  // בלי זה כל מה שהיה מעבר לחצי המגרש נחתך — ולא היה דרך להגיע אליו.
+  const setCourt = (nf) => {
+    if (nf === fullCourt) return
+    const from = courtDim(fullCourt, portrait)
+    const to = courtDim(nf, portrait)
+    const next = remapSteps(steps, (x) => (x * to.w) / from.w, (x, y) => (y * to.h) / from.h)
+    setFullCourt(nf)
+    setSteps(next)
+    if (onChange) onChange({ fullCourt: nf, portrait, steps: next })
+  }
+  // סיבוב הלוח: המיקומים נשמרים כפי שהם ולכן מסובבים גם אותם, אחרת
+  // השחקנים היו נופלים מחוץ למגרש אחרי המעבר לאורך.
+  const setPortraitCourt = (p) => {
+    if (p === portrait) return
+    const from = courtDim(fullCourt, portrait)
+    const to = courtDim(fullCourt, p)
+    const mapX = (x, y) => (p ? to.w - (y * to.w) / from.h : (y * to.w) / from.h)
+    const mapY = (x) => (p ? (x * to.h) / from.w : to.h - (x * to.h) / from.w)
+    const next = remapSteps(steps, mapX, mapY)
     setPortrait(p)
     setSteps(next)
     if (onChange) onChange({ fullCourt, portrait: p, steps: next })

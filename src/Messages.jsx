@@ -60,7 +60,8 @@ function formatTime(ts) {
 // props:
 //   session - המשתמש המחובר
 //   profile - לשכבות הגיל שהמאמן מאמן (הטאב הקבוצתי)
-export default function Messages({ session, profile, onNavigate }) {
+//   onRead - (אופציונלי) כמה הודעות נקראו זה עתה, לעדכון הבאדג׳ במעטפת
+export default function Messages({ session, profile, onNavigate, onRead }) {
   const myId = session.user.id
   const myTeams = profile?.age_groups || []
   const [tab, setTab] = useState('personal') // 'personal' | 'team'
@@ -314,6 +315,9 @@ export default function Messages({ session, profile, onNavigate }) {
     const patch = (list) => list.map((m) => (ids.has(m.id) ? { ...m, read_at: readAt } : m))
     setThread(patch)
     setMessages(patch)
+    // מדווחים למעטפת כמה ירדו — אחרת הבאדג׳ בניווט נשאר על המספר הישן
+    // עד מעבר מסך או עד ה-poll הבא
+    onRead?.(unreadIds.length)
   }
 
   const openConversation = (coachId) => {
@@ -528,7 +532,9 @@ export default function Messages({ session, profile, onNavigate }) {
                 </span>
                 <div className="empty-title">{L('אין לך הודעות עדיין', "You don't have any messages yet")}</div>
                 <p className="muted small">
-                  {L('כדי לשלוח הודעה — היכנס לטאב "מאמנים", פתח פרופיל של מאמן ולחץ "שלח הודעה".', 'To send a message — go to the "Coaches" tab, open a coach profile and tap "Send message".')}
+                  {/* היה כתוב טאב «מאמנים» — שם שלא קיים בניווט. היעד האמיתי
+                      הוא «חיפוש מאמנים», בדיוק מה שהכפתור שמתחת פותח. */}
+                  {L('כדי לשלוח הודעה — היכנסו ל"חיפוש מאמנים", פתחו פרופיל של מאמן ולחצו "שליחת הודעה".', 'To send a message — go to "Find Coaches", open a coach profile and tap "Send message".')}
                 </p>
                 {onNavigate && (
                   <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('finder')}>

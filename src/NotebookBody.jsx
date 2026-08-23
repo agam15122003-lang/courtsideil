@@ -48,6 +48,7 @@ export default function NotebookBody({
   // מדויק); האיפוס ל-auto — שכופה פריסה שנייה של כל עמודת המחברת —
   // נעשה רק כשהטקסט התקצר. באייפד זה ההבדל בין הקלדה חלקה לתקיעה קלה.
   const lastLen = useRef(0)
+  const lastW = useRef(0)
   useLayoutEffect(() => {
     if (!editable) return
     const el = taRef.current
@@ -55,10 +56,15 @@ export default function NotebookBody({
     const len = (value || '').length
     const grew = len >= lastLen.current
     lastLen.current = len
-    if (!grew) el.style.height = 'auto'
+    // שינוי רוחב (סיבוב האייפד, פתיחת מגירה) משנה את גלישת השורות. בלי
+    // איפוס ל-auto הגובה נשאר של הרוחב הישן, והשורות שנוספו נחתכות
+    // ב-overflow:hidden.
+    const widthChanged = size.w !== lastW.current
+    lastW.current = size.w
+    if (!grew || widthChanged) el.style.height = 'auto'
     const h = `${el.scrollHeight}px`
     if (el.style.height !== h) el.style.height = h
-  }, [value, editable, taRef])
+  }, [value, editable, taRef, size.w])
 
   // מודדים את הדף כדי לגזור viewBox לדיו (רוחב 1000, גובה יחסי)
   useEffect(() => {
@@ -92,10 +98,12 @@ export default function NotebookBody({
   for (const s of strokes) for (let i = 1; i < (s.p || []).length; i += 2) if (s.p[i] > inkBottomPx) inkBottomPx = s.p[i]
   const minH = Math.max((minLines + extraLines) * LINE_H, inkBottomPx ? inkBottomPx + LINE_H * 2 : 0)
 
+  // is-erasing: במחק אסור ל-touch-action: pan-y (של html.has-pen) לחטוף
+  // שפשוף אנכי לגלילה — האצבע חייבת למחוק גם כשהעט בסביבה
   return (
     <div
       ref={wrapRef}
-      className={`nbk-body${inkTool.drawing ? ' is-drawing' : ''}${editable ? '' : ' is-readonly'}`}
+      className={`nbk-body${inkTool.drawing ? ' is-drawing' : ''}${editable && tool === 'eraser' ? ' is-erasing' : ''}${editable ? '' : ' is-readonly'}`}
       style={{ minHeight: minH }}
     >
       {editable ? (

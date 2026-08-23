@@ -136,6 +136,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const [pName, setPName] = useState('')
   const [pNum, setPNum] = useState('')
   const [reviewPractice, setReviewPractice] = useState(null)
+  // מוני רענון: משימה שנרשמה זה עתה צריכה להופיע במעקב שמתחתיה, וסקירת
+  // אימון שנשמרה צריכה להפוך את האימון מ«פתוח» ל«סגור» בטאב הלו״ז.
+  const [taRev, setTaRev] = useState(0)
+  const [slotsRev, setSlotsRev] = useState(0)
   const [gpEdit, setGpEdit] = useState(null) // עריכת יעדים מהירה לשחקן {player_id, name, team}
   const [sForm, setSForm] = useState({ name: '', role: 'assistant', phone: '' })
 
@@ -179,7 +183,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       if (pEdit.player_id) ({ error } = await supabase.from('player_feedback').insert({ ...row, roster_id: undefined }))
       else { toast.error(L('כדי לשמור משוב צריך להריץ את supabase_coach_only_22_8.sql', 'Saving feedback needs supabase_coach_only_22_8.sql')); return }
     }
-    if (error) { toast.error(L('שמירת המשוב נכשלה: ', 'Failed to save feedback: ') + error.message); return }
+    if (error) { console.error('teams feedback:', error.message); toast.error(L('שמירת המשוב נכשלה — נסו שוב בעוד רגע.', 'Saving the feedback failed — try again in a moment.')); return }
     if (pEdit.player_id) sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText(''); setFbRating(0)
     setFbHistory((h) => [{ id: Date.now(), content: fbText.trim(), rating: fbRating || null, created_at: new Date().toISOString() }, ...h].slice(0, 5))
@@ -375,11 +379,16 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   // סנכרון תיבות היעדים — כל תיבה מסתנכרנת רק כשהערך *שלה* משתנה (החלפת תקופה או
   // טעינה מהמסד). תלות בערך הספציפי ולא באובייקט כולו — כדי ששמירת תיבה אחת
   // לא תדרוס טקסט שטרם נשמר בתיבות האחרות.
+  // team בתלויות: בלי זה טקסט שהוקלד ולא נשמר נשאר בתיבה גם אחרי החלפת
+  // קבוצה (הערך במפה זהה — לרוב ריק — ולכן האפקט לא רץ), והשמירה הבאה
+  // הייתה כותבת אותו על הקבוצה החדשה.
   const wKey = `week|${ymd(gWeek)}`
   const mKey = `month|${monthKey(gMonth)}`
-  useEffect(() => { setWText(goalsMap[wKey] || '') }, [goalsMap[wKey], wKey])
-  useEffect(() => { setMText(goalsMap[mKey] || '') }, [goalsMap[mKey], mKey])
-  useEffect(() => { setSText(goalsMap['season|'] || '') }, [goalsMap['season|']])
+  useEffect(() => { setWText(goalsMap[wKey] || '') }, [goalsMap[wKey], wKey, team])
+  useEffect(() => { setMText(goalsMap[mKey] || '') }, [goalsMap[mKey], mKey, team])
+  // מפתח העונה: הכתיבה היא saveGoal('year', '') ולכן המפתח הוא 'year|'.
+  // הקריאה חיפשה 'season|' — יעדי העונה נשמרו ולא חזרו לתיבה לעולם.
+  useEffect(() => { setSText(goalsMap['year|'] || '') }, [goalsMap['year|'], team])
 
   // ייצוא הסגל לקובץ CSV (נפתח באקסל, כולל BOM לעברית תקינה).
   // הקובץ יוצא מהאפליקציה אל מחשב פרטי ומכיל פרטי קטינים — ולכן שני שינויים:
@@ -430,7 +439,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     // כשל עדכון היה נבלע בשקט: הצ׳יפ חוזר לערך הקודם בטעינה הבאה בלי הסבר
     const { error } = await supabase.from('team_players').update({ status: next }).eq('id', p.id)
     if (error) { toast.error(L('עדכון הסטטוס נכשל', 'Status update failed')); return }
-    load()
+    // עדכון השורה בלבד ולא load(): הצ׳יפ מתגלגל בין ארבעה מצבים, וטעינה
+    // מחדש של כל הסגל לשלד בכל לחיצה הפכה את המעבר בין מצבים לבלתי אפשרי.
+    setPlayers((cur) => cur.map((x) => (x.id === p.id ? { ...x, status: next } : x)))
   }
   const savePlayer = async () => {
     const p = pEdit
@@ -440,14 +451,23 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       birth_year: p.birth_year ? parseInt(p.birth_year, 10) : null,
       phone: p.phone || null, notes: p.notes || null, injury_note: p.injury_note || null,
     }).eq('id', p.id)
-    if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
+    if (error) { console.error('teams save player:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     // שנת לידה שהשתנתה כאן היא בדיוק מה שהצלבת הגיל בודקת — מרעננים אותה,
     // אחרת הפער היה ממשיך להופיע אחרי שהמאמן כבר תיקן אותו.
     toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load(); loadAges()
   }
   const delPlayer = async (id) => {
-    if (!(await confirmDialog({ message: L('להסיר את השחקן?', 'Remove this player?'), danger: true }))) return
-    await supabase.from('team_players').delete().eq('id', id); setPEdit(null); load(); loadAges()
+    if (!(await confirmDialog({
+      title: L('להסיר את השחקן מהסגל?', 'Remove this player from the roster?'),
+      message: L('השחקן יוסר מהקבוצה יחד עם הפרטים שרשמת עליו. אי אפשר לשחזר.',
+                 'The player will be removed from the team along with the details you recorded. This cannot be undone.'),
+      confirmText: L('הסרת השחקן', 'Remove player'),
+      danger: true,
+    }))) return
+    // כשל מחיקה נבלע בשקט ונראה בדיוק כמו הצלחה — עד לרענון הבא
+    const { error } = await supabase.from('team_players').delete().eq('id', id)
+    if (error) { console.error('teams del player:', error.message); toast.error(L('ההסרה נכשלה — נסו שוב בעוד רגע.', 'Removal failed — try again in a moment.')); return }
+    setPEdit(null); load(); loadAges()
   }
 
   // ---------- צוות מקצועי ----------
@@ -460,12 +480,20 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const saveStaff = async () => {
     const s = sEdit
     const { error } = await supabase.from('team_staff').update({ name: (s.name || '').trim(), role: s.role, phone: s.phone || null, notes: s.notes || null }).eq('id', s.id)
-    if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
+    if (error) { console.error('teams save staff:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     toast.success(L('פרטי הצוות נשמרו', 'Staff saved')); setSEdit(null); load()
   }
   const delStaff = async (id) => {
-    if (!(await confirmDialog({ message: L('להסיר מאיש הצוות?', 'Remove this staff member?'), danger: true }))) return
-    await supabase.from('team_staff').delete().eq('id', id); setSEdit(null); load()
+    if (!(await confirmDialog({
+      title: L('להסיר את איש הצוות?', 'Remove this staff member?'),
+      message: L('איש הצוות יוסר מהקבוצה יחד עם הפרטים וההערות שרשמת עליו.',
+                 'The staff member will be removed from the team along with their details and notes.'),
+      confirmText: L('הסרה', 'Remove'),
+      danger: true,
+    }))) return
+    const { error } = await supabase.from('team_staff').delete().eq('id', id)
+    if (error) { console.error('teams del staff:', error.message); toast.error(L('ההסרה נכשלה — נסו שוב בעוד רגע.', 'Removal failed — try again in a moment.')); return }
+    setSEdit(null); load()
   }
 
   // ---------- יעדים ----------
@@ -979,12 +1007,12 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                  'Your task list for the players — what you asked of whom and by when. Players do not see it; you tick “done” after checking with them at practice.')}
             </p>
           )}
-          <SendToPlayers session={session} embedded initialTeam={team} key={team} />
-          <TeamAssignments coachId={me} team={team} />
+          <SendToPlayers session={session} embedded initialTeam={team} key={team} onSent={() => setTaRev((v) => v + 1)} />
+          <TeamAssignments key={`${team}:${taRev}`} coachId={me} team={team} />
         </div>
       ) : (
         /* ===================== לו״ז ונוכחות ===================== */
-        <TeamSlots coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
+        <TeamSlots key={`${team}:${slotsRev}`} coachId={me} team={team} onReview={(entry) => setReviewPractice(entry)} />
       )}
 
 
@@ -1118,7 +1146,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
         <SessionDetail
           session={session}
           entry={reviewPractice}
-          onClose={() => setReviewPractice(null)}
+          /* סגירת הסקירה מרעננת את הלו״ז — אחרת האימון נשאר «פתוח» למרות
+             שהנוכחות והסיכום כבר נשמרו. */
+          onClose={() => { setReviewPractice(null); setSlotsRev((v) => v + 1) }}
         />
       )}
 

@@ -455,7 +455,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                   <input
                     type="file"
                     accept="image/*"
-                    capture="user"
+                    /* היה כאן capture="user": באייפד זה פותח מיד את המצלמה
+                       הקדמית ולא מאפשר לבחור תמונה קיימת מהגלריה */
                     onChange={onAvatarPick}
                     disabled={uploadingAvatar}
                     hidden

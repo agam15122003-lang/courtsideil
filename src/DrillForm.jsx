@@ -71,6 +71,9 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
   const [coachNotes, setCoachNotes] = useState(drill?.coach_notes || '')
   const [isPublic, setIsPublic] = useState(drill?.is_public !== false) // שיתוף לקהילה / פרטי
   const [board, setBoard] = useState(drill?.board || null) // שלבי לוח הטקטיקה
+  // TacticsBoard קורא את value רק במאונט. בלי מפתח שמתחלף, לוח ששוחזר
+  // מטיוטה לא היה נראה בעורך — והמגע הראשון בלוח היה דורס אותו בריק.
+  const [boardKey, setBoardKey] = useState(0)
   const [imageUrl, setImageUrl] = useState(drill?.image_url || '')
   const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -80,6 +83,32 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
   // ---- טיוטה אוטומטית: יציאה מהעמוד לא מוחקת את מה שכתבת ----
   // תרגיל חדש — מפתח כללי; עריכה — מפתח פר-תרגיל (כדי לא לערבב טיוטות)
   const DRAFT_KEY = editing ? `drill-draft-edit-${drill.id}` : 'drill-draft-v1'
+  // צילום הערכים שנטענו מהתרגיל הקיים. בלי זה עצם פתיחת תרגיל לעריכה
+  // כתבה מיד טיוטה, וכל «תרגיל חדש» שאחריה פתח את «הטיוטה שוחזרה»
+  // עם תוכן של תרגיל אחר. סדר המפתחות זהה לזה שנכתב בטיוטה.
+  const loadedSnap = useRef(null)
+  if (loadedSnap.current === null) {
+    loadedSnap.current = editing
+      ? JSON.stringify({
+          title: drill?.title || '',
+          description: drill?.description || '',
+          category: drill?.category || '',
+          ageGroups: drill?.age_groups || [],
+          tags: drill?.tags || [],
+          difficulty: drill?.difficulty || '',
+          duration: drill?.duration_minutes != null ? String(drill.duration_minutes) : '',
+          goal: drill?.goal || '',
+          equipment: drill?.equipment || '',
+          players: drill?.players || '',
+          reps: drill?.reps || '',
+          videoUrl: drill?.video_url || '',
+          coachNotes: drill?.coach_notes || '',
+          isPublic: drill?.is_public !== false,
+          board: drill?.board || null,
+          imageUrl: drill?.image_url || '',
+        })
+      : ''
+  }
   const draftLoaded = useRef(false)
   useEffect(() => {
     if (draftLoaded.current) return
@@ -101,7 +130,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
         setVideoUrl(d.videoUrl || '')
         setCoachNotes(d.coachNotes || '')
         if (typeof d.isPublic === 'boolean') setIsPublic(d.isPublic)
-        if (d.board) setBoard(d.board)
+        if (d.board) { setBoard(d.board); setBoardKey((k) => k + 1) }
         if (d.imageUrl) setImageUrl(d.imageUrl)
         toast.success(L('הטיוטה שוחזרה — המשך מאיפה שהפסקת', 'Draft restored — pick up where you left off'))
       }
@@ -111,11 +140,14 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
   useEffect(() => {
     const t = setTimeout(() => {
       try {
+        const ser = JSON.stringify({
+          title, description, category, ageGroups, tags, difficulty, duration,
+          goal, equipment, players, reps, videoUrl, coachNotes, isPublic, board, imageUrl,
+        })
+        // עריכה שלא שינתה כלום אינה «טיוטה» — לא כותבים אותה
+        if (editing && ser === loadedSnap.current) return
         if (title.trim() || description.trim() || category) {
-          localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            title, description, category, ageGroups, tags, difficulty, duration,
-            goal, equipment, players, reps, videoUrl, coachNotes, isPublic, board, imageUrl,
-          }))
+          localStorage.setItem(DRAFT_KEY, ser)
         }
       } catch { /* אחסון מלא — לא קריטי */ }
     }, 400)
@@ -332,10 +364,11 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
         <label className="btn-soft img-pick">
           <Camera size={16} />
           {uploadingImage ? L('מעלה...', 'Uploading...') : L('צילום או העלאת תמונה', 'Take or upload a photo')}
+          {/* בלי capture: accept="image/*" לבדו נותן באייפד את הבחירה בין
+              «צלם», «ספריית התמונות» ו«עיון» — capture כפה את המצלמה בלבד */}
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={onImagePick}
             disabled={uploadingImage}
             hidden
@@ -605,7 +638,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
 
             {/* לוח טקטיקה — שרטוט התרגיל על המגרש */}
             <section className="form-section" style={{ marginTop: 16 }}>
-              <TacticsBoard value={board} onChange={setBoard} />
+              <TacticsBoard key={boardKey} value={board} onChange={setBoard} />
             </section>
           </>
         ) : (
@@ -745,7 +778,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
             </section>
 
             <section className="form-section">
-              <TacticsBoard value={board} onChange={setBoard} />
+              <TacticsBoard key={boardKey} value={board} onChange={setBoard} />
             </section>
 
             <section className="form-section">

@@ -310,7 +310,11 @@ export default function Schedule({ session, onNavigate }) {
   const todayStr = ymd(new Date())
   const calRef = useRef(null)
 
+  const loadTokenRef = useRef(0) // הגנה מפני מרוץ טעינות בהחלפת שבוע מהירה
+
   async function load() {
+    // מזהה טעינה — הקשה מהירה על ‹ › לא תיתן לתוצאה של שבוע ישן לצייר על החדש
+    const token = ++loadTokenRef.current
     setLoading(true)
     // השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
     const [entriesRes, plansRes, meetingsRes, coachesRes, slotsRes, gamesRes, attRes, rsvpRes] = await Promise.all([
@@ -371,6 +375,7 @@ export default function Schedule({ session, onNavigate }) {
             .lte('session_date', ymd(weekEnd))
         : Promise.resolve({ data: [], error: null }),
     ])
+    if (token !== loadTokenRef.current) return // שבוע אחר נבחר בינתיים — מתעלמים
     if (entriesRes.error) {
       setError(L('שגיאה בטעינת הלו"ז: ', 'Error loading schedule: ') + entriesRes.error.message)
       setLoading(false)
@@ -453,6 +458,7 @@ export default function Schedule({ session, onNavigate }) {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart])
+  useEffect(() => () => { loadTokenRef.current++ }, []) // ביטול טעינה תלויה בעת יציאה
 
   // openAdd מקבל שעה שלמה (לחיצה) — openRange מקבל טווח מדויק (גרירה).
   const openAdd = (dateStr, hour) => {
@@ -561,7 +567,13 @@ export default function Schedule({ session, onNavigate }) {
     if (planView) return
     if (selected || adding || inviting) {
       requestAnimationFrame(() => {
-        document.querySelector('.cal-detail, .sched-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // .sched-form לא קיים במסך הזה (הטפסים הם .cal-form), ולכן לחיצה על
+        // משבצת ריקה פתחה טופס הרחק מתחת לקפל בלי לגלול אליו — באייפד זה
+        // נראה כאילו הלחיצה לא עשתה כלום. block:'start' מביא את השדה הראשון
+        // לראש המסך ומשאיר מקום למקלדת.
+        document
+          .querySelector('.csx-rail .cal-detail, .csx-rail .cal-form')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     }
   }, [selected, adding, inviting, planView])
@@ -979,7 +991,8 @@ export default function Schedule({ session, onNavigate }) {
             <button type="button" className="csx-quick-row" onClick={() => openAdd()}>
               <span>
                 <b>{L('אימון קבוצה', 'Team practice')}</b>
-                <span className="muted small">{L('קבוצה, תוכנית, אישורי הגעה', 'Team, plan, RSVPs')}</span>
+                {/* צד המאמן בלבד: אין מי שיאשר הגעה — לא מבטיחים אישורי הגעה */}
+                <span className="muted small">{PLAYER_SIDE ? L('קבוצה, תוכנית, אישורי הגעה', 'Team, plan, RSVPs') : L('קבוצה, תוכנית ומקום', 'Team, plan and venue')}</span>
               </span>
               <Users size={17} aria-hidden="true" />
             </button>
@@ -1294,7 +1307,10 @@ export default function Schedule({ session, onNavigate }) {
                 />
               )}
               <p className="muted small cal-recurring-tip" style={{ marginTop: 10 }}>
-                <RotateCw size={13} /> {L('אימון שחוזר כל שבוע מוגדר פעם אחת ומופיע כאן ואצל השחקנים אוטומטית. ', 'A weekly fixed practice is set once, and appears here and for your players automatically. ')}
+                {/* צד המאמן בלבד: אין שחקנים שיראו אותו — רק הלו"ז שלך */}
+                <RotateCw size={13} /> {PLAYER_SIDE
+                  ? L('אימון שחוזר כל שבוע מוגדר פעם אחת ומופיע כאן ואצל השחקנים אוטומטית. ', 'A weekly fixed practice is set once, and appears here and for your players automatically. ')
+                  : L('אימון שחוזר כל שבוע מוגדר פעם אחת ונכנס ללו"ז בכל השבועות אוטומטית. ', 'A weekly fixed practice is set once, and lands in every week of your schedule automatically. ')}
                 {onNavigate && (
                   <button type="button" className="link-button" onClick={() => onNavigate('teams-practices')}>
                     {L('להגדרת ימי אימון', 'Set practice days')}
@@ -1339,7 +1355,8 @@ export default function Schedule({ session, onNavigate }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             aria-label={L('הערה לאימון', 'Practice note')}
-            placeholder={L('הערה — השחקנים בקבוצה יראו אותה', 'Note — visible to the team')}
+            /* צד המאמן בלבד: ההערה נשארת אצלך — אין שחקנים שיראו אותה */
+            placeholder={PLAYER_SIDE ? L('הערה — השחקנים בקבוצה יראו אותה', 'Note — visible to the team') : L('הערה לאימון (לא חובה)', 'Practice note (optional)')}
             style={{ marginTop: 10 }}
           />
 

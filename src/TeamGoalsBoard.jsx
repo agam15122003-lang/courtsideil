@@ -78,7 +78,9 @@ export default function TeamGoalsBoard({ coachId, team }) {
                 </button>
                 {isOpen && (
                   <div className="gb-editor">
-                    <PlayerGoalsEditor coachId={coachId} playerId={p.player_id} rosterId={p.id} team={team} playerName={p.name} />
+                    {/* onChange: תג הסיכום בשורה נבנה מ-goalsBy — בלי רענון הוא
+                        נשאר על היעדים שהיו לפני העריכה בתוך השורה הפתוחה. */}
+                    <PlayerGoalsEditor coachId={coachId} playerId={p.player_id} rosterId={p.id} team={team} playerName={p.name} onChange={load} />
                   </div>
                 )}
               </li>

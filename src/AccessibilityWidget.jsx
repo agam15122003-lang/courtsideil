@@ -32,6 +32,17 @@ const DEFAULTS = {
 }
 const MAX_STEP = 4
 
+// מיקום הכפתור נשמר בפיקסלים מוחלטים. אחרי סיבוב האייפד (או מעבר לחלון
+// קטן יותר) המיקום השמור נופל מחוץ למסך והכפתור הופך בלתי נגיש — ודווקא
+// כפתור הנגישות. לכן מהדקים אותו לגבולות החלון בכל רינדור וגם על resize.
+function clampPos(p) {
+  if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return null
+  return {
+    x: Math.max(8, Math.min(window.innerWidth - 60, p.x)),
+    y: Math.max(8, Math.min(window.innerHeight - 60, p.y)),
+  }
+}
+
 function load() {
   try {
     return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }
@@ -105,18 +116,21 @@ export default function AccessibilityWidget() {
     setOpen((o) => !o)
   }
 
-  const fabStyle = pos
-    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', insetInlineEnd: 'auto' }
+  // מיקום מהודק לגבולות החלון הנוכחי — כך מיקום שנשמר במסך רחב/אופקי
+  // עדיין נראה אחרי סיבוב או הקטנת חלון.
+  const safePos = clampPos(pos)
+  const fabStyle = safePos
+    ? { left: safePos.x, top: safePos.y, right: 'auto', bottom: 'auto', insetInlineEnd: 'auto' }
     : undefined
-  const panelStyle = pos
+  const panelStyle = safePos
     ? (() => {
-        const left = Math.max(8, Math.min(window.innerWidth - 308, pos.x))
-        const below = pos.y < window.innerHeight / 2
+        const left = Math.max(8, Math.min(window.innerWidth - 308, safePos.x))
+        const below = safePos.y < window.innerHeight / 2
         return below
-          ? { left, top: pos.y + 60, right: 'auto', bottom: 'auto', insetInlineEnd: 'auto' }
+          ? { left, top: safePos.y + 60, right: 'auto', bottom: 'auto', insetInlineEnd: 'auto' }
           : {
               left,
-              bottom: window.innerHeight - pos.y + 8,
+              bottom: window.innerHeight - safePos.y + 8,
               right: 'auto',
               top: 'auto',
               insetInlineEnd: 'auto',
@@ -128,6 +142,25 @@ export default function AccessibilityWidget() {
     apply(settings)
     localStorage.setItem(KEY, JSON.stringify(settings))
   }, [settings])
+
+  // סיבוב המכשיר / שינוי גודל החלון — מחזירים את הכפתור פנימה ומעדכנים
+  // גם את מה ששמור, כדי שלא יקפוץ שוב החוצה בטעינה הבאה.
+  useEffect(() => {
+    const onResize = () => {
+      setPos((p) => {
+        const c = clampPos(p)
+        if (!c || (c.x === p.x && c.y === p.y)) return p
+        try { localStorage.setItem('a11y_pos', JSON.stringify(c)) } catch { /* ignore */ }
+        return c
+      })
+    }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [])
 
   // מלכודות פוקוס לשני הדיאלוגים של הווידג'ט. עד היום הפוקוס ברח מאחוריהם
   // ו-Escape נסגר דרך מאזין גלובלי שסגר את שניהם יחד — דווקא בווידג'ט הנגישות.

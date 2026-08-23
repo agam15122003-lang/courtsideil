@@ -55,6 +55,13 @@ export default function TeamSlots({ coachId, team, onReview }) {
     if (busy) return
     if (!start) { toast.error(L('בחר שעת התחלה.', 'Choose a start time.')); return }
     if (end && end <= start) { toast.error(L('שעת הסיום צריכה להיות אחרי ההתחלה.', 'End time must be after start.')); return }
+    // הנוכחות נשמרת לפי מאמן+קבוצה+תאריך — שני אימונים קבועים באותו יום
+    // היו חולקים רשומת נוכחות אחת, וכל סימון היה דורס את השני.
+    if ((slots || []).some((s) => Number(s.weekday) === Number(weekday))) {
+      toast.error(L('כבר קיים אימון קבוע ביום הזה. הנוכחות נרשמת פעם אחת ליום ולקבוצה, ולכן שני אימונים קבועים באותו יום היו חולקים אותה רשומה.',
+                    'There is already a fixed practice on that day. Attendance is recorded once per day per team, so two fixed practices on the same day would share one record.'))
+      return
+    }
     setBusy(true)
     const { error } = await supabase.from('team_practice_slots').insert({
       coach_id: coachId, team, weekday: Number(weekday), start_time: start, end_time: end || null, location: loc.trim() || null,
@@ -79,13 +86,22 @@ export default function TeamSlots({ coachId, team, onReview }) {
 
   // 1.8 — סיכומי אימונים: מופעי הלו"ז הקבוע + אימונים חד-פעמיים, הכי חדש קודם
   const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+  // האימון של היום חייב להופיע כאן ברגע שהסתיים — אחרת אי אפשר לסמן נוכחות
+  // ביום האימון עצמו. אותו כלל שב«דברים לביצוע»: משווים את שעת הסיום (או
+  // ההתחלה) לשעה הנוכחית, כדי שאימון שעוד לפנינו לא ייחשב אימון שהיה.
+  const nowMs = Date.now()
+  const hasEnded = (o) => {
+    if (o.date < todayStr) return true
+    const t = new Date(`${o.date}T${o.end_time || o.start_time || '23:59'}`).getTime()
+    return !isNaN(t) && t < nowMs
+  }
   const recent = [
-    ...expandSlots(slots, -21, -1).map((o) => ({ session_id: o.session_id, date: o.date, weekday: o.weekday, start_time: o.start_time, end_time: o.end_time, location: o.location })),
-    ...extra.entries.filter((e) => e.date && e.date < todayStr).map((e) => ({
+    ...expandSlots(slots, -21, 0).map((o) => ({ session_id: o.session_id, date: o.date, weekday: o.weekday, start_time: o.start_time, end_time: o.end_time, location: o.location })),
+    ...extra.entries.filter((e) => e.date && e.date <= todayStr).map((e) => ({
       session_id: e.id, date: e.date, weekday: new Date(e.date + 'T00:00').getDay(),
       start_time: e.start_time ? String(e.start_time).slice(0, 5) : '', end_time: e.end_time ? String(e.end_time).slice(0, 5) : '', location: null,
     })),
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
+  ].filter(hasEnded).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
   const isClosed = (o) => extra.attSet.has(o.date) && extra.revSet.has(o.session_id)
   const upcoming = expandSlots(slots, 0, 20).slice(0, 6)
 

@@ -1,6 +1,7 @@
 import { toast } from './toast'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import { sendNotification } from './notify'
 import { L, trTeam , cnt } from './i18n'
 import DrillCard from './DrillCard'
 import Avatar from './Avatar'
@@ -75,6 +76,15 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
       return
     }
+    // ההודעה הראשונה מפרופיל מאמן לא יצרה התראה לנמען, ולכן היא נחתה בשקט
+    // (מסך ההודעות שולח התראה כזו מזמן). "שגר ושכח" — כישלון לא נראה למשתמש.
+    sendNotification({
+      to: coach.id,
+      actor: session.user.id,
+      type: 'message',
+      content: L('שלח לך הודעה פרטית', 'sent you a private message'),
+      nav: 'messages',
+    })
     setMessageText('')
     setComposing(false)
     setSent(true)

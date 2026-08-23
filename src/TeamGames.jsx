@@ -106,7 +106,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
       coach_id: me, team, game_date: gForm.date, game_time: gForm.time || null,
       opponent: gForm.opponent.trim() || null, location: gForm.location.trim() || null,
     })
-    if (error) { toast.error(L('ההוספה נכשלה: ', 'Add failed: ') + error.message); return }
+    if (error) { console.error('games add:', error.message); toast.error(L('ההוספה נכשלה — נסו שוב בעוד רגע.', 'Add failed — try again in a moment.')); return }
     setGForm({ date: '', time: '', opponent: '', location: '' }); load()
   }
   const saveGame = async () => {
@@ -115,7 +115,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
       game_date: g.game_date, game_time: g.game_time || null,
       opponent: (g.opponent || '').trim() || null, location: (g.location || '').trim() || null,
     }).eq('id', g.id)
-    if (error) { toast.error(L('שמירה נכשלה: ', 'Save failed: ') + error.message); return }
+    if (error) { console.error('games save:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     toast.success(L('המשחק עודכן', 'Game updated')); setGEdit(null); load()
   }
   // מחזיר true רק אם המשחק באמת נמחק — מודאל העריכה נסגר על סמך זה,
@@ -123,7 +123,7 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   const delGame = async (id) => {
     if (!(await confirmDialog({ message: L('למחוק את המשחק?', 'Delete this game?'), danger: true }))) return false
     const { error } = await supabase.from('team_games').delete().eq('id', id)
-    if (error) { toast.error(L('המחיקה נכשלה: ', 'Delete failed: ') + error.message); return false }
+    if (error) { console.error('games delete:', error.message); toast.error(L('המחיקה נכשלה — נסו שוב בעוד רגע.', 'Delete failed — try again in a moment.')); return false }
     load()
     return true
   }
@@ -140,9 +140,10 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
       // העמודות נוספות ב-supabase_game_scores.sql — אם הוא טרם הורץ,
       // אומרים את זה במפורש במקום «שמירה נכשלה» סתמי.
       const missing = error.code === 'PGRST204' || /our_score|their_score|summary/i.test(error.message || '')
+      if (!missing) console.error('games score:', error.message)
       toast.error(missing
         ? L('צריך להריץ את supabase_game_scores.sql כדי לשמור תוצאות', 'Run supabase_game_scores.sql to store scores')
-        : L('שמירה נכשלה: ', 'Save failed: ') + error.message)
+        : L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.'))
       return
     }
     toast.success(L('התוצאה נשמרה', 'Score saved'))
@@ -186,26 +187,70 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   const saveIbaLink = async (extra = {}) => {
     const row = { coach_id: me, team, league_id: String(imp.leagueId), league_name: imp.leagueName, iba_team_id: imp.teamId ? String(imp.teamId) : null, iba_team_name: imp.teamName || null, ...extra }
     const { error } = await supabase.from('team_iba').upsert(row, { onConflict: 'coach_id,team' })
-    if (error) { toast.error(L('שמירת הליגה נכשלה: ', 'Saving the league failed: ') + error.message); return false }
+    if (error) { console.error('games iba link:', error.message); toast.error(L('שמירת הליגה נכשלה — נסו שוב בעוד רגע.', 'Saving the league failed — try again in a moment.')); return false }
     setIba(row)
     return true
   }
+  // מפתח התאמה בין משחק בלוח של האיגוד למשחק ששמור אצלנו
+  const gameKey = (dateStr, opponent) => `${dateStr}|${(opponent || '').trim()}`
+  const hhmm = (t) => (t ? String(t).slice(0, 5) : null)
   const importGames = async () => {
     if (!imp.games?.length) {
       if (await saveIbaLink()) { toast.success(L('הליגה נשמרה לטבלה', 'League saved for the table')); setImp(null) }
       return
     }
-    // מוחקים משחקים שיובאו קודם לאותה קבוצה, כדי לא לשכפל בייבוא חוזר
-    await supabase.from('team_games').delete().eq('coach_id', me).eq('team', team).eq('source', 'iba')
-    const rows = imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null, source: 'iba' }))
-    const { error } = await supabase.from('team_games').insert(rows)
-    if (error) {
-      // אם עמודת source לא קיימת במסד — נופלים חזרה לייבוא רגיל בלי דדופ
-      const { error: e2 } = await supabase.from('team_games').insert(imp.games.map((g) => ({ coach_id: me, team, game_date: g.date, game_time: g.time || null, opponent: g.opponent || null, location: g.location || null })))
-      if (e2) { console.error('games import:', e2.message); toast.error(L('הייבוא נכשל — נסו שוב בעוד רגע.', 'Import failed — try again in a moment.')); return }
+    // ⚠ ייבוא חוזר היה מוחק את כל המשחקים ומכניס אותם מחדש — ואיתם נמחקו
+    //   התוצאות, הסיכומים, הנוכחות והסקירות של משחקים שכבר שוחקו.
+    //   עכשיו הייבוא לא הרסני: מתאימים לפי תאריך+יריבה, מעדכנים שעה ומיקום
+    //   בשורה הקיימת (שומרים את ה-id ואת התוצאה), ומוסיפים רק מה שחדש.
+    const { data: existing, error: exErr } = await supabase.from('team_games')
+      .select('*').eq('coach_id', me).eq('team', team)
+    if (exErr) {
+      console.error('games import read:', exErr.message)
+      toast.error(L('לא הצלחנו לקרוא את המשחקים הקיימים — הייבוא בוטל כדי לא לפגוע בהם.',
+                    'We could not read the existing games — the import was cancelled so nothing is harmed.'))
+      return
+    }
+    const byKey = new Map((existing || []).map((g) => [gameKey(g.game_date, g.opponent), g]))
+    const feedKeys = new Set()
+    let added = 0
+    let updated = 0
+    for (const g of imp.games) {
+      const key = gameKey(g.date, g.opponent)
+      feedKeys.add(key)
+      const cur = byKey.get(key)
+      if (cur) {
+        // רק שעה ומיקום — התוצאה והסיכום נשארים בדיוק כמו שהם
+        if (hhmm(cur.game_time) === hhmm(g.time) && (cur.location || null) === (g.location || null)) continue
+        const { error } = await supabase.from('team_games')
+          .update({ game_time: g.time || null, location: g.location || null }).eq('id', cur.id)
+        if (error) { console.error('games import update:', error.message); toast.error(L('עדכון אחד המשחקים נכשל — נסו שוב בעוד רגע.', 'Updating one of the games failed — try again in a moment.')); return }
+        updated++
+      } else {
+        const { error } = await supabase.from('team_games').insert({
+          coach_id: me, team, game_date: g.date, game_time: g.time || null,
+          opponent: g.opponent || null, location: g.location || null,
+        })
+        if (error) { console.error('games import insert:', error.message); toast.error(L('הייבוא נכשל — נסו שוב בעוד רגע.', 'Import failed — try again in a moment.')); return }
+        added++
+      }
+    }
+    // משחק שיובא בעבר ונעלם מהלוח של האיגוד (נדחה/בוטל) — נמחק רק אם הוא
+    // ריק: בלי תוצאה ובלי סיכום. משחק עם תוצאה נשאר תמיד.
+    // ⚠ הסינון על source='iba' משאיר משחקים שהוקלדו ידנית במקומם. במסד
+    //   שאין בו את העמודה הזו (אין מיגרציה שיוצרת אותה) הערך undefined —
+    //   ואז לא נמחק כלום, וזו ברירת המחדל הבטוחה.
+    const stale = (existing || []).filter((g) =>
+      g.source === 'iba' && !feedKeys.has(gameKey(g.game_date, g.opponent)) &&
+      g.our_score == null && g.their_score == null && !(g.summary || '').trim())
+    if (stale.length > 0) {
+      const { error } = await supabase.from('team_games').delete().in('id', stale.map((g) => g.id))
+      if (error) console.error('games import cleanup:', error.message)
     }
     await saveIbaLink()
-    toast.success(L(`${rows.length} משחקים יובאו + הליגה נשמרה`, `${rows.length} games imported + league saved`))
+    toast.success(added || updated
+      ? L(`${added} משחקים חדשים · ${updated} עודכנו · הליגה נשמרה`, `${added} new games · ${updated} updated · league saved`)
+      : L('לוח המשחקים כבר מעודכן · הליגה נשמרה', 'The fixture list is already up to date · league saved'))
     setImp(null); load()
   }
 

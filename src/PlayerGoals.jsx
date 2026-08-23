@@ -6,6 +6,7 @@ import { toast } from './toast'
 import { sendNotification } from './notify'
 import { L } from './i18n'
 import { PLAYER_SIDE } from './flags'
+import { confirmDialog } from './confirm'
 import { burstConfetti } from './confetti'
 import { SkeletonCards } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
@@ -33,9 +34,12 @@ const dueLabel = (d) => { const x = new Date(d + 'T00:00'); return isNaN(x) ? ''
 // rosterId (22.8, צד המאמן בלבד): היעדים נשמרים על שורת הסגל ולא על חשבון
 // השחקן — וכך יש יעדים גם לשחקן בלי חשבון. עם צד שחקן פתוח, playerId מנצח
 // ו-roster_id נכתב לצידו כדי שהשורה תחזיק את שני המזהים.
-export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerName }) {
+// onChange (לא חובה) — נקרא אחרי כל שינוי שנשמר, כדי שמסך שמציג סיכום
+// יעדים מסביב לעורך (לוח היעדים) יתרענן ולא יישאר עם מספרים ישנים.
+export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerName, onChange }) {
   const byRoster = !PLAYER_SIDE && !!rosterId
   const [goals, setGoals] = useState(null)
+  const [progDraft, setProgDraft] = useState({}) // {goalId: '120'} — הקלדה ישירה של התקדמות
   const [period, setPeriod] = useState('session')
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -98,6 +102,7 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
     if (playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
     load()
+    onChange?.()
     return true
   }
 
@@ -108,25 +113,47 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
 
   // כל העדכונים בודקים error — קודם כישלון (RLS/רשת) חזר בשקט והכפתור «עבד»
   // למראית עין עד הטעינה הבאה.
-  const bump = async (g, delta) => {
-    const next = Math.max(0, (g.progress_value || 0) + delta)
+  // מסלול עדכון אחד ל-‎+/-‎ ולהקלדה ישירה — אחרת שתי דרכים לאותו מספר
+  // היו נבדלות בבדיקת «הושג» וביומן הגרף.
+  const applyProgress = async (g, value) => {
+    const next = Math.max(0, Number(value) || 0)
     const done = g.target_value ? next >= g.target_value : g.status === 'done'
     const { error } = await supabase.from('player_goals').update({ progress_value: next, status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     if (error) { failToast(); return }
+    // יומן ההתקדמות — ממנו נבנה הגרף. היום ל-player_goal_logs יש רק מדיניות
+    // כתיבה של השחקן (pgl_player_all), ולכן כתיבה של המאמן עשויה להידחות —
+    // נכשלת בשקט, כדי שההתקדמות עצמה (שכן נשמרה) לא תיראה ככישלון.
+    if (g.target_value && playerId) {
+      await supabase.from('player_goal_logs').insert({ goal_id: g.id, player_id: playerId, value: next })
+    }
     if (done && g.status !== 'done' && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
+    onChange?.()
   }
+  const bump = (g, delta) => applyProgress(g, (g.progress_value || 0) + delta)
   const toggleDone = async (g) => {
     const done = g.status !== 'done'
     const { error } = await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     if (error) { failToast(); return }
     if (done && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
+    onChange?.()
   }
   const del = async (id) => {
+    // פח האשפה יושב ליד סימון «הושג» — לחיצה בטעות מחקה יעד ואת כל
+    // ההתקדמות שנרשמה עליו, ולכן שואלים קודם.
+    const ok = await confirmDialog({
+      title: L('למחוק את היעד?', 'Delete this goal?'),
+      message: L('היעד יימחק, ואיתו כל ההתקדמות שנרשמה עליו והגרף שלה. אי אפשר לשחזר.',
+                 'The goal will be deleted, and with it all the progress logged for it and its chart. This cannot be undone.'),
+      confirmText: L('מחיקת היעד', 'Delete the goal'),
+      danger: true,
+    })
+    if (!ok) return
     const { error } = await supabase.from('player_goals').delete().eq('id', id)
     if (error) { toast.error(L('המחיקה נכשלה — נסה שוב', 'Failed to delete — try again')); return }
     load()
+    onChange?.()
   }
 
   return (
@@ -206,6 +233,18 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
                       השחקן ב-ReferenceError (נתפס בבוחן 22.8). המאמן אינו «מוגבל». */}
                   <button className="icon-btn" onClick={() => bump(g, -1)} aria-label="-"><Minus size={14} /></button>
                   <button className="icon-btn" onClick={() => bump(g, 1)} aria-label="+"><Plus size={14} /></button>
+                  {/* הקלדה ישירה — ‎100 זריקות לא נרשמות ב-100 לחיצות על ‎+ */}
+                  <input className="finder-input ta-prog-in" dir="ltr" inputMode="numeric" placeholder="0"
+                    value={progDraft[g.id] ?? String(g.progress_value || '')}
+                    aria-label={L(`התקדמות מתוך ${g.target_value}`, `Progress out of ${g.target_value}`)}
+                    onChange={(e) => setProgDraft((d) => ({ ...d, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                    onBlur={() => {
+                      const v = progDraft[g.id]
+                      setProgDraft((d) => { const n = { ...d }; delete n[g.id]; return n })
+                      if (v == null || v === '' || Number(v) === (g.progress_value || 0)) return
+                      applyProgress(g, Number(v))
+                    }} />
                 </div>
               ) : (
                 <button className={g.status === 'done' ? 'pg-check on' : 'pg-check'} onClick={() => toggleDone(g)} aria-label={L('הושג', 'Done')}><Check size={14} /></button>

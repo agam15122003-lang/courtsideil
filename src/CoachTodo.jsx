@@ -122,7 +122,10 @@ export default function CoachTodo({ session, onNavigate, variant }) {
 
       // 4 — משימות שעבר תאריך היעד שלהן וממתינות לסגירה
       {
-        const overdue = asgRes.error ? [] : asgRes.data || []
+        // משימה שכבר אורכבה (ידנית או אוטומטית) נסגרה — אין עליה מה לעשות,
+        // והיא נשארה כאן לנצח. סינון בצד הלקוח ולא בשאילתה: עמודת status
+        // (supabase_tasks_launch.sql) עלולה עוד לא להתקיים במסד.
+        const overdue = (asgRes.error ? [] : asgRes.data || []).filter((a) => (a.status || 'active') !== 'archived')
         if (overdue.length > 0) {
           let comps = []
           // צד המאמן בלבד: הסימונים של המאמן (assignment_coach_marks), לפי שורת סגל

@@ -41,12 +41,14 @@ function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, ind
   const hasContent =
     strokes.length || (step.objects || []).length || (step.arrows || []).length || b.steps.length > 1
 
+  // is-erasing: במחק אסור ל-touch-action: pan-y (של html.has-pen) לחטוף
+  // שפשוף אנכי לגלילה — האצבע חייבת למחוק גם כשהעט בסביבה
   return (
     <div className={`mini-court${editable ? ' is-edit' : ''}`}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${dim.w} ${dim.h}`}
-        className={`nb-court mini-court-svg${inkTool.drawing ? ' is-drawing' : ''}`}
+        className={`nb-court mini-court-svg${inkTool.drawing ? ' is-drawing' : ''}${editable && tool === 'eraser' ? ' is-erasing' : ''}`}
         role="img"
         aria-label={L(`מגרש ${index + 1}`, `Court ${index + 1}`)}
         onDoubleClick={editable && onOpen ? onOpen : undefined}

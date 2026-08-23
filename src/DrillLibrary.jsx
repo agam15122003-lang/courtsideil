@@ -118,12 +118,31 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
     })
   }
 
+  // קישור plan_items לבדו אינו מופיע בשום מקום בדף המחברת, ולכן המאמן
+  // פתח את התוכנית ולא ראה שינוי. מוסיפים לגוף הדף בדיוק את המקטע
+  // ש«תרגיל מהספרייה» של המחברת בונה: שם + תיאור, מופרדים בשורת רווח.
+  // body ריק/חסר (מסד ותיק, או תוכנית שנבנתה מפריטים) — לא נוגעים, הדף
+  // נופל שם ממילא לפריטים.
+  const appendDrillToBody = async (planId, drill) => {
+    const { data, error } = await supabase
+      .from('training_plans')
+      .select('body')
+      .eq('id', planId)
+      .maybeSingle()
+    if (error || !data || data.body == null) return
+    const chunk = [drill.title || L('תרגיל', 'Drill'), (drill.description || '').trim()].filter(Boolean).join('\n')
+    const before = String(data.body).replace(/\s+$/, '')
+    const next = before + (before ? '\n\n' : '') + chunk + '\n'
+    await supabase.from('training_plans').update({ body: next }).eq('id', planId)
+  }
+
   const addDrillToPlan = async (planId) => {
     if (!planPicker || addingToPlan) return
     setAddingToPlan(true)
     const { error } = await insertItem(planId, planPicker)
+    if (error) { setAddingToPlan(false); toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + error.message); return }
+    await appendDrillToBody(planId, planPicker)
     setAddingToPlan(false)
-    if (error) { toast.error(L('ההוספה נכשלה: ', 'Failed to add: ') + error.message); return }
     toast.success(L('התרגיל נוסף לתוכנית', 'Drill added to the plan'))
     setPlanPicker(null)
   }

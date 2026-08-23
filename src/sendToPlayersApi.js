@@ -129,7 +129,9 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   for (const to of recipients) {
     sendNotification({ to, actor: coachId, type: 'message', content: L('המאמן שלח לך תרגול חדש', 'Your coach sent you new training'), nav: 'drills' })
   }
-  return { ok: true, count: mode === 'team' ? recipients.length : rows.length, warn }
+  // מספר הנמענים, לא מספר השורות: משימה חוזרת ל-2 שחקנים ×4 שבועות היא
+  // 8 שורות — והמסך דיווח «נרשם ל-8 שחקנים».
+  return { ok: true, count: mode === 'team' ? recipients.length : players.length, warn }
 }
 
 // טוען את השיגורים האחרונים של המאמן + כמה סימנו בוצע

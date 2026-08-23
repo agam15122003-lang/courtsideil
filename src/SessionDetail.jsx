@@ -6,9 +6,11 @@ import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE } from './flags'
 import { sendNotification } from './notify'
+import { confirmDialog } from './confirm'
 import Avatar from './Avatar'
 import { MOOD_BY_KEY } from './FeedbackSheet'
 import { SkeletonRoster } from './Skeleton'
+import { ErrorState } from './states'
 
 const ATT = [
   { id: 'present', label: ['נוכח', 'Present'], tone: 'green' },
@@ -24,7 +26,9 @@ const ATT = [
 // השורות שהשחקן דירג בעצמו (אם יהיו בעתיד) ממשיכות להיקרא ולהיות מוצגות.
 const COACH_MODE = !PLAYER_SIDE
 const EFFORT_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-const MARK_PERIODS = ['session', 'week', 'month'] // אותם טווחים שגיליון השחקן שואל עליהם
+// כל הטווחים של PlayerGoals.PERIODS — בלי חצי-שנתי ושנתי יעדים ארוכי-טווח
+// פשוט לא הופיעו כאן לסימון «עמד ביעד»
+const MARK_PERIODS = ['session', 'week', 'month', 'half_year', 'year']
 const missingCol = (e, col) => !!e && new RegExp(col, 'i').test(e.message || '')
 const SQL_HINT = () => L('כדי לרשום עומס ויעדים לשחקנים צריך להריץ את supabase_coach_only_22_8.sql', 'Logging load and goals per player needs supabase_coach_only_22_8.sql')
 
@@ -37,7 +41,9 @@ export default function SessionDetail({ session, entry, onClose }) {
   const sessionId = entry.id
   const sessionDate = entry.date
   const [roster, setRoster] = useState(null)
+  const [loadErr, setLoadErr] = useState(false) // שליפת הסגל נכשלה — לא «אין שחקנים»
   const [att, setAtt] = useState({})        // {rosterId: status}
+  const loadedAtt = useRef({})              // הנוכחות שהייתה שמורה בפתיחה — כדי למחוק סימון שבוטל
   const [efforts, setEfforts] = useState({}) // {rosterId: 1..10} — דירוג עצמי של השחקן (קריאה בלבד)
   const [coachEff, setCoachEff] = useState({}) // {rosterId: 1..10} — מה שהמאמן רשם
   const [acks, setAcks] = useState({}) // {rosterId: {auth, acked}} — 'ראיתי' על סיכום השחקן
@@ -55,12 +61,17 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [overall, setOverall] = useState('')
   const [saving, setSaving] = useState(false)
   const [hadReview, setHadReview] = useState(false) // כבר נשמר דוח בעבר? (כדי לא לשלוח התראות כפולות)
+  const dirty = useRef(false)   // נגעו במשהו שלא נשמר? (סגירה בטעות = איבוד הסקירה)
+  const closing = useRef(false) // דיאלוג היציאה כבר פתוח — טאפ נוסף על הרקע לא יפתח עוד אחד
 
   const load = useCallback(async () => {
-    const { data: rp } = await supabase
+    setLoadErr(false)
+    const { data: rp, error: rosterErr } = await supabase
       .from('team_players')
       .select('id, name, number, position, player_id')
       .eq('coach_id', me).eq('team', team).order('number')
+    // שגיאת שליפה אינה «אין שחקנים» — משאירים roster=null (save לא כותב) ומציגים שגיאה
+    if (rosterErr) { setLoadErr(true); setRoster(null); return }
     const players = rp || []
     setRoster(players)
     const byAuth = {}; for (const p of players) if (p.player_id) byAuth[p.player_id] = p.id
@@ -83,6 +94,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         : Promise.resolve({ data: [] }),
     ])
     const a = {}; for (const r of aRows || []) a[r.player_id] = r.status; setAtt(a)
+    loadedAtt.current = a
     const nt = {}, fid = {}
     for (const r of fRows || []) {
       const rid = ridOf(r); if (!rid) continue
@@ -125,39 +137,72 @@ export default function SessionDetail({ session, entry, onClose }) {
       if (rev.mvp_player_id && byAuth[rev.mvp_player_id]) setMvp(byAuth[rev.mvp_player_id])
       else if (rev.mvp_name) { const p = players.find((x) => x.name === rev.mvp_name); if (p) setMvp(p.id) }
     }
+    dirty.current = false // מה שנטען מהמסד אינו «שינוי שלא נשמר»
   }, [me, team, sessionDate, sessionId, sessionType])
+
+  // סגירה מבוקשת (רקע / X / Escape): על אייפד כף היד נופלת על השוליים הכהים,
+  // ועד עכשיו זה מחק סקירה שלמה בלי אזהרה.
+  const requestClose = useCallback(async () => {
+    if (!dirty.current) { onClose(); return }
+    if (closing.current) return
+    closing.current = true
+    const ok = await confirmDialog({
+      title: L('לצאת בלי לשמור?', 'Leave without saving?'),
+      message: L('הנוכחות, העומס וההערות שרשמת לא נשמרו.', 'The attendance, load and notes you logged were not saved.'),
+      confirmText: L('צא בלי לשמור', 'Leave without saving'),
+      cancelText: L('חזרה לסקירה', 'Back to the review'),
+      danger: true,
+    })
+    closing.current = false
+    if (ok) onClose()
+  }, [onClose])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') requestClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [requestClose])
 
-  const setP = (setter) => (rid, val) => setter((c) => ({ ...c, [rid]: val }))
+  const setP = (setter) => (rid, val) => { dirty.current = true; setter((c) => ({ ...c, [rid]: val })) }
   // סימון יעד: ריק → עמד ✓ → לא עמד — → ריק
-  const cycleMark = (rid, goalId) => setCoachMarks((c) => {
-    const cur = c[rid]?.[goalId]
-    const next = cur === undefined ? true : cur === true ? false : undefined
-    const row = { ...(c[rid] || {}) }
-    if (next === undefined) delete row[goalId]; else row[goalId] = next
-    return { ...c, [rid]: row }
-  })
+  const cycleMark = (rid, goalId) => {
+    dirty.current = true
+    setCoachMarks((c) => {
+      const cur = c[rid]?.[goalId]
+      const next = cur === undefined ? true : cur === true ? false : undefined
+      const row = { ...(c[rid] || {}) }
+      if (next === undefined) delete row[goalId]; else row[goalId] = next
+      return { ...c, [rid]: row }
+    })
+  }
 
   const save = async () => {
     if (!roster) return
     setSaving(true)
+    dirty.current = false
     const byId = Object.fromEntries(roster.map((p) => [p.id, p]))
     let sqlMissing = false
+    // כתיבה שנכשלה (רשת של אולם ספורט) — לא סוגרים את החלון ולא אומרים «נשמר»,
+    // מחזירים את מצב «יש שינוי שלא נשמר» כדי שהמאמן ינסה שוב בלי לאבד שורה.
+    const fail = (msg, e) => { dirty.current = true; setSaving(false); toast.error(msg + (e?.message || '')) }
 
     // 1) נוכחות
     const marks = Object.entries(att).filter(([, s]) => s)
     if (marks.length) {
-      if (sessionType === 'game') {
-        await supabase.from('game_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, game_id: sessionId, player_id: rid, status })), { onConflict: 'game_id,player_id' })
-      } else {
-        await supabase.from('practice_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, session_date: sessionDate, player_id: rid, status })), { onConflict: 'coach_id,team,session_date,player_id' })
-      }
+      const { error } = sessionType === 'game'
+        ? await supabase.from('game_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, game_id: sessionId, player_id: rid, status })), { onConflict: 'game_id,player_id' })
+        : await supabase.from('practice_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, session_date: sessionDate, player_id: rid, status })), { onConflict: 'coach_id,team,session_date,player_id' })
+      if (error) { fail(L('שמירת הנוכחות נכשלה: ', 'Saving attendance failed: '), error); return }
+    }
+    // סימון נוכחות שהיה שמור ובוטל — בלי המחיקה הוא היה חוזר בפתיחה הבאה
+    const clearedAtt = Object.keys(loadedAtt.current).filter((rid) => !att[rid])
+    if (clearedAtt.length) {
+      const q = sessionType === 'game'
+        ? supabase.from('game_attendance').delete().eq('game_id', sessionId).in('player_id', clearedAtt)
+        : supabase.from('practice_attendance').delete().eq('coach_id', me).eq('team', team).eq('session_date', sessionDate).in('player_id', clearedAtt)
+      const { error } = await q
+      if (error) { fail(L('מחיקת סימון נוכחות נכשלה: ', 'Clearing an attendance mark failed: '), error); return }
     }
 
     // 1ב) עומס שהמאמן רשם (צד המאמן בלבד) — שורה לכל שחקן, על שורת הסגל
@@ -171,15 +216,15 @@ export default function SessionDetail({ session, entry, onClose }) {
       }))
       if (rows.length) {
         const { error } = await supabase.from('session_effort').upsert(rows, { onConflict: 'session_id,roster_id' })
-        if (error) { if (missingCol(error, 'roster_id|source')) sqlMissing = true; else toast.error(L('שמירת העומס נכשלה: ', 'Saving the load failed: ') + error.message) }
+        if (error) { if (missingCol(error, 'roster_id|source')) sqlMissing = true; else { fail(L('שמירת העומס נכשלה: ', 'Saving the load failed: '), error); return } }
       }
-      // עומס שנמחק (הבורר חזר ל«עומס») — מפתח עם ערך ריק קיים רק אם נטען
-      // מהמסד או נבחר ובוטל; בלי המחיקה הערך הישן היה חוזר בפתיחה הבאה.
+      // עומס שנמחק (לחיצה שנייה על אותו מספר מנקה) — מפתח עם ערך ריק קיים רק אם
+      // נטען מהמסד או נבחר ובוטל; בלי המחיקה הערך הישן היה חוזר בפתיחה הבאה.
       const cleared = Object.entries(coachEff).filter(([, v]) => !v).map(([rid]) => rid)
       if (cleared.length) {
         const { error } = await supabase.from('session_effort').delete()
           .eq('coach_id', me).eq('session_id', sessionId).eq('source', 'coach').in('roster_id', cleared)
-        if (error && !missingCol(error, 'roster_id|source')) toast.error(L('מחיקת העומס נכשלה: ', 'Clearing the load failed: ') + error.message)
+        if (error && !missingCol(error, 'roster_id|source')) { fail(L('מחיקת העומס נכשלה: ', 'Clearing the load failed: '), error); return }
       }
       // 1ג) «עמד ביעד» — סימוני המאמן
       const gmRows = []
@@ -191,7 +236,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       }
       if (gmRows.length) {
         const { error } = await supabase.from('session_goal_marks').upsert(gmRows, { onConflict: 'session_id,goal_id,roster_id' })
-        if (error) { if (missingCol(error, 'roster_id')) sqlMissing = true; else toast.error(L('שמירת סימוני היעדים נכשלה: ', 'Saving the goal marks failed: ') + error.message) }
+        if (error) { if (missingCol(error, 'roster_id')) sqlMissing = true; else { fail(L('שמירת סימוני היעדים נכשלה: ', 'Saving the goal marks failed: '), error); return } }
       }
       // סימון שהיה שמור ובוטל (חזר ל«ריק») — מוחקים, אחרת הוא חוזר בפתיחה הבאה
       const gone = []
@@ -202,7 +247,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         const res = await Promise.all(gone.map(({ rid, goalId }) =>
           supabase.from('session_goal_marks').delete().match({ session_id: sessionId, goal_id: goalId, roster_id: rid, coach_id: me })))
         const err = res.find((r) => r.error)?.error
-        if (err && !missingCol(err, 'roster_id')) toast.error(L('מחיקת סימון יעד נכשלה: ', 'Clearing a goal mark failed: ') + err.message)
+        if (err && !missingCol(err, 'roster_id')) { fail(L('מחיקת סימון יעד נכשלה: ', 'Clearing a goal mark failed: '), err); return }
       }
     }
 
@@ -220,24 +265,27 @@ export default function SessionDetail({ session, entry, onClose }) {
       if (fbId[p.id]) {
         let { error } = await supabase.from('player_feedback').update(payload).eq('id', fbId[p.id])
         if (error && missingCol(error, 'roster_id')) ({ error } = await supabase.from('player_feedback').update({ ...payload, roster_id: undefined }).eq('id', fbId[p.id]))
+        if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
       } else {
         let { error } = await supabase.from('player_feedback').insert(payload)
         if (error && missingCol(error, 'roster_id')) {
           if (p.player_id) ({ error } = await supabase.from('player_feedback').insert({ ...payload, roster_id: undefined }))
           else { sqlMissing = true; continue }
         }
-        if (!error && nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
+        if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
+        if (nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
       }
     }
 
     // 3) סקירת אימון (הערה כללית / MVP)
     const mvpP = mvp ? byId[mvp] : null
-    await supabase.from('session_reviews').upsert({
+    const { error: revErr } = await supabase.from('session_reviews').upsert({
       coach_id: me, team, session_type: sessionType, session_id: sessionId, session_date: sessionDate,
       overall_note: overall.trim() || null,
       mvp_name: mvpP ? mvpP.name : null, mvp_player_id: mvpP?.player_id || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'coach_id,session_type,session_id' })
+    if (revErr) { fail(L('שמירת סיכום האימון נכשלה: ', 'Saving the session summary failed: '), revErr); return }
     if (mvpP?.player_id && !notified.has(mvpP.player_id)) {
       sendNotification({ to: mvpP.player_id, actor: me, type: 'message', content: L('נבחרת ל-MVP של האימון! 🏀', 'You were picked MVP of the session! 🏀'), nav: 'feedback' })
       notified.add(mvpP.player_id)
@@ -276,13 +324,20 @@ export default function SessionDetail({ session, entry, onClose }) {
     }
 
     setSaving(false)
-    if (sqlMissing) { toast.error(SQL_HINT()); return }
+    if (sqlMissing) { dirty.current = true; toast.error(SQL_HINT()); return }
     toast.success(L('הסקירה נשמרה', 'Session saved'))
     onClose()
   }
 
   const present = Object.values(att).filter((s) => s && s !== 'absent').length
   const marked = Object.values(att).filter(Boolean).length
+  // «כולם נוכחים» — 12 טאפים הופכים לאחד; אותו כפתור מנקה כשכולם כבר מסומנים
+  const allPresent = !!roster && roster.length > 0 && roster.every((p) => att[p.id] === 'present')
+  const toggleAllPresent = () => {
+    if (!roster) return
+    dirty.current = true
+    setAtt((c) => { const n = { ...c }; for (const p of roster) n[p.id] = allPresent ? '' : 'present'; return n })
+  }
   // ממוצע קבוצתי: מה שהמאמן רשם + מה שהשחקנים דירגו (שחקן שיש לו שניהם — של המאמן)
   const effVals = roster
     ? roster.map((p) => Number(coachEff[p.id]) || efforts[p.id] || null).filter(Boolean)
@@ -290,10 +345,10 @@ export default function SessionDetail({ session, entry, onClose }) {
   const avgEffort = effVals.length ? (effVals.reduce((s, v) => s + v, 0) / effVals.length) : null
 
   const body = (
-    <div className="sd-modal" onClick={onClose}>
+    <div className="sd-modal" onClick={() => requestClose()}>
       <div className="sd-inner" onClick={(e) => e.stopPropagation()}>
         <header className={`sd-hero ${sessionType}`}>
-          <button className="icon-btn sd-close" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+          <button className="icon-btn sd-close" onClick={() => requestClose()} aria-label={L('סגור', 'Close')}><X size={18} /></button>
           <span className="sd-badge">{sessionType === 'game' ? L('סקירת משחק', 'Game review') : L('סקירת אימון', 'Practice review')}</span>
           <h2>{sessionType === 'game' && entry.opponent ? `${trTeam(team)} — ${entry.opponent}` : trTeam(team)}</h2>
           <span className="sd-date">
@@ -314,11 +369,18 @@ export default function SessionDetail({ session, entry, onClose }) {
               : L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}
           </p>
 
-          {roster === null ? (
+          {loadErr ? (
+            /* שליפת הסגל נכשלה — שגיאה עם «נסה שוב», לא «אין שחקנים» */
+            <ErrorState compact onRetry={load} />
+          ) : roster === null ? (
             <SkeletonRoster count={6} />
           ) : roster.length === 0 ? (
             <p className="muted small">{L('אין שחקנים בסגל של הקבוצה הזו עדיין.', 'No players in this team roster yet.')}</p>
           ) : (
+            <>
+            <button type="button" className="btn-soft sd-allpresent" onClick={toggleAllPresent}>
+              <Check size={15} /> {allPresent ? L('ניקוי הנוכחות', 'Clear attendance') : L('כולם נוכחים', 'Everyone present')}
+            </button>
             <ul className="sd-roster">
               {roster.map((p) => {
                 // בצד המאמן בלבד כל שורת סגל «מחוברת» — הכול נרשם עליה
@@ -331,22 +393,20 @@ export default function SessionDetail({ session, entry, onClose }) {
                       {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={30} />}
                       <span className="sd-name">{p.name}{!connected && <span className="muted small"> · {L('לא מחובר', 'not connected')}</span>}</span>
                       {COACH_MODE ? (
-                        /* עומס שהמאמן רושם — בורר 1–10 (נפתח כגלגלת בטלפון) */
-                        <label className="sd-eff-pick" title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
-                          <Flame size={13} aria-hidden="true" />
-                          <select className="sd-eff-sel" dir="ltr" value={coachEff[p.id] || ''} onChange={(e) => setP(setCoachEff)(p.id, e.target.value ? Number(e.target.value) : '')}
-                            aria-label={L(`עומס לשחקן ${p.name}`, `Load for ${p.name}`)}>
-                            <option value="">{L('עומס', 'Load')}</option>
-                            {EFFORT_OPTS.map((n) => <option key={n} value={n}>{n}/10</option>)}
-                          </select>
+                        /* תצוגה בלבד — הבחירה עברה לשורת המספרים 1–10 מתחת (טאפ אחד
+                           במקום בורר שנפתח, נגלל ונסגר, פעם לכל שחקן על המגרש) */
+                        <>
+                          <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
+                            <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
+                          </span>
                           {eff && !coachEff[p.id] && <span className="muted small" dir="ltr">{L('השחקן: ', 'Player: ')}{eff}/10</span>}
-                        </label>
+                        </>
                       ) : connected && (
                         <span className={eff ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('מאמץ (דירוג עצמי)', 'Effort (self-rated)')}>
                           <Flame size={13} /> {eff ? `${eff}/10` : L('טרם דירג', '—')}
                         </span>
                       )}
-                      <button className={mvp === p.id ? 'sd-mvp on' : 'sd-mvp'} onClick={() => setMvp(mvp === p.id ? null : p.id)} title={L('MVP', 'MVP')} aria-pressed={mvp === p.id}>
+                      <button className={mvp === p.id ? 'sd-mvp on' : 'sd-mvp'} onClick={() => { dirty.current = true; setMvp(mvp === p.id ? null : p.id) }} title={L('MVP', 'MVP')} aria-pressed={mvp === p.id}>
                         <Crown size={16} />
                       </button>
                     </div>
@@ -364,6 +424,16 @@ export default function SessionDetail({ session, entry, onClose }) {
                         </button>
                       )}
                     </div>
+                    {/* עומס 1–10 בטאפ אחד; לחיצה שנייה על אותו מספר מנקה */}
+                    {COACH_MODE && (
+                      <div className="sd-effort" role="group" aria-label={L(`עומס לשחקן ${p.name}`, `Load for ${p.name}`)}>
+                        <span className="sd-effort-lbl">{L('עומס', 'Load')}</span>
+                        {EFFORT_OPTS.map((n) => (
+                          <button key={n} type="button" className={coachEff[p.id] === n ? 'sd-e on' : 'sd-e'} aria-pressed={coachEff[p.id] === n}
+                            onClick={() => setP(setCoachEff)(p.id, coachEff[p.id] === n ? '' : n)}>{n}</button>
+                        ))}
+                      </div>
+                    )}
                     {connected && (openNote[p.id] || note[p.id]) && (
                       <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
                     )}
@@ -426,11 +496,12 @@ export default function SessionDetail({ session, entry, onClose }) {
                 )
               })}
             </ul>
+            </>
           )}
 
           <label className="sd-overall">
             <span>{COACH_MODE ? L('סיכום האימון (נשמר להיסטוריה)', 'Session summary (saved to history)') : L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים)', 'Session summary (saved to history, visible to players)')}</span>
-            <textarea className="finder-input" value={overall} onChange={(e) => setOverall(e.target.value)} rows={3} placeholder={L('איך היה האימון? על מה עבדנו, מה בלט...', 'How was the session? What we worked on, what stood out...')} maxLength={2000} />
+            <textarea className="finder-input" value={overall} onChange={(e) => { dirty.current = true; setOverall(e.target.value) }} rows={3} placeholder={L('איך היה האימון? על מה עבדנו, מה בלט...', 'How was the session? What we worked on, what stood out...')} maxLength={2000} />
           </label>
         </div>
 

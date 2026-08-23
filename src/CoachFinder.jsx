@@ -63,8 +63,10 @@ export default function CoachFinder({ session, initialCoach, onConsumeInitial, i
       setLoading(false)
     }
     loadCoaches()
+    // התלות היא במזהה המשתמש ולא באובייקט ה-session: רענון טוקן אוטומטי
+    // (כל ~שעה) יוצר אובייקט חדש, וכך המסך היה מתרוקן לשלד ונטען מחדש בלי סיבה.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session])
+  }, [session.user.id])
 
   // פתיחה ישירה של מאמן שהגיע מבחוץ (למשל "מאמן השבוע")
   useEffect(() => {

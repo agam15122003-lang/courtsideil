@@ -66,50 +66,58 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
 
   // העתקת תוכנית ששותפה אל "התוכניות שלי" — כולל גוף המחברת (טקסט, דיו,
   // מגרשים, קבוצה ומשך). התאריך והנוכחות לא מועתקים — הם של האימון המקורי.
+  // «שכפל» לא היה חסום: הקשה כפולה (רגילה במגע) יצרה שני עותקים
+  const copyingRef = useRef(false)
   const copyPlan = async (plan) => {
-    const { data: pis, error: e1 } = await supabase
-      .from('plan_items')
-      .select('drill_id, position, duration_minutes, note, title, description')
-      .eq('plan_id', plan.id)
-      .order('position')
-    if (e1) {
-      toast.error(L('שגיאה: ', 'Error: ') + e1.message)
-      return
-    }
-    let extra = {}
-    if (tierRef.current === 0) {
-      const { data: src, error: es } = await supabase
-        .from('training_plans').select('body, ink, courts, team, duration_minutes').eq('id', plan.id).maybeSingle()
-      if (!es && src) extra = { body: src.body, ink: src.ink, courts: src.courts, team: src.team, duration_minutes: src.duration_minutes, is_draft: false }
-    }
-    let { data: np, error: e2 } = await supabase
-      .from('training_plans')
-      .insert({ name: plan.name + L(' (עותק)', ' (copy)'), created_by: me, ...extra })
-      .select()
-      .single()
-    if (e2 && Object.keys(extra).length && notDeployed(e2)) {
-      ;({ data: np, error: e2 } = await supabase
-        .from('training_plans')
-        .insert({ name: plan.name + L(' (עותק)', ' (copy)'), created_by: me })
-        .select()
-        .single())
-    }
-    if (e2) {
-      toast.error(L('שגיאה: ', 'Error: ') + e2.message)
-      return
-    }
-    if (pis && pis.length) {
-      const rows = pis.map((it) => ({ ...it, plan_id: np.id }))
-      const { error: e3 } = await supabase.from('plan_items').insert(rows)
-      if (e3) {
-        toast.error(L('שגיאה: ', 'Error: ') + e3.message)
+    if (copyingRef.current) return
+    copyingRef.current = true
+    try {
+      const { data: pis, error: e1 } = await supabase
+        .from('plan_items')
+        .select('drill_id, position, duration_minutes, note, title, description')
+        .eq('plan_id', plan.id)
+        .order('position')
+      if (e1) {
+        toast.error(L('שגיאה: ', 'Error: ') + e1.message)
         return
       }
+      let extra = {}
+      if (tierRef.current === 0) {
+        const { data: src, error: es } = await supabase
+          .from('training_plans').select('body, ink, courts, team, duration_minutes').eq('id', plan.id).maybeSingle()
+        if (!es && src) extra = { body: src.body, ink: src.ink, courts: src.courts, team: src.team, duration_minutes: src.duration_minutes, is_draft: false }
+      }
+      let { data: np, error: e2 } = await supabase
+        .from('training_plans')
+        .insert({ name: plan.name + L(' (עותק)', ' (copy)'), created_by: me, ...extra })
+        .select()
+        .single()
+      if (e2 && Object.keys(extra).length && notDeployed(e2)) {
+        ;({ data: np, error: e2 } = await supabase
+          .from('training_plans')
+          .insert({ name: plan.name + L(' (עותק)', ' (copy)'), created_by: me })
+          .select()
+          .single())
+      }
+      if (e2) {
+        toast.error(L('שגיאה: ', 'Error: ') + e2.message)
+        return
+      }
+      if (pis && pis.length) {
+        const rows = pis.map((it) => ({ ...it, plan_id: np.id }))
+        const { error: e3 } = await supabase.from('plan_items').insert(rows)
+        if (e3) {
+          toast.error(L('שגיאה: ', 'Error: ') + e3.message)
+          return
+        }
+      }
+      toast.success(L('התוכנית הועתקה אל "התוכניות שלי".', 'Plan copied to "My Plans".'))
+      setViewingPlan(null)
+      loadPlans()
+      setActivePlanId(np.id)
+    } finally {
+      copyingRef.current = false
     }
-    toast.success(L('התוכנית הועתקה אל "התוכניות שלי".', 'Plan copied to "My Plans".'))
-    setViewingPlan(null)
-    loadPlans()
-    setActivePlanId(np.id)
   }
 
   // עימוד: עד היום נשלפו *כל* התוכניות הנגישות (שלי + כל הקהילה) עם

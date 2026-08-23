@@ -103,7 +103,6 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   const me = session.user.id
 
   const [loading, setLoading] = useState(!!planId)
-  const [attReady, setAttReady] = useState(false) // הסגל+הנוכחות של הקבוצה נטענו פעם ראשונה
   const [loadError, setLoadError] = useState(null)
   const [coach, setCoach] = useState({ club: '', name: '' })
   const [teams, setTeams] = useState([])
@@ -231,9 +230,11 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planId])
 
-  // הצילום הראשון נלקח כשהכול נטען: התוכנית, ואם יש קבוצה — גם הסגל והנוכחות.
-  // עד אז dirty=false (אין למה להשוות).
-  const ready = !loading && (!team || attReady)
+  // הצילום הראשון נלקח ברגע שהתוכנית עצמה נטענה. קודם חיכינו גם לסגל
+  // ולנוכחות — וטקסט שנכתב בשניות הראשונות הפך לבסיס ההשוואה, כלומר
+  // «לא שונה» ולא מוגן ביציאה. חלק הנוכחות נכנס לצילום אחר כך, מתוך
+  // אפקט הסגל (שמעדכן רק את הרכיב שלו).
+  const ready = !loading
   useEffect(() => {
     if (ready && !snapshot.current) {
       snapshot.current = serialized
@@ -273,7 +274,6 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
         setRoster([])
         setRosterError(L('טעינת הסגל נכשלה: ', 'Failed to load the roster: ') + plRes.error.message)
         setRosterLoading(false)
-        setAttReady(true)
         return
       }
       setRosterError(null)
@@ -299,7 +299,6 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
         }
       }
       setRosterLoading(false)
-      setAttReady(true)
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,26 +344,31 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
       updateCourt(c.id, { ...c.board, steps: [{ objects: [], arrows: [], ink: [] }] })
       return
     }
-    if (courts.length <= 1) return
-    setCourts((cur) => cur.filter((x) => x.id !== c.id))
+    // האורך נבדק על המצב **הנוכחי**: c מגיע מ-MiniCourt הממומו, ולכן
+    // הבדיקה על courts שב-closure הייתה ישנה ואפשרה למחוק גם את האחרון
+    setCourts((cur) => (cur.length <= 1 ? cur : cur.filter((x) => x.id !== c.id)))
   }
 
   // ---------- בורר תרגילים ----------
   const PICK_PAGE = 400
+  // השליפה בפונקציה נפרדת: «נסה שוב» קרא ל-openPicker, שבדק allDrills מתוך
+  // closure ישן (עדיין []), לא שלף שוב — והבורר נשאר על «טוען תרגילים…» לנצח.
+  const loadPickDrills = async () => {
+    setPickError(null)
+    setAllDrills(null)
+    const { data, error } = await supabase
+      .from('drills')
+      .select('id, title, description, category, duration_minutes')
+      .order('created_at', { ascending: false })
+      .limit(PICK_PAGE)
+    if (error) { setPickError(L('טעינת התרגילים נכשלה: ', 'Failed to load drills: ') + error.message); setAllDrills([]); return }
+    setAllDrills(data || [])
+  }
   const openPicker = async () => {
     setPicking(true)
     setPickQuery('')
     setPickHits(null)
-    if (allDrills == null) {
-      const { data, error } = await supabase
-        .from('drills')
-        .select('id, title, description, category, duration_minutes')
-        .order('created_at', { ascending: false })
-        .limit(PICK_PAGE)
-      if (error) { setPickError(L('טעינת התרגילים נכשלה: ', 'Failed to load drills: ') + error.message); setAllDrills([]); return }
-      setPickError(null)
-      setAllDrills(data || [])
-    }
+    if (allDrills == null || pickError) await loadPickDrills()
   }
 
   // ספרייה גדולה מ-400 תרגילים: הרשימה המקומית היא רק «האחרונים», ולכן
@@ -513,12 +517,12 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
     }
 
     // נוכחות — נשמרת גם ב«נוכחות» של הקבוצה, אבל **רק** אם המאמן באמת
-    // סימן משהו, או שהאימון כבר היה (תאריך שעבר/היום). אחרת תוכנית שנכתבת
-    // מראש לשבוע הבא הייתה כותבת «הגיע» לכל הסגל לאימון שטרם התקיים —
-    // ומנפחת את אחוזי הנוכחות העונתיים ואת דוחות השחקן.
+    // סימן משהו, או שהאימון כבר היה — תאריך שעבר **ממש**. תוכנית שנכתבת
+    // ליום האימון עצמו (לפני האימון!) הייתה כותבת «הגיע» לכל הסגל, וסקירת
+    // האימון שאחריו נראתה כאילו כבר מולאה.
     // כשהמסד עוד לא עודכן (usedLegacy) הקבוצה והתאריך לא נשמרו בתוכנית,
     // ולכן גם הנוכחות לא נכתבת — כדי לא ליצור רישום «יתום».
-    const attWorthSaving = attTouched.current || (!!date && date <= todayISO())
+    const attWorthSaving = attTouched.current || (!!date && date < todayISO())
     if (team && roster.length && !usedLegacy && attWorthSaving) {
       const rows = roster.map((p) => {
         const a = attOf(p.id)
@@ -534,7 +538,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
       }
       if (e3) toast.error(L('הנוכחות לא נשמרה: ', 'Attendance was not saved: ') + e3.message)
     } else if (team && roster.length && !usedLegacy && !attWorthSaving) {
-      toast.info(L('הנוכחות תישמר כשתסמנו אותה (או ביום האימון).', 'Attendance will be saved once you mark it (or on practice day).'))
+      toast.info(L('הנוכחות עוד לא נרשמה — היא תישמר ברגע שתסמנו אותה בדף.', 'Attendance was not recorded yet — it saves the moment you mark it on the page.'))
     }
 
     setSaving(false)
@@ -576,9 +580,21 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   }
 
   // ---------- מסכים חלופיים ----------
-  const runnerItems = linked.map((l) => ({
-    id: l.key, drill: { title: l.title, description: l.description }, duration_minutes: l.duration_minutes, title: l.title,
-  }))
+  // דף שנכתב ביד או בהקלדה בלי תרגיל מהספרייה הוא המקרה הרגיל באייפד —
+  // ובלי זה «הרץ אימון» פשוט לא הופיע. הדף עצמו הופך לפריט הרצה אחד.
+  const planTitle = name.trim() || L('תוכנית אימון', 'Practice plan')
+  const runnerItems = linked.length
+    ? linked.map((l) => ({
+        id: l.key, drill: { title: l.title, description: l.description }, duration_minutes: l.duration_minutes, title: l.title,
+      }))
+    : body.trim() || ink.length
+    ? [{
+        id: 'page',
+        drill: { title: planTitle, description: body },
+        duration_minutes: duration === '' || Number.isNaN(Number(duration)) ? null : Math.max(0, Math.round(Number(duration))),
+        title: planTitle,
+      }]
+    : []
   if (running) {
     // nbk-focus: שלד «מסך לתוכן» של האייפד נשאר גם במריץ, במקום לקפוץ חזרה
     return <div className="nbk-focus"><PlanRunner items={runnerItems} planName={name} onExit={() => setRunning(false)} /></div>
@@ -608,16 +624,18 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
     )
   }
 
+  // nbk-focus גם כאן: בלעדיו האייפד הציג לרגע את שלד המסך המלא ואז קפץ
+  // לפריסת העורך — ריצוד בכל פתיחת תוכנית
   if (loading) {
     return (
-      <div className="welcome-card">
+      <div className="welcome-card nbk-focus">
         <SkeletonCards count={1} lines={6} />
       </div>
     )
   }
   if (loadError) {
     return (
-      <div className="welcome-card">
+      <div className="welcome-card nbk-focus">
         <button className="link-button" onClick={onCancel}>
           <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
         </button>
@@ -647,7 +665,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
           </p>
         </div>
         <div className="nbk-head-actions">
-          {linked.length > 0 && (
+          {runnerItems.length > 0 && (
             <button type="button" className="btn-soft" onClick={() => setRunning(true)}>
               <PlayCircle size={16} /> {L('הרץ אימון', 'Run practice')}
             </button>
@@ -681,7 +699,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
             />
           </div>
           {pickError ? (
-            <ErrorState compact message={pickError} onRetry={() => { setAllDrills(null); setPickError(null); openPicker() }} />
+            <ErrorState compact message={pickError} onRetry={() => loadPickDrills()} />
           ) : allDrills == null || pickSearching ? (
             <p className="muted small">{L('טוען תרגילים…', 'Loading drills…')}</p>
           ) : pickList.length === 0 ? (

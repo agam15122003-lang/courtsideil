@@ -29,6 +29,10 @@ const T = PLAYER_SIDE ? {
   pick: () => L('בחרו מה לשלוח', 'Pick what to send'),
   sendN: (n) => L(`שלח ל-${n} שחקנים`, `Send to ${n} players`),
   sendBar: (n) => L(n === 1 ? 'שליחה לשחקן' : `שליחה ל-${n}`, n === 1 ? 'Send to 1 player' : `Send to ${n}`),
+  // שורת הסיכום בסרגל השליחה — מנוסחת לפי הצד שפעיל
+  sum: (n, tg, un) => L(
+    `${cnt(n, 'מקבל אחד', 'מקבלים')} · ${Number(tg) > 0 ? `יעד ${tg} ${un || ''}`.trim() : 'סימון «סיימתי»'}`,
+    `${n} recipients · ${Number(tg) > 0 ? `target ${tg} ${un || ''}`.trim() : 'a check'}`),
   sentTitle: (label) => L(`נשלח ל${label}`, `Sent to ${label}`),
   sentNext: () => L('השחקנים קיבלו התראה, וזה מופיע אצלם ב«המשימות שלי». ההתקדמות תופיע לך במעקב.', 'Your players got a notification, and it now shows under “My tasks”. Their progress appears in your tracking.'),
   again: () => L('שליחה נוספת', 'Send another'),
@@ -50,6 +54,11 @@ const T = PLAYER_SIDE ? {
   pick: () => L('כתבו את המשימה', 'Write the task'),
   sendN: (n) => L(`רישום ל-${n} שחקנים`, `Log for ${n} players`),
   sendBar: (n) => L(n === 1 ? 'רישום לשחקן' : `רישום ל-${n}`, n === 1 ? 'Log for 1 player' : `Log for ${n}`),
+  // בצד המאמן בלבד אף אחד לא «מקבל» ואף אחד לא מסמן «סיימתי» — הרשימה
+  // היא של המאמן, והוא זה שמסמן «ביצע».
+  sum: (n, tg, un) => L(
+    `${cnt(n, 'שחקן אחד', 'שחקנים')} · ${Number(tg) > 0 ? `יעד ${tg} ${un || ''}`.trim() : 'סימון «ביצע»'}`,
+    `${n} players · ${Number(tg) > 0 ? `target ${tg} ${un || ''}`.trim() : 'a “done” tick'}`),
   sentTitle: (label) => L(`נרשם ל${label}`, `Logged for ${label}`),
   sentNext: () => L('המשימה שמורה ברשימה שלך. אחרי שתבדוק עם השחקן באימון — סמן «ביצע» במעקב למטה.', 'The task is saved to your list. After checking with the player at practice — tick “done” in the tracking below.'),
   again: () => L('משימה נוספת', 'Another task'),
@@ -86,7 +95,8 @@ const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retu
 const ilDate = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' }) }
 const endOfWeek = () => { const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); return ymd(d) }
 
-export default function SendToPlayers({ session, embedded, initialTeam, variant, preset, onClose }) {
+//   onSent    - נקרא אחרי רישום/שליחה שהצליחו (המסך שמסביב מרענן את המעקב)
+export default function SendToPlayers({ session, embedded, initialTeam, variant, preset, onClose, onSent }) {
   const me = session.user.id
   const [roster, setRoster] = useState({ teams: [], players: [] })
   const [mode, setMode] = useState('team') // 'team' | 'players'
@@ -169,6 +179,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     setRepeatWeeks(1)
     if (!embedded && !variant) refreshFeed(roster)
     if (embedded) toast.success(T.toast(label))
+    onSent?.()
   }
 
   const noConnected = roster.players.length === 0
@@ -394,10 +405,7 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const sendBar = !noConnected && !sent && (
     <div className="sp-bar">
       <span className="sp-bar-sum">
-        {hasContent
-          ? L(`${cnt(targetCount, 'מקבל אחד', 'מקבלים')} · ${Number(target) > 0 ? `יעד ${target} ${unit || ''}`.trim() : 'סימון «סיימתי»'}`,
-              `${targetCount} recipients · ${Number(target) > 0 ? `target ${target} ${unit || ''}`.trim() : 'a check'}`)
-          : T.pick()}
+        {hasContent ? T.sum(targetCount, target, unit) : T.pick()}
       </span>
       <button className="btn-primary sp-send" onClick={doSend} disabled={!canSend} aria-busy={sending}>
         {sending && <span className="btn-spinner" aria-hidden="true" />}
