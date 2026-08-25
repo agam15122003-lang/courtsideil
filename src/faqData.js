@@ -146,6 +146,15 @@ export function faqItems() {
       ),
     },
 
+    {
+      category: 'הקבוצה והסגל',
+      q: L('אפשר לחבר את הקבוצה שלי לליגה באיגוד?', 'Can I connect my team to its league at the association?'),
+      a: L(
+        'כן, ועדיף לעשות את זה כבר בפרופיל: תחת «הקבוצות שאני מאמן» יש «ייבוא קבוצה מהאיגוד». בוחרים שכבת גיל, את הליגה, ואת הקבוצה שלך כמו שהיא רשומה באיגוד — בכל השלושה אפשר להקליד ולחפש.\nהקבוצה נכנסת לקבוצות שלך וגם נשמרת מקושרת, כך שהלו״ז וטבלת הליגה כבר יודעים מי אתה. את המשחקים עצמם מייבאים אחר כך במסך «משחקים וטבלה».',
+        'Yes, and it is best done in your profile: under “Teams I coach” there is “Import a team from the association”. Choose an age category, the league, and your team as it is registered — all three are searchable by typing.\nThe team joins your teams and is saved linked, so the schedule and league table already know who you are. The games themselves are imported later on the Games & table screen.'
+      ),
+    },
+
     // ---------- אימונים ותרגילים ----------
     {
       category: 'אימונים ותרגילים',
