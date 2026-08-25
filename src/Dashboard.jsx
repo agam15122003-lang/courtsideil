@@ -27,6 +27,7 @@ import { PLAYER_SIDE } from './flags'
 import PlayerSideClosed from './PlayerSideClosed'
 // מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
 import AccountBlocked from './AccountBlocked'
+import GuidedTour, { tourSeen, markTourSeen } from './GuidedTour'
 
 // ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
 // אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
@@ -148,8 +149,7 @@ import {
   AlertTriangle,
   RotateCcw,
   UserPlus,
-  WifiOff,
-} from 'lucide-react'
+  WifiOff, Compass } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
 import Page from './Page'
@@ -303,6 +303,14 @@ export default function Dashboard({ session }) {
 
   // ניווט עם יעדי-עומק: 'community-chats' פותח את הקהילה על טאב הצ'אטים,
   // 'finder-games' פותח את המאתר על לוח משחקי האימון
+  // הסיור המודרך. נפתח פעם אחת, אוטומטית, **אחרי** שהפרופיל מלא —
+  // מאמן שעוד באמצע ההרשמה לא צריך סיור על מסכים שהוא לא יכול לפתוח.
+  const [tour, setTour] = useState(false)
+  useEffect(() => {
+    if (loading || loadError || !profile?.first_name || profile?.banned) return
+    if (!tourSeen()) setTour(true)
+  }, [loading, loadError, profile?.first_name, profile?.banned])
+
   const navigate = async (id) => {
     // מסך עם עבודה שלא נשמרה (המחברת) מקבל הזדמנות לעצור את המעבר
     if (!(await confirmLeave())) return
@@ -682,6 +690,7 @@ export default function Dashboard({ session }) {
           {(profile?.is_admin ? [...COACH_NAV, DOSSIER_NAV, ADMIN_NAV] : COACH_NAV).map((item) => (
             <button
               key={item.id}
+              data-nav={item.id}
               className={view === item.id ? 'nav-item active' : 'nav-item'}
               onClick={async () => {
                 if (!(await confirmLeave())) return
@@ -804,6 +813,7 @@ export default function Dashboard({ session }) {
               session={session}
               profile={profile}
               onNavigate={navigate}
+              onStartTour={() => { markTourSeen(); setTour(true) }}
               onOpenCoach={(coach) => { setInitialCoach(coach); setView('finder') }}
             />
           ) : view === 'community' ? (
@@ -911,9 +921,16 @@ export default function Dashboard({ session }) {
             <Page
               {...PAGE_META.profile()}
               actions={(
-                <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => setEditing(true)}>
-                  <Pencil size={15} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
-                </button>
+                <>
+                  {/* הדרך הקבועה לחזור לסיור. הבאנר בדף הבית נעלם ברגע
+                      שסוגרים אותו, ובלי הכפתור הזה הסיור היה חד־פעמי. */}
+                  <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => { markTourSeen(); setTour(true) }}>
+                    <Compass size={15} aria-hidden="true" /> {L('סיור מודרך', 'Guided tour')}
+                  </button>
+                  <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => setEditing(true)}>
+                    <Pencil size={15} aria-hidden="true" /> {L('עריכת פרטים', 'Edit details')}
+                  </button>
+                </>
               )}
             >
             <div className="profile-page">
@@ -1067,6 +1084,13 @@ export default function Dashboard({ session }) {
           </>
         }
       />
+
+      {tour && (
+        <GuidedTour
+          onGo={navigate}
+          onClose={() => setTour(false)}
+        />
+      )}
     </div>
   )
 }

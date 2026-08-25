@@ -43,6 +43,7 @@ export default function PocketNav({ items, all, activeId, onNavigate, footer = n
     <button
       key={item.id}
       type="button"
+      data-nav={item.id}
       className={activeId === item.id ? 'pkn-item active' : 'pkn-item'}
       aria-label={item.label}
       aria-current={activeId === item.id ? 'page' : undefined}
@@ -108,6 +109,7 @@ export default function PocketNav({ items, all, activeId, onNavigate, footer = n
                 <button
                   key={item.id}
                   type="button"
+                  data-nav={item.id}
                   className={activeId === item.id ? 'pkn-tile active' : 'pkn-tile'}
                   aria-current={activeId === item.id ? 'page' : undefined}
                   onClick={() => go(item.id)}

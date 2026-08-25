@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, MessagesSquare } from 'lucide-react'
+import { X, MessagesSquare, Compass } from 'lucide-react'
 import {
   NEWS_SOURCES,
   NEWS_COUNT,
@@ -263,7 +263,7 @@ function formatDate(d) {
 // props:
 //   profile    - פרטי המאמן (לברכה אישית)
 //   onNavigate - (viewId) => מעבר לטאב אחר
-export default function Home({ session, profile, onNavigate }) {
+export default function Home({ session, profile, onNavigate, onStartTour }) {
   const name = profile?.first_name || L('מאמן', 'Coach')
   const { items, loading, error } = useNews()
   // הלו"ז נשלף פעם אחת כאן ויורד כ-prop לכל מי שצריך אותו
@@ -365,6 +365,13 @@ export default function Home({ session, profile, onNavigate }) {
       {showOnboarding && (
         <div className="nh-welcome">
           <span>{L(`ברוכים הבאים, ${name}! טוב לראות אותך כאן.`, `Welcome, ${name}! Good to see you here.`)}</span>
+          {/* הבאנר היה הודעה בלבד. עכשיו הוא גם הדרך לפתוח שוב את הסיור —
+              המקום היחיד באפליקציה שממנו אפשר לחזור אליו. */}
+          {onStartTour && (
+            <button type="button" className="nh-welcome-tour" onClick={onStartTour}>
+              <Compass size={14} aria-hidden="true" /> {L('סיור מודרך', 'Guided tour')}
+            </button>
+          )}
           <button type="button" className="nh-welcome-x" onClick={dismissOnboarding} aria-label={L('סגירה', 'Close')}>
             <X size={15} aria-hidden="true" />
           </button>
