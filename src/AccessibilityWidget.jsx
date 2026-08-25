@@ -326,11 +326,10 @@ export default function AccessibilityWidget() {
               <p>{t('a11y.st.coordinator')}</p>
               <ul>
                 <li>{t('a11y.st.namePlaceholder')}</li>
+                {/* 24.8 — מספר הטלפון האישי ירד מהצהרת הנגישות (החלטת הבעלים).
+                    הפנייה במייל בלבד, כאן וב-public/accessibility.html. */}
                 <li dir="ltr">
                   <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-                </li>
-                <li dir="ltr">
-                  <a href="tel:+972526268252">{t('a11y.st.phonePlaceholder')}</a>
                 </li>
               </ul>
               <p className="a11y-st-date">{t('a11y.st.updated')}</p>

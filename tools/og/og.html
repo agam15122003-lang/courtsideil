@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="./fonts/rubik.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box }
+  html,body { width:1200px; height:630px; overflow:hidden }
+  body {
+    font-family:'Rubik','Heebo',system-ui,sans-serif;
+    background:linear-gradient(150deg,#26385F 0%,#1B2A4A 45%,#141E36 100%);
+    color:#fff; position:relative;
+  }
+  .glow { position:absolute; inset-inline-end:-140px; top:-160px; width:640px; height:640px;
+          background:radial-gradient(circle, rgba(232,118,58,.20) 0%, rgba(232,118,58,0) 68%); }
+  .court { position:absolute; inset-inline-end:48px; top:50%; transform:translateY(-50%); opacity:.85 }
+  .wrap { position:absolute; inset-inline-start:66px; top:0; height:100%;
+          display:flex; flex-direction:column; justify-content:center; width:712px }
+  .brand { display:flex; align-items:center; gap:14px; margin-bottom:30px }
+  .brand-name { font-size:38px; font-weight:800; letter-spacing:-.5px }
+  h1 { font-family:'Heebo','Rubik',sans-serif; font-size:56px; font-weight:900; line-height:1.16; margin-bottom:22px }
+  h1 .hl { color:#F0A070 }
+  p { font-size:26px; line-height:1.5; color:#C7D4E8; margin-bottom:34px }
+  .chips { display:flex; flex-wrap:wrap; gap:10px }
+  .chip { font-size:20px; font-weight:600; padding:9px 18px; border-radius:999px;
+          background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.17); color:#E6EEF9 }
+  .foot { position:absolute; inset-inline-start:72px; bottom:40px; font-size:21px; color:#8FA3C4; font-weight:500 }
+</style>
+</head>
+<body>
+  <span class="glow"></span>
+
+  <svg class="court" width="356" height="456" viewBox="0 0 360 460" fill="none">
+    <rect x="6" y="6" width="348" height="448" rx="26" fill="rgba(255,255,255,.045)" stroke="rgba(226,234,246,.20)" stroke-width="2"/>
+    <g stroke="rgba(226,234,246,.44)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="22" y="22" width="316" height="416" rx="12"/>
+      <line x1="22" y1="230" x2="338" y2="230"/>
+      <circle cx="180" cy="230" r="46"/>
+      <rect x="120" y="24" width="120" height="128"/>
+      <circle cx="180" cy="152" r="38"/>
+      <path d="M62 24 Q62 148 62 148 Q180 244 298 148 Q298 24 298 24" opacity=".6"/>
+      <rect x="120" y="308" width="120" height="128"/>
+      <circle cx="180" cy="308" r="38"/>
+      <path d="M62 436 Q62 312 62 312 Q180 216 298 312 Q298 436 298 436" opacity=".6"/>
+    </g>
+    <circle cx="180" cy="230" r="17" fill="#E8763A"/>
+    <path d="M163 230 H197 M180 213 V247 M168 218 Q180 230 168 242 M192 218 Q180 230 192 242"
+          stroke="rgba(20,29,52,.92)" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+  </svg>
+
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" width="46" height="46">
+        <circle cx="42" cy="55" r="22" fill="#E8763A"/>
+        <circle cx="42" cy="55" r="9" fill="#fff"/>
+        <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#E8763A"/>
+        <circle cx="78" cy="30" r="6" fill="#E8763A"/>
+      </svg>
+      <span class="brand-name">CourtSide</span>
+    </div>
+    <h1>הבית של <span class="hl">מאמני הכדורסל</span> הישראלי.</h1>
+    <p>כל מה שמאמן צריך במקום אחד — בעברית, ישר מהדפדפן.</p>
+    <div class="chips">
+      <span class="chip">מחברת אימון</span>
+      <span class="chip">ספריית תרגילים</span>
+      <span class="chip">סגל ונוכחות</span>
+      <span class="chip">יעדים ומשוב</span>
+    </div>
+  </div>
+
+  <div class="foot">courtsideil.vercel.app</div>
+</body>
+</html>

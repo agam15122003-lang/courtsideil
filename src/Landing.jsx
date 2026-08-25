@@ -143,7 +143,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
 
   // שאלות נפוצות — תשובות אמיתיות מהמוצר בלבד, בלי הבטחות מומצאות
   const FAQ = [
-    { q: L('כמה זה עולה?', 'How much does it cost?'), a: L('אפשר להתחיל בחינם ולהשתמש בכלים המרכזיים. בהמשך ייפתחו מסלולים מתקדמים למאמנים ולמועדונים — ומי שמצטרף עכשיו ייהנה מתנאי מייסדים.', 'You can start for free and use the core tools. Advanced plans for coaches and clubs will open later — and early joiners enjoy founders’ terms.') },
+    { q: L('כמה זה עולה?', 'How much does it cost?'), a: L('כרגע השימוש חינם, וכל הכלים פתוחים. אם נוסיף בעתיד מסלול בתשלום — נודיע מראש, ומה שכבר שמרת יישאר שלך.', 'Right now it is free and every tool is open. If we add a paid plan in the future we will let you know in advance, and everything you saved stays yours.') },
     { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
     { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
     {

@@ -14,10 +14,12 @@ export const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://courtsideil.ve
 export const CONTACT_EMAIL = 'agam15122003@gmail.com'
 
 // גרסת המסמכים המשפטיים שנרשמת יחד עם ההסכמה בהרשמה.
-// חייבת להיות זהה למחרוזת ב-consent_documents (supabase_parent_consent.sql
-// זורע 'v1 · 3.8.2026') ולמזהה הגרסה בראש privacy.html / terms.html /
+// חייבת להיות זהה למזהה הגרסה בראש privacy.html / terms.html /
 // accessibility.html — אחרת אי אפשר לקשור רשומת הסכמה לנוסח שאושר.
-export const TERMS_VERSION = 'v1 · 3.8.2026'
+// 24.8.2026 — v2: המסמכים נכתבו מחדש לצד המאמן בלבד (בלי חשבונות שחקן
+// ובלי משטר הסכמת הורים), ונוסף סעיף שמסביר שהמאמן הוא בעל השליטה
+// בפרטי השחקנים שהוא מזין.
+export const TERMS_VERSION = 'v2 · 24.8.2026'
 
 // ===== כללי הסיסמה — מקור אמת אחד =====
 //

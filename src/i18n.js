@@ -75,17 +75,16 @@ export const DICT = {
     'a11y.st.intro':
       'אנו ב-CourtSide רואים חשיבות רבה במתן שירות שוויוני לכלל המשתמשים, ופועלים להנגשת האתר כך שיהיה נגיש לאנשים עם מוגבלות.',
     'a11y.st.level':
-      'האתר שואף לעמוד בדרישות תקנות שוויון זכויות לאנשים עם מוגבלות (התשע"ג-2013) ובתקן הישראלי ת"י 5568 ברמת AA, המבוסס על הנחיות WCAG 2.0.',
+      'האתר שואף לעמוד בדרישות תקנות שוויון זכויות לאנשים עם מוגבלות (התשע"ג-2013) ובתקן הישראלי ת"י 5568 ברמת AA, המבוסס על הנחיות WCAG 2.0, ובחלק מהרכיבים אף בהנחיות WCAG 2.1 ברמה AA.',
     'a11y.st.tools':
-      'באתר מותקן רכיב נגישות (הכפתור עם סמל הנגישות) המאפשר: הגדלת טקסט, ניגודיות גבוהה, גווני אפור, הדגשת קישורים, עצירת אנימציות, גופן קריא, ריווח טקסט ומעבר שפה.',
+      'באתר מותקן רכיב נגישות (הכפתור עם סמל הנגישות) המאפשר: הגדלת טקסט, ניגודיות גבוהה, גווני אפור, הדגשת קישורים, עצירת אנימציות, גופן קריא, ריווח טקסט ומעבר שפה. בנוסף: ניווט מלא במקלדת עם מלכודות פוקוס ומקש Escape, יעדי מגע של 44 פיקסלים לפחות במסכי מגע, וכיבוד העדפת המערכת לצמצום תנועה.',
     'a11y.st.limitations':
-      'ייתכנו דפים או רכיבים שטרם הונגשו במלואם. אנו ממשיכים לשפר את הנגישות באופן שוטף.',
+      'ייתכנו דפים או רכיבים שטרם הונגשו במלואם — בהם תרשימי לוח הטקטיקה וסרטונים המוטמעים מיוטיוב. אנו ממשיכים לשפר את הנגישות באופן שוטף.',
     'a11y.st.coordinatorTitle': 'רכז הנגישות',
     'a11y.st.coordinator':
       'נתקלתם בקושי בגלישה או בבעיית נגישות? נשמח לסייע. ניתן לפנות לרכז הנגישות:',
     'a11y.st.namePlaceholder': 'אגם אדירי',
-    'a11y.st.phonePlaceholder': '052-626-8252',
-    'a11y.st.updated': 'עודכן לאחרונה: יוני 2026',
+    'a11y.st.updated': 'עודכן לאחרונה: 24 באוגוסט 2026',
   },
   en: {
     'nav.home': 'Home',
@@ -140,17 +139,16 @@ export const DICT = {
     'a11y.st.intro':
       'At CourtSide we are committed to providing equal service to all users and work to make our website accessible to people with disabilities.',
     'a11y.st.level':
-      'This website strives to comply with the Israeli Equal Rights for Persons with Disabilities Regulations (2013) and the Israeli Standard IS 5568 at level AA, based on the WCAG 2.0 guidelines.',
+      'This website strives to comply with the Israeli Equal Rights for Persons with Disabilities Regulations (2013) and the Israeli Standard IS 5568 at level AA, based on the WCAG 2.0 guidelines, and in some components on WCAG 2.1 level AA.',
     'a11y.st.tools':
-      'The site includes an accessibility widget (the button with the accessibility icon) that allows: enlarging text, high contrast, grayscale, highlighting links, stopping animations, a readable font, text spacing and language switching.',
+      'The site includes an accessibility widget (the button with the accessibility icon) that allows: enlarging text, high contrast, grayscale, highlighting links, stopping animations, a readable font, text spacing and language switching. In addition: full keyboard navigation with focus traps and Escape, touch targets of at least 44 pixels, and respect for the system reduced-motion preference.',
     'a11y.st.limitations':
-      'Some pages or components may not yet be fully accessible. We continuously work to improve accessibility.',
+      'Some pages or components may not yet be fully accessible — among them the tactics board diagrams and videos embedded from YouTube. We continuously work to improve accessibility.',
     'a11y.st.coordinatorTitle': 'Accessibility Coordinator',
     'a11y.st.coordinator':
       'Encountered an accessibility issue? We are happy to help. You can contact the accessibility coordinator:',
     'a11y.st.namePlaceholder': 'Agam Adiri',
-    'a11y.st.phonePlaceholder': '052-626-8252',
-    'a11y.st.updated': 'Last updated: June 2026',
+    'a11y.st.updated': 'Last updated: 24 August 2026',
   },
 }
 
