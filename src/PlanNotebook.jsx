@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Plus, X, Clock, Users, Check, Save, Pencil, Eraser, Type, Trash2, BookOpen, Send, Printer,
-  PlayCircle, CalendarDays, UserCheck, Search, ClipboardList,
+  CalendarDays, UserCheck, Search, ClipboardList,
 } from 'lucide-react'
 // חץ "חזרה" כיווני דרך DirIcon (חוק RTL)
 import { ArrowBack } from './DirIcon'
@@ -16,7 +16,6 @@ import NotebookBody from './NotebookBody'
 import MiniCourt, { emptyBoard } from './MiniCourt'
 import PlanSheet, { legacyItemsToBody } from './PlanSheet'
 import TacticsBoard from './TacticsBoard'
-import PlanRunner from './PlanRunner'
 import SendToPlayers from './SendToPlayers.jsx'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
@@ -150,7 +149,6 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   // --- מצבים ---
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState(false)
-  const [running, setRunning] = useState(false)
   const [sending, setSending] = useState(false)
   const [savedId, setSavedId] = useState(planId || null)
   const snapshot = useRef('')
@@ -580,26 +578,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
   }
 
   // ---------- מסכים חלופיים ----------
-  // דף שנכתב ביד או בהקלדה בלי תרגיל מהספרייה הוא המקרה הרגיל באייפד —
-  // ובלי זה «הרץ אימון» פשוט לא הופיע. הדף עצמו הופך לפריט הרצה אחד.
   const planTitle = name.trim() || L('תוכנית אימון', 'Practice plan')
-  const runnerItems = linked.length
-    ? linked.map((l) => ({
-        id: l.key, drill: { title: l.title, description: l.description }, duration_minutes: l.duration_minutes, title: l.title,
-      }))
-    : body.trim() || ink.length
-    ? [{
-        id: 'page',
-        drill: { title: planTitle, description: body },
-        duration_minutes: duration === '' || Number.isNaN(Number(duration)) ? null : Math.max(0, Math.round(Number(duration))),
-        title: planTitle,
-      }]
-    : []
-  if (running) {
-    // nbk-focus: שלד «מסך לתוכן» של האייפד נשאר גם במריץ, במקום לקפוץ חזרה
-    return <div className="nbk-focus"><PlanRunner items={runnerItems} planName={name} onExit={() => setRunning(false)} /></div>
-  }
-
   const sheetPlan = {
     name, team, session_date: date, duration_minutes: duration === '' ? null : Number(duration),
     body, ink, courts, coach,
@@ -665,11 +644,6 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
           </p>
         </div>
         <div className="nbk-head-actions">
-          {runnerItems.length > 0 && (
-            <button type="button" className="btn-soft" onClick={() => setRunning(true)}>
-              <PlayCircle size={16} /> {L('הרץ אימון', 'Run practice')}
-            </button>
-          )}
           <button type="button" className="btn-soft" onClick={() => setPreview(true)}>
             <BookOpen size={16} /> {L('תצוגה והדפסה', 'Preview & print')}
           </button>

@@ -234,7 +234,7 @@ const PAGE_META = {
         ? L('תוכניות ותרגילים שמאמנים אחרים שיתפו — צופים, מעתיקים אליכם וממשיכים משם.', "Plans and drills other coaches shared — browse, copy to your library and build on them.")
         : (PLAYER_SIDE
             ? L('בונים מערך, מסדרים תרגילים לפי חלקים, ושולחים לשחקנים.', 'Build a session, order the drills by part, and send it to your players.')
-            : L('בונים מערך, מסדרים תרגילים לפי חלקים, ומריצים אותו מהמגרש.', 'Build a session, order the drills by part, and run it from the court.')),
+            : L('בונים מערך, מסדרים תרגילים לפי חלקים, ושומרים אותו לעונה.', 'Build a session, order the drills by part, and keep it for the season.')),
   }),
   schedule: () => ({
     eyebrow: L('העבודה שלי', 'My work'), eyebrowIcon: CalendarDays,

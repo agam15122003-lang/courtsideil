@@ -101,7 +101,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   const goSignup = onSignup || onEnter
   const FEATURES = !PLAYER_SIDE ? [
     /* גרסת המאמן — כל פיצ׳ר כאן קיים ועובד בלי חשבון שחקן */
-    { Icon: ClipboardList, title: L('מחברת אימון', 'Practice notebook'), desc: L('בונים תוכנית אימון כדף אחד — תרגילים מהספרייה, כתב יד ומגרשים — ומריצים אותה מהטלפון על המגרש.', 'Build a practice as a single page — library drills, handwriting and court diagrams — and run it from your phone on the court.') },
+    { Icon: ClipboardList, title: L('מחברת אימון', 'Practice notebook'), desc: L('בונים תוכנית אימון כדף אחד — תרגילים מהספרייה, כתב יד ומגרשים — ושומרים אותה לעונה הבאה.', 'Build a practice as a single page — library drills, handwriting and court diagrams — and keep it for next season.') },
     { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('ספריית תרגילים בעברית שגדלה כל שבוע — עם הסבר מלא, דירוג ומועדפים. כל תרגיל שאתם כותבים נשמר אצלכם.', 'A Hebrew drill library that grows every week — with full explanations, ratings and favorites. Every drill you write is saved to you.') },
     { Icon: Users, title: L('סגל ונוכחות', 'Roster & attendance'), desc: L('הסגל של כל קבוצה, נוכחות לכל אימון, עומס שרושמים אחרי האימון, ומי מחסיר ברצף — הכול במקום אחד.', 'Every team roster, attendance for every practice, the load you log after practice, and who keeps missing — all in one place.') },
     { Icon: Target, title: L('יעדים ומשוב לכל שחקן', 'Goals & feedback per player'), desc: L('מציבים לכל שחקן יעד לאימון, לחודש או לעונה, מסמנים בסוף האימון אם עמד בו, וכותבים משוב אישי שנשמר בכרטיס שלו.', 'Set each player a goal for the practice, the month or the season, mark after practice whether they met it, and write personal feedback that stays on their card.') },
@@ -119,7 +119,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   const STEPS = !PLAYER_SIDE ? [
     { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים עם אימייל, ממלאים שם, מועדון ושכבות הגיל שאתם מאמנים. דקה.', 'Sign up with an email, fill in your name, club and the age groups you coach. One minute.') },
     { n: '2', title: L('מזינים את הסגל', 'Add your roster'), desc: L('שם ומספר לכל שחקן — וכבר אפשר לסמן נוכחות, להציב יעדים ולכתוב משוב.', 'A name and a number for every player — and you can already mark attendance, set goals and write feedback.') },
-    { n: '3', title: L('מנהלים את העונה', 'Run the season'), desc: L('בונים אימונים במחברת, מריצים מהמגרש, וסוגרים כל אימון בסקירה קצרה.', 'Build practices in the notebook, run them from the court, and close every practice with a short review.') },
+    { n: '3', title: L('מנהלים את העונה', 'Run the season'), desc: L('בונים אימונים במחברת, וסוגרים כל אימון בסקירה קצרה של דקה.', 'Build practices in the notebook, and close every practice with a one-minute review.') },
   ] : [
     { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים כמאמן או כשחקן וממלאים את הפרטים. מאמנים פשוט מתחברים; שחקנים מצטרפים לקבוצה עם קוד מהמאמן.', 'Sign up as a coach or a player and fill in your details. Coaches just log in; players join a team with a code from the coach.') },
     { n: '2', title: L('אתם בפנים', "You're in"), desc: L('חוקרים את האפליקציה וממלאים את החלקים: יעדים, לו"ז ומשימות.', 'Explore the app and fill in the parts: goals, schedule and tasks.') },
@@ -136,7 +136,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   const WHY = [
     { Icon: Zap, title: L('נוח לשימוש', 'Easy to use'), desc: PLAYER_SIDE
       ? L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: לראות התקדמות, לשלוח יעדים מותאמים אישית ולעקוב אחריהם.', 'The easiest way to follow the team and every player personally: see progress, send personalized goals and track them.')
-      : L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: נוכחות, עומס, יעדים ומשוב — בכמה נגיעות מהמגרש.', 'The easiest way to follow the team and every player personally: attendance, load, goals and feedback — a few taps from the court.') },
+      : L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: נוכחות, עומס, יעדים ומשוב — בכמה נגיעות, מהטלפון.', 'The easiest way to follow the team and every player personally: attendance, load, goals and feedback — a few taps, from your phone.') },
     { Icon: ClipboardList, title: L('תוכניות אימון ותרגילים', 'Practice plans & drills'), desc: L('כל תרגיל ותוכנית שאתם רושמים נשמרים אצלכם: רואים על מה עבדתם, חוזרים לתרגיל שלא ישב טוב, ומשלבים תרגילים שמורים לתוכנית חדשה. אין דרך קלה יותר לשמור את הידע שלכם.', 'Every drill and plan you write is saved: see what you worked on, revisit a drill that didn’t sit right, and combine saved drills into a new plan. There is no easier way to keep your knowledge.') },
     { Icon: Users, title: L('קהילה וצבירת ידע', 'Community & knowledge'), desc: L('אין דבר חשוב יותר למאמן מהרחבת הידע. ב-CourtSide קהילת מאמנים שלמה שאפשר להתייעץ איתה על הכל: תרגיל חדש, קביעת משחק אימון או סתם לדבר כדורסל. רואים תרגילים של מאמנים אחרים, שואלים ומיישמים.', 'Nothing matters more to a coach than growing knowledge. CourtSide has a whole community of coaches to consult about anything: a new drill, arranging a scrimmage or just talking basketball. See other coaches’ drills, ask and apply.') },
   ]
@@ -145,7 +145,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   const FAQ = [
     { q: L('כמה זה עולה?', 'How much does it cost?'), a: L('כרגע השימוש חינם, וכל הכלים פתוחים. אם נוסיף בעתיד מסלול בתשלום — נודיע מראש, ומה שכבר שמרת יישאר שלך.', 'Right now it is free and every tool is open. If we add a paid plan in the future we will let you know in advance, and everything you saved stays yours.') },
     { q: L('למי הפלטפורמה מיועדת?', 'Who is the platform for?'), a: L('למאמני כדורסל בכל הרמות: מחוגים ובתי ספר, דרך מחלקות נוער ועד קבוצות בוגרים — וגם למאמנים אישיים שרוצים סדר בארסנל שלהם.', 'Basketball coaches at every level: youth programs and schools, academy departments and senior teams — plus individual trainers who want their arsenal organized.') },
-    { q: L('האם זה עובד בנייד, על המגרש?', 'Does it work on mobile, on the court?'), a: L('כן. הממשק נבנה קודם כול לטלפון, כך שמריצים אימון מהמכשיר שכבר בכיס — בלי התקנה, ישירות בדפדפן.', 'Yes. The interface is built phone-first, so you run practice from the device already in your pocket — no install, straight in the browser.') },
+    { q: L('זה עובד בנייד?', 'Does it work on mobile?'), a: L('כן. הממשק נבנה קודם כול לטלפון — בלי התקנה, ישירות בדפדפן. אחרי אימון סוגרים אותו בדקה מהמכשיר שכבר בכיס.', 'Yes. The interface is built phone-first — no install, straight in the browser. After a practice you close it in a minute from the device already in your pocket.') },
     {
       q: L('מה קורה עם הנתונים שלי?', 'What happens to my data?'),
       a: (
@@ -304,7 +304,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
             <h3 className="land-feature-title">{L('אחרי האימון', 'After practice')}</h3>
             <p className="land-feature-desc">{PLAYER_SIDE
               ? L('מסמן מה ביצע ומוסיף משוב אישי על האימון.', 'Marks what they did and adds personal feedback on the practice.')
-              : L('סקירה קצרה: נוכחות, עומס לכל שחקן, מי עמד ביעד שלו, מילה אישית ו-MVP — דקה מהמגרש.', 'A short review: attendance, load per player, who met their goal, a personal line and an MVP — a minute from the court.')}</p>
+              : L('סקירה קצרה: נוכחות, עומס לכל שחקן, מי עמד ביעד שלו, מילה אישית ו-MVP — דקה בסוף האימון.', 'A short review: attendance, load per player, who met their goal, a personal line and an MVP — one minute after practice.')}</p>
           </div>
           <div className="land-why-item">
             <span className="land-why-ic"><BarChart3 size={22} /></span>

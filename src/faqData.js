@@ -199,14 +199,6 @@ export function faqItems() {
 
     {
       category: 'אימונים ותרגילים',
-      q: L('אפשר להריץ את האימון מהמגרש עצמו?', 'Can I run the practice from the court itself?'),
-      a: L(
-        'כן, וזה אחד הדברים הכי שימושיים כאן. מתוך התוכנית יש «הרץ אימון»: מסך מלא עם תרגיל אחד בכל פעם, טיימר לפי הזמן שהגדרת, כפתור «סיימנו — לתרגיל הבא», ותצוגה של מה בא אחריו.\nאפשר להשהות, לאפס טיימר ולהשתיק את צליל הסיום.',
-        'Yes, and it is one of the genuinely useful bits. From a plan there is Run practice: full screen, one drill at a time, a timer per the minutes you set, a next-drill button, and a preview of what follows.\nYou can pause, reset the timer and mute the end chime.'
-      ),
-    },
-    {
-      category: 'אימונים ותרגילים',
       q: L('יצאתי מהמחברת וכל מה שכתבתי נעלם', 'I left the notebook and everything I wrote disappeared'),
       a: L(
         'המחברת לא שומרת לבד — צריך «שמירה» או «שמירה כטיוטה». אם תנסה לצאת עם עבודה פתוחה תקפוץ שאלה שמזהירה אותך; אבל אם אישרת יציאה, מה שנכתב מאז השמירה האחרונה לא נשמר.',
