@@ -13,6 +13,7 @@ import PendingApproval from './PendingApproval'
 import AdultConfirm from './AdultConfirm'
 import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
+import useOnline from './useOnline'
 import PocketNav from './PocketNav'
 import { useLang, L } from './i18n'
 // שמירה על עבודה פתוחה (המחברת) לפני מעבר מסך — ראו src/unsavedGuard.js
@@ -24,6 +25,8 @@ import { isAdultPlayer } from './consent'
 // מהניווט, וחשבון שחקן שמתחבר רואה מסך המתנה במקום את האפליקציה שלו.
 import { PLAYER_SIDE } from './flags'
 import PlayerSideClosed from './PlayerSideClosed'
+// מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
+import AccountBlocked from './AccountBlocked'
 
 // ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
 // אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
@@ -145,6 +148,7 @@ import {
   AlertTriangle,
   RotateCcw,
   UserPlus,
+  WifiOff,
 } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
@@ -270,6 +274,7 @@ const PAGE_META = {
 
 export default function Dashboard({ session }) {
   const { t } = useLang()
+  const online = useOnline()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -303,6 +308,12 @@ export default function Dashboard({ session }) {
     if (!(await confirmLeave())) return
     if (id === 'community-chats') { setCommunityTab('chats'); setView('community'); return }
     if (id === 'finder-games') { setFinderTab('games'); setView('finder'); return }
+    // «הוסף את הקבוצות שלך» — נוחתים על **טופס** הפרופיל, לא על תצוגת הפרופיל.
+    // עד היום זה שלח את המאמן החדש למסך שממנו הוא צריך למצוא «עריכת פרטים»
+    // ולגלול עד בורר הקבוצות — שני צעדים מיותרים בדיוק ברגע הראשון שלו.
+    if (id === 'profile-edit') { setEditing(true); setView('profile'); return }
+    // כל ניווט אחר סוגר את טופס הפרופיל אם הוא פתוח — אחרת הוא מאפיל על היעד
+    if (editing) setEditing(false)
     // מהלו"ז אל ימי האימון הקבועים — עד היום זו הייתה הוראה בטקסט בלי קישור
     if (id === 'teams-practices') { setTeamsTab('practices'); setView('teams'); return }
     // «למחברת המלאה» / «תוכנית האימון» הבטיחו תוכנית מסוימת ונחתו על הרשימה
@@ -508,6 +519,14 @@ export default function Dashboard({ session }) {
     return <PlayerSideClosed />
   }
 
+  // חשבון מושעה (profiles.banned) — לכל תפקיד. המדיניות בשרת חוסמת ממילא
+  // כל כתיבה; בלי המסך הזה המאמן ראה אפליקציה שלמה שבה שום דבר לא נשמר.
+  // !loading בלבד: הפרופיל הישן נשאר ב-state בזמן רענון-טוקן, ולכן השער
+  // עדיין מחושב על נתונים אמיתיים ולא מהבהב.
+  if (!loading && !loadError && profile?.banned === true) {
+    return <AccountBlocked email={session?.user?.email} />
+  }
+
   if (!loadError && isComplete && suspended) {
     // «שינוי הפרטים של ההורה» — טופס הפרופיל לבדו, בלי המעטפת של המאמן
     if (editing) {
@@ -598,6 +617,13 @@ export default function Dashboard({ session }) {
       <a href="#main" className="skip-link">
         {t('skip.toContent')}
       </a>
+      {/* אין חיבור — פס אחד למעלה במקום שרשרת של שמירות שנכשלות בשקט */}
+      {!online && (
+        <div className="offline-bar" role="status">
+          <WifiOff size={15} aria-hidden="true" />
+          {L('אין חיבור לאינטרנט — מה שתכתוב עכשיו לא יישמר', 'No internet connection — anything you write now will not be saved')}
+        </div>
+      )}
       {/* סרגל עליון — מובייל בלבד (המבורגר + מותג + מצב כהה) */}
       <header className="mobile-topbar">
         <button

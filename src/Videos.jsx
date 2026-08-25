@@ -192,6 +192,8 @@ export default function Videos({ session, profile }) {
     load()
   }
 
+  // האם המשתמש בכלל סינן? בלי ההבחנה הזו ספרייה ריקה נראתה כמו סינון שבור
+  const filtered = !!filterCat || !!search.trim()
   const results = videos
     .filter((v) => {
       const catOk = !filterCat || v.category === filterCat
@@ -263,8 +265,16 @@ export default function Videos({ session, profile }) {
       ) : results.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><PlayCircle size={26} /></span>
-          <div className="empty-title">{L('אין סרטונים מתאימים', 'No matching videos')}</div>
-          <p className="muted small">{L('הוסף את הסרטון הראשון, או נסה סינון אחר.', 'Add the first video, or try a different filter.')}</p>
+          {/* «אין סרטונים מתאימים» נשמע כמו סינון שבור כשהספרייה עצמה ריקה */}
+          <div className="empty-title">
+            {filtered ? L('אין סרטונים מתאימים', 'No matching videos') : L('הספרייה עדיין ריקה', 'The library is still empty')}
+          </div>
+          <p className="muted small">
+            {filtered
+              ? L('נסה סינון אחר, או הוסף סרטון משלך.', 'Try a different filter, or add your own video.')
+              : L('כל סרטון שתוסיף יופיע כאן ויהיה זמין לכל המאמנים — מספיק להדביק קישור מיוטיוב.',
+                  'Every video you add shows up here for all coaches — just paste a YouTube link.')}
+          </p>
           {!adding && (
             <button type="button" className="btn-primary empty-cta" onClick={() => setAdding(true)}>
               <Plus size={18} aria-hidden="true" /> {L('הוסף סרטון', 'Add video')}

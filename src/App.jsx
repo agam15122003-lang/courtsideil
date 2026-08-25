@@ -8,7 +8,7 @@ import ResetPassword from './ResetPassword'
 import Landing from './Landing'
 import PublicDrill from './PublicDrill'
 import { ConfirmHost } from './confirm'
-import { useLang } from './i18n'
+import { useLang, L } from './i18n'
 // 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
 // הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
 import { PLAYER_SIDE } from './flags'
@@ -250,16 +250,15 @@ export default function App() {
       <div className="center-screen">
         <div className="config-error" role="alert">
           <h1>CourtSide</h1>
-          <h2>האתר כמעט מוכן — חסרה הגדרה אחת</h2>
+          <h2>{L('האתר לא זמין כרגע', 'The site is unavailable right now')}</h2>
           <p>
-            לא הוגדר מפתח החיבור לבסיס הנתונים (<code>VITE_SUPABASE_ANON_KEY</code>).
-            בלעדיו האתר לא יכול להתחבר לנתונים.
+            {L('יש תקלה זמנית בהגדרות השרת. אנחנו כבר על זה — נסו שוב בעוד כמה דקות.',
+               'There is a temporary server configuration problem. We are on it — please try again in a few minutes.')}
           </p>
-          <p className="config-error-fix">
-            <strong>לתיקון:</strong> Netlify → Site settings → Environment variables →
-            הוסף את <code>VITE_SUPABASE_ANON_KEY</code> (המפתח <em>anon public</em> מ-Supabase),
-            ואז Deploys → Trigger deploy → <em>Clear cache and deploy site</em>.
-          </p>
+          {/* ⚠ ההוראה למפעיל יורדת לקונסול בלבד: המסך הזה נראה על ידי
+              משתמשים, ואין להם מה לעשות עם שמות משתני סביבה.
+              לתיקון: Vercel → Project → Settings → Environment Variables →
+              VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY, ואז Redeploy. */}
         </div>
       </div>
     )

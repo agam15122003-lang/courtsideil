@@ -694,6 +694,20 @@ export default function Schedule({ session, onNavigate }) {
         <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>
       ) : (
         <>
+        {/* לו״ז ריק לגמרי הציג רשת של שבעה ימים בלי מילה אחת של הסבר */}
+        {weekDays.every((d) => !d.items?.length) && !slots.length && (
+          <div className="empty-state" style={{ marginBlock: 8 }}>
+            <span className="empty-ic"><CalendarPlus size={26} /></span>
+            <div className="empty-title">{L('השבוע עדיין ריק', 'This week is still empty')}</div>
+            <p className="muted small" style={{ maxWidth: 460 }}>
+              {L('הדרך המהירה: להגדיר ימי אימון קבועים פעם אחת — והם ימלאו את הלו״ז מעכשיו והלאה. אימון או משחק חד-פעמי מוסיפים ב«הוסף אימון».',
+                 'The fast way: set your fixed practice days once — they fill the schedule from now on. Add a one-off practice or game with “Add”.')}
+            </p>
+            <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate && onNavigate('teams-practices')}>
+              {L('הגדרת ימי אימון קבועים', 'Set fixed practice days')}
+            </button>
+          </div>
+        )}
         {/* ===== 16a · רצועת הימים וסדר היום, מעל הגריד השבועי ===== */}
         {teamNames.length > 1 && (
           <div className="cal-teamchips" role="tablist" aria-label={L('סינון לפי קבוצה', 'Filter by team')}>

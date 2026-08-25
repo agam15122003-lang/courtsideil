@@ -102,16 +102,19 @@ const isMissingColumn = (error) =>
   /column .* does not exist|could not find the .* column/i.test(error.message || '')
 
 // כרטיס הsetup — מוצג כשחסר משהו במסד, עם שם הקובץ שצריך להריץ
+// ⚠ המסך הזה נראה על ידי **מאמנים**, לא על ידי מי שמתחזק את המסד.
+// עד 24.8 הוא הציג «פתח את Supabase → SQL Editor ולחץ Run» — הוראה
+// שאין למאמן שום דרך לבצע, והיא נראית כמו אתר שבור. שם הקובץ נשאר,
+// אבל בקונסול בלבד, למי שבאמת מטפל בזה.
 function SetupCard({ file, onRetry }) {
+  useEffect(() => { console.warn('CourtSide: חסרה מיגרציה —', file) }, [file])
   return (
     <div className="empty-state">
       <span className="empty-ic"><Database size={26} /></span>
-      <div className="empty-title">{L('נשאר צעד אחד להפעלה', 'One step left to enable this')}</div>
+      <div className="empty-title">{L('המסך הזה עדיין לא זמין', 'This screen is not available yet')}</div>
       <p className="muted small" style={{ maxWidth: 480 }}>
-        {L(
-          `פתח את Supabase → SQL Editor, הדבק את התוכן של הקובץ ${file} מהפרויקט ולחץ Run. אחרי זה חזור לכאן.`,
-          `Open Supabase → SQL Editor, paste the contents of ${file} from the project and click Run. Then come back here.`
-        )}
+        {L('אנחנו עוד מסיימים להפעיל את החלק הזה. נסה שוב בעוד רגע — ואם זה נמשך, כתוב לנו ונטפל.',
+           'We are still switching this part on. Try again in a moment — and if it persists, drop us a line.')}
       </p>
       <button type="button" className="btn-primary empty-cta" onClick={onRetry}>
         {L('בדוק שוב', 'Check again')}

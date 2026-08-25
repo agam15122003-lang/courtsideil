@@ -373,7 +373,7 @@ export default function Home({ session, profile, onNavigate }) {
 
       <div className="nh-cols">
         <div className="nh-main">
-          <div className="nh-o-todo"><CoachTodo session={session} onNavigate={onNavigate} variant="card" /></div>
+          <div className="nh-o-todo"><CoachTodo session={session} profile={profile} onNavigate={onNavigate} variant="card" /></div>
 
           {SHOW_NEWS && (
             <section className="nh-card nh-news nh-o-news">

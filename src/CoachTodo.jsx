@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import {
   ClipboardCheck, Target, CalendarDays, Hourglass, AlertTriangle, Users2, CheckCircle2,
+  Shield, Check, Rocket,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { expandSlotsRange } from './sessionId'
@@ -19,9 +20,13 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 const dm = (dateStr) => { const d = new Date(dateStr + 'T00:00'); return `${d.getDate()}.${d.getMonth() + 1}` }
 
-export default function CoachTodo({ session, onNavigate, variant }) {
+export default function CoachTodo({ session, profile, onNavigate, variant }) {
   const me = session?.user?.id
   const [rows, setRows] = useState(null) // null=טוען, []=הכול סגור
+  // חשבון חדש לגמרי: אין קבוצות, אין סגל ואין ימי אימון. בלי ההבחנה הזו
+  // כל שש הבדיקות לא מחזירות כלום, והמאמן שעוד לא עשה כלום קיבל
+  // «הכול סגור, מאמן 🏀» — בדיוק ההפך ממה שהוא צריך לראות.
+  const [fresh, setFresh] = useState(null) // null=טוען, אחרת {teams, roster, slots}
 
   useEffect(() => {
     if (!me) return
@@ -200,27 +205,86 @@ export default function CoachTodo({ session, onNavigate, variant }) {
         })
       }
 
-      if (alive) setRows(out)
+      if (alive) {
+        setRows(out)
+        setFresh({
+          teams: (profile?.age_groups || []).length > 0,
+          roster: roster.length > 0,
+          slots: !slotsRes.error && (slotsRes.data || []).length > 0,
+        })
+      }
     })()
     return () => { alive = false }
-  }, [me])
+  }, [me, profile?.age_groups])
 
   if (rows === null) return null
+
+  // שלושת צעדי הפתיחה. הסף הוא **קבוצה + סגל**, לא שלושת הצעדים:
+  // מאמן שיש לו קבוצה ושחקנים כבר מסודר, גם אם בחר לא להגדיר ימי אימון
+  // קבועים (יש מי שמוסיף כל אימון בנפרד) — ולו «בוא נתחיל» לנצח היה שקר.
+  const setup = fresh && !(fresh.teams && fresh.roster) ? [
+    { key: 'su-team', done: fresh.teams, Icon: Shield, nav: 'profile-edit',
+      title: L('הוסף את הקבוצות שאתה מאמן', 'Add the teams you coach'),
+      sub: L('בפרופיל, «הקבוצות שאני מאמן» — זה מה שפותח את מסך הקבוצה ואת הלו״ז', 'In your profile — this is what opens the team screen and the schedule') },
+    { key: 'su-roster', done: fresh.roster, Icon: Users2, nav: 'teams',
+      title: L('הוסף שחקנים לסגל', 'Add players to the roster'),
+      sub: L('שם ומספר לכל שחקן — ומיד אפשר לסמן נוכחות ולהציב יעדים', 'A name and a number each — then you can mark attendance and set goals') },
+    { key: 'su-slots', done: fresh.slots, Icon: CalendarDays, nav: 'teams-practices',
+      title: L('קבע ימי אימון קבועים', 'Set your fixed practice days'),
+      sub: L('הם ייכנסו ללו״ז לבד, וכל אימון ייפתח לסקירה בסופו', 'They fill the schedule by themselves, and each practice opens for review when it ends') },
+  ] : null
+  const setupLeft = setup ? setup.filter((x) => !x.done).length : 0
+
+  // רשימת צעדי הפתיחה (משותפת לשתי הגרסאות). צעד שכבר נעשה נשאר מוצג
+  // עם וי — כדי שהמאמן יראה שהוא מתקדם, ולא שהשורה פשוט נעלמה.
+  const setupList = (cls) => (
+    <div className={cls}>
+      {setup.map((r) => (
+        r.done ? (
+          <div key={r.key} className="ctd-setup-done">
+            <span className="ctd-setup-ic ok" aria-hidden="true"><Check size={15} /></span>
+            <span className="ctd-setup-tx"><b>{r.title}</b></span>
+          </div>
+        ) : (
+          <button key={r.key} type="button" className={cls === 'nh-rows' ? 'nh-row' : 'ctd-row'} onClick={() => onNavigate && onNavigate(r.nav)}>
+            <span className={(cls === 'nh-rows' ? 'nh-row-ic' : 'ctd-ic') + ' info'} aria-hidden="true"><r.Icon size={16} /></span>
+            <span className={cls === 'nh-rows' ? 'nh-row-tx' : 'ctd-tx'}>
+              <b>{r.title}</b>
+              <span>{r.sub}</span>
+            </span>
+            <ChevronFwd size={15} className={cls === 'nh-rows' ? 'nh-row-go' : 'ctd-go'} aria-hidden="true" />
+          </button>
+        )
+      ))}
+    </div>
+  )
+
 
   // ---- גרסת «כרטיס» (11.8, מסמך העיצוב 3a): כותרת + תג מונה בתוך קליפה ----
   if (variant === 'card') {
     return (
       <section className="nh-card nh-todo">
         <div className="nh-card-head">
-          <h2 className="nh-card-title">{L('דברים לביצוע', 'To do')}</h2>
-          {rows.length > 0 && (
+          <h2 className="nh-card-title">{setup ? L('בוא נתחיל', 'Let’s get started') : L('דברים לביצוע', 'To do')}</h2>
+          {setup ? (
+            <span className="nh-chip info">
+              <bdi>{cnt(setupLeft, L('צעד אחד', 'one step'), L('צעדים', 'steps'))}</bdi>
+            </span>
+          ) : rows.length > 0 && (
             <span className="nh-chip warn">
               {/* cnt מחזיר גם את המספר — «אחד פתוח» / «4 פתוחים» */}
               <bdi>{cnt(rows.length, L('אחד פתוח', 'one open'), L('פתוחים', 'open'))}</bdi>
             </span>
           )}
         </div>
-        {rows.length === 0 ? (
+        {setup ? (
+          <>
+            <p className="ctd-setup-lede">
+              {L('שלושה דברים והאפליקציה מוכנה לאימון הראשון שלך.', 'Three things and the app is ready for your first practice.')}
+            </p>
+            {setupList('nh-rows')}
+          </>
+        ) : rows.length === 0 ? (
           <div className="ctd-clear">
             <CheckCircle2 size={18} aria-hidden="true" />
             {L('הכול סגור, מאמן 🏀', 'All done, coach 🏀')}
@@ -245,8 +309,17 @@ export default function CoachTodo({ session, onNavigate, variant }) {
 
   return (
     <section className="ctd">
-      <span className="sec-kicker warm">{L('דברים לביצוע', 'To do')}</span>
-      {rows.length === 0 ? (
+      <span className="sec-kicker warm">
+        {setup ? <><Rocket size={13} aria-hidden="true" /> {L('בוא נתחיל', 'Let’s get started')}</> : L('דברים לביצוע', 'To do')}
+      </span>
+      {setup ? (
+        <>
+          <p className="ctd-setup-lede">
+            {L('שלושה דברים והאפליקציה מוכנה לאימון הראשון שלך.', 'Three things and the app is ready for your first practice.')}
+          </p>
+          {setupList('ctd-list')}
+        </>
+      ) : rows.length === 0 ? (
         <div className="ctd-clear">
           <CheckCircle2 size={18} aria-hidden="true" />
           {L('הכול סגור, מאמן 🏀', 'All done, coach 🏀')}

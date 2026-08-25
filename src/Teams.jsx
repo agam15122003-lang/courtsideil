@@ -512,11 +512,16 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       <Page eyebrow={L('הקבוצות שלי', 'My teams')} title={L('ניהול קבוצה', 'Team management')} size="sm">
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={26} /></span>
-          <div className="empty-title">{L('עדיין לא הגדרת קבוצות', 'No teams yet')}</div>
-          <p className="muted small">{L('הוסף קבוצות בפרופיל ("הקבוצות שאני מאמן") כדי לנהל אותן כאן.', 'Add teams in your profile to manage them here.')}</p>
+          <div className="empty-title">{L('נתחיל מקבוצה אחת', 'Let’s start with one team')}</div>
+          <p className="muted small" style={{ maxWidth: 460 }}>
+            {L('בוחרים בפרופיל את שכבות הגיל שאתם מאמנים — ומכאן נפתחים הסגל, הנוכחות, היעדים והלו״ז של כל קבוצה.',
+               'Pick the age groups you coach in your profile — that opens the roster, attendance, goals and schedule for each team.')}
+          </p>
+          {/* CTA ישר לטופס העריכה: «profile» סתם הנחית על תצוגת הפרופיל,
+              ומשם המאמן החדש היה צריך למצוא «עריכת פרטים» ולגלול */}
           {onNavigate && (
-            <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('profile')}>
-              {L('לעריכת הפרופיל', 'Edit profile')}
+            <button type="button" className="btn-primary empty-cta" onClick={() => onNavigate('profile-edit')}>
+              {L('בחירת הקבוצות שלי', 'Choose my teams')}
             </button>
           )}
         </div>
