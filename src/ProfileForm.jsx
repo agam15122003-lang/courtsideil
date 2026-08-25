@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell, Eye, EyeOff, Check,
-  ShieldCheck, MessageCircle, Copy, Link2,
+  ShieldCheck, MessageCircle, Copy, Link2, X,
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
@@ -724,7 +724,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                     <span><b>{trTeam(k.team)}</b> — {k.iba_team_name} · {k.league_name}</span>
                     <button type="button" className="icon-btn" aria-label={L('הסרת הקישור', 'Remove link')}
                       onClick={() => setIbaLinks((cur) => cur.filter((x) => x.team !== k.team))}>
-                      <EyeOff size={14} />
+                      <X size={14} />
                     </button>
                   </li>
                 ))}
