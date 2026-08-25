@@ -11,7 +11,7 @@ export const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://courtsideil.ve
 // נקודת אמת אחת: שלושת המסמכים הציבוריים (privacy/terms/accessibility),
 // ווידג'ט הנגישות ומסך מחיקת החשבון חייבים להצביע לכאן. עד הגל הזה היו
 // שתי כתובות שונות במקביל, וזה בלבל הורים ופנייה רגולטורית.
-export const CONTACT_EMAIL = 'agam15122003@gmail.com'
+export const CONTACT_EMAIL = 'coachadiriagam@gmail.com'
 
 // גרסת המסמכים המשפטיים שנרשמת יחד עם ההסכמה בהרשמה.
 // חייבת להיות זהה למזהה הגרסה בראש privacy.html / terms.html /

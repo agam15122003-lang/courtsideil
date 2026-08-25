@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import {
   User, Phone, Building2, Users2, Camera, ClipboardList, Dumbbell, Eye, EyeOff, Check,
-  ShieldCheck, MessageCircle, Copy,
+  ShieldCheck, MessageCircle, Copy, Link2,
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
 import { uploadImage } from './storage'
 import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
+import TeamFromIba from './TeamFromIba'
 import { AGE_GROUPS, GENDERS, ISRAELI_CLUBS, teamLabel } from './constants'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE } from './flags'
@@ -55,6 +56,11 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   const [phone, setPhone] = useState(profile?.phone || '')
   const [phonePublic, setPhonePublic] = useState(!!profile?.phone_public)
   const [teams, setTeams] = useState(profile?.age_groups || [])
+  // «ייבוא מהאיגוד»: הקישורים נאספים כאן ונשמרים ל-team_iba יחד עם
+  // הפרופיל. לא שומרים מיד — מאמן שיפתח את הטופס, ייבא, ואז יבטל,
+  // היה משאיר שורת קישור לקבוצה שהוא לא מאמן.
+  const [ibaOpen, setIbaOpen] = useState(false)
+  const [ibaLinks, setIbaLinks] = useState([])
   const [birthYear, setBirthYear] = useState(profile?.birth_year ? String(profile.birth_year) : '')
   const [position, setPosition] = useState(profile?.position || '')
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
@@ -286,6 +292,21 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
     // ---- הצלחה ----
     toast.success(L('הפרופיל נשמר', 'Profile saved'))
+
+    // קישורי האיגוד נשמרים **אחרי** הפרופיל ובנפרד ממנו: אם team_iba
+    // עוד לא קיים במסד, או שהכתיבה נכשלת, זו לא סיבה להכשיל שמירת פרופיל
+    // שכבר הצליחה. המאמן פשוט יקשר שוב ממסך «משחקים וטבלה».
+    if (ibaLinks.length > 0) {
+      const rows = ibaLinks.map((k) => ({ ...k, coach_id: session.user.id, updated_at: new Date().toISOString() }))
+      const { error: ibaErr } = await supabase.from('team_iba').upsert(rows, { onConflict: 'coach_id,team' })
+      if (ibaErr) {
+        console.warn('team_iba:', ibaErr.message)
+        toast.error(L('הקבוצה נשמרה, אבל הקישור לליגה לא — אפשר לקשר במסך «משחקים וטבלה».',
+                      'The team was saved, but the league link was not — you can link it on the Games & table screen.'))
+      } else {
+        setIbaLinks([])
+      }
+    }
 
     // קטין במסלול החדש: יוצרים בקשת הסכמה ומציגים שלב שיתוף עם ההורה —
     // אבל רק כשעוד אין הסכמה בתוקף. עד היום הבלוק רץ אחרי *כל* שמירה, ולכן
@@ -690,6 +711,38 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               renderLabel={trTeam}
               placeholder={L('בחר קבוצות...', 'Select teams...')}
             />
+            {/* הדרך השנייה: לבחור את הקבוצה כמו שהיא רשומה באיגוד,
+                ולקבל גם את שכבת הגיל וגם את הקישור ללו״ז ולטבלה. */}
+            <button type="button" className="btn-soft pf-iba-btn" onClick={() => setIbaOpen(true)}>
+              <Link2 size={15} aria-hidden="true" /> {L('ייבוא קבוצה מהאיגוד', 'Import a team from the association')}
+            </button>
+            {ibaLinks.length > 0 && (
+              <ul className="pf-iba-list">
+                {ibaLinks.map((k) => (
+                  <li key={k.team}>
+                    <Check size={14} aria-hidden="true" />
+                    <span><b>{trTeam(k.team)}</b> — {k.iba_team_name} · {k.league_name}</span>
+                    <button type="button" className="icon-btn" aria-label={L('הסרת הקישור', 'Remove link')}
+                      onClick={() => setIbaLinks((cur) => cur.filter((x) => x.team !== k.team))}>
+                      <EyeOff size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ibaOpen && (
+              <TeamFromIba
+                teamOptions={TEAM_OPTIONS}
+                club={club}
+                onClose={() => setIbaOpen(false)}
+                onPick={(link) => {
+                  setTeams((cur) => (cur.includes(link.team) ? cur : [...cur, link.team]))
+                  setIbaLinks((cur) => [...cur.filter((x) => x.team !== link.team), link])
+                  setIbaOpen(false)
+                  toast.success(L(`${trTeam(link.team)} נוספה — הליגה מקושרת`, `${trTeam(link.team)} added — league linked`))
+                }}
+              />
+            )}
           </section>
           </>
         )}

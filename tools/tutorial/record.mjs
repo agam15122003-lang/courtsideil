@@ -327,9 +327,10 @@ const CLIPS = {
     run: async (page) => {
       await nav(page, 'שאלות')
       await scene(page, '«שאלות ותשובות» — כשמשהו לא ברור', 3600)
+      await scene(page, 'בוחרים נושא, ורואים רק אותו', 3200)
+      await tapText(page, '.hlp-tile', 'הקבוצה והסגל', 2600)
       await tapText(page, '.hlp-q', '', 2400)
-      await scene(page, 'מחפשים מילה אחת ומקבלים תשובה', 3400)
-      await slowScroll(page, 420)
+      await scene(page, 'או מקלידים מילה אחת ומקבלים תשובה', 3600)
       await scene(page, 'ומה שאין כאן — כפתור אחד, ואנחנו עונים', 4000)
     },
   },
@@ -413,7 +414,6 @@ if (!only) {
   await scene(page, "היום זה כולו שלך: השחקנים לא מתחברים לכלום", 4200)
   await scene(page, "ומה שרשמת עליהם נשאר אצלך בלבד", 3800)
   await scene(page, "בקרוב ייפתח גם צד לשחקנים", 3600)
-  await scene(page, "וכל מה שכבר רשמת — יחכה להם שם", 3800)
   await scene(page, "courtsideil.vercel.app", 4000)
   await clearCap(page)
   await sleep(900)

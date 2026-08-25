@@ -145,7 +145,7 @@ insert into public.consent_documents (id, version, title, body_html) values (
 <p>אישור זה נרשם ביומן ההסכמות של השירות יחד עם מועד האישור, גרסת הנוסח שהוצג לי, וכתובת ה-IP שממנה בוצע — כרשומה שאינה ניתנת לשינוי או למחיקה.</p>
 
 <h3>11. יצירת קשר</h3>
-<p>לכל שאלה או בקשה: <a href="mailto:agam15122003@gmail.com">agam15122003@gmail.com</a></p>
+<p>לכל שאלה או בקשה: <a href="mailto:coachadiriagam@gmail.com">coachadiriagam@gmail.com</a></p>
   $doc$
 ) on conflict (id) do nothing;
 

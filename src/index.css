@@ -30803,3 +30803,168 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   .hlp-acts .btn-primary,
   .hlp-acts .btn-soft { min-height: 44px; }
 }
+
+/* ============================================================
+   25.8.2026 — «שאלות ותשובות»: בחירת נושא במקום קיר טקסט
+   ============================================================
+   39 שאלות פרוסות זו אחר זו הן דף שאף אחד לא גולל עד סופו.
+   ברירת המחדל היא שבע אריחי נושא; השאלות נפתחות רק אחרי בחירה,
+   או בחיפוש. */
+.hlp-lede { margin: 0; }
+
+.hlp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2);
+}
+.hlp-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 68px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.hlp-tile:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.hlp-tile-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--brand-soft, var(--surface-alt));
+  color: var(--accent-strong);
+}
+.hlp-tile-tx {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.hlp-tile-tx b { font-size: 15px; }
+.hlp-tile-n {
+  flex: none;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hlp-crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.hlp-crumb .hlp-group-title { margin: 0; font-size: 17px; }
+.hlp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .hlp-tile { min-height: 72px; }
+  .hlp-back { min-height: 44px; }
+}
+
+/* חיפוש בתוך MultiSelect — «רשימה ארוכה» היא בעיה גם ב-18 שורות */
+.ms-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.ms-search > svg { flex: none; color: var(--text-muted); }
+.ms-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+.ms-search input:focus { outline: none; }
+.ms-search input::-webkit-search-cancel-button { cursor: pointer; }
+.ms-empty { margin: 0; padding: 14px 12px; text-align: center; }
+@media (max-width: 900px) { .ms-search input { font-size: 16px; } /* iOS לא מזום */ }
+
+/* «ייבוא קבוצה מהאיגוד» בטופס הפרופיל */
+.pf-iba-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-3);
+}
+.pf-iba-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-iba-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--c-green, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  font-size: 13.5px;
+}
+.pf-iba-list li > svg { flex: none; color: var(--c-green); }
+.pf-iba-list li > span { flex: 1; min-width: 0; }
+
+/* המודל של «ייבוא מהאיגוד» — בוררים עם הקלדה, כי רשימת הליגות היא מאות שורות */
+.tfi .tfi-pick { position: relative; display: block; margin-top: 12px; }
+.tfi-control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  text-align: start;
+  cursor: pointer;
+}
+.tfi-control:disabled { opacity: 0.55; cursor: not-allowed; }
+.tfi-control.open { border-color: var(--accent); }
+.tfi-panel {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.tfi-lede { margin: 0 0 10px; }

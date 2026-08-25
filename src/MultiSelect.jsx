@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, X, Check } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { ChevronDown, X, Check, Search } from 'lucide-react'
 import { L } from './i18n'
 
 // בחירה מרובה בסגנון "סטאק": שדה סגור שנפתח לרשימת אפשרויות,
@@ -10,11 +10,28 @@ import { L } from './i18n'
 //   onToggle    - (value) => void  — מוסיף/מסיר ערך בודד
 //   renderLabel - (value) => string  — טקסט להצגה (ברירת מחדל: הערך עצמו)
 //   placeholder - טקסט כשאין בחירה
-export default function MultiSelect({ options, selected, onToggle, renderLabel, placeholder }) {
+//   searchable  - הצגת שדה חיפוש בראש הרשימה (ברירת מחדל: מ-8 אפשרויות ומעלה)
+//
+// ⚠ החיפוש אינו קישוט: בורר הקבוצות מציג 18 אפשרויות בעברית, והמאמן
+//   יודע בדיוק מה הוא מחפש («נערים ב»). גלילה ברשימה כדי למצוא שורה
+//   שאתה כבר יודע את שמה היא בזבוז זמן, ובטלפון גם עבודה מייגעת.
+export default function MultiSelect({ options, selected, onToggle, renderLabel, placeholder, searchable }) {
   const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
   const ref = useRef(null)
+  const searchRef = useRef(null)
   const label = renderLabel || ((v) => v)
   const count = selected.length
+  const withSearch = searchable !== undefined ? searchable : (options || []).length >= 8
+
+  // ההשוואה מתעלמת מגרשיים וגרש — «נערים א׳» מול «נערים א» מול «נערים א'»
+  const norm = (v) => String(v || '').replace(/[׳'"״]/g, '').toLowerCase().trim()
+  const shown = useMemo(() => {
+    const needle = norm(q)
+    if (!needle) return options
+    return (options || []).filter((o) => norm(label(o)).includes(needle) || norm(o).includes(needle))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options, q])
 
   // סגירה בלחיצה מחוץ לרכיב
   useEffect(() => {
@@ -28,11 +45,15 @@ export default function MultiSelect({ options, selected, onToggle, renderLabel, 
     }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
+    // הפוקוס נכנס לשדה החיפוש — אפשר להתחיל להקליד מיד
+    if (withSearch) setTimeout(() => searchRef.current?.focus(), 0)
     return () => {
       document.removeEventListener('mousedown', onDoc)
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
+
+  useEffect(() => { if (!open) setQ('') }, [open])
 
   return (
     <div className="multiselect" ref={ref}>
@@ -53,7 +74,24 @@ export default function MultiSelect({ options, selected, onToggle, renderLabel, 
 
       {open && (
         <div className="ms-panel" role="listbox" aria-multiselectable="true">
-          {options.map((opt) => {
+          {withSearch && (
+            <div className="ms-search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={L('הקלד כדי לחפש...', 'Type to search...')}
+                aria-label={L('חיפוש ברשימה', 'Search the list')}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (shown.length === 1) onToggle(shown[0]) } }}
+              />
+            </div>
+          )}
+          {shown.length === 0 && (
+            <p className="ms-empty muted small">{L(`לא נמצא «${q}»`, `No match for “${q}”`)}</p>
+          )}
+          {shown.map((opt) => {
             const on = selected.includes(opt)
             return (
               <button

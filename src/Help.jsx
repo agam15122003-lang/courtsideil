@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Search, ChevronDown, Mail, Compass, ExternalLink, LifeBuoy } from 'lucide-react'
+import { Search, ChevronDown, Mail, Compass, ExternalLink, LifeBuoy, Rocket, Shield, ClipboardList, CalendarDays, MessagesSquare, Lock, Wrench } from 'lucide-react'
+import { ArrowBack } from './DirIcon'
 import { L } from './i18n'
 import { CONTACT_EMAIL, SITE_URL } from './constants'
 import { FAQ_CATEGORIES, faqItems } from './faqData'
@@ -8,8 +9,22 @@ import { FAQ_CATEGORIES, faqItems } from './faqData'
 // כשאין תשובה. עד היום התשובות היחידות היו בדף הנחיתה, כלומר **לפני**
 // ההתחברות: מאמן שנתקע בתוך האפליקציה לא היה לו לאן ללכת חוץ מלהתקשר.
 //
+// ⚠ המסך **לא** מציג את כל השאלות בבת אחת. 39 שאלות פרוסות זו אחר זו הן
+// קיר טקסט שאף אחד לא קורא — בוחרים נושא, ורואים רק אותו. החיפוש הוא
+// הקיצור למי שכבר יודע מה הוא מחפש.
+//
 // אין כאן טופס שנשלח לשרת. הקשר הוא מייל עם נושא וגוף מוכנים מראש —
 // זה עובד גם בטלפון, לא דורש טבלה חדשה במסד, ולא נכשל בשקט.
+const CAT_META = {
+  'התחלה': { Icon: Rocket, sub: L('הצעדים הראשונים, ומה עושים כשהמסך ריק', 'First steps, and what to do with an empty screen') },
+  'הקבוצה והסגל': { Icon: Shield, sub: L('שחקנים, נוכחות, ומה נשמר אצלך', 'Players, attendance, and what stays with you') },
+  'אימונים ותרגילים': { Icon: ClipboardList, sub: L('תוכניות, ספריית התרגילים, ומה שהקהילה שיתפה', 'Plans, the drill library, and what the community shared') },
+  'לו״ז וסקירה': { Icon: CalendarDays, sub: L('ימי אימון קבועים, נוכחות, עומס וסקירה', 'Fixed practice days, attendance, load and review') },
+  'קהילה': { Icon: MessagesSquare, sub: L('מאמנים אחרים, הודעות ומשחקי אימון', 'Other coaches, messages and scrimmages') },
+  'פרטיות וחשבון': { Icon: Lock, sub: L('מי רואה מה, סיסמה, ומחיקת חשבון', 'Who sees what, passwords, and deleting an account') },
+  'תקלות': { Icon: Wrench, sub: L('כשמשהו לא נשמר, לא נטען או נראה שבור', 'When something is not saved, not loading, or looks broken') },
+}
+
 export default function Help({ profile, onStartTour }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
@@ -17,24 +32,30 @@ export default function Help({ profile, onStartTour }) {
   const items = useMemo(() => faqItems(), [])
 
   const norm = (s) => (s || '').replace(/[״"׳'.,?!]/g, '').toLowerCase()
-  const filtered = useMemo(() => {
-    const needle = norm(q.trim())
-    return items.filter((f) => {
-      if (cat && f.category !== cat) return false
-      if (!needle) return true
-      return norm(f.q).includes(needle) || norm(f.a).includes(needle)
-    })
-  }, [items, q, cat])
+  const needle = norm(q.trim())
+  const searching = needle.length > 0
 
-  const searching = !!q.trim() || !!cat
+  const counts = useMemo(() => {
+    const c = {}
+    for (const f of items) c[f.category] = (c[f.category] || 0) + 1
+    return c
+  }, [items])
+
+  // חיפוש גובר על בחירת נושא: מי שמקליד רוצה תשובה, לא ניווט
+  const shown = useMemo(() => {
+    if (searching) return items.filter((f) => norm(f.q).includes(needle) || norm(f.a).includes(needle))
+    if (cat) return items.filter((f) => f.category === cat)
+    return []
+  }, [items, cat, needle, searching])
+
   const groups = useMemo(() => {
     const out = []
     for (const c of FAQ_CATEGORIES) {
-      const rows = filtered.filter((f) => f.category === c)
+      const rows = shown.filter((f) => f.category === c)
       if (rows.length) out.push({ cat: c, rows })
     }
     return out
-  }, [filtered])
+  }, [shown])
 
   const subject = encodeURIComponent(L('שאלה על CourtSide', 'A question about CourtSide'))
   const body = encodeURIComponent(
@@ -45,68 +66,99 @@ export default function Help({ profile, onStartTour }) {
   )
   const mailto = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`
 
+  const pick = (c) => { setCat(c); setOpen(null); setQ('') }
+
+  const item = (f) => {
+    const id = f.category + '|' + f.q
+    // בחיפוש התשובות פתוחות מאליהן — אחרת מצאת את השאלה וצריך עוד קליק
+    const isOpen = open === id || searching
+    return (
+      <li key={id} className={isOpen ? 'hlp-item open' : 'hlp-item'}>
+        <button type="button" className="hlp-q" aria-expanded={isOpen} onClick={() => setOpen(open === id ? null : id)}>
+          <span>{f.q}</span>
+          <ChevronDown size={17} className="hlp-chev" aria-hidden="true" />
+        </button>
+        {isOpen && <div className="hlp-a">{f.a}</div>}
+      </li>
+    )
+  }
+
   return (
     <div className="hlp">
-      {/* חיפוש לפני הקטגוריות: מאמן עם שאלה מקלידה מילה אחת, הוא לא מחפש
-          באיזו קטגוריה שמנו אותה */}
       <div className="hlp-search">
         <Search size={17} aria-hidden="true" />
         <input
           className="finder-input"
           type="search"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={L('מה אתה מחפש? למשל: נוכחות, תרגילים, שחקנים', 'What are you looking for? e.g. attendance, drills, players')}
+          onChange={(e) => { setQ(e.target.value); setOpen(null) }}
+          placeholder={L('חיפוש בכל השאלות — נוכחות, תרגילים, שחקנים…', 'Search all questions — attendance, drills, players…')}
           aria-label={L('חיפוש בשאלות ותשובות', 'Search questions and answers')}
         />
       </div>
 
-      <div className="hlp-cats" role="group" aria-label={L('נושאים', 'Topics')}>
-        <button type="button" className={cat === '' ? 'chip selected' : 'chip'} onClick={() => setCat('')} aria-pressed={cat === ''}>
-          {L('הכול', 'All')}
-        </button>
-        {FAQ_CATEGORIES.map((c) => (
-          <button key={c} type="button" className={cat === c ? 'chip selected' : 'chip'} onClick={() => setCat(cat === c ? '' : c)} aria-pressed={cat === c}>
-            {c}
-          </button>
-        ))}
-      </div>
+      {/* ---- מצב א: בחירת נושא (ברירת המחדל) ---- */}
+      {!searching && !cat && (
+        <>
+          <p className="hlp-lede muted">
+            {L('על מה תרצה לקרוא? בכל נושא כמה שאלות קצרות.', 'What would you like to read about? A few short questions in each topic.')}
+          </p>
+          <div className="hlp-grid">
+            {FAQ_CATEGORIES.map((c) => {
+              const meta = CAT_META[c] || {}
+              const Icon = meta.Icon || LifeBuoy
+              return (
+                <button key={c} type="button" className="hlp-tile" onClick={() => pick(c)}>
+                  <span className="hlp-tile-ic"><Icon size={19} aria-hidden="true" /></span>
+                  <span className="hlp-tile-tx">
+                    <b>{c}</b>
+                    <span className="muted small">{meta.sub}</span>
+                  </span>
+                  <span className="hlp-tile-n">{counts[c] || 0}</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
-      {groups.length === 0 ? (
-        <div className="empty-state hlp-empty">
-          <span className="empty-ic"><LifeBuoy size={26} /></span>
-          <div className="empty-title">{L('לא מצאנו תשובה לזה', 'No answer for that')}</div>
-          <p className="muted">{L('אולי ננסח אחרת? ואם לא — פשוט תשאל אותנו ונענה.', 'Try different words — or just ask us and we will answer.')}</p>
-          <a className="btn-primary empty-cta" href={mailto}>
-            <Mail size={16} aria-hidden="true" /> {L('שליחת השאלה במייל', 'Email your question')}
-          </a>
-        </div>
-      ) : (
-        groups.map((g) => (
-          <section key={g.cat} className="hlp-group">
-            <h2 className="hlp-group-title">{g.cat}</h2>
-            <ul className="hlp-list">
-              {g.rows.map((f) => {
-                const id = f.category + '|' + f.q
-                const isOpen = open === id || (searching && !!q.trim())
-                return (
-                  <li key={id} className={isOpen ? 'hlp-item open' : 'hlp-item'}>
-                    <button
-                      type="button"
-                      className="hlp-q"
-                      aria-expanded={isOpen}
-                      onClick={() => setOpen(open === id ? null : id)}
-                    >
-                      <span>{f.q}</span>
-                      <ChevronDown size={17} className="hlp-chev" aria-hidden="true" />
-                    </button>
-                    {isOpen && <div className="hlp-a">{f.a}</div>}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        ))
+      {/* ---- מצב ב: נושא נבחר ---- */}
+      {!searching && cat && (
+        <>
+          <div className="hlp-crumb">
+            <button type="button" className="btn-soft hlp-back" onClick={() => { setCat(''); setOpen(null) }}>
+              <ArrowBack size={15} aria-hidden="true" /> {L('כל הנושאים', 'All topics')}
+            </button>
+            <h2 className="hlp-group-title">{cat}</h2>
+          </div>
+          <ul className="hlp-list">{shown.map(item)}</ul>
+        </>
+      )}
+
+      {/* ---- מצב ג: חיפוש ---- */}
+      {searching && (
+        groups.length === 0 ? (
+          <div className="empty-state hlp-empty">
+            <span className="empty-ic"><LifeBuoy size={26} /></span>
+            <div className="empty-title">{L('לא מצאנו תשובה לזה', 'No answer for that')}</div>
+            <p className="muted">{L('אולי ננסח אחרת? ואם לא — פשוט תשאל אותנו ונענה.', 'Try different words — or just ask us and we will answer.')}</p>
+            <a className="btn-primary empty-cta" href={mailto}>
+              <Mail size={16} aria-hidden="true" /> {L('שליחת השאלה במייל', 'Email your question')}
+            </a>
+          </div>
+        ) : (
+          <>
+            <p className="hlp-lede muted">
+              {L(`${shown.length} תשובות מתאימות`, `${shown.length} matching answers`)}
+            </p>
+            {groups.map((g) => (
+              <section key={g.cat} className="hlp-group">
+                <h2 className="hlp-group-title">{g.cat}</h2>
+                <ul className="hlp-list">{g.rows.map(item)}</ul>
+              </section>
+            ))}
+          </>
+        )
       )}
 
       {/* צור קשר — באותו דף, כי מאמן שלא מצא תשובה לא צריך לחפש מסך נוסף */}

@@ -46,7 +46,7 @@ import {
 } from './consent'
 import { burstConfetti } from './confetti'
 import { expandSlots, expandSlotsRange } from './sessionId'
-import { safeUrl, COACHING_QUOTES, VIDEO_CATEGORIES, PODCASTS } from './constants'
+import { safeUrl, COACHING_QUOTES, VIDEO_CATEGORIES, PODCASTS, CONTACT_EMAIL } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
 import Logo from './Logo'
 import { SkeletonCards, SkeletonMedia } from './Skeleton'
@@ -3417,7 +3417,7 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
             if (!ok) return
             const { error } = await supabase.from('account_deletion_requests').insert({ user_id: session.user.id })
             if (error) {
-              window.location.href = 'mailto:agam15122003@gmail.com?subject=' + encodeURIComponent('בקשת מחיקת חשבון CourtSide')
+              window.location.href = `mailto:${CONTACT_EMAIL}?subject=` + encodeURIComponent('בקשת מחיקת חשבון CourtSide')
               return
             }
               toast.success(L('הבקשה נרשמה — נחזור אליך במייל', 'Request logged — we will reply by email'))
