@@ -40,7 +40,7 @@ node tools/tutorial/record.mjs roster
 
 | קובץ | אורך | תוכן |
 |---|---|---|
-| `courtside-hadracha` | ~3:30 | הכול, ברצף אחד |
+| `courtside-hadracha` | 3:33 | הכול, ברצף אחד |
 | `courtside-roster` | ~37 שנ׳ | הסגל |
 | `courtside-notebook` | ~35 שנ׳ | מחברת האימון |
 | `courtside-run` | ~40 שנ׳ | הרצת אימון |
@@ -50,18 +50,20 @@ node tools/tutorial/record.mjs roster
 ## mp4 מול webm
 
 ⚠ ה-ffmpeg שמגיע עם Playwright הוא בילד מקוצץ (`--disable-everything`):
-webm/VP8 בלבד, **בלי libx264 ובלי מוקסר mp4**. לכן ברירת המחדל היא webm,
-ווואטסאפ ואייפון לא תמיד מנגנים אותו.
+webm/VP8 בלבד, **בלי libx264 ובלי מוקסר mp4**.
 
-ל-mp4 צריך ffmpeg מלא:
+`record.mjs` מחפש ffmpeg מלא ב-PATH, ב-`C:/Program Files/ffmpeg/bin`,
+במשתנה הסביבה `FFMPEG`, וגם ישירות בתיקיית החבילות של winget — כי ה-PATH
+מתעדכן רק אחרי פתיחת מסוף חדש. אם נמצא, הפלט הוא mp4; אחרת webm.
+
+להתקנה (בוצעה במחשב הזה ב-25.8.2026):
 
 ```bash
 winget install Gyan.FFmpeg
 ```
 
-ואז להריץ שוב את `record.mjs` — הוא מחפש `ffmpeg` ב-PATH,
-ב-`C:/Program Files/ffmpeg/bin`, וגם במשתנה הסביבה `FFMPEG`, וממיר לבד
-(`libx264`, `yuv420p`, `+faststart` — שלושתם נדרשים כדי שהסרטון יתנגן באייפון).
+שלושת הדגלים `libx264` + `yuv420p` + `+faststart` נדרשים כדי שהסרטון
+יתנגן באייפון ובוואטסאפ — לא רק ייווצר.
 
 ## לשנות נוסח
 

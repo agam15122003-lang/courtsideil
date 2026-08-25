@@ -33,6 +33,17 @@ function findFullFfmpeg() {
     'ffmpeg',
     'C:/Program Files/ffmpeg/bin/ffmpeg.exe',
     'C:/ffmpeg/bin/ffmpeg.exe',
+    // winget install Gyan.FFmpeg — ה-PATH מתעדכן רק אחרי פתיחת מסוף חדש,
+    // ולכן מחפשים גם ישירות בתיקיית החבילות
+    ...(() => {
+      const base = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages')
+      try {
+        const dir = fs.readdirSync(base).find((d) => /Gyan.FFmpeg/i.test(d))
+        if (!dir) return []
+        const build = fs.readdirSync(path.join(base, dir)).find((d) => /ffmpeg/i.test(d))
+        return build ? [path.join(base, dir, build, 'bin', 'ffmpeg.exe')] : []
+      } catch { return [] }
+    })(),
   ].filter(Boolean)
   for (const c of cands) {
     try {
