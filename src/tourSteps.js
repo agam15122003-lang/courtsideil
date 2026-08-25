@@ -214,11 +214,23 @@ export default function tourSteps() {
       ),
     },
 
+    // ---------- שאלות ותשובות ----------
+    {
+      key: 'nav-help',
+      view: 'help',
+      anchor: nav('help'),
+      title: L('נתקעת? יש מסך לזה', 'Stuck? There is a screen for that'),
+      body: L(
+        'שאלות ותשובות על כל מה שיש כאן, עם חיפוש. ומה שאין שם — כפתור אחד ששולח לנו את השאלה, ואנחנו עונים.',
+        'Questions and answers about everything here, with search. And what is missing — one button sends us your question, and we answer.'
+      ),
+    },
+
     // ---------- הפעמון ----------
     {
       key: 'bell',
       view: 'home',
-      anchor: ['.topbar-actions .ntf-bell', '.nh-hero-bell .ntf-bell', '.ntf-bell'],
+      anchor: ['.sidebar-bell .ntf-bell', '.topbar-actions .ntf-bell', '.nh-hero-bell .ntf-bell', '.ntf-bell'],
       title: L('הפעמון', 'The bell'),
       body: L(
         'תגובות, הודעות וזימונים נאספים כאן. הכול נשאר בתוך האפליקציה — אין התראות לטלפון ואין מיילים.',

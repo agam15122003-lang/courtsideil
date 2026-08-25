@@ -32,7 +32,7 @@ node tools/tutorial/record.mjs
 node tools/tutorial/record.mjs roster
 ```
 
-הקטעים: `roster` · `notebook` · `run` · `review` · `community`.
+הקטעים: `home` · `teams` · `work` · `fromCommunity` · `schedule` · `review` · `community` · `finder` · `messages` · `media` · `help`.
 
 ## הפלט
 
@@ -40,12 +40,25 @@ node tools/tutorial/record.mjs roster
 
 | קובץ | אורך | תוכן |
 |---|---|---|
-| `courtside-hadracha` | 3:33 | הכול, ברצף אחד |
-| `courtside-roster` | ~37 שנ׳ | הסגל |
-| `courtside-notebook` | ~35 שנ׳ | מחברת האימון |
-| `courtside-run` | ~40 שנ׳ | הרצת אימון |
-| `courtside-review` | ~35 שנ׳ | הסקירה |
-| `courtside-community` | ~37 שנ׳ | קהילה ותרגילים |
+| `courtside-hadracha` | 6:41 | **הסרטון הראשי** — כל התפריט מימין, מלמעלה למטה, ובסוף טיזר על צד השחקן |
+| `courtside-home` | 27 שנ׳ | בית |
+| `courtside-teams` | 37 שנ׳ | הקבוצות שלי |
+| `courtside-work` | 35 שנ׳ | אימונים ותרגילים |
+| `courtside-fromCommunity` | 55 שנ׳ | **מהקהילה** — תוכניות ותרגילים של מאמנים אחרים |
+| `courtside-schedule` | 45 שנ׳ | לו״ז והרצת אימון |
+| `courtside-review` | 36 שנ׳ | הסקירה |
+| `courtside-community` | 24 שנ׳ | קהילה |
+| `courtside-finder` | 26 שנ׳ | חיפוש מאמנים |
+| `courtside-messages` | 14 שנ׳ | הודעות |
+| `courtside-media` | 20 שנ׳ | מדיה |
+| `courtside-help` | 24 שנ׳ | שאלות ותשובות |
+
+**שני כללים בתסריט, מהבעלים:**
+
+1. **שום דבר על צד השחקן.** אין חשבונות שחקן, אין מי שיקרא, ואין משוב
+   שמנוסח כפנייה לילד. מה שהמאמן כותב נשאר אצלו — וזה מה שנאמר.
+2. **«מהקהילה» מקבל את הקטע הארוך ביותר.** תוכניות ותרגילים שמאמנים
+   אחרים שיתפו הם הדבר שהכי חבל לפספס, והם היו חסרים לגמרי בגרסה הקודמת.
 
 ## mp4 מול webm
 

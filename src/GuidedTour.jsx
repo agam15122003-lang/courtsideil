@@ -133,9 +133,13 @@ export default function GuidedTour({ onGo, onClose }) {
     const find = () => {
       if (!alive) return
       const sels = step.anchor || []
+      // ⚠ querySelectorAll ולא querySelector: הפעמון קיים בשלושה מקומות
+      // (סרגל, סרגל עליון, באנר הבית) ורק אחד מהם נראה בכל רוחב. עם
+      // querySelector הסלקטור הרחב `.ntf-bell` החזיר תמיד את הראשון
+      // ב-DOM — שמוסתר בדסקטופ — והצעד נפל לשקופית בלי זרקור.
       for (const sel of sels) {
-        const el = document.querySelector(sel)
-        if (el && shown(el)) {
+        const el = [...document.querySelectorAll(sel)].find(shown)
+        if (el) {
           const r = el.getBoundingClientRect()
           // עוגן שתופס כמעט את כל המסך אינו זרקור אלא רקע: במקרה כזה
           // עדיפה שקופית ממורכזת על "חור" בגודל העמוד.

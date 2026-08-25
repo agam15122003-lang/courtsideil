@@ -65,10 +65,43 @@ const drills = DRILLS.map(([title, category, duration_minutes, description], i) 
   saved_drills: [], video_url: null, diagram: null,
 }))
 
+// תרגילים ששיתפו מאמנים אחרים — זה מה שרואים בטאב «מהקהילה»
+const COMMUNITY_DRILLS = [
+  ['סגירת ריבאונד 1 על 1', 'ריבאונד', 9, 'coach-2', 'המגן סוגר את התוקף אחרי זריקה ולוקח את הכדור. שתי דקות לכל זוג.'],
+  ['חמישה מגעים לפני זריקה', 'התקפה', 14, 'coach-3', 'משחקון שמכריח מסירות: אין זריקה לפני חמישה מגעים.'],
+  ['שתי כדורים — תיאום ידיים', 'כדרור', 8, 'coach-4', 'כדרור בשני כדורים במקביל, לסירוגין ואז יחד.'],
+  ['לחץ כל המגרש 2 על 2', 'הגנה', 12, 'coach-2', 'לחץ מלא אחרי סל, עם שינוי תפקידים כל דקה.'],
+  ['זריקות אחרי ריצה', 'קליעה', 10, 'coach-3', 'ריצה לקו העונשין, קבלת מסירה וזריקה בתנועה.'],
+].map(([title, category, duration_minutes, by, description], i) => ({
+  id: 'cd' + (i + 1), created_by: by, title, category, duration_minutes, description,
+  is_public: true, age_groups: [TEAM], tags: [category], equipment: 'כדורים',
+  players_min: 4, players_max: 14, created_at: iso(-15 + i),
+  drill_ratings: [{ rating: 5, user_id: 'coach-3' }, { rating: 4, user_id: 'coach-4' }],
+  saved_drills: [], video_url: null, diagram: null,
+  author: { first_name: by === 'coach-2' ? 'תמר' : by === 'coach-3' ? 'רון' : 'מיכל',
+            last_name: by === 'coach-2' ? 'כהן' : by === 'coach-3' ? 'לוי' : 'שרון',
+            club: by === 'coach-2' ? 'מכבי אשדוד' : by === 'coach-3' ? 'הפועל חיפה' : 'אליצור נתניה' },
+}))
+
+// תוכניות אימון ששיתפו מאמנים אחרים
+const COMMUNITY_PLANS = [
+  { id: 'cp1', created_by: 'coach-3', name: 'אימון פתיחת עונה — 75 דקות', is_public: true, is_draft: false,
+    created_at: iso(-9), updated_at: iso(-9), team: 'נערים א׳', duration_minutes: 75, session_date: null,
+    plan_items: [{ id: 'i1', duration_minutes: 10, drill: { category: 'חימום' } }, { id: 'i2', duration_minutes: 25, drill: { category: 'כדרור' } }, { id: 'i3', duration_minutes: 25, drill: { category: 'התקפה' } }, { id: 'i4', duration_minutes: 15, drill: { category: 'קליעה' } }] },
+  { id: 'cp2', created_by: 'coach-2', name: 'אימון הגנה קבוצתית', is_public: true, is_draft: false,
+    created_at: iso(-16), updated_at: iso(-16), team: 'נערות ב׳', duration_minutes: 90, session_date: null,
+    plan_items: [{ id: 'i5', duration_minutes: 12, drill: { category: 'חימום' } }, { id: 'i6', duration_minutes: 40, drill: { category: 'הגנה' } }, { id: 'i7', duration_minutes: 25, drill: { category: 'ריבאונד' } }, { id: 'i8', duration_minutes: 13, drill: { category: 'קליעה' } }] },
+  { id: 'cp3', created_by: 'coach-4', name: 'אימון קצר ליום משחק', is_public: true, is_draft: false,
+    created_at: iso(-22), updated_at: iso(-22), team: 'ילדים', duration_minutes: 45, session_date: null,
+    plan_items: [{ id: 'i9', duration_minutes: 15, drill: { category: 'חימום' } }, { id: 'i10', duration_minutes: 20, drill: { category: 'התקפה' } }, { id: 'i11', duration_minutes: 10, drill: { category: 'קליעה' } }] },
+]
+
 const plans = [
   {
     id: PLAN_A, created_by: COACH, name: 'אימון הגנה — נערים ב׳', team: TEAM,
-    duration_minutes: 90, created_at: iso(-6), notes: 'דגש על תקשורת בהגנה',
+    duration_minutes: 90, created_at: iso(-6), updated_at: iso(-6), notes: 'דגש על תקשורת בהגנה',
+    is_public: false, is_draft: false, session_date: null,
+    plan_items: [{ id: 'pa1', duration_minutes: 10, drill: { category: 'חימום' } }, { id: 'pa2', duration_minutes: 35, drill: { category: 'הגנה' } }, { id: 'pa3', duration_minutes: 30, drill: { category: 'התקפה' } }, { id: 'pa4', duration_minutes: 15, drill: { category: 'קליעה' } }],
     sections: [
       { title: 'חימום', minutes: 10, items: ['חימום דינמי'] },
       { title: 'הגנה', minutes: 35, items: ['הגנת אדם — החלקות', 'ריבאונד וסגירה'] },
@@ -78,7 +111,9 @@ const plans = [
   },
   {
     id: PLAN_B, created_by: COACH, name: 'אימון מעבר מהיר', team: TEAM,
-    duration_minutes: 75, created_at: iso(-13), notes: null,
+    duration_minutes: 75, created_at: iso(-13), updated_at: iso(-13), notes: null,
+    is_public: true, is_draft: false, session_date: null,
+    plan_items: [{ id: 'pb1', duration_minutes: 10, drill: { category: 'חימום' } }, { id: 'pb2', duration_minutes: 25, drill: { category: 'מסירה' } }, { id: 'pb3', duration_minutes: 30, drill: { category: 'התקפה' } }, { id: 'pb4', duration_minutes: 10, drill: { category: 'כדרור' } }],
     sections: [
       { title: 'חימום', minutes: 10, items: ['חימום דינמי'] },
       { title: 'מסירות', minutes: 25, items: ['מסירות בזוגות בתנועה'] },
@@ -160,8 +195,8 @@ export const DB = {
   ],
   player_goal_logs: [],
   player_feedback: [
-    { id: 'f1', coach_id: COACH, roster_id: 'r1', player_id: null, content: 'הובלת את הקבוצה בהגנה. ככה בדיוק.', rating: 5, created_at: iso(-2), session_id: S_PAST, session_type: 'practice', session_date: Y },
-    { id: 'f2', coach_id: COACH, roster_id: 'r4', player_id: null, content: 'עבודה טובה מתחת לסל — תמשיך לבקש את הכדור.', rating: 4, created_at: iso(-2), session_id: S_PAST, session_type: 'practice', session_date: Y },
+    { id: 'f1', coach_id: COACH, roster_id: 'r1', player_id: null, content: 'מוביל בהגנה, מדבר על המגרש. לתת לו יותר אחריות בהתקפה.', rating: 5, created_at: iso(-2), session_id: S_PAST, session_type: 'practice', session_date: Y },
+    { id: 'f2', coach_id: COACH, roster_id: 'r4', player_id: null, content: 'חזק מתחת לסל. צריך לבקש את הכדור יותר.', rating: 4, created_at: iso(-2), session_id: S_PAST, session_type: 'practice', session_date: Y },
   ],
   player_assignments: [
     { id: 'a-team', coach_id: COACH, team: TEAM, player_id: null, roster_id: null, title: '100 זריקות עונשין עד יום חמישי', note: null, due_date: N2, status: 'active', target_value: 100, unit: 'זריקות', drill: null, plan: null, created_at: iso(-3) },
@@ -185,9 +220,9 @@ export const DB = {
     { id: 'n1', user_id: COACH, actor_id: 'coach-2', type: 'message', content: 'שלחה לך הודעה', nav: 'messages', read_at: null, created_at: iso(-1), actor: { first_name: 'תמר', last_name: 'כהן' } },
     { id: 'n2', user_id: COACH, actor_id: 'coach-3', type: 'like', content: 'אהב את הפוסט שלך', nav: 'community', read_at: null, created_at: iso(-2), actor: { first_name: 'רון', last_name: 'לוי' } },
   ],
-  drills,
-  public_drills: drills,
-  training_plans: plans,
+  drills: [...drills, ...COMMUNITY_DRILLS],
+  public_drills: [...drills, ...COMMUNITY_DRILLS],
+  training_plans: [...plans, ...COMMUNITY_PLANS],
   coach_notes: [],
   game_attendance: [], practice_rsvp: [],
   drill_videos: videos,

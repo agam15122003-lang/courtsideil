@@ -134,8 +134,12 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // אבל הודעת חריגה של פוסטגרס אינה מסך — לכן נאמר את זה כאן, בעברית
     // ובאנגלית, ובמקום שבו אפשר עוד לחזור אחורה ולבחור «שחקן».
     if (isNewCoach && playerAge !== null && playerAge < 18) {
-      setError(L('חשבון מאמן מיועד לבגירים (18+). אם אתה שחקן — חזרו אחורה ובחרו «שחקן».',
-                 'A coach account is for adults (18+). If you are a player, go back and pick “Player”.'))
+      setError(PLAYER_SIDE
+        ? L('חשבון מאמן מיועד לבגירים (18+). אם אתה שחקן — חזרו אחורה ובחרו «שחקן».',
+            'A coach account is for adults (18+). If you are a player, go back and pick “Player”.')
+        // אין בורר תפקידים כשצד השחקן סגור — אין לאן «לחזור אחורה»
+        : L('חשבון מאמן מיועד לבגירים (18+). בדקו את שנת הלידה.',
+            'A coach account is for adults (18+). Please check the birth year.'))
       return
     }
     if (isMinor && (!guardianEmail.trim() || !guardianName.trim())) {

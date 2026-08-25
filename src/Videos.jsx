@@ -301,7 +301,7 @@ export default function Videos({ session, profile }) {
                 >
                   <span className="pl-vid-thumb" style={id ? { backgroundImage: `url("https://img.youtube.com/vi/${id}/hqdefault.jpg")` } : undefined}>
                     <span className="pl-vid-play"><PlayCircle size={18} /></span>
-                    {v.featured && <span className="vco-star"><Star size={11} fill="currentColor" /></span>}
+                    {PLAYER_SIDE && v.featured && <span className="vco-star"><Star size={11} fill="currentColor" /></span>}
                   </span>
                   <span className="pl-vid-body">
                     <span className="pl-vid-title" dir="auto">{cleanVideoTitle(v.title)}</span>
@@ -310,7 +310,7 @@ export default function Videos({ session, profile }) {
                       {/* 1.11 — הערוץ (נשמר ב-note בייבוא) מוצג על הכרטיס */}
                       {v.note && <span className="vco-channel muted small" dir="auto">{v.note}</span>}
                       {r.count > 0 && <span className="vco-avg"><Star size={11} fill="currentColor" /> {r.avg.toFixed(1)} · {r.count}</span>}
-                      {v.approved === false && <span className="video-pending">{L('ממתין לאישור', 'Pending approval')}</span>}
+                      {PLAYER_SIDE && v.approved === false && <span className="video-pending">{L('ממתין לאישור', 'Pending approval')}</span>}
                     </span>
                   </span>
                 </button>

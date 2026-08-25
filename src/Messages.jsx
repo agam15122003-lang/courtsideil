@@ -273,7 +273,8 @@ export default function Messages({ session, profile, onNavigate, onRead }) {
   const roleLabel = (otherId) => {
     const p = profilesById[otherId]
     if (!p) return L('משתתף', 'Member')
-    if (p.role === 'player') {
+    // עם צד שחקן סגור כל השיחות הן בין מאמנים; התווית «שחקן» רק בלבלה
+    if (PLAYER_SIDE && p.role === 'player') {
       return L('שחקן', 'Player') + (p.position ? `, ${p.position}` : '')
     }
     return L('מאמן', 'Coach') + (p.club ? `, ${p.club}` : '')

@@ -273,7 +273,7 @@ export default function SessionDetail({ session, entry, onClose }) {
           else { sqlMissing = true; continue }
         }
         if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
-        if (nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
+        if (PLAYER_SIDE && nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
       }
     }
 
@@ -286,7 +286,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'coach_id,session_type,session_id' })
     if (revErr) { fail(L('שמירת סיכום האימון נכשלה: ', 'Saving the session summary failed: '), revErr); return }
-    if (mvpP?.player_id && !notified.has(mvpP.player_id)) {
+    if (PLAYER_SIDE && mvpP?.player_id && !notified.has(mvpP.player_id)) {
       sendNotification({ to: mvpP.player_id, actor: me, type: 'message', content: L('נבחרת ל-MVP של האימון! 🏀', 'You were picked MVP of the session! 🏀'), nav: 'feedback' })
       notified.add(mvpP.player_id)
     }
@@ -399,7 +399,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                           <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
                             <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
                           </span>
-                          {eff && !coachEff[p.id] && <span className="muted small" dir="ltr">{L('השחקן: ', 'Player: ')}{eff}/10</span>}
+                          {PLAYER_SIDE && eff && !coachEff[p.id] && <span className="muted small" dir="ltr">{L('השחקן: ', 'Player: ')}{eff}/10</span>}
                         </>
                       ) : connected && (
                         <span className={eff ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('מאמץ (דירוג עצמי)', 'Effort (self-rated)')}>
@@ -435,7 +435,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                       </div>
                     )}
                     {connected && (openNote[p.id] || note[p.id]) && (
-                      <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מילה אישית לשחקן...', 'A personal line for the player...')} maxLength={300} />
+                      <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מה בלט אצלו היום — לזכור לאימון הבא...', 'What stood out today — to remember next practice...')} maxLength={300} />
                     )}
                     {/* «עמד ביעד?» — המאמן מסמן (צד המאמן בלבד): ריק → ✓ → — → ריק */}
                     {COACH_MODE && opts.length > 0 && (
@@ -465,7 +465,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                         {(focuses[p.id] || []).map((f, i) => <span key={i} className="sd-focus">{f}</span>)}
                       </div>
                     )}
-                    {connected && playerNotes[p.id] && (
+                    {PLAYER_SIDE && connected && playerNotes[p.id] && (
                       <div className="sd-player-note"><span className="sd-player-note-lbl">{L('השחקן רשם:', 'Player wrote:')}</span> {playerNotes[p.id]}</div>
                     )}
                     {/* "ראיתי 👍" — טאפ אחד שאומר לנער שהסיכום שלו לא נעלם לחלל (צד שחקן פתוח בלבד) */}

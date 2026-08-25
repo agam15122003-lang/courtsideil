@@ -36,6 +36,7 @@ export const DICT = {
     'nav.messages': 'הודעות',
     'nav.admin': 'ניהול',
     'nav.dossier': 'תיק שחקן',
+    'nav.help': 'שאלות ותשובות',
     // פעולות כלליות
     'action.signout': 'התנתקות',
     'action.editProfile': 'עריכת פרטים',
@@ -105,6 +106,7 @@ export const DICT = {
     'nav.messages': 'Messages',
     'nav.admin': 'Admin',
     'nav.dossier': 'Player dossier',
+    'nav.help': 'Questions & answers',
     'action.signout': 'Sign out',
     'action.editProfile': 'Edit details',
     'common.openMenu': 'Open menu',

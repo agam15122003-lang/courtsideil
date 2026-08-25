@@ -28,6 +28,7 @@ import PlayerSideClosed from './PlayerSideClosed'
 // מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
 import AccountBlocked from './AccountBlocked'
 import GuidedTour, { tourSeen, markTourSeen } from './GuidedTour'
+import Help from './Help'
 
 // ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
 // אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
@@ -149,7 +150,7 @@ import {
   AlertTriangle,
   RotateCcw,
   UserPlus,
-  WifiOff, Compass } from 'lucide-react'
+  WifiOff, Compass, HelpCircle } from 'lucide-react'
 import { ChevronFwd } from './DirIcon'
 import Logo from './Logo'
 import Page from './Page'
@@ -170,6 +171,8 @@ const NAV = [
   { id: 'trainees', key: 'nav.trainees', Icon: UserPlus },
   { id: 'schedule', key: 'nav.schedule', Icon: CalendarDays },
   { id: 'media', key: 'nav.media', Icon: MonitorPlay },
+  // אחרון בכוונה: לכאן מגיעים כשנתקעים, וזה לא חלק מהלולאה היומית
+  { id: 'help', key: 'nav.help', Icon: HelpCircle },
 ]
 // צד המאמן בלבד: «מתאמנים אישיים» הוא כולו קשר מאמן↔שחקן (השחקן מבקש,
 // ההורה מאשר) — בלי חשבונות שחקן אין לו מה להציג.
@@ -207,6 +210,12 @@ const PAGE_META = {
     eyebrow: L('הקהילה', 'Community'), eyebrowIcon: Users,
     title: L('מאתר המאמנים', 'Coach finder'),
     subtitle: L('מוצאים מאמנים לפי מועדון ושכבת גיל, ומתחילים שיחה.', 'Find coaches by club and age group, and start a conversation.'),
+  }),
+  help: () => ({
+    eyebrow: L('עזרה', 'Help'), eyebrowIcon: HelpCircle,
+    title: L('שאלות ותשובות', 'Questions & answers'),
+    subtitle: L('לא הבנת משהו? רוב התשובות כאן — ומה שלא, פשוט תשאל אותנו.',
+      'Not sure about something? Most answers are here — and for the rest, just ask us.'),
   }),
   media: () => ({
     eyebrow: L('צפייה', 'Watch'), eyebrowIcon: MonitorPlay,
@@ -902,6 +911,13 @@ export default function Dashboard({ session }) {
           ) : view === 'admin' && profile?.is_admin ? (
             <Page {...PAGE_META.admin()}>
               <Admin session={session} profile={profile} />
+            </Page>
+          ) : view === 'help' ? (
+            <Page {...PAGE_META.help()}>
+              <Help
+                profile={profile}
+                onStartTour={() => { markTourSeen(); setTour(true) }}
+              />
             </Page>
           ) : view === 'messages' ? (
             <Page {...PAGE_META.messages(navigate)}>

@@ -108,7 +108,9 @@ export default function TeamSlots({ coachId, team, onReview }) {
   return (
     <div className="team-section">
       <h3 className="ta-title"><CalendarClock size={16} /> {L('ימי אימון קבועים', 'Fixed practice days')} · {trTeam(team)}</h3>
-      <p className="muted small" style={{ marginBottom: 12 }}>{L('קבע ימי אימון ושעות — הם מופיעים אוטומטית ומיד בלו״ז של כל שחקני הקבוצה, וקבועים עד שתשנה אותם.', 'Set practice days and times — they appear automatically in every player’s schedule, and stay fixed until you change them.')}</p>
+      <p className="muted small" style={{ marginBottom: 12 }}>{PLAYER_SIDE
+        ? L('קבע ימי אימון ושעות — הם מופיעים אוטומטית ומיד בלו״ז של כל שחקני הקבוצה, וקבועים עד שתשנה אותם.', 'Set practice days and times — they appear automatically in every player’s schedule, and stay fixed until you change them.')
+        : L('קבע ימי אימון ושעות — הם נכנסים ללו״ז השבועי שלך לבד, וקבועים עד שתשנה אותם.', 'Set practice days and times — they enter your weekly schedule on their own, and stay fixed until you change them.')}</p>
 
       <div className="slot-add">
         <label className="slot-field">

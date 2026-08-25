@@ -184,10 +184,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       else { toast.error(L('כדי לשמור משוב צריך להריץ את supabase_coach_only_22_8.sql', 'Saving feedback needs supabase_coach_only_22_8.sql')); return }
     }
     if (error) { console.error('teams feedback:', error.message); toast.error(L('שמירת המשוב נכשלה — נסו שוב בעוד רגע.', 'Saving the feedback failed — try again in a moment.')); return }
-    if (pEdit.player_id) sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
+    if (PLAYER_SIDE && pEdit.player_id) sendNotification({ to: pEdit.player_id, actor: me, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText(''); setFbRating(0)
     setFbHistory((h) => [{ id: Date.now(), content: fbText.trim(), rating: fbRating || null, created_at: new Date().toISOString() }, ...h].slice(0, 5))
-    toast.success(pEdit.player_id ? L('המשוב נשלח לשחקן', 'Feedback sent to the player') : L('המשוב נשמר בכרטיס השחקן', 'Feedback saved to the player card'))
+    toast.success(PLAYER_SIDE && pEdit.player_id ? L('המשוב נשלח לשחקן', 'Feedback sent to the player') : L('המשוב נשמר בכרטיס השחקן', 'Feedback saved to the player card'))
   }
 
   // יעדים — בורר שבוע/חודש
@@ -1071,7 +1071,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             {/* משוב אישי — לשחקן מחובר; בצד המאמן בלבד — לכל שורת סגל */}
             {fbOpen && (
               <div className="tm-feedback">
-                <span className="field-label"><MessageSquareHeart size={15} /> {pEdit.player_id ? L('שליחת משוב לשחקן', 'Send feedback to player') : L('משוב אישי לשחקן', 'Personal feedback')}</span>
+                <span className="field-label"><MessageSquareHeart size={15} /> {PLAYER_SIDE && pEdit.player_id ? L('שליחת משוב לשחקן', 'Send feedback to player') : L('משוב אישי — נשמר אצלך בלבד', 'Personal note — kept with you only')}</span>
                 <div className="tm-fb-stars" role="radiogroup" aria-label={L('דירוג', 'Rating')}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} type="button" className={n <= fbRating ? 'tm-star on' : 'tm-star'} onClick={() => setFbRating(n === fbRating ? 0 : n)} aria-label={L(`${n} כוכבים`, `${n} stars`)}>

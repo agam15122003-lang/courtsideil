@@ -100,7 +100,7 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
     }
     setBusy(false)
     if (error) { toast.error(L('ההוספה נכשלה', 'Failed to add')); return false }
-    if (playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
+    if (PLAYER_SIDE && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: period === 'session' ? L('המאמן הגדיר לך יעד לאימון הקרוב 🎯', 'Your coach set you a goal for the next practice 🎯') : L('המאמן הגדיר לך יעד חדש 🎯', 'Your coach set you a new goal 🎯'), nav: 'goals' })
     load()
     onChange?.()
     return true
@@ -126,7 +126,7 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
     if (g.target_value && playerId) {
       await supabase.from('player_goal_logs').insert({ goal_id: g.id, player_id: playerId, value: next })
     }
-    if (done && g.status !== 'done' && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (PLAYER_SIDE && done && g.status !== 'done' && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
     onChange?.()
   }
@@ -135,7 +135,7 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
     const done = g.status !== 'done'
     const { error } = await supabase.from('player_goals').update({ status: done ? 'done' : 'active', updated_at: new Date().toISOString() }).eq('id', g.id)
     if (error) { failToast(); return }
-    if (done && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
+    if (PLAYER_SIDE && done && playerId) sendNotification({ to: playerId, actor: coachId, type: 'message', content: L('השלמת יעד! 🎉', 'Goal completed! 🎉'), nav: 'goals' })
     load()
     onChange?.()
   }

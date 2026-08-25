@@ -7,8 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   User, Phone, Ruler, Cake, Hash, HeartPulse, Flame, ClipboardList,
   MessageSquare, Lock, Send, Trash2, Save, TrendingUp, TrendingDown, Minus,
-  FolderOpen,
-} from 'lucide-react'
+  FolderOpen, Plus } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
@@ -191,7 +190,7 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       else { toast.error(L('כדי לשמור משוב צריך להריץ את supabase_coach_only_22_8.sql', 'Saving feedback needs supabase_coach_only_22_8.sql')); return }
     }
     if (error) { toast.error(L('שמירת המשוב נכשלה', 'Failed to save feedback')); return }
-    if (authId) sendNotification({ to: authId, actor: coachId, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
+    if (PLAYER_SIDE && authId) sendNotification({ to: authId, actor: coachId, type: 'message', content: 'קיבלת משוב חדש מהמאמן', nav: 'feedback' })
     setFbText('')
     loadFeedback()
     toast.success(authId ? L('המשוב נשלח לשחקן', 'Feedback sent') : L('המשוב נשמר', 'Feedback saved'))
@@ -326,7 +325,7 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
             )}
             {stats.recentEff.length > 0 && (
               <p className="muted small">
-                {L('דיווחי העומס האחרונים: ', 'Recent load reports: ')}
+                {PLAYER_SIDE ? L('דיווחי העומס האחרונים: ', 'Recent load reports: ') : L('העומס שרשמת לו לאחרונה: ', 'Load you logged for him recently: ')}
                 {stats.recentEff.map((r) => `${r.session_date ? ilShort(r.session_date).slice(0, -5) : ''} ${r.effort}/10`).join(' · ')}
               </p>
             )}
@@ -376,13 +375,13 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
                   ולא הייתה שום דרך לכתוב שורה שנייה. */}
               <textarea className="finder-input" rows={2} value={fbText} maxLength={2000}
                 onChange={(e) => setFbText(e.target.value)}
-                placeholder={L('משוב אישי לשחקן…', 'Personal feedback…')} />
-              <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={sendFeedback} disabled={!fbText.trim()} aria-label={L('שליחה', 'Send')}>
-                <Send size={15} />
+                placeholder={L('מה בלט אצלו באימון, ומה לתת לו לעבוד עליו…', 'What stood out, and what to work on…')} />
+              <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={sendFeedback} disabled={!fbText.trim()} aria-label={PLAYER_SIDE ? L('שליחה', 'Send') : L('שמירת המשוב', 'Save note')}>
+                {PLAYER_SIDE ? <Send size={15} /> : <Plus size={15} />}
               </button>
             </div>
             {feedback === null ? <SkeletonCards count={1} lines={1} /> : feedback.length === 0 ? (
-              <p className="muted small">{authId ? L('עוד לא נשלחו משובים לשחקן הזה.', 'No feedback sent to this player yet.') : L('עוד לא נכתב משוב לשחקן הזה.', 'No feedback written for this player yet.')}</p>
+              <p className="muted small">{PLAYER_SIDE && authId ? L('עוד לא נשלחו משובים לשחקן הזה.', 'No feedback sent to this player yet.') : L('עוד לא נכתב משוב לשחקן הזה.', 'No feedback written for this player yet.')}</p>
             ) : (
               <ul className="pc-fb-list">
                 {feedback.map((f) => (

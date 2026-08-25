@@ -18,6 +18,11 @@ import { SkeletonCards } from './Skeleton'
 //   onBack         - חזרה למאתר המאמנים
 //   startComposing - האם לפתוח את תיבת ההודעה מיד (כשמגיעים דרך "שלח הודעה")
 export default function CoachProfile({ coach, session, onBack, startComposing }) {
+  // אותו רכיב משמש גם ללשונית «כך רואים אותך» בפרופיל שלך עצמך
+  // (Dashboard מעביר coach={profile} בלי onBack). שם שתי פעולות היו
+  // שבורות: «שליחת הודעה» פתחה תיבה אליך עצמך, ו«העתק אליי» יצר לך
+  // כפילות של התוכנית שלך.
+  const isSelf = coach?.id === session?.user?.id
   const [drills, setDrills] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -215,7 +220,8 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
         )}
       </div>
 
-      {/* שליחת הודעה דרך האפליקציה */}
+      {/* שליחת הודעה — לא לעצמך */}
+      {!isSelf && (
       <div style={{ marginTop: 18 }}>
         {!composing ? (
           <button
@@ -262,6 +268,7 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
           </div>
         )}
       </div>
+      )}
 
       <h3 className="section-title">{L(`התרגילים של ${coach.first_name}`, `${coach.first_name}'s drills`)}</h3>
 
@@ -310,15 +317,17 @@ export default function CoachProfile({ coach, session, onBack, startComposing })
                 <p className="coach-club">
                   {L(`${cnt((p.plan_items || []).length, 'תרגיל אחד', 'תרגילים')}`, `${(p.plan_items || []).length} drills`)}
                 </p>
-                <div className="coach-card-actions">
-                  <button
-                    className="btn-primary"
-                    style={{ marginTop: 0 }}
-                    onClick={() => copyPlan(p)}
-                  >
-                    {L('העתק אליי', 'Copy to me')}
-                  </button>
-                </div>
+                {!isSelf && (
+                  <div className="coach-card-actions">
+                    <button
+                      className="btn-primary"
+                      style={{ marginTop: 0 }}
+                      onClick={() => copyPlan(p)}
+                    >
+                      {L('העתק אליי', 'Copy to me')}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

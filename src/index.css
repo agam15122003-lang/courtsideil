@@ -30666,3 +30666,140 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 }
 .nh-welcome-tour:hover { background: var(--accent); color: #fff; }
 @media (max-width: 768px) { .nh-welcome-tour { min-height: 44px; } }
+
+/* ============================================================
+   25.8.2026 — «שאלות ותשובות»
+   ============================================================ */
+.hlp { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.hlp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hlp-search > svg {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.hlp-search .finder-input {
+  width: 100%;
+  padding-inline-start: 38px;
+  min-height: 46px;
+}
+
+.hlp-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hlp-group { display: flex; flex-direction: column; gap: var(--space-2); }
+.hlp-group-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent-strong);
+  letter-spacing: 0.01em;
+}
+
+.hlp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hlp-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.hlp-item.open { border-color: var(--accent); }
+
+.hlp-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 12px var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: start;
+  cursor: pointer;
+}
+.hlp-q:hover { background: var(--surface-alt); }
+.hlp-chev {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.hlp-item.open .hlp-chev { transform: rotate(180deg); }
+
+.hlp-a {
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.hlp-empty { margin-block: var(--space-3); }
+
+.hlp-contact {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.hlp-contact-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--text);
+}
+.hlp-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.hlp-acts .btn-primary,
+.hlp-acts .btn-soft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+.hlp-mail-line { margin: var(--space-3) 0 0; }
+.hlp-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 6px 0 0;
+}
+.hlp-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* אייפד וטלפון — יעדי מגע 44 */
+@media (max-width: 900px) {
+  .hlp-q { min-height: 56px; }
+  .hlp-cats .chip { min-height: 44px; }
+  .hlp-acts .btn-primary,
+  .hlp-acts .btn-soft { min-height: 44px; }
+}

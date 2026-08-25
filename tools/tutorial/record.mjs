@@ -174,45 +174,88 @@ async function slowScroll(page, px, steps = 14) {
 }
 
 // ---------- הקטעים ----------
+//
+// הסרטון הארוך עובר על **התפריט מימין, מלמעלה למטה** — כל יעד מקבל קטע
+// משלו. שני כללים שהבעלים קבע ואסור להפר:
+//  (א) שום דבר על צד השחקן. אין חשבונות שחקן, אין מי שיקרא, ואין משוב
+//      שמנוסח כפנייה לילד — מה שהמאמן כותב נשאר אצלו.
+//  (ב) «מהקהילה» מקבל את הקטע הארוך ביותר: תוכניות ותרגילים שמאמנים
+//      אחרים שיתפו הם הדבר שהכי חבל לפספס, והם היו חסרים בגרסה הקודמת.
 const CLIPS = {
-  roster: {
-    title: 'הסגל',
+  home: {
+    title: 'בית',
     run: async (page) => {
-      await scene(page, 'כל מה שקורה באפליקציה מתחיל מהסגל', 3200)
+      await scene(page, 'CourtSide — כל מה שמאמן צריך, במקום אחד', 3600)
+      await scene(page, 'נעבור על התפריט מימין, מלמעלה למטה', 3400)
+      await scene(page, '«בית» — מה קורה היום ומה נשאר פתוח', 3600)
+      await scene(page, 'למעלה: האימון הקרוב, ומתי בדיוק הוא מתחיל', 3800)
+      await slowScroll(page, 420)
+      await scene(page, '«דברים לביצוע» — מה שנשאר פתוח, לפי סדר', 3800)
+      await scene(page, 'ולצידו הלו״ז של השבוע הקרוב', 3400)
+    },
+  },
+
+  teams: {
+    title: 'הקבוצות שלי',
+    run: async (page) => {
       await nav(page, 'הקבוצות')
-      await scene(page, 'לכל שחקן: שם, מספר, תפקיד ואחוז נוכחות עונתי', 3800)
-      await slowScroll(page, 700)
-      await scene(page, 'שחקן שנפצע מסומן — ולא נעלם מהרשימה', 3400)
-      await slowScroll(page, -700)
-      await scene(page, 'לחיצה על שחקן פותחת את הכרטיס המלא שלו', 3000)
-      await tapText(page, '.roster-row', 'יובל לוי', 2600)
-      await scene(page, 'יעדים, משוב ונוכחות — הכול במקום אחד', 4000)
-      await scene(page, 'השחקנים לא צריכים חשבון. הכול נשמר אצלך', 4200)
-    },
-  },
-  notebook: {
-    title: 'מחברת האימון',
-    run: async (page) => {
-      await scene(page, 'מחברת האימון — התוכנית שלך לאימון הקרוב', 3200)
-      await nav(page, 'אימונים ותרגילים')
-      await scene(page, 'כל תוכנית היא דף אחד: חלקים, זמנים ותרגילים', 4000)
-      await slowScroll(page, 500)
-      await scene(page, 'תוכנית שבנית פעם אחת חוזרת בכל פעם שתרצה', 3600)
-      await tapText(page, 'button', 'פתח', 3000)
-      await scene(page, 'החלקים לפי סדר, עם הזמן שהקצבת לכל אחד', 4000)
+      await scene(page, '«הקבוצות שלי» — כאן הכול מתחיל', 3400)
+      await scene(page, 'הסגל: שם, מספר, תפקיד ואחוז נוכחות עונתי', 4000)
       await slowScroll(page, 600)
-      await scene(page, 'אפשר לשרטט מגרשים ביד, ישר על הדף', 3800)
+      await scene(page, 'שחקן פצוע נשאר ברשימה — רק מסומן', 3600)
+      await slowScroll(page, -600)
+      await scene(page, 'שלוש לשוניות: סגל · לו״ז ונוכחות · יעדים', 3800)
+      await tapText(page, '.tabs .tab', 'יעדים ומשימות', 2600)
+      await scene(page, 'יעדים ומשימות לקבוצה או לשחקן בודד', 3800)
+      await scene(page, 'כל מה שתרשום על שחקן נשאר אצלך בלבד', 4000)
     },
   },
-  run: {
-    title: 'הרצת אימון',
+
+  work: {
+    title: 'אימונים ותרגילים',
     run: async (page) => {
-      await scene(page, 'ביום האימון — הכול מתחיל מהלו״ז', 3200)
+      await nav(page, 'אימונים ותרגילים')
+      await scene(page, '«אימונים ותרגילים» — כאן בונים את האימון', 3600)
+      await scene(page, '«בניית תוכנית»: דף מחברת אחד לכל אימון', 3800)
+      await scene(page, 'חלקים, זמנים, תרגילים — ושרטוט מגרש ביד', 4000)
+      await slowScroll(page, 450)
+      await scene(page, 'תוכנית שבנית פעם אחת חוזרת בכל פעם שתרצה', 3800)
+      await tapText(page, '.tabs .tab', 'בניית תרגיל', 2800)
+      await scene(page, '«בניית תרגיל» — ספריית התרגילים המלאה', 3600)
+      await scene(page, 'חיפוש וסינון לפי קטגוריה, גיל ומקור', 3600)
+    },
+  },
+
+  // ⚠ הקטע החשוב. הבעלים אמר במפורש שזה היה חסר.
+  fromCommunity: {
+    title: 'מהקהילה',
+    run: async (page) => {
+      await nav(page, 'אימונים ותרגילים')
+      await scene(page, 'ועכשיו מה שהכי חבל לפספס: «מהקהילה»', 3800)
+      await tapText(page, '.tabs .tab', 'מהקהילה', 3000)
+      await scene(page, 'כל מה שמאמנים אחרים שיתפו — פתוח לך', 3800)
+      await scene(page, '«תוכניות»: מערכי אימון שלמים של מאמנים אחרים', 4200)
+      await slowScroll(page, 380)
+      await scene(page, '«צפה כמערך אימון» — רואים את הדף שלו במלואו', 4200)
+      await scene(page, 'ו«העתק אליי» — והתוכנית שלך, לשנות איך שבא לך', 4400)
+      await tapText(page, '.cw-kind .cw-kind-btn', 'תרגילים', 3000)
+      await scene(page, '«תרגילים» — אותו דבר, תרגיל אחרי תרגיל', 3800)
+      await slowScroll(page, 400)
+      await scene(page, 'מסננים לפי קטגוריה וגיל, מדרגים ושומרים', 4000)
+      await scene(page, 'וכל תרגיל נכנס בלחיצה לתוך תוכנית שלך', 4000)
+      await scene(page, 'ומה שאתה תשתף — יעזור למאמן הבא', 3800)
+    },
+  },
+
+  schedule: {
+    title: 'לו״ז',
+    run: async (page) => {
       await nav(page, 'לו"ז')
-      await scene(page, 'ימי האימון הקבועים נכנסים ללו״ז לבד', 3600)
-      await scene(page, 'לחיצה על אימון פותחת אותו', 2600)
+      await scene(page, '«לו״ז» — כל האימונים והמשחקים של השבוע', 3800)
+      await scene(page, 'ימי אימון קבועים נכנסים לבד, שבוע אחרי שבוע', 4000)
+      await scene(page, 'לחיצה על אימון פותחת אותו', 2800)
       await openSession(page)
-      await scene(page, 'נוכחות בלחיצה אחת לכל שחקן', 4000)
+      await scene(page, 'נוכחות בלחיצה אחת לכל שחקן', 3600)
       await scene(page, 'או «כולם נוכחים» — וסימנת את כל הסגל', 3600)
       await scrollIn(page, '.sd-scroll', 300)
       await scene(page, 'עומס אחרי אימון: 1 עד 10, ליד כל שחקן', 4000)
@@ -220,33 +263,74 @@ const CLIPS = {
       await scene(page, 'והיעדים שסימנת מראש — מי עמד בהם', 3800)
     },
   },
+
   review: {
     title: 'הסקירה',
     run: async (page) => {
-      await scene(page, 'אחרי האימון — הסקירה', 3000)
       await nav(page, 'לו"ז')
       await openSession(page)
-      await scene(page, 'משוב אישי לשחקן, בשורה אחת', 4000)
+      await scene(page, 'בסוף האימון — שורה או שתיים לעצמך', 3600)
       await scrollIn(page, '.sd-scroll', 420)
-      await scene(page, 'הוא נשמר בכרטיס שלו ונשאר שם כל העונה', 4000)
+      await scene(page, 'ההערות נשמרות אצלך בלבד. אף אחד אחר לא רואה', 4400)
       await scrollIn(page, '.sd-scroll', -900, 20)
       await scene(page, 'ולמעלה — עומס קבוצתי ממוצע ואחוז נוכחות', 4200)
-      await scene(page, 'שמירה אחת, והאימון מתועד', 3600)
+      await scene(page, 'שמירה אחת, והאימון מתועד לכל העונה', 3800)
     },
   },
+
   community: {
-    title: 'קהילה ותרגילים',
+    title: 'קהילה',
     run: async (page) => {
-      await scene(page, 'ומסביב לכל זה — קהילה של מאמנים', 3200)
       await nav(page, 'קהילה')
+      await scene(page, '«קהילה» — המגרש הביתי של המאמנים', 3600)
       await scene(page, 'שאלות, טיפים ורעיונות ממאמנים אחרים', 3800)
-      await slowScroll(page, 700)
-      await scene(page, 'אפשר רק לקרוא, ואפשר לשאול', 3400)
-      await nav(page, 'אימונים ותרגילים')
-      await tapText(page, '.tabs button', 'בניית תרגיל', 2600)
-      await scene(page, 'ספריית תרגילים בעברית, עם שרטוט וציוד', 4000)
       await slowScroll(page, 600)
-      await scene(page, 'וכל תרגיל נכנס ישר לתוך תוכנית אימון', 4000)
+      await scene(page, 'אפשר לקרוא בשקט, ואפשר לשאול', 3400)
+      await scene(page, 'ויש גם ערוצי צ׳אט לפי שכבת גיל ונושא', 3800)
+    },
+  },
+
+  finder: {
+    title: 'חיפוש מאמנים',
+    run: async (page) => {
+      await nav(page, 'חיפוש מאמנים')
+      await scene(page, '«חיפוש מאמנים» — למצוא את מי שאתה צריך', 3800)
+      await scene(page, 'מסננים לפי מועדון ולפי שכבת גיל', 3600)
+      await scene(page, 'ומהפרופיל שלו: התרגילים והתוכניות ששיתף', 4000)
+      await tapText(page, '.tabs .tab', 'משחקי אימון', 2800)
+      await scene(page, 'ובלשונית «משחקי אימון» — מחפשים יריבה לשבת', 4200)
+    },
+  },
+
+  messages: {
+    title: 'הודעות',
+    run: async (page) => {
+      await nav(page, 'הודעות')
+      await scene(page, '«הודעות» — שיחות אישיות עם מאמנים אחרים', 3800)
+      await scene(page, 'בדיוק כמו וואטסאפ, רק בתוך האפליקציה', 3600)
+    },
+  },
+
+  media: {
+    title: 'מדיה',
+    run: async (page) => {
+      await nav(page, 'מדיה')
+      await scene(page, '«מדיה» — סרטוני אימון שהמאמנים אספו', 3800)
+      await scene(page, 'מסננים לפי נושא, וצופים בלי לצאת מכאן', 3800)
+      await slowScroll(page, 450)
+      await scene(page, 'מדרגים בכוכבים, והטובים עולים למעלה', 3800)
+    },
+  },
+
+  help: {
+    title: 'שאלות ותשובות',
+    run: async (page) => {
+      await nav(page, 'שאלות')
+      await scene(page, '«שאלות ותשובות» — כשמשהו לא ברור', 3600)
+      await tapText(page, '.hlp-q', '', 2400)
+      await scene(page, 'מחפשים מילה אחת ומקבלים תשובה', 3400)
+      await slowScroll(page, 420)
+      await scene(page, 'ומה שאין כאן — כפתור אחד, ואנחנו עונים', 4000)
     },
   },
 }
@@ -317,14 +401,20 @@ if (!only) {
   await page.waitForSelector(".nh-coach", { timeout: 30000 })
   await sleep(2200)
   await page.evaluate(OVERLAY)
-  await scene(page, "CourtSide — הפנקס של מאמן הכדורסל", 3600)
+  await scene(page, "CourtSide — סיור מלא באפליקציה", 3600)
   for (const name of Object.keys(CLIPS)) {
     await reset(page)
     await scene(page, "‹ " + CLIPS[name].title + " ›", 2400)
     try { await CLIPS[name].run(page) } catch (e) { console.error(`  ⚠ full/${name}:`, e.message) }
   }
   await reset(page)
-  await scene(page, "הכול בעברית, במקום אחד — courtsideil.vercel.app", 4200)
+  await reset(page)
+  await scene(page, "וזהו — כל התפריט, מלמעלה למטה", 3600)
+  await scene(page, "היום זה כולו שלך: השחקנים לא מתחברים לכלום", 4200)
+  await scene(page, "ומה שרשמת עליהם נשאר אצלך בלבד", 3800)
+  await scene(page, "בקרוב ייפתח גם צד לשחקנים", 3600)
+  await scene(page, "וכל מה שכבר רשמת — יחכה להם שם", 3800)
+  await scene(page, "courtsideil.vercel.app", 4000)
   await clearCap(page)
   await sleep(900)
   const vid = page.video()

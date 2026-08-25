@@ -141,7 +141,7 @@ export async function printPlayerReport({ player, team, att }) {
 </div>
 <h2>${L('יעדים', 'Goals')}</h2>
 ${goalRows ? `<table>${goalRows}</table>` : `<p class="empty">${L('אין יעדים רשומים.', 'No goals on record.')}</p>`}
-<h2>${L('המשוב האחרון מהמאמן', 'Latest coach feedback')}</h2>
+<h2>${L('המשוב האחרון שנרשם', 'Latest recorded notes')}</h2>
 ${fbRows || `<p class="empty">${L('אין עדיין משוב.', 'No feedback yet.')}</p>`}
 <p class="foot">CourtSide · ${esc(today)}</p>
 <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
