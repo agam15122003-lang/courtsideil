@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
 import { PLAYER_SIDE } from './flags'
 import { SkeletonConvos } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
+import useNotifications, { markAllRead, retryNotifications } from './notificationsStore'
 
 const TYPE_ICON = {
   like: Heart,
@@ -57,57 +58,11 @@ function timeAgo(ts) {
 // props: session, onNavigate(viewId)
 export default function Notifications({ session, onNavigate }) {
   const myId = session.user.id
-  const [items, setItems] = useState([])
+  const { items, available, loading, failed } = useNotifications(myId)
   const [open, setOpen] = useState(false)
-  const [available, setAvailable] = useState(true) // false = הטבלה עוד לא נוצרה
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false) // תקלת רשת — להבדיל מטבלה חסרה
   // ה-ref של מלכודת הפוקוס משמש גם לזיהוי לחיצה מחוץ לפאנל
   const panelRef = useFocusTrap(open, () => setOpen(false))
   const btnRef = useRef(null)
-
-  const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*, actor:profiles!actor_id(first_name, last_name)')
-      .eq('user_id', myId)
-      .order('created_at', { ascending: false })
-      .limit(30)
-    if (error) {
-      // טבלה חסרה (42P01 / PGRST205) — פעמון שקט, כי הפיצ'ר לא קיים.
-      // כל שגיאה אחרת היא תקלת רשת: הפעמון נשאר, עם דרך לנסות שוב.
-      const missingTable = error.code === '42P01' || error.code === 'PGRST205' || /does not exist/i.test(error.message || '')
-      if (missingTable) setAvailable(false)
-      else setFailed(true)
-      setLoading(false)
-      return
-    }
-    setAvailable(true)
-    setFailed(false)
-    setItems(data || [])
-    setLoading(false)
-  }, [myId])
-
-  // טעינה ראשונית + זמן-אמת (עם גיבוי polling כל דקה)
-  useEffect(() => {
-    load()
-    const poll = setInterval(load, 60000)
-    let channel = null
-    try {
-      channel = supabase
-        .channel('notifications-' + myId)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${myId}` },
-          () => load()
-        )
-        .subscribe()
-    } catch { /* realtime לא זמין — ה-polling מכסה */ }
-    return () => {
-      clearInterval(poll)
-      if (channel) supabase.removeChannel(channel)
-    }
-  }, [load, myId])
 
   // סגירה בלחיצה בחוץ. Escape ומלכודת הפוקוס מגיעים מ-useFocusTrap שלמטה,
   // שמחזיר את הפוקוס לפעמון בסגירה — קודם הפוקוס ברח אל מאחורי הפאנל.
@@ -123,18 +78,11 @@ export default function Notifications({ session, onNavigate }) {
 
   const unread = items.filter((n) => !n.read_at).length
 
-  const openPanel = async () => {
+  const openPanel = () => {
     const next = !open
     setOpen(next)
-    if (next && unread > 0) {
-      // סימון הכול כנקרא — ה-badge נעלם, הפריטים עדיין מסומנים "חדש" בפאנל
-      const ids = items.filter((n) => !n.read_at).map((n) => n.id)
-      await supabase
-        .from('notifications')
-        .update({ read_at: new Date().toISOString() })
-        .in('id', ids)
-      setItems((cur) => cur.map((n) => (ids.includes(n.id) ? { ...n, read_at: n.read_at || new Date().toISOString() } : n)))
-    }
+    // סימון הכול כנקרא — ה-badge נעלם, הפריטים עדיין מסומנים "חדש" בפאנל
+    if (next && unread > 0) markAllRead()
   }
 
   const go = (n) => {
@@ -184,7 +132,7 @@ export default function Notifications({ session, onNavigate }) {
             <div className="ntf-empty-state">
               <span className="ntf-empty-ic"><Bell size={22} /></span>
               <strong>{L('לא הצלחנו לטעון התראות', "Couldn't load notifications")}</strong>
-              <button type="button" className="btn-soft" onClick={() => { setLoading(true); load() }}>{L('נסה שוב', 'Try again')}</button>
+              <button type="button" className="btn-soft" onClick={retryNotifications}>{L('נסה שוב', 'Try again')}</button>
             </div>
           ) : items.length === 0 ? (
             <div className="ntf-empty-state">

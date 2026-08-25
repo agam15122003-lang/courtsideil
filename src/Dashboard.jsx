@@ -321,6 +321,10 @@ export default function Dashboard({ session }) {
     // «תיק שחקן» מכרטיס השחקן — נוחתים על התיק של אותה שורת סגל
     if (typeof id === 'string' && id.startsWith('dossier:')) { setDossierRoster(id.slice(8)); setView('dossier'); return }
     // «תרגילים» ו«תוכניות» הם עכשיו שני טאבים במסך אחד — הקישורים הישנים נשמרים
+    // יעדים ומשוב הם מסכים של **השחקן**. מאמן שמקבל התראה כזו (למשל שחקן
+    // שהגיב למשוב) נחת עד היום על הפרופיל שלו — כי יעד לא־מוכר נופל לענף
+    // האחרון של שרשרת התצוגה. אצל המאמן שניהם חיים בתוך «הקבוצה».
+    if (id === 'goals' || id === 'feedback') { setView('teams'); return }
     if (id === 'drills') { setWorkTab('drills'); setView('work'); return }
     if (id === 'plans') { setWorkTab('plans'); setView('work'); return }
     setView(id)
@@ -876,8 +880,6 @@ export default function Dashboard({ session }) {
             /* לקבוצה יש באנר משלה — שם הקבוצה, המועדון ומספרי הסגל (מסך 4a),
                ולכן אין עטיפת Page כאן: שני hero על אותו מסך זה h1 כפול. */
             <Teams session={session} profile={profile} onNavigate={navigate} initialTab={teamsTab} onConsumeInitialTab={() => setTeamsTab(null)} />
-          ) : view === 'send' ? (
-            <Teams session={session} profile={profile} onNavigate={navigate} initialTab="tasks" />
           ) : view === 'dossier' && profile?.is_admin ? (
             <Page {...PAGE_META.dossier()}>
               <PlayerDossier

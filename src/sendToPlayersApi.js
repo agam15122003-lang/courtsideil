@@ -42,16 +42,21 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   const label = content.title || L('תרגיל', 'a drill')
   let rows = []
   let recipients = []
+  let teamSize = 0
 
   if (mode === 'team') {
     rows = [{ ...base, team }]
     // התראה לכל שחקן מחובר בקבוצה (שיגור קבוצתי מוסיף שורה אחת בלבד — משדרים ידנית)
     const { data } = await supabase
       .from('team_players')
-      .select('player_id, team')
+      .select('id, player_id, team')
       .eq('coach_id', coachId)
       .eq('team', team)
     recipients = (data || []).map((r) => r.player_id).filter(Boolean)
+    // ⚠ הנמענים הם רק מי שיש לו **חשבון**. בצד־המאמן־בלבד אין כאלה, ולכן
+    //   ספירה לפיהם החזירה תמיד 0 — «נשלח ל־0 שחקנים» על משימה שכן נשלחה.
+    //   מה שנשלח באמת הוא לכל שורות הסגל בקבוצה, וזה מה שנספר.
+    teamSize = (data || []).length
   } else {
     // צד המאמן בלבד: שורת הסגל היא הנמען (roster_id); חשבון — אם יש
     rows = players.map((p) => (PLAYER_SIDE
@@ -131,7 +136,7 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   }
   // מספר הנמענים, לא מספר השורות: משימה חוזרת ל-2 שחקנים ×4 שבועות היא
   // 8 שורות — והמסך דיווח «נרשם ל-8 שחקנים».
-  return { ok: true, count: mode === 'team' ? recipients.length : players.length, warn }
+  return { ok: true, count: mode === 'team' ? teamSize : players.length, warn }
 }
 
 // טוען את השיגורים האחרונים של המאמן + כמה סימנו בוצע

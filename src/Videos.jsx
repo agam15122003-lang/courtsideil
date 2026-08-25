@@ -47,8 +47,12 @@ export default function Videos({ session, profile }) {
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
-  async function loadRatings() {
-    const { data, error } = await supabase.from('video_ratings').select('video_id, user_id, rating')
+  // ⚠ מוגבל לסרטונים שעל המסך. עד 25.8 זו הייתה שליפה של **כל** שורות
+  //   הדירוג במערכת — וגם רצה מחדש אחרי כל לחיצת כוכב. מעבר ל-1000 שורות
+  //   PostgREST חותך בשקט, כלומר הממוצע פשוט היה נעשה שגוי.
+  async function loadRatings(ids) {
+    if (!ids || !ids.length) { setRatings({}); return }
+    const { data, error } = await supabase.from('video_ratings').select('video_id, user_id, rating').in('video_id', ids)
     if (error) return // טבלה אולי לא קיימת עדיין — לא קריטי
     const agg = {}
     for (const r of data || []) {
@@ -66,7 +70,7 @@ export default function Videos({ session, profile }) {
     const { data, error } = await supabase.from('drill_videos').select('*')
     if (error) setError(L('שגיאה בטעינת הסרטונים: ', 'Error loading videos: ') + error.message)
     else { setVideos(data || []); setError(null) }
-    await loadRatings()
+    await loadRatings((data || []).map((v) => v.id))
     setLoading(false)
   }
 
@@ -90,8 +94,7 @@ export default function Videos({ session, profile }) {
     const { error } = await supabase.from('video_ratings').upsert(
       { video_id: videoId, user_id: me, rating: value }, { onConflict: 'video_id,user_id' }
     )
-    if (error) { console.error('video rating:', error.message); toast.error(L('הדירוג נכשל — נסו שוב בעוד רגע.', 'Rating failed — try again in a moment.')); loadRatings(); return }
-    loadRatings()
+    if (error) { console.error('video rating:', error.message); toast.error(L('הדירוג נכשל — נסו שוב בעוד רגע.', 'Rating failed — try again in a moment.')); loadRatings(videos.map((v) => v.id)); return }
   }
 
   const save = async () => {

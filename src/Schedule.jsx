@@ -12,7 +12,7 @@ import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
-import { useNetworkSmall } from './network'
+import { sendNotification } from './notify'
 import WeekList from './WeekList'
 import { RsvpBreakdown } from './PracticeRsvp'
 
@@ -159,6 +159,7 @@ export default function Schedule({ session, onNavigate }) {
   // זימון מאמן אחר לפגישה
   const [meetings, setMeetings] = useState([])
   const [coaches, setCoaches] = useState([])
+  const [coachesState, setCoachesState] = useState('idle') // נטען עצלה בפתיחת טופס הזימון
   const [inviting, setInviting] = useState(false)
   const [invTo, setInvTo] = useState('')
   const [invTopic, setInvTopic] = useState('')
@@ -167,7 +168,6 @@ export default function Schedule({ session, onNavigate }) {
   const [invEnd, setInvEnd] = useState('19:00')
   const [invNote, setInvNote] = useState('')
   const [invSaving, setInvSaving] = useState(false)
-  const netSmall = useNetworkSmall() // זימון מאמן אחר דורש רשת — מוסתר כשהיא קטנה
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
@@ -317,7 +317,7 @@ export default function Schedule({ session, onNavigate }) {
     const token = ++loadTokenRef.current
     setLoading(true)
     // השאילתות רצות במקביל — טעינת המסך מהירה פי 3-4
-    const [entriesRes, plansRes, meetingsRes, coachesRes, slotsRes, gamesRes, attRes, rsvpRes] = await Promise.all([
+    const [entriesRes, plansRes, meetingsRes, slotsRes, gamesRes, attRes, rsvpRes] = await Promise.all([
       supabase
         .from('schedule_entries')
         .select('*, plan:training_plans(id, name)')
@@ -333,18 +333,6 @@ export default function Schedule({ session, onNavigate }) {
         .select('*, from_p:profiles!coach_meetings_from_coach_fkey(first_name,last_name), to_p:profiles!coach_meetings_to_coach_fkey(first_name,last_name)')
         .gte('date', ymd(weekStart))
         .lte('date', ymd(weekEnd)),
-      // רשימת מאמנים לזימון.
-      // ⚠ `role = 'coach'` הוא חובה, לא נוחות. מדיניות הקריאה של profiles
-      // מחזירה למאמן גם את השחקנים שלו (shares_team_with), ולכן בלי הסינון
-      // הזה הרשימה כללה **קטינים** כנמענים אפשריים לזימון פגישה, והזימון
-      // נחת ביומן של הילד. השער האמיתי הוא במסד
-      // (supabase_schedule_board_4_8.sql) — זה כאן רק כדי שלא נציג בחירה
-      // שהשרת ידחה ממילא.
-      supabase
-        .from('profiles')
-        .select('id, first_name, last_name, club')
-        .eq('role', 'coach')
-        .neq('id', me),
       // ימי אימון קבועים (מנוהלים ב"הקבוצות שלי") — מוצגים גם בלו"ז השבועי
       supabase
         .from('team_practice_slots')
@@ -385,13 +373,37 @@ export default function Schedule({ session, onNavigate }) {
     setEntries(entriesRes.data || [])
     setPlans(plansRes.data || [])
     setMeetings(meetingsRes.error ? [] : meetingsRes.data || [])
-    setCoaches((coachesRes.data || []).filter((c) => c.first_name && c.last_name))
     setSlots(slotsRes && !slotsRes.error ? slotsRes.data || [] : [])
     setGames(gamesRes && !gamesRes.error ? gamesRes.data || [] : [])
     setAttRows(attRes && !attRes.error ? attRes.data || [] : [])
     setRsvpRows(rsvpRes && !rsvpRes.error ? rsvpRes.data || [] : [])
     setLoading(false)
   }
+
+  // רשימת המאמנים לזימון נטענת **רק כשפותחים את טופס הזימון**.
+  // עד 25.8 היא נשלפה בתוך טעינת השבוע — כלומר שליפה של כל המאמנים
+  // במערכת מחדש בכל לחיצה על «שבוע הבא», בשביל בורר שרוב המאמנים
+  // לא פותחים אף פעם.
+  useEffect(() => {
+    if (!inviting || coachesState !== 'idle') return
+    setCoachesState('loading')
+    ;(async () => {
+      // רשימת מאמנים לזימון.
+      // ⚠ `role = 'coach'` הוא חובה, לא נוחות. מדיניות הקריאה של profiles
+      // מחזירה למאמן גם את השחקנים שלו (shares_team_with), ולכן בלי הסינון
+      // הזה הרשימה כללה **קטינים** כנמענים אפשריים לזימון פגישה, והזימון
+      // נחת ביומן של הילד. השער האמיתי הוא במסד
+      // (supabase_schedule_board_4_8.sql) — זה כאן רק כדי שלא נציג בחירה
+      // שהשרת ידחה ממילא.
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, club')
+        .eq('role', 'coach')
+        .neq('id', me)
+      setCoaches((data || []).filter((c) => c.first_name && c.last_name))
+      setCoachesState('done')
+    })()
+  }, [inviting, coachesState, me])
 
   const sendInvite = async () => {
     if (!invTo) {
@@ -422,6 +434,9 @@ export default function Schedule({ session, onNavigate }) {
       console.error('invite:', error.message); toast.error(L('הזימון נכשל — נסו שוב בעוד רגע.', 'Invite failed — try again in a moment.'))
       return
     }
+    // התראה לנמען. עד 25.8 הטוסט אמר «הזימון נשלח» — והמאמן השני לא ידע,
+    // עד שנכנס ללו״ז של אותו שבוע במקרה.
+    sendNotification({ to: invTo, actor: me, type: 'event', content: L('זימן אותך לפגישה: ', 'invited you to a meeting: ') + invTopic.trim(), nav: 'schedule' })
     setInviting(false)
     setInvTopic('')
     setInvNote('')
@@ -435,6 +450,8 @@ export default function Schedule({ session, onNavigate }) {
       toast.error(L('העדכון נכשל: ', 'Update failed: ') + error.message)
       return
     }
+    // המזמין מקבל תשובה — גם «אושרה» וגם «נדחתה»
+    sendNotification({ to: m.from_coach, actor: me, type: 'event', content: status === 'accepted' ? L('אישר את הפגישה', 'accepted your meeting') : L('דחה את הפגישה', 'declined your meeting'), nav: 'schedule' })
     setSelected(null)
     toast.success(status === 'accepted' ? L('הפגישה אושרה', 'Meeting accepted') : L('הפגישה נדחתה', 'Meeting declined'))
     load()
@@ -671,7 +688,7 @@ export default function Schedule({ session, onNavigate }) {
           <span className="cal-weeklabel" dir="ltr">{weekLabel}</span>
         </div>
         <div className="cal-actions">
-          {netSmall === false && (
+          {(
             <button className="btn-soft" onClick={() => { setInviting(true); setSelected(null); setAdding(false) }}>
               {L('זימון מאמן', 'Invite coach')}
             </button>
@@ -1021,7 +1038,7 @@ export default function Schedule({ session, onNavigate }) {
               </span>
               <User size={17} aria-hidden="true" />
             </button>
-            {netSmall === false && (
+            {(
               <button
                 type="button"
                 className="csx-quick-row"
@@ -1453,7 +1470,7 @@ export default function Schedule({ session, onNavigate }) {
               {L('ביטול', 'Cancel')}
             </button>
           </div>
-          {coaches.length === 0 && (
+          {coachesState === 'done' && coaches.length === 0 && (
             <p className="muted small" style={{ marginTop: 8 }}>
               {L('אין עדיין מאמנים אחרים במערכת.', 'No other coaches in the system yet.')}
             </p>

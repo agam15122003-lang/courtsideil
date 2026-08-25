@@ -6,6 +6,7 @@ import { AGE_GROUPS } from './constants'
 import { L, tr } from './i18n'
 import { confirmDialog } from './confirm'
 import { SkeletonCards } from './Skeleton'
+import { sendNotification } from './notify'
 
 function fmtDate(d) {
   if (!d) return ''
@@ -147,6 +148,9 @@ export default function GamesBoard({ session }) {
       toast.error(L('השליחה נכשלה: ', 'Failed to send: ') + error.message)
       return
     }
+    // התראה לנמען — בלי זה ההודעה שוכבת בלשונית «הודעות» עד שהוא נכנס במקרה.
+    // שתי הכניסות האחרות לאותה טבלה (הודעות, פרופיל מאמן) כבר עושות את זה.
+    sendNotification({ to: recipientId, actor: myId, type: 'message', content: L('שלח לך הודעה על משחק אימון', 'messaged you about a scrimmage'), nav: 'messages' })
     setMsgText('')
     setMsgFor(null)
     toast.success(L('ההודעה נשלחה! אפשר לראות אותה בלשונית "הודעות".', 'Message sent! You can see it in the "Messages" tab.'))
