@@ -22,3 +22,6 @@ public/__devlogout.html
 # פלט אימות ויזואלי — לא נכנס לריפו
 shots-auth
 shots-mobile
+
+# פלט צילומי ההדרכה — נוצר מחדש ע"י tools/tutorial/record.mjs
+tools/tutorial/out/
