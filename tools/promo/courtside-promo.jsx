@@ -1,30 +1,28 @@
-/* CourtSide — סרטון תדמית 9:16, ~44 שניות.
+/* CourtSide — סרטון תדמית 9:16, ~58 שניות.
 
    ─── מבנה: בעיה ואז פתרון ───────────────────────────────────────
-   הבעלים ביקש את המבנה הזה וכתב בעצמו את הדוגמאות:
-     «הבעיה? הכל מפוזר. הפתרון? בקורטסייד הכל במקום אחד.»
-   לכן כל ביט הוא זוג: שורת בעיה **בקול של המאמן, בגוף ראשון** —
-   משהו שהוא באמת אומר לעצמו — ואז שורת פתרון שמדברת אליו בגוף שני.
-   ההיפוך הזה הוא מה שגורם לזה להישמע כמו שיחה ולא כמו מפרט.
-
-   ─── שישה ביטים בלבד ────────────────────────────────────────────
-   «רק הדברים המרכזיים». ארבעה כותבים עצמאיים התכנסו לאותם חמישה
-   פיצ'רים, ואליהם נוסף «הכל במקום אחד» כמסגרת פותחת. ירדו: לוח
-   הטקטיקה, ימי האימון הקבועים ופיד הקהילה — טובים, אבל אף מאמן לא
-   מחליף מחברת בגללם.
+   הבעלים ביקש את המבנה וכתב בעצמו את הדוגמאות. כל ביט הוא זוג:
+   שורת בעיה **בגוף ראשון** — מה שמאמן אומר לעצמו — ואז שורת פתרון
+   בגוף שני. ההיפוך הזה הוא מה שגורם לזה להישמע כמו שיחה.
 
    ─── מגבלת אורך שנמדדה, לא נוחשה ────────────────────────────────
-   שורת הבעיה ב-66px מחזיקה **36 תווים** בשורה אחת. מעבר לזה היא
-   נשברת, הבלוק גדל ב-70px, והכיתוב נכנס לתוך הטלפון. כל שורות הבעיה
-   כאן קצרות מ-36, ולכן הגיאומטריה (phY 780, scale 1.38, כיתוב ב-4.5%)
-   משאירה 36px מרווח גם כשהפתרון נשבר לשתי שורות.
+   שורת הבעיה ב-58px מחזיקה **40 תווים** בשורה אחת; הפתרון ב-31px
+   מחזיק ~117 תווים בשתי שורות. מעבר לזה הבלוק גדל, והכיתוב נכנס
+   לתוך הטלפון. שבע השורות כאן נמדדו: אף אחת לא נשברת, גובה הבלוק 211,
+   ונשארים 53px מרווח מהטלפון (phY 780, scale 1.38, כיתוב ב-4.5%).
+   **כל שינוי טקסט חייב להיבדק מול scratchpad/capmeasure.html.**
 
-   ─── מה שנבדק מול הקוד ונפסל ────────────────────────────────────
-   · «חלקים וזמנים» — אין. המחברת היא דף חופשי (PlanNotebook.jsx:25-27)
-   · «מעתיק אליך תרגיל» — אין. תרגיל שומרים למועדפים או מכניסים
-     לתוכנית; **תוכנית שלמה** היא זו שמעתיקים (TrainingPlans.jsx:71)
+   ─── מה שנבדק מול הקוד ותוקן ────────────────────────────────────
+   · «גרף התקדמות» — אין גרף. יש חץ מגמה, אחוז נוכחות, ממוצע עומס
+     וציוני העומס האחרונים (PlayerCard.jsx:108-119, 315-317).
+     החלטת הבעלים: לכתוב «מגמת ההתקדמות»
+   · «תיק אישי» — «תיק שחקן» הוא פיצ'ר אחר, גלוי למנהלי מערכת בלבד
+     (Dashboard.jsx:198). כאן זה «כרטיס אישי»
+   · «פודקאסטים תחת קהילה» — הם במסך «מדיה». הכוונה של הבעלים הייתה
+     שבקהילה **שואלים** על פודקאסט, וזה מה שנכתב
+   · «מעתיק תוכנית שלמה» — ירד לבקשת הבעלים; «רעיונות ותרגילים»
    · «מאמנים אחרים כותבים לך» — פרסום בקשה לא שולח התראה לאיש
-     (GamesBoard.jsx:88-108). לכן: «מי שמתאים לו שולח לך הודעה» */
+     (GamesBoard.jsx:88-108). לכן «מי שמתאים לו שולח לך הודעה» */
 
 const { CompositionStage, useComposition, Captions, Easing, animate, clamp } = window;
 const { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakText } = window;
@@ -52,27 +50,32 @@ const SCREENS = [
   {
     id: 'Plan', src: 'assets/screen-notebook.png', ih: 2814, p0: -60, p1: -740,
     problem: 'כל אימון אני כותב מחדש על דף.',
-    solution: 'בקורטסייד אתה בונה אותו פעם אחת, והוא נשמר לך לפעם הבאה.',
+    solution: 'בקורטסייד מקלידים את האימון או כותבים בעט דיגיטלי, והוא נשמר — כך שאפשר לקחת ממנו תרגיל או להיזכר באימון הקודם.',
   },
   {
     id: 'Drills', src: 'assets/screen-drills.png', ih: 2348, p0: 0, p1: -420,
     problem: 'שוב אני מריץ את אותם שלושה תרגילים.',
-    solution: 'בקורטסייד יש ספרייה בעברית, ואתה מעתיק אליך תוכנית שלמה של מאמן אחר.',
+    solution: 'בקורטסייד יש ספרייה בעברית, ואפשר לקחת רעיונות ותרגילים חדשים ממאמנים אחרים.',
   },
   {
     id: 'Review', src: 'assets/screen-review.png', ih: 2520, p0: -40, p1: -540,
-    problem: 'בסוף האימון אני זוכר, בבוקר כבר לא.',
-    solution: 'בקורטסייד אתה מסמן מי הגיע ונותן עומס לכל שחקן, והכל מצטבר כל העונה.',
+    problem: 'קשה לי לעקוב מי מגיע ומי עומד ביעדים.',
+    solution: 'בקורטסייד אתה פותח את תוכנית האימון, מסמן מי הגיע, ובסוף רושם משוב אישי וקבוצתי ומי עמד במטרות שלו.',
   },
   {
     id: 'Player', src: 'assets/screen-player.png', ih: 1956, p0: 0, p1: -180,
-    problem: 'הורה שאל, ודפדפתי חודשיים אחורה.',
-    solution: 'בקורטסייד לכל שחקן יש כרטיס שאוסף את הכל, ורק אתה רואה אותו.',
+    problem: 'קשה לי להבין אם שחקן התקדם או לא.',
+    solution: 'בקורטסייד הכל שמור: לכל שחקן כרטיס אישי עם הנתונים היבשים ומגמת ההתקדמות שלו.',
   },
   {
     id: 'Games', src: 'assets/screen-games.png', ih: 2152, p0: -40, p1: -640,
     problem: 'רוצה משחק אימון, אין לי עם מי.',
     solution: 'בקורטסייד אתה מעלה בקשה עם גיל ואזור — ומי שמתאים לו שולח לך הודעה.',
+  },
+  {
+    id: 'Community', src: 'assets/screen-community.png', ih: 3404, p0: -40, p1: -1000,
+    problem: 'אין לי עם מי להתייעץ על כדורסל.',
+    solution: 'בקורטסייד יש קהילת מאמנים עם צ׳אטים לפי נושא — שואלים על תרגיל, על שיטה, ואפילו על פודקאסט ששווה להאזין לו.',
   },
 ];
 
@@ -106,8 +109,8 @@ function CourtLines({ opacity }) {
   );
 }
 
-/* ציפים מפוזרים — הסצנה הפותחת. אלה בדיוק המקומות שבהם הידע של מאמן
-   יושב היום, ולכן הם ההמחשה של שורת הבעיה הראשונה. */
+/* ציפים מפוזרים — הסצנה הפותחת. אלה המקומות שבהם הידע של מאמן יושב
+   היום, ולכן הם ההמחשה של שורת הבעיה הראשונה. */
 const CHIPS = [
   { text: 'מחברת בתיק', x: 150, y: 620, r: -7 },
   { text: 'וואטסאפ', x: 640, y: 500, r: 5 },
@@ -144,7 +147,7 @@ function Screens({ T, C }) {
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#0F141E' }}>
       {SCREENS.map((s, i) => {
         const from = C[s.id];
-        const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Close;
+        const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Cta;
         const o = clamp((T - (from - 0.45)) / 0.8, 0, 1) * (1 - clamp((T - (to - 0.45)) / 0.8, 0, 1));
         /* ⚠ הפאן נעצר ב-62% מהביט. אי אפשר לקרוא כותרת בזמן שהמסך
            מתחתיה עדיין נע — 38% האחרונים הם עצירה מלאה. */
@@ -163,13 +166,44 @@ function Screens({ T, C }) {
   );
 }
 
+/* כרטיס הקריאה לפעולה — בלשונו של הבעלים, בגוף רבים במכוון:
+   כל הסרטון מדבר אל מאמן אחד, והסיום פונה לכולם. */
+function Cta({ T, C, accent }) {
+  const on = clamp((T - (C.Cta - 0.35)) / 0.5, 0, 1) * (1 - clamp((T - (C.Close - 0.5)) / 0.45, 0, 1));
+  const y1 = MOTION.enter({ from: 54, to: 0, start: C.Cta, end: C.Cta + 0.9 })(T);
+  const y2 = MOTION.enter({ from: 54, to: 0, start: C.Cta + 0.35, end: C.Cta + 1.25 })(T);
+  const y3 = MOTION.enter({ from: 54, to: 0, start: C.Cta + 0.7, end: C.Cta + 1.6 })(T);
+  const o = (d) => clamp((T - (C.Cta + d)) / 0.6, 0, 1);
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, opacity: on, direction: 'rtl',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 26, padding: '0 90px', boxSizing: 'border-box', textAlign: 'center',
+    }}>
+      <div style={{
+        transform: `translateY(${y1}px)`, opacity: o(0),
+        font: `900 84px ${DISP}`, color: TX, letterSpacing: '-0.03em', lineHeight: 1.06,
+      }}>אז למה אתם מחכים?</div>
+      <div style={{
+        transform: `translateY(${y2}px)`, opacity: o(0.35),
+        font: `500 38px ${BODY}`, color: '#C9D5E6', lineHeight: 1.4, textWrap: 'pretty',
+      }}>רוצים להפוך את העונה שלכם לנוחה, מקצועית ופשוטה?</div>
+      <div style={{
+        transform: `translateY(${y3}px)`, opacity: o(0.7), marginTop: 6,
+        font: `800 52px ${DISP}`, color: accent, letterSpacing: '-0.02em', lineHeight: 1.14,
+        textWrap: 'pretty',
+      }}>הצטרפו לקהילת המאמנים של ישראל.</div>
+    </div>
+  );
+}
+
 function Close({ T, C, accent, accentDeep, cta, site }) {
-  const on = clamp((T - (C.Close - 0.4)) / 0.6, 0, 1);
+  const on = clamp((T - (C.Close - 0.35)) / 0.5, 0, 1);
   const markS = MOTION.pop({ from: 0.6, to: 1, start: C.Close - 0.2, end: C.Close + 0.8 })(T);
-  const titleY = MOTION.enter({ from: 48, to: 0, start: C.Close + 0.2, end: C.Close + 1.1 })(T);
+  const titleY = MOTION.enter({ from: 44, to: 0, start: C.Close + 0.2, end: C.Close + 1.1 })(T);
   const titleO = clamp((T - (C.Close + 0.2)) / 0.7, 0, 1);
-  const ctaS = MOTION.pop({ from: 0.84, to: 1, start: C.Close + 1.2, end: C.Close + 1.9 })(T);
-  const ctaO = clamp((T - (C.Close + 1.2)) / 0.5, 0, 1);
+  const ctaS = MOTION.pop({ from: 0.84, to: 1, start: C.Close + 1.1, end: C.Close + 1.8 })(T);
+  const ctaO = clamp((T - (C.Close + 1.1)) / 0.5, 0, 1);
   const glow = 0.5 + 0.5 * Math.sin((T - C.Close) * 2.2);
 
   return (
@@ -179,28 +213,26 @@ function Close({ T, C, accent, accentDeep, cta, site }) {
       padding: '0 88px', boxSizing: 'border-box', textAlign: 'center',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, transform: `scale(${markS})` }}>
-        <Mark size={108} accent={accent} />
-        <span style={{ font: `900 96px ${DISP}`, color: TX, letterSpacing: '-0.03em' }}>CourtSide</span>
+        <Mark size={116} accent={accent} />
+        <span style={{ font: `900 100px ${DISP}`, color: TX, letterSpacing: '-0.03em' }}>CourtSide</span>
       </div>
       <div style={{
-        transform: `translateY(${titleY}px)`, opacity: titleO, marginTop: 30,
-        font: `900 66px ${DISP}`, color: TX, lineHeight: 1.18, letterSpacing: '-0.025em', textWrap: 'pretty',
-      }}>
-        המחברת שלך,<br />
-        <span style={{ color: '#F0A878' }}>רק שהיא לא הולכת לאיבוד.</span>
-      </div>
+        transform: `translateY(${titleY}px)`, opacity: titleO, marginTop: 34,
+        font: `900 62px ${DISP}`, color: '#F0A878', lineHeight: 1.2,
+        letterSpacing: '-0.025em', textWrap: 'pretty',
+      }}>הבית של מאמני הכדורסל הישראלי</div>
       <div style={{
-        marginTop: 34, opacity: titleO, font: `700 40px ${DISP}`, color: '#F0A878',
+        marginTop: 30, opacity: titleO, font: `700 36px ${DISP}`, color: '#C9D5E6',
         letterSpacing: '-0.015em',
       }}>בחינם · בעברית · בלי להתקין כלום</div>
       <div style={{
-        marginTop: 44, transform: `scale(${ctaS})`, opacity: ctaO,
+        marginTop: 42, transform: `scale(${ctaS})`, opacity: ctaO,
         padding: '28px 66px', borderRadius: 999, background: accentDeep,
         boxShadow: `0 0 ${30 + glow * 36}px rgba(232,118,58,${0.22 + glow * 0.22})`,
         font: `700 46px ${BODY}`, color: '#fff', whiteSpace: 'nowrap',
       }}>{cta}</div>
       {/* הכתובת מוצגת תמיד — צופה בוואטסאפ לא יכול ללחוץ על כפתור */}
-      <div style={{ marginTop: 28, opacity: ctaO, font: `500 34px ${BODY}`, color: '#F0A878' }} dir="ltr">
+      <div style={{ marginTop: 26, opacity: ctaO, font: `500 34px ${BODY}`, color: '#F0A878' }} dir="ltr">
         {site || 'courtsideil.vercel.app'}
       </div>
     </div>
@@ -216,7 +248,7 @@ function Piece({ tw }) {
     0.9
     - MOTION.glide({ from: 0, to: 0.4, start: 0, end: 1.0 })(T)
     + MOTION.glide({ from: 0, to: 0.2, start: C.Home - 0.5, end: C.Plan })(T)
-    + MOTION.glide({ from: 0, to: 0.28, start: C.Games + 1.5, end: C.Close + 0.6 })(T);
+    + MOTION.glide({ from: 0, to: 0.28, start: C.Community + 1.5, end: C.Cta + 0.6 })(T);
 
   /* הטלפון עולה פעם אחת ונשאר. «נשימה» קטנה בכל ביט, ואז דממה. */
   const beatBreath = SCREENS.reduce((acc, s) => acc
@@ -224,13 +256,13 @@ function Piece({ tw }) {
     - MOTION.glide({ from: 0, to: 0.012, start: C[s.id] + 0.5, end: C[s.id] + 1.6 })(T), 0);
   const phY =
     MOTION.enter({ from: 2500, to: 780, start: C.Home - 1.0, end: C.Home + 0.9 })(T)
-    + MOTION.glide({ from: 0, to: 1900, start: C.Close - 0.9, end: C.Close + 0.7 })(T);
+    + MOTION.glide({ from: 0, to: 1900, start: C.Cta - 0.9, end: C.Cta + 0.7 })(T);
   const phScale =
     MOTION.enter({ from: 0.92, to: 1.38, start: C.Home - 1.0, end: C.Home + 1.2 })(T)
     + beatBreath
-    - MOTION.glide({ from: 0, to: 0.6, start: C.Close - 1.0, end: C.Close + 0.5 })(T);
+    - MOTION.glide({ from: 0, to: 0.6, start: C.Cta - 1.0, end: C.Cta + 0.5 })(T);
   const phRot = MOTION.glide({ from: -4, to: 0, start: C.Home - 0.9, end: C.Home + 1.1 })(T);
-  const phO = clamp((T - (C.Home - 1.1)) / 0.5, 0, 1) * (1 - clamp((T - (C.Close - 0.55)) / 0.5, 0, 1));
+  const phO = clamp((T - (C.Home - 1.1)) / 0.5, 0, 1) * (1 - clamp((T - (C.Cta - 0.55)) / 0.5, 0, 1));
 
   const capStyle = {
     left: '7%', right: '7%', bottom: '4.5%', direction: 'rtl', textAlign: 'right',
@@ -240,15 +272,15 @@ function Piece({ tw }) {
   const pair = (problem, solution) => (
     <span>
       <span style={{
-        display: 'block', font: `800 30px ${DISP}`, color: '#F0A878',
+        display: 'block', font: `800 28px ${DISP}`, color: '#F0A878',
         letterSpacing: '0.02em', marginBottom: 6, textShadow: shadow,
       }}>הבעיה?</span>
       <span style={{
-        display: 'block', font: `900 66px ${DISP}`, color: TX,
-        letterSpacing: '-0.035em', lineHeight: 1.06, textShadow: shadow,
+        display: 'block', font: `900 58px ${DISP}`, color: TX,
+        letterSpacing: '-0.03em', lineHeight: 1.06, textShadow: shadow,
       }}>{problem}</span>
       <span style={{
-        display: 'block', marginTop: 16, font: `500 34px ${BODY}`, color: '#C9D5E6',
+        display: 'block', marginTop: 16, font: `500 31px ${BODY}`, color: '#C9D5E6',
         lineHeight: 1.38, textWrap: 'pretty', textShadow: '0 4px 20px rgba(4,10,22,0.8)',
       }}>
         <b style={{ fontWeight: 700, color: '#F0A878' }}>הפתרון?</b> {solution}
@@ -259,7 +291,7 @@ function Piece({ tw }) {
   /* הזוג הראשון נפתח כבר על סצנת הציפים: הבעיה נאמרת מעל הבלגן,
      והפתרון נוחת בדיוק כשהטלפון עולה. */
   const caps = tw.captions === false ? [] : SCREENS.map((s, i) => {
-    const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Close;
+    const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Cta;
     return { at: i === 0 ? 0.8 : C[s.id] + 0.45, until: to - 0.4, text: pair(s.problem, s.solution) };
   });
 
@@ -313,9 +345,10 @@ function Piece({ tw }) {
       <div style={{
         position: 'absolute', left: 0, right: 0, bottom: 0, height: 560, pointerEvents: 'none',
         background: 'linear-gradient(180deg,rgba(7,16,31,0) 0%,rgba(7,16,31,0.55) 38%,rgba(7,16,31,0.94) 100%)',
-        opacity: clamp((T - 0.4) / 0.8, 0, 1) * (1 - clamp((T - (C.Close - 0.7)) / 0.6, 0, 1)),
+        opacity: clamp((T - 0.4) / 0.8, 0, 1) * (1 - clamp((T - (C.Cta - 0.7)) / 0.6, 0, 1)),
       }} />
 
+      <Cta T={T} C={C} accent={accent} />
       <Close T={T} C={C} accent={accent} accentDeep={accentDeep}
         cta={tw.ctaText || 'מתחילים בחינם'} site={tw.siteLine || ''} />
 
