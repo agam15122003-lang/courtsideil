@@ -232,7 +232,19 @@ export const DB = {
     { video_id: 'v2', user_id: 'coach-3', rating: 4 },
   ],
   videos,
-  dossier_people: [], club_roles: [], game_requests: [], coach_meetings: [],
+  dossier_people: [], club_roles: [], coach_meetings: [],
+  // לוח משחקי האימון — בקשות פתוחות של מאמנים אחרים
+  game_requests: [
+    { id: 'gr1', created_by: 'coach-2', age_group: 'נערים ב׳', region: 'שרון', home_away: 'either',
+      date_from: N2, date_to: N3, location: 'אולם מכבי אשדוד', note: 'מחפשת משחק אימון לפני תחילת העונה. אפשר גם אצלכם.',
+      status: 'open', created_at: iso(-1), creator: { first_name: 'תמר', last_name: 'כהן' } },
+    { id: 'gr2', created_by: 'coach-3', age_group: 'נערים ב׳', region: 'חיפה', home_away: 'home',
+      date_from: N3, date_to: null, location: 'היכל רוממה', note: 'שבת בבוקר, שני רבעים כל אחד.',
+      status: 'open', created_at: iso(-2), creator: { first_name: 'רון', last_name: 'לוי' } },
+    { id: 'gr3', created_by: 'coach-4', age_group: 'ילדים א׳', region: 'שרון', home_away: 'away',
+      date_from: N2, date_to: N3, location: '', note: 'מוכנים להגיע אליכם. יש לנו 11 ילדים.',
+      status: 'open', created_at: iso(-3), creator: { first_name: 'מיכל', last_name: 'שרון' } },
+  ],
   saved_drills: [], drill_ratings: [], community_comments: [], community_likes: [],
   __rpc_my_profile: [PROFILE],
 }

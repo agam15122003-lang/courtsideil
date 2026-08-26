@@ -1,24 +1,37 @@
-/* CourtSide — סרטון תדמית 9:16, ~46 שניות.
-   המסכים הם צילומים אמיתיים ממסמך המסירה של המוצר (design_handoff/design/Courtside Mobile.dc.html).
-   פלטה, טיפוגרפיה ותוכן לפי DESIGN.md ו-src/Landing.jsx.
+/* CourtSide — סרטון תדמית 9:16, ~44 שניות.
 
-   ⚠ הטקסטים כאן נכתבו מחדש (25.8.2026). הכלל: כל משפט מסביר **למה כדאי**,
-   לא **מה יש**. הגרסה הקודמת תיארה פיצ'רים («דף אחד. עט או הקלדה.»);
-   הזו מסבירה מה נוח יותר מהמחברת ומה אפשר כאן שאי אפשר על נייר —
-   לא הולך לאיבוד, מחפשים במקום להיזכר, מצטבר לבד, עובר בלחיצה.
+   ─── מבנה: בעיה ואז פתרון ───────────────────────────────────────
+   הבעלים ביקש את המבנה הזה וכתב בעצמו את הדוגמאות:
+     «הבעיה? הכל מפוזר. הפתרון? בקורטסייד הכל במקום אחד.»
+   לכן כל ביט הוא זוג: שורת בעיה **בקול של המאמן, בגוף ראשון** —
+   משהו שהוא באמת אומר לעצמו — ואז שורת פתרון שמדברת אליו בגוף שני.
+   ההיפוך הזה הוא מה שגורם לזה להישמע כמו שיחה ולא כמו מפרט.
 
-   שני כללי ניסוח:
-   · פעולה בציווי למה שהמאמן עושה («תבנה», «תשרטט», «תסגור»), ומשפט חיווי
-     למה שהמערכת עושה בשבילו («הלו״ז ממלא את עצמו»).
-   · בלי רשימות עם נקודתיים ובלי הבטחות שאי אפשר לאמת. «על הפרקט» ירד —
-     הוא סתר את ההחלטה שהאפליקציה אינה בשימוש תוך כדי אימון. */
+   ─── שישה ביטים בלבד ────────────────────────────────────────────
+   «רק הדברים המרכזיים». ארבעה כותבים עצמאיים התכנסו לאותם חמישה
+   פיצ'רים, ואליהם נוסף «הכל במקום אחד» כמסגרת פותחת. ירדו: לוח
+   הטקטיקה, ימי האימון הקבועים ופיד הקהילה — טובים, אבל אף מאמן לא
+   מחליף מחברת בגללם.
+
+   ─── מגבלת אורך שנמדדה, לא נוחשה ────────────────────────────────
+   שורת הבעיה ב-66px מחזיקה **36 תווים** בשורה אחת. מעבר לזה היא
+   נשברת, הבלוק גדל ב-70px, והכיתוב נכנס לתוך הטלפון. כל שורות הבעיה
+   כאן קצרות מ-36, ולכן הגיאומטריה (phY 780, scale 1.38, כיתוב ב-4.5%)
+   משאירה 36px מרווח גם כשהפתרון נשבר לשתי שורות.
+
+   ─── מה שנבדק מול הקוד ונפסל ────────────────────────────────────
+   · «חלקים וזמנים» — אין. המחברת היא דף חופשי (PlanNotebook.jsx:25-27)
+   · «מעתיק אליך תרגיל» — אין. תרגיל שומרים למועדפים או מכניסים
+     לתוכנית; **תוכנית שלמה** היא זו שמעתיקים (TrainingPlans.jsx:71)
+   · «מאמנים אחרים כותבים לך» — פרסום בקשה לא שולח התראה לאיש
+     (GamesBoard.jsx:88-108). לכן: «מי שמתאים לו שולח לך הודעה» */
 
 const { CompositionStage, useComposition, Captions, Easing, animate, clamp } = window;
 const { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakText } = window;
 
 const W = 1080, H = 1920;
 const NAVY1 = '#17264A', NAVY2 = '#0A1428', DEEP = '#07101f';
-const TX = '#EEF2F8', MUT = '#9AA6BB', LN = '#2C374D';
+const TX = '#EEF2F8', LN = '#2C374D';
 const DISP = "'Heebo', system-ui, sans-serif";
 const BODY = "'Rubik', system-ui, sans-serif";
 
@@ -28,17 +41,39 @@ const MOTION = {
   pop: (o) => animate(Object.assign({ ease: Easing.easeOutBack }, o)),
 };
 
-/* מסך הטלפון: 520 רחב. הצילומים ברוחב 784 → מוצגים ב-520 (יחס 0.663) */
+/* מסך הטלפון: 520 רחב. הצילומים ברוחב 784 → מוצגים ב-520 */
 const SW = 520, SH = 1120, K = SW / 784;
 const SCREENS = [
-  { id: 'Home', src: 'assets/screen-home.png', ih: 4200, p0: 0, p1: -880, word: 'הכל במקום אחד.', sub: 'לא מחפש במחברת ולא גולל בוואטסאפ. נכנס ורואה.' },
-  { id: 'Plan', src: 'assets/screen-notebook.png', ih: 2814, p0: -60, p1: -740, word: 'תבנה את האימון שלך.', sub: 'כמו במחברת, רק שכלום לא הולך לאיבוד — והאימון חוזר בלחיצה.' },
-  { id: 'Drills', src: 'assets/screen-drills.png', ih: 2348, p0: 0, p1: -420, word: 'צריך תרגיל?', sub: 'במקום לנסות להיזכר איפה ראית אותו — מחפש מילה, ומוצא.' },
-  { id: 'Tactics', src: 'assets/screen-tactics.png', ih: 2352, p0: -90, p1: -470, word: 'תשרטט את המהלך.', sub: 'על לוח זה נמחק אחרי חמש דקות. כאן זה נשאר עם התרגיל.' },
-  { id: 'Review', src: 'assets/screen-review.png', ih: 2520, p0: -40, p1: -540, word: 'תסגור את האימון בדקה.', sub: 'מי הגיע וכמה זה היה קשה לו — והכל מצטבר לבד לאורך העונה.' },
-  { id: 'Player', src: 'assets/screen-player.png', ih: 1956, p0: 0, p1: -180, word: 'ולכל שחקן יש כרטיס.', sub: 'במחברת היית מדפדף חודשיים אחורה. כאן זה כבר מסודר.' },
-  { id: 'Season', src: 'assets/screen-schedule.png', ih: 2694, p0: -40, p1: -620, word: 'והלו״ז ממלא את עצמו.', sub: 'קובע ימי אימון פעם אחת, והם חוזרים כל שבוע לבד.' },
-  { id: 'Community', src: 'assets/screen-community.png', ih: 3404, p0: -40, p1: -1000, word: 'ואתה לא לבד בזה.', sub: 'מערך שלם של מאמן אחר עובר אליך בלחיצה. תשנה מה שבא לך.' },
+  {
+    id: 'Home', src: 'assets/screen-home.png', ih: 4200, p0: 0, p1: -880,
+    problem: 'הכל אצלי בראש, במחברת ובוואטסאפ.',
+    solution: 'בקורטסייד הכל במקום אחד — הסגל, האימונים והנוכחות.',
+  },
+  {
+    id: 'Plan', src: 'assets/screen-notebook.png', ih: 2814, p0: -60, p1: -740,
+    problem: 'כל אימון אני כותב מחדש על דף.',
+    solution: 'בקורטסייד אתה בונה אותו פעם אחת, והוא נשמר לך לפעם הבאה.',
+  },
+  {
+    id: 'Drills', src: 'assets/screen-drills.png', ih: 2348, p0: 0, p1: -420,
+    problem: 'שוב אני מריץ את אותם שלושה תרגילים.',
+    solution: 'בקורטסייד יש ספרייה בעברית, ואתה מעתיק אליך תוכנית שלמה של מאמן אחר.',
+  },
+  {
+    id: 'Review', src: 'assets/screen-review.png', ih: 2520, p0: -40, p1: -540,
+    problem: 'בסוף האימון אני זוכר, בבוקר כבר לא.',
+    solution: 'בקורטסייד אתה מסמן מי הגיע ונותן עומס לכל שחקן, והכל מצטבר כל העונה.',
+  },
+  {
+    id: 'Player', src: 'assets/screen-player.png', ih: 1956, p0: 0, p1: -180,
+    problem: 'הורה שאל, ודפדפתי חודשיים אחורה.',
+    solution: 'בקורטסייד לכל שחקן יש כרטיס שאוסף את הכל, ורק אתה רואה אותו.',
+  },
+  {
+    id: 'Games', src: 'assets/screen-games.png', ih: 2152, p0: -40, p1: -640,
+    problem: 'רוצה משחק אימון, אין לי עם מי.',
+    solution: 'בקורטסייד אתה מעלה בקשה עם גיל ואזור — ומי שמתאים לו שולח לך הודעה.',
+  },
 ];
 
 function Mark({ size, accent }) {
@@ -71,7 +106,8 @@ function CourtLines({ opacity }) {
   );
 }
 
-/* ציפים מפוזרים — הסצנה הפותחת */
+/* ציפים מפוזרים — הסצנה הפותחת. אלה בדיוק המקומות שבהם הידע של מאמן
+   יושב היום, ולכן הם ההמחשה של שורת הבעיה הראשונה. */
 const CHIPS = [
   { text: 'מחברת בתיק', x: 150, y: 620, r: -7 },
   { text: 'וואטסאפ', x: 640, y: 500, r: 5 },
@@ -103,7 +139,6 @@ function Chips({ T, C }) {
   );
 }
 
-/* כל הצילומים חיים כל הזמן; רק השקיפות והפאן משתנים — מעבר רך בין מסך למסך */
 function Screens({ T, C }) {
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#0F141E' }}>
@@ -111,7 +146,10 @@ function Screens({ T, C }) {
         const from = C[s.id];
         const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Close;
         const o = clamp((T - (from - 0.45)) / 0.8, 0, 1) * (1 - clamp((T - (to - 0.45)) / 0.8, 0, 1));
-        const pan = MOTION.glide({ from: s.p0, to: s.p1, start: from - 0.3, end: to - 0.1 })(T);
+        /* ⚠ הפאן נעצר ב-62% מהביט. אי אפשר לקרוא כותרת בזמן שהמסך
+           מתחתיה עדיין נע — 38% האחרונים הם עצירה מלאה. */
+        const settle = from + (to - from) * 0.62;
+        const pan = MOTION.glide({ from: s.p0, to: s.p1, start: from - 0.3, end: settle })(T);
         return (
           <img key={s.id} src={s.src} alt=""
             style={{
@@ -132,7 +170,6 @@ function Close({ T, C, accent, accentDeep, cta, site }) {
   const titleO = clamp((T - (C.Close + 0.2)) / 0.7, 0, 1);
   const ctaS = MOTION.pop({ from: 0.84, to: 1, start: C.Close + 1.2, end: C.Close + 1.9 })(T);
   const ctaO = clamp((T - (C.Close + 1.2)) / 0.5, 0, 1);
-  const line = MOTION.glide({ from: 0, to: 1, start: C.Close + 0.5, end: C.Close + 4.6 })(T);
   const glow = 0.5 + 0.5 * Math.sin((T - C.Close) * 2.2);
 
   return (
@@ -147,10 +184,10 @@ function Close({ T, C, accent, accentDeep, cta, site }) {
       </div>
       <div style={{
         transform: `translateY(${titleY}px)`, opacity: titleO, marginTop: 30,
-        font: `900 72px ${DISP}`, color: TX, lineHeight: 1.16, letterSpacing: '-0.025em', textWrap: 'pretty',
+        font: `900 66px ${DISP}`, color: TX, lineHeight: 1.18, letterSpacing: '-0.025em', textWrap: 'pretty',
       }}>
-        כל העונה שלך,<br />
-        <span style={{ color: '#F0A878' }}>במקום אחד.</span>
+        המחברת שלך,<br />
+        <span style={{ color: '#F0A878' }}>רק שהיא לא הולכת לאיבוד.</span>
       </div>
       <div style={{
         marginTop: 34, opacity: titleO, font: `700 40px ${DISP}`, color: '#F0A878',
@@ -162,94 +199,90 @@ function Close({ T, C, accent, accentDeep, cta, site }) {
         boxShadow: `0 0 ${30 + glow * 36}px rgba(232,118,58,${0.22 + glow * 0.22})`,
         font: `700 46px ${BODY}`, color: '#fff', whiteSpace: 'nowrap',
       }}>{cta}</div>
-      {site ? (
-        <div style={{ marginTop: 28, opacity: ctaO, font: `500 34px ${BODY}`, color: '#F0A878' }} dir="ltr">{site}</div>
-      ) : null}
-      <div style={{
-        position: 'absolute', bottom: 96, left: 88, right: 88, height: 5,
-        borderRadius: 999, background: 'rgba(226,234,246,0.14)', overflow: 'hidden',
-      }}>
-        <div style={{
-          height: '100%', width: `${line * 100}%`, borderRadius: 999,
-          background: `linear-gradient(90deg,${accent},#F0A878)`,
-        }} />
+      {/* הכתובת מוצגת תמיד — צופה בוואטסאפ לא יכול ללחוץ על כפתור */}
+      <div style={{ marginTop: 28, opacity: ctaO, font: `500 34px ${BODY}`, color: '#F0A878' }} dir="ltr">
+        {site || 'courtsideil.vercel.app'}
       </div>
     </div>
   );
 }
 
 function Piece({ tw }) {
-  const { T, CUES: C, authoredTotal } = useComposition();
+  const { T, CUES: C } = useComposition();
   const accent = tw.accent || '#E8763A';
   const accentDeep = '#B34E1C';
-  const END = authoredTotal || 46.2;
 
-  const bgScale = MOTION.glide({ from: 1.05, to: 1.42, start: 0, end: END })(T);
-  const bgX = MOTION.glide({ from: 0, to: -90, start: 0, end: END })(T);
   const veil =
     0.9
     - MOTION.glide({ from: 0, to: 0.4, start: 0, end: 1.0 })(T)
     + MOTION.glide({ from: 0, to: 0.2, start: C.Home - 0.5, end: C.Plan })(T)
-    + MOTION.glide({ from: 0, to: 0.28, start: C.Community + 1.5, end: C.Close + 0.6 })(T);
+    + MOTION.glide({ from: 0, to: 0.28, start: C.Games + 1.5, end: C.Close + 0.6 })(T);
 
-  /* הטלפון עולה פעם אחת ונשאר — הזום נשמר, וכל ביט מקבל נשימה קטנה */
+  /* הטלפון עולה פעם אחת ונשאר. «נשימה» קטנה בכל ביט, ואז דממה. */
   const beatBreath = SCREENS.reduce((acc, s) => acc
     + MOTION.glide({ from: 0, to: 0.012, start: C[s.id] - 0.45, end: C[s.id] + 0.5 })(T)
     - MOTION.glide({ from: 0, to: 0.012, start: C[s.id] + 0.5, end: C[s.id] + 1.6 })(T), 0);
   const phY =
-    MOTION.enter({ from: 2500, to: 800, start: C.Home - 1.0, end: C.Home + 0.9 })(T)
-    + MOTION.glide({ from: 0, to: -30, start: C.Review, end: C.Community })(T)
+    MOTION.enter({ from: 2500, to: 780, start: C.Home - 1.0, end: C.Home + 0.9 })(T)
     + MOTION.glide({ from: 0, to: 1900, start: C.Close - 0.9, end: C.Close + 0.7 })(T);
   const phScale =
-    MOTION.enter({ from: 0.92, to: 1.42, start: C.Home - 1.0, end: C.Home + 1.2 })(T)
+    MOTION.enter({ from: 0.92, to: 1.38, start: C.Home - 1.0, end: C.Home + 1.2 })(T)
     + beatBreath
     - MOTION.glide({ from: 0, to: 0.6, start: C.Close - 1.0, end: C.Close + 0.5 })(T);
   const phRot = MOTION.glide({ from: -4, to: 0, start: C.Home - 0.9, end: C.Home + 1.1 })(T);
   const phO = clamp((T - (C.Home - 1.1)) / 0.5, 0, 1) * (1 - clamp((T - (C.Close - 0.55)) / 0.5, 0, 1));
 
   const capStyle = {
-    left: '7%', right: '7%', bottom: '5.5%', direction: 'rtl', textAlign: 'right',
+    left: '7%', right: '7%', bottom: '4.5%', direction: 'rtl', textAlign: 'right',
     padding: 0, background: 'none', pointerEvents: 'none',
   };
-  const line = (word, sub) => (
+  const shadow = '0 6px 30px rgba(4,10,22,0.85)';
+  const pair = (problem, solution) => (
     <span>
       <span style={{
-        display: 'block', font: `900 82px ${DISP}`, color: TX,
-        letterSpacing: '-0.035em', lineHeight: 1.05,
-        textShadow: '0 6px 30px rgba(4,10,22,0.85)',
-      }}>{word}</span>
+        display: 'block', font: `800 30px ${DISP}`, color: '#F0A878',
+        letterSpacing: '0.02em', marginBottom: 6, textShadow: shadow,
+      }}>הבעיה?</span>
       <span style={{
-        display: 'block', marginTop: 12, font: `500 36px ${BODY}`, color: '#C9D5E6',
-        lineHeight: 1.35, textShadow: '0 4px 20px rgba(4,10,22,0.8)', textWrap: 'pretty',
-      }}>{sub}</span>
+        display: 'block', font: `900 66px ${DISP}`, color: TX,
+        letterSpacing: '-0.035em', lineHeight: 1.06, textShadow: shadow,
+      }}>{problem}</span>
+      <span style={{
+        display: 'block', marginTop: 16, font: `500 34px ${BODY}`, color: '#C9D5E6',
+        lineHeight: 1.38, textWrap: 'pretty', textShadow: '0 4px 20px rgba(4,10,22,0.8)',
+      }}>
+        <b style={{ fontWeight: 700, color: '#F0A878' }}>הפתרון?</b> {solution}
+      </span>
     </span>
   );
-  const caps = tw.captions === false ? [] : [
-    { at: 0.8, until: C.Home - 0.5, text: line('הכל אצלך בראש.', 'קצת במחברת, קצת בוואטסאפ, והשאר — שתזכור.') },
-  ].concat(SCREENS.map((s, i) => {
+
+  /* הזוג הראשון נפתח כבר על סצנת הציפים: הבעיה נאמרת מעל הבלגן,
+     והפתרון נוחת בדיוק כשהטלפון עולה. */
+  const caps = tw.captions === false ? [] : SCREENS.map((s, i) => {
     const to = i + 1 < SCREENS.length ? C[SCREENS[i + 1].id] : C.Close;
-    return { at: C[s.id] + 0.45, until: to - 0.4, text: line(s.word, s.sub) };
-  }));
+    return { at: i === 0 ? 0.8 : C[s.id] + 0.45, until: to - 0.4, text: pair(s.problem, s.solution) };
+  });
 
   return (
     <div data-screen-label={`${T.toFixed(0)}s`}
       style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: DEEP }}>
 
-      <img src="public/images/hero/hero-32c9130b-lg.webp" alt=""
-        style={{
-          position: 'absolute', top: 0, left: -740, width: 2560, height: 1920,
-          objectFit: 'cover', transform: `scale(${bgScale}) translateX(${bgX}px)`,
-          transformOrigin: '50% 45%', filter: 'saturate(0.6) contrast(1.05)',
-        }} />
+      {/* ⚠ הרקע מצויר בקוד ולא צילום. התמונה שהייתה כאן נמשכה מ-Openverse
+          עם license=cc0,pdm,by ובלי רישום מי היוצר — ו-CC BY מחייב ייחוס.
+          ראה tools/promo/README.md. */}
       <div style={{
-        position: 'absolute', inset: 0, opacity: clamp(veil, 0, 1),
+        position: 'absolute', inset: 0,
         background: `linear-gradient(168deg,${NAVY1} 0%,${NAVY2} 62%,${DEEP} 100%)`,
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, opacity: clamp(veil, 0, 1) * 0.4,
+        background: `linear-gradient(12deg,${NAVY2} 0%,${DEEP} 100%)`,
       }} />
       <div style={{
         position: 'absolute', inset: 0,
         background: `radial-gradient(58% 40% at 50% 32%, rgba(232,118,58,${0.09 + 0.05 * Math.sin(T * 0.6)}), rgba(232,118,58,0) 70%)`,
       }} />
-      <CourtLines opacity={0.035} />
+      <CourtLines opacity={0.045} />
 
       <Chips T={T} C={C} />
 
@@ -278,9 +311,9 @@ function Piece({ tw }) {
 
       {/* פס תחתון רך — מפריד בין המסך לכיתוב */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0, height: 520, pointerEvents: 'none',
-        background: 'linear-gradient(180deg,rgba(7,16,31,0) 0%,rgba(7,16,31,0.5) 40%,rgba(7,16,31,0.9) 100%)',
-        opacity: clamp((T - (C.Home - 1.2)) / 0.8, 0, 1) * (1 - clamp((T - (C.Close - 0.7)) / 0.6, 0, 1)),
+        position: 'absolute', left: 0, right: 0, bottom: 0, height: 560, pointerEvents: 'none',
+        background: 'linear-gradient(180deg,rgba(7,16,31,0) 0%,rgba(7,16,31,0.55) 38%,rgba(7,16,31,0.94) 100%)',
+        opacity: clamp((T - 0.4) / 0.8, 0, 1) * (1 - clamp((T - (C.Close - 0.7)) / 0.6, 0, 1)),
       }} />
 
       <Close T={T} C={C} accent={accent} accentDeep={accentDeep}
