@@ -58,7 +58,7 @@ export default function PublicDrill({ drillId, onJoin }) {
   return (
     <div className="pd-page" dir="rtl">
       <header className="pd-top">
-        <Logo size={28} withWordmark />
+        <Logo size={18} withWordmark />
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={onJoin}>
           {L('הצטרפות חינם', 'Join free')} <ArrowFwd size={16} />
         </button>

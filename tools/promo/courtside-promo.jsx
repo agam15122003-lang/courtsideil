@@ -79,13 +79,18 @@ const SCREENS = [
   },
 ];
 
+// לוגו 5a — הכדור. זהה ל-public/courtside-icon.svg ול-src/Logo.jsx.
+// התפרים לבנים: הם מצוירים על הכדור ולא נוגעים ברקע הנייבי של הסרטון.
 function Mark({ size, accent }) {
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
-      <circle cx="42" cy="55" r="22" fill={accent} />
-      <circle cx="42" cy="55" r="9" fill="#fff" />
-      <path d="M60 45 L82 38 L82 52 L62 58 Z" fill={accent} />
-      <circle cx="78" cy="30" r="6" fill={accent} />
+      <circle cx="50" cy="50" r="40" fill={accent} />
+      <path
+        d="M50 10V90M10 50h80M22 22Q50 50 22 78M78 22Q50 50 78 78"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="6"
+      />
     </svg>
   );
 }

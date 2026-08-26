@@ -12,6 +12,7 @@ import { useLang, L } from './i18n'
 // 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
 // הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
 import { PLAYER_SIDE } from './flags'
+import Logo from './Logo'
 
 // מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
 const ParentConsent = lazy(() => import('./ParentConsent'))
@@ -268,12 +269,7 @@ export default function App() {
     return (
       <div className="center-screen" role="status" aria-label="טוען / Loading">
         <div className="app-loading">
-          <svg viewBox="0 0 100 100" width="40" height="40" aria-hidden="true">
-            <circle cx="42" cy="55" r="22" fill="var(--accent)" />
-            <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--accent)" />
-            <circle cx="78" cy="30" r="6" fill="var(--accent)" />
-          </svg>
+          <Logo size={40} />
           <span className="app-loading-name">CourtSide</span>
           <div className="loader" />
         </div>

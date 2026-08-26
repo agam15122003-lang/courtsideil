@@ -26,6 +26,7 @@ import { COACHING_QUOTES } from './constants'
 // 22.8 — השקת צד המאמן בלבד: הטקסטים של «מאמן ושחקן» נשארים כאן מאחורי
 // המתג, והדף מציג גרסה למאמנים עם טיזר «בקרוב: צד השחקן».
 import { PLAYER_SIDE } from './flags'
+import Logo from './Logo'
 
 // reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
 function useReveal() {
@@ -172,12 +173,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
     <div className="land">
       <header className="land-nav">
         <div className="land-brand">
-          <svg viewBox="0 0 100 100" width="30" height="30" aria-hidden="true">
-            <circle cx="42" cy="55" r="22" fill="var(--accent)" />
-            <circle cx="42" cy="55" r="9" fill="#fff" />
-            <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--accent)" />
-            <circle cx="78" cy="30" r="6" fill="var(--accent)" />
-          </svg>
+          <Logo size={30} />
           <span>CourtSide</span>
         </div>
         <div className="land-nav-actions">
@@ -414,12 +410,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         <div className="land-footer-grid">
           <div className="land-footer-brand">
             <div className="land-brand">
-              <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true">
-                <circle cx="42" cy="55" r="22" fill="var(--accent)" />
-                <circle cx="42" cy="55" r="9" fill="#fff" />
-                <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="var(--accent)" />
-                <circle cx="78" cy="30" r="6" fill="var(--accent)" />
-              </svg>
+              <Logo size={26} />
               <span>CourtSide</span>
             </div>
             <p className="land-footer-tag">{L('הפלטפורמה המקצועית למאמני כדורסל בעברית — תרגילים, אימונים, טקטיקה וקהילה.', 'The professional platform for basketball coaches — drills, practices, tactics and community.')}</p>

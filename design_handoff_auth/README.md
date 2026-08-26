@@ -222,7 +222,7 @@ DOM זהה ל-1b. הבדלים: רקע מסך כהה, משטחים כהים, מ�
 - `design/public/auth-court.jpg` — 251KB, **כבר בריפו** ב-`public/auth-court.jpg`. אין להוסיף עוד עותק. מוצג ב-`object-fit: cover` עם `object-position` שונה לפי מסך (42% / 38% / 30%).
 - לוגו CourtSide — SVG inline של 4 צורות (כדור + שריקה), מופיע כבר ב-`App.jsx`, `Auth.jsx` ו-`ResetPassword.jsx`. להשתמש בקיים.
 - אייקונים — `lucide-react`: `Mail`, `Lock`, `Eye`, `EyeOff`, `Check`, `KeyRound`, `QrCode`, `Clock`, `AlertTriangle`, `XCircle`, `Info`, `Users`, `ChevronDown`, ו-`ChevronBack`/`ArrowFwd` מ-`DirIcon.jsx`.
-- `public/whistle.svg` — קיים בריפו, לא בשימוש בעיצוב הזה.
+- `public/courtside-icon.svg` — הלוגו החדש (5a). הוחלף ב-26.8; הקובץ הישן `whistle.svg` נמחק.
 
 ## קבצים בחבילה
 

@@ -1,5 +1,5 @@
 // יצירת חומרי הגלם לאייקון ולמסך הפתיחה של האפליקציה הנייטיבית.
-// המקור הוא הלוגו הקיים ב-public/ — כדי שהאייקון בטלפון יהיה אותו לוגו
+// המקור הוא public/courtside-icon.svg — כדי שהאייקון בטלפון יהיה אותו לוגו
 // שמופיע בלשונית הדפדפן, ולא ייווצר מותג שני.
 //
 // למה 1024 ו-2732: אלה הגדלים ש-@capacitor/assets דורש כקלט. הוא מקטין
@@ -9,7 +9,7 @@
 //
 // הרצה: node scripts/make-app-assets.mjs   (ואז: npx @capacitor/assets generate --android)
 import sharp from 'sharp'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 
 // רקע הלילה של המותג — הערך של --bg במצב כהה (index.css, הבלוק האחרון).
 // מסך הפתיחה נשאר כהה תמיד, גם למשתמש במצב בהיר: הוא נמשך פחות משנייה,
@@ -26,23 +26,16 @@ await mkdir(OUT, { recursive: true })
 await sharp(SRC).resize(1024, 1024, { fit: 'cover' }).png().toFile(`${OUT}/icon.png`)
 
 // 2) מסך הפתיחה — הסימן לבדו על רקע הלילה.
-//    **לא** מ-icon-512.png: הקובץ ההוא אטום, והריבוע הכתום שלו היה יושב
-//    כמלבן חד באמצע הרקע הכהה. במקומו הצורות של whistle.svg מצוירות כאן
-//    מחדש בלי ריבוע הרקע — הצופר בלבן, והחור שלו בצבע הרקע כדי שייראה
-//    כניקוב אמיתי ולא ככתם.
-//    הקואורדינטות זהות ל-public/whistle.svg (viewBox 0 0 100 100).
-//    אם הלוגו שם ישתנה, צריך לעדכן גם כאן — שני הקבצים אינם מסונכרנים לבד.
+//    **לא** מ-icon-512.png: הקובץ ההוא אטום, והריבוע הנייבי שלו היה יושב
+//    כמלבן חד באמצע הרקע הכהה. במקומו הכדור לבדו, ישר מקובץ הלוגו.
+//    בעבר הגאומטריה שוכפלה כאן ביד, והערה הזהירה שצריך לעדכן את שני
+//    המקומות יחד — וכשהלוגו התחלף זה בדיוק מה שנשכח. עכשיו הקובץ נקרא
+//    מהמקור ואין מה לסנכרן.
 const CANVAS = 2732
 const MARK = 760
 
-const markSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${MARK}" height="${MARK}">
-  <circle cx="42" cy="55" r="22" fill="#fff"/>
-  <circle cx="42" cy="55" r="9" fill="${NIGHT}"/>
-  <path d="M60 45 L82 38 L82 52 L62 58 Z" fill="#fff"/>
-  <circle cx="78" cy="30" r="6" fill="#fff"/>
-</svg>`
-
-const mark = await sharp(Buffer.from(markSvg)).png().toBuffer()
+const markSvg = await readFile('public/courtside-icon.svg', 'utf8')
+const mark = await sharp(Buffer.from(markSvg)).resize(MARK, MARK).png().toBuffer()
 
 const splash = await sharp({
   create: { width: CANVAS, height: CANVAS, channels: 4, background: NIGHT },
