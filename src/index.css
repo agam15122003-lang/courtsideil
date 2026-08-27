@@ -31040,3 +31040,50 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   background: var(--surface);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* A3 — הדבקת רשימת סגל. 14 שחקנים בהדבקה אחת במקום 14 סבבים של       */
+/* «שם, מספר, הוסף». התצוגה המקדימה היא לא קישוט: הפרסר מנחש איפה      */
+/* המספר ואיפה השם, והמאמן חייב לראות מה יתווסף לפני שהוא מאשר.        */
+.roster-paste { margin-top: 10px; }
+.roster-paste-box {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.roster-paste-area {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 130px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+}
+.roster-paste-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.roster-paste-preview {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  max-height: 190px;
+  overflow-y: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+  line-height: 1.9;
+}
+.roster-paste-preview li { display: flex; align-items: baseline; gap: 8px; }
+/* המספר בתיבה צרה וקבועה כדי שהשמות ייישרו לעמודה אחת */
+.roster-paste-preview b {
+  min-width: 2.2em;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}

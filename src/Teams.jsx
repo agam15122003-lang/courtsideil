@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Plus, Trash2, Users2, Target, CalendarClock, X,
   Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
-  Printer, Check, Share2, CalendarSearch,
+  Printer, Check, Share2, CalendarSearch, ClipboardPaste,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -33,6 +33,41 @@ import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
 import { pendingRequests, decideMembership, ageMismatches } from './players'
 import { waShare } from './share'
+
+// פירוק רשימה מודבקת לשורות של { number, name }.
+//
+// מאמן מדביק ממה שיש לו ביד — וואטסאפ, אקסל, פתק — ולכן הפרסר סובלני:
+//   «7 דני כהן» · «דני כהן 7» · «7, דני כהן» · «7 - דני כהן» · «דני כהן»
+// מספר מזוהה רק כשהוא עומד בפני עצמו בקצה השורה, כדי ש«דני כהן 2» לא
+// ייחתך כשהכוונה הייתה לשם. שורות ריקות וכפילויות שם מסוננות.
+export function parseRoster(text) {
+  const seen = new Set()
+  const rows = []
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    let line = raw.replace(/\t/g, ' ').trim()
+    if (!line) continue
+    // תבליטים ומספור אוטומטי בתחילת שורה («1. », «- », «• »)
+    line = line.replace(/^[\u2022\u25CF*\-–—]\s*/, '')
+    let number = null
+    let name = line
+    // «7, דני כהן» או «7 - דני כהן» או «7 דני כהן»
+    let m = name.match(/^(\d{1,3})\s*[,\-–—.:]?\s+(.*)$/)
+    if (m && m[2].trim()) { number = m[1]; name = m[2] }
+    else {
+      // «דני כהן 7» — המספר בסוף
+      m = name.match(/^(.*?)\s+[,\-–—]?\s*(\d{1,3})$/)
+      if (m && m[1].trim()) { name = m[1]; number = m[2] }
+    }
+    name = name.replace(/\s+/g, ' ').trim().replace(/[,;]+$/, '').trim()
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    rows.push({ name, number: number || null })
+  }
+  return rows
+}
+
 
 // ---- סטטוס שחקן ----
 const STATUSES = [
@@ -428,6 +463,41 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   }
 
   // ---------- שחקנים ----------
+  // הדבקת רשימה — הכול בבת אחת במקום 14 סבבים
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [pasteBusy, setPasteBusy] = useState(false)
+  const pasteRows = useMemo(() => parseRoster(pasteText), [pasteText])
+
+  const addPasted = async () => {
+    if (!pasteRows.length || pasteBusy) return
+    setPasteBusy(true)
+    // שם שכבר קיים בסגל מדולג — מאמן שמדביק פעמיים לא מקבל כפילויות
+    const have = new Set(players.map((x) => String(x.name || '').toLowerCase()))
+    const fresh = pasteRows.filter((r) => !have.has(r.name.toLowerCase()))
+    if (!fresh.length) {
+      toast.error(L('כל השמות ברשימה כבר בסגל.', 'Every name on the list is already in the roster.'))
+      setPasteBusy(false)
+      return
+    }
+    const { error } = await supabase.from('team_players').insert(
+      fresh.map((r) => ({ coach_id: me, team, name: r.name, number: r.number, status: 'active' }))
+    )
+    setPasteBusy(false)
+    if (error) {
+      console.error('roster paste:', error.message)
+      toast.error(L('ההוספה נכשלה — נסו שוב בעוד רגע.', 'Add failed — try again in a moment.'))
+      return
+    }
+    const skipped = pasteRows.length - fresh.length
+    toast.success(skipped
+      ? L(`נוספו ${fresh.length} שחקנים · ${skipped} כבר היו בסגל`, `Added ${fresh.length} · ${skipped} already in the roster`)
+      : L(`נוספו ${fresh.length} שחקנים`, `Added ${fresh.length} players`))
+    setPasteText('')
+    setPasteOpen(false)
+    load()
+  }
+
   const addPlayer = async () => {
     if (!pName.trim()) return
     const { error } = await supabase.from('team_players').insert({ coach_id: me, team, name: pName.trim(), number: pNum.trim() || null, status: 'active' })
@@ -727,6 +797,54 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)}
               placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
+          </div>
+
+          {/* הדבקת רשימה — 14 שחקנים בהדבקה אחת במקום 14 סבבים */}
+          <div className="roster-paste">
+            <button type="button" className="link-button" onClick={() => setPasteOpen((v) => !v)} aria-expanded={pasteOpen}>
+              <ClipboardPaste size={14} /> {pasteOpen ? L('סגירה', 'Close') : L('הדבקת רשימת שחקנים', 'Paste a player list')}
+            </button>
+            {pasteOpen && (
+              <div className="roster-paste-box">
+                <p className="muted small">
+                  {L('שורה לכל שחקן. אפשר «7 דני כהן», «דני כהן 7» או שם בלבד — וגם להדביק ישר מוואטסאפ או מאקסל.', 'One player per line. 7 Danny Cohen, Danny Cohen 7, or just a name — paste straight from WhatsApp or Excel.')}
+                </p>
+                <textarea
+                  className="finder-input roster-paste-area"
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={7}
+                  placeholder={'7 דני כהן\n12 יהלי דגן\nנועם פרץ'}
+                  aria-label={L('רשימת שחקנים להדבקה', 'Player list to paste')}
+                />
+                <div className="roster-paste-foot">
+                  <span className="muted small">
+                    {pasteRows.length
+                      ? L(`זוהו ${pasteRows.length} שחקנים`, `${pasteRows.length} players detected`)
+                      : L('עוד לא זוהו שחקנים', 'No players detected yet')}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ marginTop: 0 }}
+                    onClick={addPasted}
+                    disabled={!pasteRows.length || pasteBusy}
+                  >
+                    {pasteBusy ? L('מוסיף...', 'Adding...') : L('הוספה לסגל', 'Add to roster')}
+                  </button>
+                </div>
+                {pasteRows.length > 0 && (
+                  <ul className="roster-paste-preview">
+                    {pasteRows.slice(0, 20).map((r, i) => (
+                      <li key={i}>
+                        {r.number && <b dir="ltr">{r.number}</b>} {r.name}
+                      </li>
+                    ))}
+                    {pasteRows.length > 20 && <li className="muted">{L(`ועוד ${pasteRows.length - 20}...`, `and ${pasteRows.length - 20} more...`)}</li>}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
           {players.length === 0 && loadFailed ? (
             /* חשוב להבדיל: סגל ריק זה מצב תקין, אבל טעינה שנכשלה נראתה עד עכשיו
