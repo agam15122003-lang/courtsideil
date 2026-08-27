@@ -1,6 +1,7 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User } from 'lucide-react'
+import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User, Copy, Share2, Trash2 } from 'lucide-react'
+import RowMenu from './RowMenu'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
 import { supabase } from './supabaseClient'
@@ -613,24 +614,41 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                       >
                         {L('פתח', 'Open')}
                       </button>
-                      <button className="btn-ghost" onClick={() => toggleShare(p)}>
-                        {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
-                      </button>
-                      <button className="btn-ghost" onClick={() => copyPlan(p)}>
-                        {L('העתק אליי', 'Copy to me')}
-                      </button>
-                      <button
-                        className="btn-ghost"
-                        onClick={() => waShare(L(
-                          `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${SITE_URL}`,
-                          `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${SITE_URL}`
-                        ))}
-                      >
-                        {L('וואטסאפ', 'WhatsApp')}
-                      </button>
-                      <button className="btn-ghost danger" onClick={() => deletePlan(p.id)}>
-                        {L('מחק', 'Delete')}
-                      </button>
+                      {/* פעולות משניות בתפריט אחד. «מחק» אחרון ובצבע סכנה,
+                          ולא צמוד עוד ל«וואטסאפ» ברוחב אגודל. */}
+                      <RowMenu
+                        label={L('עוד פעולות לתוכנית', 'More plan actions')}
+                        items={[
+                          {
+                            key: 'share',
+                            icon: <Globe2 size={15} aria-hidden="true" />,
+                            label: p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share'),
+                            onClick: () => toggleShare(p),
+                          },
+                          {
+                            key: 'copy',
+                            icon: <Copy size={15} aria-hidden="true" />,
+                            label: L('העתק אליי', 'Copy to me'),
+                            onClick: () => copyPlan(p),
+                          },
+                          {
+                            key: 'wa',
+                            icon: <Share2 size={15} aria-hidden="true" />,
+                            label: L('וואטסאפ', 'WhatsApp'),
+                            onClick: () => waShare(L(
+                              `🏀 תוכנית אימון מ-CourtSide: "${p.name}" (${(p.plan_items || []).length} תרגילים). בונים ומשתפים תוכניות חינם:\n${SITE_URL}`,
+                              `🏀 A practice plan from CourtSide: "${p.name}" (${(p.plan_items || []).length} drills). Build and share plans free:\n${SITE_URL}`
+                            )),
+                          },
+                          {
+                            key: 'del',
+                            icon: <Trash2 size={15} aria-hidden="true" />,
+                            label: L('מחק', 'Delete'),
+                            onClick: () => deletePlan(p.id),
+                            danger: true,
+                          },
+                        ]}
+                      />
                     </div>
                   </div>
                 )

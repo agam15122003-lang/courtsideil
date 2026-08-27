@@ -31087,3 +31087,56 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   color: var(--brand-text);
   font-variant-numeric: tabular-nums;
 }
+
+/* B1 — תפריט «⋯» לפעולות משניות של כרטיס. הכרטיס נשא חמישה כפתורים   */
+/* באותו משקל, כפול מספר הכרטיסים במסך, ו«מחק» ישב צמוד ל«וואטסאפ»     */
+/* ברוחב אגודל. עכשיו «פתח» הוא ה-CTA היחיד וכל השאר כאן.              */
+.row-menu { position: relative; display: inline-flex; }
+.row-menu-btn {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* יעד מגע מלא — 18px של אייקון אינם יעד מגע */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.row-menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  /* ⚠ inset-inline-END נועל ב-RTL את הקצה השמאלי של התפריט לקצה
+     השמאלי של הכפתור, והוא גדל ימינה — אל מחוץ למסך (נמדד: ‎419px
+     ברוחב ‎390). START נועל את הקצה הימני, והתפריט גדל פנימה לתוך
+     הכרטיס, שם תמיד יש מקום. */
+  inset-inline-start: 0;
+  max-width: min(240px, calc(100vw - 32px));
+  z-index: 40;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md, 0 10px 30px rgba(10, 20, 40, 0.16));
+}
+.row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 10px 11px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+.row-menu-item:hover,
+.row-menu-item:focus-visible { background: var(--surface-alt); }
+/* מחיקה נבדלת בצבע, ויושבת אחרונה — היא הפעולה ההפיכה היחידה שאינה */
+.row-menu-item.is-danger { color: var(--danger); }
+.row-menu-item.is-danger:hover,
+.row-menu-item.is-danger:focus-visible { background: var(--error-bg, rgba(176, 57, 47, 0.09)); }
