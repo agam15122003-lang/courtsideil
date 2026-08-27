@@ -1,7 +1,8 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User, Copy, Share2, Trash2 } from 'lucide-react'
+import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User, Copy, CopyPlus, Share2, Trash2 } from 'lucide-react'
 import RowMenu from './RowMenu'
+import Pick from './Pick'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
 import { supabase } from './supabaseClient'
@@ -87,6 +88,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [q, setQ] = useState('')             // אותו דבר אחרי השהיה, וזה מה שנשלח לשרת
   const qRef = useRef('')                    // הערך העדכני לתוך פונקציות הטעינה
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
+  const [seedOpen, setSeedOpen] = useState(false) // «התחל מתוכנית קיימת»
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id
   // באיזו «דרגה» המסד: 0 = מעודכן (המחברת המלאה), 1 = בלי עמודות המחברת
@@ -434,17 +436,54 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     <div className="welcome-card">
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
-      {/* דלת אחת לחדר: כותבים את האימון על דף המחברת. «בנה לי» (הבנאי
-          האוטומטי) הוסר לבקשת הבעלים, ואיתו ההשלמה האוטומטית שבעורך. */}
-      <div className="pn-doors single">
-        <button className="pn-door" onClick={() => setNotebookNew(true)}>
+      {/* שתי דלתות לחדר. «בנה לי» (הבנאי האוטומטי) הוסר לבקשת הבעלים.
+          הדלת השנייה נוספה כי כל תוכנית התחילה מדף ריק, והכתיבה החוזרת
+          היא רוב העבודה — copyPlan כבר ידע להעתיק הכול, הוא פשוט לא היה
+          נגיש משום מקום חוץ מכרטיס קיים. */}
+      <div className="pn-doors">
+        <button className="pn-door" onClick={() => { setSeedOpen(false); setNotebookNew(true) }}>
           <span className="pn-door-ic"><BookOpen size={22} /></span>
           <span className="pn-door-body">
             <strong>{L('תוכנית חדשה', 'New plan')}</strong>
             <span>{L('דף מחברת שלם — הקלדה או עט, מגרשים לשרטוט, ונוכחות בתחתית', 'A full notebook page — type or write by hand, sketch on courts, mark attendance at the bottom')}</span>
           </span>
         </button>
+        <button
+          className="pn-door"
+          onClick={() => setSeedOpen((v) => !v)}
+          aria-expanded={seedOpen}
+          disabled={!myPlans.length}
+        >
+          <span className="pn-door-ic"><CopyPlus size={22} /></span>
+          <span className="pn-door-body">
+            <strong>{L('התחל מתוכנית קיימת', 'Start from an existing plan')}</strong>
+            <span>
+              {myPlans.length
+                ? L('עותק של תוכנית שלך, פתוח לעריכה — בלי לכתוב הכול מחדש', 'A copy of one of your plans, open for editing — without rewriting it all')
+                : L('כשתהיה לך תוכנית ראשונה, אפשר יהיה להתחיל ממנה', 'Once you have a first plan, you can start from it')}
+            </span>
+          </span>
+        </button>
       </div>
+
+      {seedOpen && myPlans.length > 0 && (
+        <div className="pn-seed">
+          <Pick
+            label={L('מאיזו תוכנית להתחיל?', 'Which plan to start from?')}
+            value=""
+            onPick={(id) => {
+              const plan = myPlans.find((x) => String(x.id) === String(id))
+              setSeedOpen(false)
+              if (plan) copyPlan(plan)
+            }}
+            options={myPlans}
+            getKey={(o) => String(o.id)}
+            getLabel={(o) => o.name}
+            placeholder={L('— בחר תוכנית —', '— Choose a plan —')}
+          />
+          <p className="muted small">{L('ייווצר עותק חדש בשם «(עותק)», והמקור לא ישתנה.', 'A new copy named “(copy)” is created; the original is untouched.')}</p>
+        </div>
+      )}
 
       <div className="filter-bar">
         <input

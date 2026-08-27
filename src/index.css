@@ -31140,3 +31140,13 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .row-menu-item.is-danger { color: var(--danger); }
 .row-menu-item.is-danger:hover,
 .row-menu-item.is-danger:focus-visible { background: var(--error-bg, rgba(176, 57, 47, 0.09)); }
+
+/* A7 — בורר «התחל מתוכנית קיימת», נפתח מתחת לשתי הדלתות */
+.pn-seed {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+}
+.pn-seed .muted { margin: 8px 0 0; }
