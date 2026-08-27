@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { X, Search, Check, Link2 } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Link2 } from 'lucide-react'
 import { allLeagues, leaguesForAge, teamsInLeague, clubCore } from './iba'
+import Pick from './Pick'
 import { L, trTeam } from './i18n'
 import useFocusTrap from './useFocusTrap'
 
@@ -18,76 +19,6 @@ import useFocusTrap from './useFocusTrap'
 
 // בורר עם הקלדה. רשימת הליגות באיגוד היא מאות שורות — <select> רגיל שם
 // הוא חסר תועלת.
-function Pick({ label, value, onPick, options, getKey, getLabel, placeholder, empty, busy, disabled }) {
-  const [q, setQ] = useState('')
-  const [open, setOpen] = useState(false)
-  const boxRef = useRef(null)
-  const norm = (v) => String(v || '').replace(/[׳'"״]/g, '').toLowerCase().trim()
-  const shown = useMemo(() => {
-    const n = norm(q)
-    if (!n) return options
-    return options.filter((o) => norm(getLabel(o)).includes(n))
-  }, [options, q, getLabel])
-  const current = options.find((o) => getKey(o) === value)
-
-  useEffect(() => {
-    if (!open) return undefined
-    const onDoc = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [open])
-
-  return (
-    <div className="pf-label tfi-pick" ref={boxRef}>
-      <span className="field-label">{label}</span>
-      <button
-        type="button"
-        className={open ? 'finder-input tfi-control open' : 'finder-input tfi-control'}
-        onClick={() => { if (!disabled) setOpen((o) => !o) }}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className={current ? '' : 'muted'}>
-          {busy ? L('טוען…', 'Loading…') : current ? getLabel(current) : placeholder}
-        </span>
-      </button>
-      {open && !disabled && (
-        <div className="tfi-panel" role="listbox">
-          <div className="ms-search">
-            <Search size={15} aria-hidden="true" />
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={L('הקלד כדי לחפש...', 'Type to search...')}
-              aria-label={L('חיפוש', 'Search')}
-              autoFocus
-            />
-          </div>
-          {shown.length === 0 && <p className="ms-empty muted small">{empty || L('לא נמצא', 'No match')}</p>}
-          {shown.map((o) => {
-            const k = getKey(o)
-            return (
-              <button
-                key={k}
-                type="button"
-                role="option"
-                aria-selected={k === value}
-                className={k === value ? 'ms-option on' : 'ms-option'}
-                onClick={() => { onPick(k, o); setOpen(false); setQ('') }}
-              >
-                <span className="ms-check">{k === value && <Check size={14} />}</span>
-                {getLabel(o)}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // props:
 //   teamOptions - 18 מחרוזות «שכבה מגדר»
 //   club        - המועדון מהפרופיל, לקידום הקבוצה הנכונה בראש הרשימה

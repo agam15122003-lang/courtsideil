@@ -15,6 +15,7 @@ import {
   ClipboardCheck, CalendarClock,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import Pick from './Pick'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
@@ -425,30 +426,49 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
               <button className="icon-btn" onClick={() => setImp(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
 
-            <label className="pf-label">{L('שכבת גיל', 'Age category')}
-              <select className="finder-input" value={imp.age} onChange={(e) => setImp((s) => ({ ...s, age: e.target.value }))}>
-                {teams.map((tm) => <option key={tm} value={tm}>{trTeam(tm)}</option>)}
-              </select>
-            </label>
+            {/* הגוף הוא האזור שנגלל; הכותרת והכפתור נשארים במקומם */}
+            <div className="tm-modal-body">
+            <Pick
+              label={L('שכבת גיל', 'Age category')}
+              value={imp.age}
+              onPick={(v) => setImp((s) => ({ ...s, age: v }))}
+              options={teams}
+              getKey={(o) => o}
+              getLabel={(o) => trTeam(o)}
+              placeholder={L('— בחר שכבה —', '— Choose a category —')}
+            />
 
-            <label className="pf-label" style={{ marginTop: 10 }}>{L('אזור / ליגה ספציפית', 'Region / specific league')}
-              <select className="finder-input" value={imp.leagueId} onChange={(e) => pickLeague(e.target.value)} disabled={imp.busy && !leaguesAll.length}>
-                <option value="">{imp.busy && !leaguesAll.length ? L('טוען ליגות...', 'Loading leagues...') : L('— בחר ליגה —', '— Choose a league —')}</option>
-                {impLeagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-            </label>
+            {/* מאות ליגות — select רגיל כאן היה חסר תועלת. אותו בורר-עם-
+                הקלדה שכבר קיים בטופס הפרופיל (src/Pick.jsx). */}
+            <Pick
+              label={L('אזור / ליגה ספציפית', 'Region / specific league')}
+              value={imp.leagueId}
+              onPick={(v) => pickLeague(v)}
+              options={impLeagues}
+              getKey={(o) => String(o.id)}
+              getLabel={(o) => o.name}
+              placeholder={L('— בחר ליגה —', '— Choose a league —')}
+              empty={L('אין ליגה מתאימה — נסה «הצג את כל הליגות»', 'No matching league — try “show all leagues”')}
+              busy={imp.busy && !leaguesAll.length}
+              disabled={imp.busy && !leaguesAll.length}
+            />
             <label className="switch-row" style={{ marginTop: 6 }}>
               <span className="switch"><input type="checkbox" checked={imp.showAll} onChange={(e) => setImp((s) => ({ ...s, showAll: e.target.checked }))} /><span className="switch-track" /></span>
               <span className="switch-text">{L('הצג את כל הליגות (לא רק לפי הגיל)', 'Show all leagues (not only by age)')}</span>
             </label>
 
             {imp.leagueId && (
-              <label className="pf-label" style={{ marginTop: 10 }}>{L('הקבוצה שלך בליגה', 'Your team in the league')}
-                <select className="finder-input" value={imp.teamId} onChange={(e) => pickTeam(e.target.value)} disabled={imp.busy}>
-                  <option value="">{imp.busy ? L('טוען קבוצות...', 'Loading teams...') : L('— בחר את הקבוצה שלך —', '— Choose your team —')}</option>
-                  {imp.teams.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-                </select>
-              </label>
+              <Pick
+                label={L('הקבוצה שלך בליגה', 'Your team in the league')}
+                value={imp.teamId}
+                onPick={(v) => pickTeam(v)}
+                options={imp.teams}
+                getKey={(o) => String(o.id)}
+                getLabel={(o) => o.title}
+                placeholder={L('— בחר את הקבוצה שלך —', '— Choose your team —')}
+                busy={imp.busy}
+                disabled={imp.busy}
+              />
             )}
 
             {imp.busy && imp.step === 'games' && <p className="muted small" style={{ marginTop: 10 }}>{L('טוען משחקים מהאיגוד...', 'Loading games...')}</p>}
@@ -469,10 +489,14 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
               <p className="muted small" style={{ marginTop: 10 }}>{L('אין משחקים זמינים ב-API כרגע — אפשר עדיין לשמור את הליגה לטבלה.', 'No games available in the API — you can still save the league for the table.')}</p>
             )}
 
+            </div>
+
             {imp.leagueId && imp.teamId && (
-              <button className="btn-primary" style={{ marginTop: 12 }} onClick={importGames}>
-                <Save size={15} /> {imp.games?.length ? L(`ייבא ${imp.games.length} משחקים ושמור ליגה`, `Import ${imp.games.length} games & save league`) : L('שמור ליגה לטבלה', 'Save league for table')}
-              </button>
+              <div className="tm-modal-foot">
+                <button className="btn-primary" style={{ marginTop: 0 }} onClick={importGames}>
+                  <Save size={15} /> {imp.games?.length ? L(`ייבא ${imp.games.length} משחקים ושמור ליגה`, `Import ${imp.games.length} games & save league`) : L('שמור ליגה לטבלה', 'Save league for table')}
+                </button>
+              </div>
             )}
           </div>
         </div>

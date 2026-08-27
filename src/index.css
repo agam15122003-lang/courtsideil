@@ -30999,3 +30999,44 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 /* הציבורי, והכיווץ נבלע בכדור עד שהוא נעלם — «CurtSide» בלי כדור.     */
 /* אותו תיקון בדיוק כמו ב-index.css:5660 לכל שאר האייקונים ב-flex.      */
 .cs-logo { flex-shrink: 0; }
+
+/* ===== 27.8.2026 — סקירת האתר ===== */
+
+/* Pick — הבורר-עם-הקלדה. עד היום הוא חי רק ב-TeamFromIba ובלי כלל     */
+/* מרווח משלו, כי שם כל שדה נשא style={{marginTop:10}} מוטבע. עכשיו     */
+/* הוא משמש גם במודאל הייבוא של «משחקים וטבלה», והמרווח שייך לרכיב      */
+/* ולא לכל אתר קריאה בנפרד.                                            */
+.tfi-pick + .tfi-pick,
+.tfi-pick + .pf-label,
+.pf-label + .tfi-pick,
+.switch-row + .tfi-pick { margin-top: 10px; }
+
+/* D3 — המודאל היה ארוך מהמסך: שכבת גיל, ליגה, מתג, קבוצה, רשימת       */
+/* משחקים וכפתור, בלי שום תקרת גובה (index.css:5930 — אין max-height).  */
+/* בטלפון זו הייתה גלילה בתוך גלילה, וכפתור השמירה נשאר מחוץ למסך עד   */
+/* הסוף. עכשיו הגוף הוא האזור שנגלל, והכפתור מוצמד לתחתית ותמיד גלוי.  */
+.tm-modal {
+  max-height: min(88dvh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+.tm-modal-head { flex: 0 0 auto; }
+/* כל מה שאינו הכותרת ואינו סרגל הפעולות — גולל יחד */
+.tm-modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.tm-modal-foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
