@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && node tools/stamp-sw.mjs",
     "preview": "vite preview",
-    "check": "node scripts/check-imports.mjs",
+    "check": "node scripts/check-imports.mjs && node scripts/check-jsx-identifiers.mjs",
     "images": "node scripts/fetch-images.mjs",
     "verify": "npm run check && npm run build",
     "app:sync": "npm run verify && npx cap sync android",

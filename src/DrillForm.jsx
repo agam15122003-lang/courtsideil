@@ -509,7 +509,7 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
                       placeholder="10"
                       aria-label={L('משך בדקות', 'Duration in minutes')}
                     />
-                    <span className="nb-slot-unit">{L("דק'", 'min')}</span>
+                    <span className="nb-slot-unit">{L('דק׳', 'min')}</span>
                   </label>
                   <label className="nb-slot">
                     <Users size={14} aria-hidden="true" />

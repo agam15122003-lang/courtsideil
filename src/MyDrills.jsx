@@ -65,7 +65,7 @@ export default function MyDrills({ session, onNavigate }) {
               <span className="md-meta">
                 {d.category && <span className="md-cat">{tr(d.category)}</span>}
                 {d.duration_minutes && (
-                  <span><Clock size={12} /> {d.duration_minutes} {L("דק'", 'min')}</span>
+                  <span><Clock size={12} /> {d.duration_minutes} {L('דק׳', 'min')}</span>
                 )}
                 {avgOf(d) && (
                   <span className="md-rate"><Star size={12} /> {avgOf(d)}</span>

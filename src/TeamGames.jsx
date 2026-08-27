@@ -270,13 +270,13 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
 
       <div className="games-cta">
         <button className="btn-primary games-import-btn" style={{ marginTop: 0 }} onClick={openImport}>
-          <Download size={16} /> {L('ייבוא משחקים + טבלה מהאיגוד', 'Import games + table from the association')}
+          <Download size={16} /> {L('ייבוא מהאיגוד', 'Import from the association')}
         </button>
         <button className="manual-toggle" onClick={() => setManualOpen((v) => !v)}>
           <Plus size={14} /> {L('הוספה ידנית', 'Add manually')}
         </button>
       </div>
-      <p className="muted small games-hint">{L('מומלץ לייבא מהאיגוד. לא הסתדר? אפשר להוסיף משחק ידנית.', 'Import from the association is best. Didn’t work? Add a game manually.')}</p>
+      <p className="muted small games-hint">{L('הייבוא מביא את לוח המשחקים ואת טבלת הליגה. לא הסתדר? אפשר להוסיף משחק ידנית.', 'The import brings the fixture list and the league table. Didn’t work? Add a game manually.')}</p>
 
       {manualOpen && (
         <div className="game-add">

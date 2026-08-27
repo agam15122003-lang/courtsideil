@@ -1,6 +1,6 @@
 import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
-import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays } from 'lucide-react'
+import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User } from 'lucide-react'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
 import { supabase } from './supabaseClient'
@@ -22,12 +22,40 @@ const PLANS_PAGE = 24
 // הקטגוריה נדרשת לרצועת הזמן שבכרטיס (מסך 13a)
 const PLAN_ITEMS_COLS = 'plan_items(id, duration_minutes, drill:drills(category))'
 // 18.8 — המחברת המלאה: טיוטה, עודכן, קבוצה, תאריך ומשך על הכרטיס
-const PLAN_COLS = `id, name, created_by, created_at, is_public, is_draft, updated_at, team, session_date, duration_minutes, ${PLAN_ITEMS_COLS}`
+const PLAN_AUTHOR = 'author:profiles(first_name, last_name, club)'
+const PLAN_COLS = `id, name, created_by, created_at, is_public, is_draft, updated_at, team, session_date, duration_minutes, ${PLAN_AUTHOR}, ${PLAN_ITEMS_COLS}`
 // מסד שטרם הריץ את supabase_notebook_18_8.sql — בלי עמודות המחברת
-const PLAN_COLS_MID = `id, name, created_by, created_at, is_public, ${PLAN_ITEMS_COLS}`
+const PLAN_COLS_MID = `id, name, created_by, created_at, is_public, ${PLAN_AUTHOR}, ${PLAN_ITEMS_COLS}`
 // מסד שטרם הריץ את supabase_plans_community.sql — גם בלי עמודת is_public
 const PLAN_COLS_LEGACY = `id, name, created_by, created_at, ${PLAN_ITEMS_COLS}`
 const COLS_BY_TIER = [PLAN_COLS, PLAN_COLS_MID, PLAN_COLS_LEGACY]
+
+// שלושת מצבי בורר המקור. label היא פונקציה ולא מחרוזת, כי L() נקראת בזמן
+// הרינדור ולא בזמן טעינת המודול — אחרת החלפת שפה לא הייתה משנה אותן.
+// שם הכותב של תוכנית, כמו ב-DrillLibrary. מחזיר null כשאין פרופיל
+// מקושר, כדי שהכרטיס לא יציג שורה ריקה.
+const authorName = (p) => {
+  const a = p.author
+  if (!a) return null
+  const n = `${a.first_name || ''} ${a.last_name || ''}`.trim()
+  return n || null
+}
+
+// חיטוי מחרוזת חיפוש. % ו-_ הם תווי ג׳וקר של ilike, ושאר התווים מבלבלים
+// את הפרסר של PostgREST — מאמן שמקליד «3 על 2 (חצי מגרש)» היה מקבל 400.
+// זהה ל-safeSearch ב-DrillLibrary.jsx.
+const safeSearch = (s) =>
+  String(s || '')
+    .trim()
+    .replace(/[,()."'%_*\\:{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const SOURCES = [
+  { id: '', label: () => L('כל התוכניות', 'All plans') },
+  { id: 'mine', label: () => L('התוכניות שלי', 'My plans') },
+  { id: 'community', label: () => L('תוכניות מהקהילה', 'Community plans') },
+]
 
 // "עוד לא נפרס בפרודקשן" — עמודה/פונקציה/טבלה שחסרות במסד
 const notDeployed = (e) =>
@@ -54,6 +82,9 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [comError, setComError] = useState(null) // כשל בשליפת הקהילה בלבד — לא מפיל את המסך
   const [activePlanId, setActivePlanId] = useState(null)
   const [source, setSource] = useState(initialSource || '') // מקור התוכניות: '' הכול | 'mine' | 'community'
+  const [search, setSearch] = useState('')   // מה שהמאמן מקליד
+  const [q, setQ] = useState('')             // אותו דבר אחרי השהיה, וזה מה שנשלח לשרת
+  const qRef = useRef('')                    // הערך העדכני לתוך פונקציות הטעינה
   const [notebookNew, setNotebookNew] = useState(false) // יצירת תוכנית על מחברת
   const [viewingPlan, setViewingPlan] = useState(null) // תוכנית קהילה בתצוגת מחברת
   const me = session.user.id
@@ -134,12 +165,12 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     if (append) setLoadingMoreMine(true)
     else setLoading(true)
 
-    const page = (cols) => supabase
-      .from('training_plans')
-      .select(cols)
-      .eq('created_by', me)
-      .order('created_at', { ascending: false })
-      .range(from, from + size - 1)
+    const page = (cols) => {
+      let sel = supabase.from('training_plans').select(cols).eq('created_by', me)
+      // החיפוש בשרת ולא על העמוד שנטען — אחרת הוא לא מוצא תוכנית מלפני חודשיים
+      if (qRef.current) sel = sel.ilike('name', `%${qRef.current}%`)
+      return sel.order('created_at', { ascending: false }).range(from, from + size - 1)
+    }
 
     // מנסים מהדרגה הנוכחית ויורדים דרגה בכל «עמודה לא קיימת»
     let tier = tierRef.current
@@ -176,9 +207,10 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     // אותה ירידת דרגות כמו ב-loadMine (שתי הקריאות רצות במקביל במאונט, ולכן
     // כל אחת חייבת לגלות לבד איזו דרגה המסד). טיוטות לא מוצגות בקהילה.
     const pageCom = (tier) => {
-      let q = supabase.from('training_plans').select(COLS_BY_TIER[tier]).eq('is_public', true)
-      if (tier === 0) q = q.eq('is_draft', false)
-      return q.order('created_at', { ascending: false }).range(from, from + size - 1)
+      let sel = supabase.from('training_plans').select(COLS_BY_TIER[tier]).eq('is_public', true)
+      if (tier === 0) sel = sel.eq('is_draft', false)
+      if (qRef.current) sel = sel.ilike('name', `%${qRef.current}%`)
+      return sel.order('created_at', { ascending: false }).range(from, from + size - 1)
     }
     let tier = Math.min(tierRef.current, 1)
     let { data, error } = await pageCom(tier)
@@ -221,6 +253,26 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     loadMine()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // השהיה קצרה לפני שליחה לשרת — בלעדיה כל הקשה היא שאילתה.
+  useEffect(() => {
+    const t = setTimeout(() => setQ(safeSearch(search)), 250)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // חיפוש חדש מאפס את שתי הרשימות ומושך מהעמוד הראשון. הדילוג על
+  // ההרצה הראשונה מונע טעינה כפולה במאונט (האפקטים למעלה כבר טוענים).
+  const searchedRef = useRef(false)
+  useEffect(() => {
+    qRef.current = q
+    if (!searchedRef.current) { searchedRef.current = true; return }
+    setMinePlans([])
+    setComPlans([])
+    comLoadedRef.current = false
+    loadMine()
+    if (source !== 'mine' && tierRef.current !== 2) loadCom()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q])
 
   // רשימת הקהילה נשלפת רק כשהמקטע שלה באמת מוצג
   useEffect(() => {
@@ -393,18 +445,32 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
         </button>
       </div>
 
-      {/* בורר מקור — לראות את התוכניות שלי, את אלה שהקהילה שיתפה, או הכול */}
       <div className="filter-bar">
-        <select
-          className="finder-input filter-select"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          aria-label={L('סינון לפי מקור', 'Filter by source')}
-        >
-          <option value="">{L('כל התוכניות', 'All plans')}</option>
-          <option value="mine">{L('התוכניות שלי', 'My plans')}</option>
-          <option value="community">{L('תוכניות מהקהילה', 'Community plans')}</option>
-        </select>
+        <input
+          className="finder-input filter-search"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={L('חיפוש תוכנית לפי שם...', 'Search plans by name...')}
+          aria-label={L('חיפוש תוכניות', 'Search plans')}
+        />
+      </div>
+
+      {/* בורר מקור — שלושה צ׳יפים גלויים ולא select. «תוכניות מהקהילה» היא
+          הדרך שבה מאמן מגלה תוכניות של אחרים, ולכן היא חייבת להיות לחיצה
+          אחת ולא תפריט שצריך לדעת שהוא שם. אותו דפוס כמו במסך התרגילים. */}
+      <div className="filter-chips-row" role="group" aria-label={L('סינון לפי מקור', 'Filter by source')}>
+        {SOURCES.map((s) => (
+          <button
+            key={s.id || 'all'}
+            type="button"
+            className={source === s.id ? 'chip selected' : 'chip'}
+            onClick={() => setSource(s.id)}
+            aria-pressed={source === s.id}
+          >
+            {s.label()}
+          </button>
+        ))}
       </div>
 
       {loading && (
@@ -551,7 +617,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                         {p.is_public ? L('בטל שיתוף', 'Unshare') : L('שתף לקהילה', 'Share')}
                       </button>
                       <button className="btn-ghost" onClick={() => copyPlan(p)}>
-                        {L('שכפל', 'Duplicate')}
+                        {L('העתק אליי', 'Copy to me')}
                       </button>
                       <button
                         className="btn-ghost"
@@ -607,6 +673,15 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                     {mine && <span className="cat-badge">{L('שלך', 'Yours')}</span>}
                   </div>
                   <div className="plan-meta">
+                    {/* מי כתב, לאיזו שכבה ומתי — שלושת הנתונים שמאמן שוקל
+                        לפני שהוא פותח תוכנית של מישהו אחר. */}
+                    {!mine && authorName(p) && (
+                      <span className="meta-item">
+                        <User size={14} />
+                        {authorName(p)}{p.author?.club ? ` · ${p.author.club}` : ''}
+                      </span>
+                    )}
+                    {p.team && <span className="meta-item">{trTeam(p.team)}</span>}
                     <span className="meta-item">
                       <ListChecks size={14} />
                       <bdi>{items.length}</bdi> {items.length === 1 ? L('תרגיל', 'drill') : L('תרגילים', 'drills')}
@@ -614,7 +689,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                     {total > 0 && (
                       <span className="meta-item">
                         <Clock size={14} />
-                        <bdi>{total}</bdi> {L('דקות', 'min')}
+                        <bdi>{total}</bdi> {L('דק׳', 'min')}
                       </span>
                     )}
                   </div>

@@ -756,7 +756,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
                   placeholder="90"
                   aria-label={L('משך האימון בדקות', 'Practice duration in minutes')}
                 />
-                <span className="nb-slot-unit">{L("דק'", 'min')}</span>
+                <span className="nb-slot-unit">{L('דק׳', 'min')}</span>
               </label>
             </div>
 

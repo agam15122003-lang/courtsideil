@@ -139,7 +139,7 @@ export default function PlanSheet({ plan, attendance, items }) {
               <Clock size={14} aria-hidden="true" />
               <span className="nb-slot-k">{L('משך', 'Duration')}</span>
               <span className="nb-slot-in ro">
-                {plan.duration_minutes ? <><bdi>{plan.duration_minutes}</bdi> {L("דק'", 'min')}</> : '—'}
+                {plan.duration_minutes ? <><bdi>{plan.duration_minutes}</bdi> {L('דק׳', 'min')}</> : '—'}
               </span>
             </span>
           </div>
