@@ -17,6 +17,7 @@ import {
 import { supabase } from './supabaseClient'
 import Pick from './Pick'
 import { importIbaGames } from './ibaImport'
+import { planIbaChanges } from './ibaRules'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
@@ -74,6 +75,10 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
   const [leaguesAll, setLeaguesAll] = useState([])
   const loadTokenRef = useRef(0)
 
+  // הצעת עדכון מהאיגוד: null = אין מה להציע, אחרת { games, added, updated, removed }
+  const [syncHint, setSyncHint] = useState(null)
+  const [syncBusy, setSyncBusy] = useState(false)
+
   const load = useCallback(async () => {
     if (!team) { setLoading(false); return }
     const token = ++loadTokenRef.current
@@ -90,6 +95,48 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
     setLoading(false)
   }, [me, team])
   useEffect(() => { load() }, [load])
+
+  // בדיקה שקטה: אם הקבוצה מקושרת לאיגוד, משווים את הלוח שם למה ששמור
+  // אצלנו ומציעים לעדכן. שקטה בכוונה — כישלון רשת לא מציג כלום, כי זו
+  // בדיקת רקע שהמאמן לא ביקש. פעם בחצי שעה לכל קבוצה, כדי שמעבר בין
+  // מסכים לא ידפוק על האיגוד בכל לחיצה.
+  useEffect(() => {
+    if (loading || !iba?.league_id || !team) return undefined
+    let alive = true
+    const stamp = `iba-check:${me}:${team}`
+    const last = Number(sessionStorage.getItem(stamp) || 0)
+    if (Date.now() - last < 30 * 60 * 1000) return undefined
+    ;(async () => {
+      try {
+        const feed = await leagueGames(iba.league_id, iba.iba_team_id)
+        if (!alive || !feed?.length) return
+        const { inserts, updates, deletes } = planIbaChanges(games, feed)
+        sessionStorage.setItem(stamp, String(Date.now()))
+        if (!inserts.length && !updates.length && !deletes.length) return
+        setSyncHint({ games: feed, added: inserts.length, updated: updates.length, removed: deletes.length })
+      } catch (e) {
+        console.warn('iba background check:', e?.message)
+      }
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, iba?.league_id, iba?.iba_team_id, team])
+
+  const applySync = async () => {
+    if (!syncHint || syncBusy) return
+    setSyncBusy(true)
+    const res = await importIbaGames({
+      coachId: me, team,
+      games: syncHint.games,
+      leagueId: iba.league_id, leagueName: iba.league_name,
+      ibaTeamId: iba.iba_team_id, ibaTeamName: iba.iba_team_name,
+    })
+    setSyncBusy(false)
+    if (!res.ok) { toast.error(res.message); return }
+    setSyncHint(null)
+    toast.success(res.message)
+    load()
+  }
   useEffect(() => () => { loadTokenRef.current++ }, [])
 
   // Escape ומלכודת פוקוס — לשלושת המודאלים, כולל «תוצאה וסיכום»
@@ -214,6 +261,29 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
           <Trophy size={17} /> {L('משחקים וטבלה', 'Games & table')} · {trTeam(team)}
         </h1>
       </div>
+
+      {/* הלוח באיגוד השתנה. ההצעה עדינה ואפשר לסגור אותה — הייבוא לא
+          רץ מעצמו, כי הוא נוגע במשחקים של המאמן. */}
+      {syncHint && (
+        <div className="alert alert-info games-sync" role="status">
+          <span>
+            {L('הלוח באיגוד השתנה', 'The association schedule changed')}
+            {': '}
+            {[
+              // יחיד/רבים — «1 שינו מועד» נשמע שבור
+              syncHint.added && L(syncHint.added === 1 ? 'משחק חדש אחד' : `${syncHint.added} משחקים חדשים`, `${syncHint.added} new`),
+              syncHint.updated && L(syncHint.updated === 1 ? 'אחד שינה מועד' : `${syncHint.updated} שינו מועד`, `${syncHint.updated} rescheduled`),
+              syncHint.removed && L(syncHint.removed === 1 ? 'אחד ירד מהלוח' : `${syncHint.removed} ירדו מהלוח`, `${syncHint.removed} removed`),
+            ].filter(Boolean).join(' · ')}
+          </span>
+          <span className="games-sync-acts">
+            <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={applySync} disabled={syncBusy}>
+              {syncBusy ? L('מעדכן…', 'Updating…') : L('לעדכן', 'Update')}
+            </button>
+            <button type="button" className="link-button" onClick={() => setSyncHint(null)}>{L('לא עכשיו', 'Not now')}</button>
+          </span>
+        </div>
+      )}
 
       <div className="games-cta">
         <button className="btn-primary games-import-btn" style={{ marginTop: 0 }} onClick={openImport}>

@@ -31150,3 +31150,15 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   background: var(--surface-alt);
 }
 .pn-seed .muted { margin: 8px 0 0; }
+
+/* A4 — באנר «הלוח באיגוד השתנה». עדין ולא חוסם: הייבוא לא רץ מעצמו, */
+/* כי הוא נוגע במשחקים של המאמן.                                      */
+.games-sync {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.games-sync-acts { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
