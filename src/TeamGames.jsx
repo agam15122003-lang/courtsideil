@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Pick from './Pick'
+import { importIbaGames } from './ibaImport'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { confirmDialog } from './confirm'
@@ -185,73 +186,18 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
       toast.error(L('שגיאה בטעינת המשחקים', 'Error loading games')); setImp((s) => s && ({ ...s, games: [], busy: false }))
     }
   }
-  const saveIbaLink = async (extra = {}) => {
-    const row = { coach_id: me, team, league_id: String(imp.leagueId), league_name: imp.leagueName, iba_team_id: imp.teamId ? String(imp.teamId) : null, iba_team_name: imp.teamName || null, ...extra }
-    const { error } = await supabase.from('team_iba').upsert(row, { onConflict: 'coach_id,team' })
-    if (error) { console.error('games iba link:', error.message); toast.error(L('שמירת הליגה נכשלה — נסו שוב בעוד רגע.', 'Saving the league failed — try again in a moment.')); return false }
-    setIba(row)
-    return true
-  }
-  // מפתח התאמה בין משחק בלוח של האיגוד למשחק ששמור אצלנו
-  const gameKey = (dateStr, opponent) => `${dateStr}|${(opponent || '').trim()}`
-  const hhmm = (t) => (t ? String(t).slice(0, 5) : null)
+  // הלוגיקה עצמה ב-src/ibaImport.js, כדי שגם מודאל הקישור שבפרופיל
+  // יריץ בדיוק את אותו ייבוא לא-הרסני. כאן נשארת רק ההצגה.
   const importGames = async () => {
-    if (!imp.games?.length) {
-      if (await saveIbaLink()) { toast.success(L('הליגה נשמרה לטבלה', 'League saved for the table')); setImp(null) }
-      return
-    }
-    // ⚠ ייבוא חוזר היה מוחק את כל המשחקים ומכניס אותם מחדש — ואיתם נמחקו
-    //   התוצאות, הסיכומים, הנוכחות והסקירות של משחקים שכבר שוחקו.
-    //   עכשיו הייבוא לא הרסני: מתאימים לפי תאריך+יריבה, מעדכנים שעה ומיקום
-    //   בשורה הקיימת (שומרים את ה-id ואת התוצאה), ומוסיפים רק מה שחדש.
-    const { data: existing, error: exErr } = await supabase.from('team_games')
-      .select('*').eq('coach_id', me).eq('team', team)
-    if (exErr) {
-      console.error('games import read:', exErr.message)
-      toast.error(L('לא הצלחנו לקרוא את המשחקים הקיימים — הייבוא בוטל כדי לא לפגוע בהם.',
-                    'We could not read the existing games — the import was cancelled so nothing is harmed.'))
-      return
-    }
-    const byKey = new Map((existing || []).map((g) => [gameKey(g.game_date, g.opponent), g]))
-    const feedKeys = new Set()
-    let added = 0
-    let updated = 0
-    for (const g of imp.games) {
-      const key = gameKey(g.date, g.opponent)
-      feedKeys.add(key)
-      const cur = byKey.get(key)
-      if (cur) {
-        // רק שעה ומיקום — התוצאה והסיכום נשארים בדיוק כמו שהם
-        if (hhmm(cur.game_time) === hhmm(g.time) && (cur.location || null) === (g.location || null)) continue
-        const { error } = await supabase.from('team_games')
-          .update({ game_time: g.time || null, location: g.location || null }).eq('id', cur.id)
-        if (error) { console.error('games import update:', error.message); toast.error(L('עדכון אחד המשחקים נכשל — נסו שוב בעוד רגע.', 'Updating one of the games failed — try again in a moment.')); return }
-        updated++
-      } else {
-        const { error } = await supabase.from('team_games').insert({
-          coach_id: me, team, game_date: g.date, game_time: g.time || null,
-          opponent: g.opponent || null, location: g.location || null,
-        })
-        if (error) { console.error('games import insert:', error.message); toast.error(L('הייבוא נכשל — נסו שוב בעוד רגע.', 'Import failed — try again in a moment.')); return }
-        added++
-      }
-    }
-    // משחק שיובא בעבר ונעלם מהלוח של האיגוד (נדחה/בוטל) — נמחק רק אם הוא
-    // ריק: בלי תוצאה ובלי סיכום. משחק עם תוצאה נשאר תמיד.
-    // ⚠ הסינון על source='iba' משאיר משחקים שהוקלדו ידנית במקומם. במסד
-    //   שאין בו את העמודה הזו (אין מיגרציה שיוצרת אותה) הערך undefined —
-    //   ואז לא נמחק כלום, וזו ברירת המחדל הבטוחה.
-    const stale = (existing || []).filter((g) =>
-      g.source === 'iba' && !feedKeys.has(gameKey(g.game_date, g.opponent)) &&
-      g.our_score == null && g.their_score == null && !(g.summary || '').trim())
-    if (stale.length > 0) {
-      const { error } = await supabase.from('team_games').delete().in('id', stale.map((g) => g.id))
-      if (error) console.error('games import cleanup:', error.message)
-    }
-    await saveIbaLink()
-    toast.success(added || updated
-      ? L(`${added} משחקים חדשים · ${updated} עודכנו · הליגה נשמרה`, `${added} new games · ${updated} updated · league saved`)
-      : L('לוח המשחקים כבר מעודכן · הליגה נשמרה', 'The fixture list is already up to date · league saved'))
+    const res = await importIbaGames({
+      coachId: me, team,
+      games: imp.games,
+      leagueId: imp.leagueId, leagueName: imp.leagueName,
+      ibaTeamId: imp.teamId, ibaTeamName: imp.teamName,
+    })
+    if (!res.ok) { toast.error(res.message); return }
+    if (res.row) setIba(res.row)
+    toast.success(res.message)
     setImp(null); load()
   }
 

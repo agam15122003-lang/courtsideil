@@ -154,8 +154,8 @@ export default function TeamFromIba({ teamOptions, club, onClose, onPick }) {
           <Link2 size={15} aria-hidden="true" /> {L('הוספה וקישור', 'Add and link')}
         </button>
         <p className="muted small" style={{ marginTop: 8 }}>
-          {L('הקישור נשמר יחד עם הפרופיל. את המשחקים עצמם מייבאים אחר כך במסך «משחקים וטבלה».',
-             'The link is saved with your profile. The games themselves are imported later, on the Games & table screen.')}
+          {L('הקישור ולוח המשחקים נשמרים יחד עם הפרופיל — אין צורך לייבא שוב במסך אחר.',
+             'The link and the fixture list are saved together with your profile — no need to import again elsewhere.')}
         </p>
       </div>
     </div>

@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { toast } from './toast'
 import { supabase } from './supabaseClient'
+import { leagueGames } from './iba'
+import { importIbaGames } from './ibaImport'
 import { uploadImage } from './storage'
 import Avatar from './Avatar'
 import MultiSelect from './MultiSelect'
@@ -304,7 +306,29 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
         toast.error(L('הקבוצה נשמרה, אבל הקישור לליגה לא — אפשר לקשר במסך «משחקים וטבלה».',
                       'The team was saved, but the league link was not — you can link it on the Games & table screen.'))
       } else {
+        // הקישור נשמר — עכשיו מושכים גם את לוח המשחקים, כדי שזו תהיה
+        // משימה אחת ולא שתיים בשני מסכים. best-effort בלבד: כישלון כאן
+        // לא הופך שמירת פרופיל שהצליחה לכישלון.
+        const linked = ibaLinks
         setIbaLinks([])
+        for (const k of linked) {
+          try {
+            const games = await leagueGames(k.league_id, k.iba_team_id)
+            const res = await importIbaGames({
+              coachId: session.user.id,
+              team: k.team,
+              games,
+              leagueId: k.league_id,
+              leagueName: k.league_name,
+              ibaTeamId: k.iba_team_id,
+              ibaTeamName: k.iba_team_name,
+            })
+            if (res.ok && (res.added || res.updated)) toast.success(`${trTeam(k.team)} · ${res.message}`)
+          } catch (e) {
+            console.warn('iba games after profile save:', e?.message)
+            toast.error(L(`הקבוצה קושרה, אבל לוח המשחקים לא נמשך — אפשר לייבא במסך «משחקים וטבלה».`, 'The team was linked, but the fixture list was not fetched — you can import it on the Games & table screen.'))
+          }
+        }
       }
     }
 
