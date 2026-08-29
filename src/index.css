@@ -31301,3 +31301,14 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .nbk-lineups-add .btn-ghost { margin-top: 0; }
 /* מסך האימון: לא נדחסים לעמודת המחברת */
 .plan-run .nbk-lineups { max-width: 720px; }
+
+/* טיוטת הצלה מקריסה (29.8) — באנר בראש המחברת */
+.nbk-crash {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.nbk-crash-acts { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }

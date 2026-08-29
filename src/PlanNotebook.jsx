@@ -172,6 +172,64 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
   const serialized = baseSer + inkSer + attSer
   const dirty = snapshot.current !== '' && serialized !== snapshot.current
 
+  // ---------- הצלה אוטומטית מקריסה (29.8) ----------
+  // המחברת שומרת טיוטה מקומית כל כמה שניות כשיש שינויים. אם האייפד נתקע,
+  // הדפדפן קרס או הסוללה נגמרה באמצע כתיבה — הכניסה הבאה מציעה לשחזר.
+  // הנוכחות לא נכללת בכוונה: היא נשמרת בטבלה משלה, ושחזור ישן שלה היה
+  // דורס סימונים חדשים. הטקסט, הדיו והמגרשים הם העבודה שאין לה תחליף.
+  const crashKey = `nbk-draft:${me}:${savedId || 'new'}`
+  const [crashDraft, setCrashDraft] = useState(null) // הטיוטה שנמצאה בכניסה
+  useEffect(() => {
+    if (loading || !dirty) return undefined
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(crashKey, JSON.stringify({
+          at: Date.now(), name, team, date, duration, body, ink,
+          courts: courts.map((c) => ({ id: c.id, board: c.board })), isDraft,
+        }))
+      } catch { /* אחסון מלא/חסום — ההצלה מושבתת בשקט, השמירה הרגילה עובדת */ }
+    }, 2500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serialized, loading, dirty, crashKey])
+
+  // בכניסה: יש טיוטת קריסה ששונה ממה שנטען? מציעים לשחזר.
+  useEffect(() => {
+    if (loading) return
+    try {
+      const raw = localStorage.getItem(crashKey)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      const its = JSON.stringify({ name: d.name, team: d.team, date: d.date, duration: d.duration, body: d.body, linked: linked.map((l) => l.drill_id), isDraft: d.isDraft })
+      if (its + JSON.stringify({ ink: d.ink, courts: d.courts }) === baseSer + inkSer) {
+        localStorage.removeItem(crashKey) // זהה למה שנטען — אין מה לשחזר
+        return
+      }
+      setCrashDraft(d)
+    } catch { /* טיוטה פגומה — מתעלמים */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  const restoreCrash = () => {
+    const d = crashDraft
+    if (!d) return
+    setName(d.name || '')
+    setTeam(d.team || '')
+    setDate(d.date || todayISO())
+    setDuration(d.duration != null ? String(d.duration) : '')
+    setBody(d.body || '')
+    setInk(Array.isArray(d.ink) ? d.ink : [])
+    if (Array.isArray(d.courts) && d.courts.length) {
+      setCourts(d.courts.map((c) => ({ id: c.id || newId(), board: c.board && c.board.steps ? c.board : emptyBoard() })))
+    }
+    setCrashDraft(null)
+    toast.success(L('הטיוטה שוחזרה — אל תשכחו לשמור', 'Draft restored — remember to save'))
+  }
+  const discardCrash = () => {
+    try { localStorage.removeItem(crashKey) } catch { /* לא קריטי */ }
+    setCrashDraft(null)
+  }
+
   // ---------- טעינה ----------
   useEffect(() => {
     let alive = true
@@ -560,6 +618,12 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
     if (usedLegacy) {
       toast.error(L('נשמר השם בלבד! הטקסט, כתב היד והמגרשים לא נשמרו — צריך להריץ במסד את supabase_notebook_18_8.sql.', 'Only the name was saved! The text, handwriting and courts were not — run supabase_notebook_18_8.sql on the database.'))
     } else {
+      // נשמר במסד — טיוטת ההצלה המקומית סיימה את תפקידה. מוחקים גם את
+      // מפתח ה«תוכנית חדשה»: אחרי השמירה הראשונה המפתח עובר ל-id.
+      try {
+        localStorage.removeItem(`nbk-draft:${me}:${id}`)
+        localStorage.removeItem(`nbk-draft:${me}:new`)
+      } catch { /* לא קריטי */ }
       toast.success(draft ? L('הטיוטה נשמרה', 'Draft saved') : L('התוכנית נשמרה', 'Plan saved'))
     }
     onSaved?.(id)
@@ -574,6 +638,9 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
         danger: true,
       })
       if (!ok) return
+      // המאמן בחר במפורש לזרוק — גם טיוטת ההצלה נזרקת, אחרת הכניסה
+      // הבאה הייתה מציעה לשחזר בדיוק את מה שהוא זרק.
+      try { localStorage.removeItem(crashKey) } catch { /* לא קריטי */ }
     }
     onCancel?.()
   }
@@ -633,6 +700,22 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       <button className="link-button" onClick={cancel}>
         <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
+
+      {/* טיוטת הצלה מקריסה — מוצעת, לא נכפית */}
+      {crashDraft && (
+        <div className="alert alert-info nbk-crash" role="status">
+          <span>
+            {L('נמצאה טיוטה שלא נשמרה', 'An unsaved draft was found')}
+            {crashDraft.at ? ` (${new Date(crashDraft.at).toLocaleTimeString(L('he-IL', 'en-US'), { hour: '2-digit', minute: '2-digit' })})` : ''}
+            {' — '}
+            {L('כנראה מהפעם שהמסך נסגר באמצע.', 'probably from when the screen closed mid-write.')}
+          </span>
+          <span className="nbk-crash-acts">
+            <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={restoreCrash}>{L('שחזור', 'Restore')}</button>
+            <button type="button" className="link-button" onClick={discardCrash}>{L('לא צריך', 'Discard')}</button>
+          </span>
+        </div>
+      )}
 
       <div className="drillform-head nbk-head" style={{ marginTop: 6 }}>
         <div>
