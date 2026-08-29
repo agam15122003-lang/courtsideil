@@ -49,7 +49,14 @@ const inCapacitor = typeof window !== 'undefined' && !!window.Capacitor
 // ייבוא דינמי ולא סטטי: כך התוסף אינו נכנס ל-bundle של הדפדפן, שבו הוא
 // לעולם לא ירוץ.
 let prefsPromise = null
-const prefs = () => (prefsPromise ||= import('@capacitor/preferences').then((m) => m.Preferences))
+// ⚠ עוטפים באובייקט רגיל ולא מחזירים את ה-proxy של התוסף עצמו: ל-proxy
+// של Capacitor יש מלכודת על כל שם מתודה — כולל 'then' — ולכן resolve שלו
+// כ-thenable גורם ל-unhandledrejection («Preferences.then() is not
+// implemented») בכל עלייה. עטיפה רגילה אין לה 'then' ואין התפוצצות.
+const prefs = () => (prefsPromise ||= import('@capacitor/preferences').then((m) => {
+  const P = m.Preferences
+  return { get: (o) => P.get(o), set: (o) => P.set(o), remove: (o) => P.remove(o) }
+}))
 
 // ⚠ הלקח מהבנייה הראשונה (4.8.2026): הגרסה הראשונה כאן עטפה את הקריאות
 // ב-try/catch בלבד, והאפליקציה נתקעה על מסך טעינה לנצח.

@@ -51,6 +51,40 @@
     </script>
   </head>
   <body>
+    <!-- כתב שגיאות עלייה — ES5 בכוונה, כדי שירוץ גם ב-WebView עתיק שנכשל
+         על הקוד הראשי. מסך לבן באפליקציה הופך להודעה שאפשר לצלם ולשלוח.
+         מציג רק אם השורש עוד ריק (כלומר האפליקציה באמת לא עלתה) — שגיאה
+         לא-קריטית אחרי שהמסך כבר חי לא מקפיצה כלום. -->
+    <script>
+      (function () {
+        var shown = false
+        function bootFail(msg) {
+          try {
+            var root = document.getElementById('root')
+            if (shown || (root && root.children.length > 0)) return
+            shown = true
+            var d = document.createElement('div')
+            d.setAttribute('dir', 'rtl')
+            d.style.cssText = 'position:fixed;top:0;right:0;left:0;background:#B0392F;color:#fff;padding:14px 16px;font:14px/1.6 sans-serif;z-index:99999;word-break:break-word'
+            d.textContent = 'CourtSide לא הצליחה לעלות. צלמו את המסך הזה ושלחו למאמן אגם. פרטים: ' + msg
+            document.body.appendChild(d)
+          } catch (e) { /* אין מה לעשות */ }
+        }
+        window.addEventListener('error', function (e) {
+          bootFail((e && e.message ? e.message : 'שגיאה לא מזוהה') + (e && e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''))
+        })
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason
+          bootFail(r && r.message ? r.message : String(r))
+        })
+        // WebView עתיק שלא מריץ מודולים בכלל: שום שגיאה לא נזרקת — פשוט
+        // כלום לא קורה. אחרי 6 שניות עם שורש ריק, זו התשובה.
+        setTimeout(function () {
+          var root = document.getElementById('root')
+          if (root && root.children.length === 0) bootFail('הדפדפן המובנה במכשיר ישן מדי (לא טוען מודולים). עדכנו את Android System WebView בחנות Play.')
+        }, 6000)
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

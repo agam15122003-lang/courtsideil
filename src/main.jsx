@@ -32,8 +32,10 @@ import './index.css'
 
 applyDir() // קובע lang/dir על <html> לפי השפה השמורה
 
-// אנליטיקס (Vercel) — סקריפט same-origin, עומד ב-CSP; פועל רק בפרודקשן
-if (import.meta.env.PROD) inject()
+// אנליטיקס (Vercel) — סקריפט same-origin, עומד ב-CSP; פועל רק בפרודקשן,
+// ולא בתוך האפליקציה: שם אין שרת ורסל, והבקשה רק נכשלת ומרעישה בעלייה.
+const inCapApp = typeof window !== 'undefined' && !!window.Capacitor
+if (import.meta.env.PROD && !inCapApp) inject()
 
 // Service worker — התקנה כאפליקציה וטעינה מהירה (פרודקשן בלבד, ובדפדפן בלבד).
 // בתוך Capacitor לא רושמים SW: ב-iOS הסכמה capacitor:// לא תומכת ב-Service
