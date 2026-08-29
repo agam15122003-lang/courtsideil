@@ -31267,3 +31267,37 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   .layout:has(.nbk-focus) .quote-strip,
   .layout:has(.drillform-head) .quote-strip { display: none; }
 }
+
+/* הרכבים מוכנים לאימון (29.8) — מקטע אחרי הנוכחות, במחברת ובמסך האימון */
+.nbk-lineups {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.nbk-lineups-private { display: inline-flex; align-items: center; gap: 4px; }
+.nbk-lineups-copy { margin: 6px 0 4px; }
+.nbk-lineups-groups { display: grid; gap: 10px; margin-top: 8px; }
+.nbk-lineup {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 10px 12px;
+}
+.nbk-lineup-h { display: flex; align-items: center; gap: 8px; }
+.nbk-lineup-h b { font-size: 14px; }
+.nbk-lineup-del { margin-inline-start: auto; }
+.nbk-lineup-chips { margin-top: 8px; align-items: center; }
+.nbk-lineup-add {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.nbk-lineups-add { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.nbk-lineups-add .btn-ghost { margin-top: 0; }
+/* מסך האימון: לא נדחסים לעמודת המחברת */
+.plan-run .nbk-lineups { max-width: 720px; }

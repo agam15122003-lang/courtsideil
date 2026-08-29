@@ -8,6 +8,7 @@ import PlanSheet from './PlanSheet'
 import { notDeployed } from './PlanNotebook'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
+import LineupsSection from './LineupsSection'
 
 // «פתח כתוכנית» — מסך האימון. 29.8.2026, לבקשת הבעלים:
 // אחרי שהתוכנית נשמרה, פותחים אותה כדף נקי (בלי עורך ובלי סרגל — מצב
@@ -275,6 +276,9 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
           </>
         )}
       </section>
+
+      {/* ---- הרכבים מוכנים — פרטיים למאמן ---- */}
+      <LineupsSection session={session} planId={planId} team={team} roster={roster} />
     </div>
   )
 }

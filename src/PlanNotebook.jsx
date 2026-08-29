@@ -17,6 +17,7 @@ import MiniCourt, { emptyBoard } from './MiniCourt'
 import PlanSheet, { legacyItemsToBody } from './PlanSheet'
 import TacticsBoard from './TacticsBoard'
 import SendToPlayers from './SendToPlayers.jsx'
+import LineupsSection from './LineupsSection'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 
@@ -913,6 +914,9 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
                 </ul>
               )}
             </section>
+
+            {/* ---- הרכבים מוכנים — פרטיים למאמן, אחרי שהתוכנית נשמרה ---- */}
+            {savedId && <LineupsSection session={session} planId={savedId} team={team} roster={roster} />}
           </div>
 
           {/* ---- עמודת המגרשים — צד שמאל ---- */}
