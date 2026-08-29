@@ -5,6 +5,7 @@ import RowMenu from './RowMenu'
 import PlanRun from './PlanRun'
 import { cacheGet, cachePut, isNetErr } from './offline'
 import Pick from './Pick'
+import { prefetchPlans } from './planPrefetch'
 import useFocusMode from './useFocusMode'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
@@ -212,6 +213,9 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
       setHasMoreMine(rows.length === size)
       setError(null)
       if (!append && !qRef.current) cachePut(`plans:mine:${me}`, rows)
+      // תוכן התוכניות יורד ברקע — תוכנית שנכתבה במחשב נפתחת בטאבלט
+      // גם בלי רשת, לא רק תוכנית שכבר נפתחה שם פעם
+      prefetchPlans(rows)
     }
     setLoading(false)
     setLoadingMoreMine(false)

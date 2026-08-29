@@ -99,7 +99,8 @@ const PLAN_ITEM_COLS_BARE = 'plan_items(id, drill_id, position, duration_minutes
 const PLAN_SELECT = `id, name, created_by, created_at, is_public, body, ink, courts, team, session_date, duration_minutes, is_draft, updated_at, ${PLAN_ITEM_COLS}`
 const PLAN_SELECT_MID = `id, name, created_by, created_at, is_public, ${PLAN_ITEM_COLS}`
 const PLAN_SELECT_BARE = `id, name, created_by, created_at, ${PLAN_ITEM_COLS_BARE}`
-const PLAN_SELECTS = [PLAN_SELECT, PLAN_SELECT_MID, PLAN_SELECT_BARE]
+// מיוצא ל-planPrefetch — ההורדה-מראש מושכת בדיוק את מה שהמחברת קוראת
+export const PLAN_SELECTS = [PLAN_SELECT, PLAN_SELECT_MID, PLAN_SELECT_BARE]
 
 export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpenRun }) {
   useFocusMode()

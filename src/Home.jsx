@@ -10,6 +10,7 @@ import {
   COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
 import { cachedRead } from './offline'
+import { prefetchPlans } from './planPrefetch'
 import { signedThumbUrls } from './storage'
 import { L } from './i18n'
 import { PLAYER_SIDE } from './flags'
@@ -78,6 +79,12 @@ function useHomeSchedule(userId) {
         slotsError: slots.error || null,
         fromCache: !!(entries.fromCache || slots.fromCache),
       })
+      // תוכניות שמוצמדות לאימונים — התוכן יורד ברקע כבר מדף הבית, כדי
+      // ש«התוכנית של האימון» תיפתח באולם גם אם לא ביקרו קודם ברשימה
+      if (!entries.fromCache) {
+        const ids = [...new Set((entries.data || []).map((e) => e.plan_id || e.plan?.id).filter(Boolean))]
+        if (ids.length) prefetchPlans(ids.map((id) => ({ id })))
+      }
     })()
     return () => { alive = false }
   }, [userId])
