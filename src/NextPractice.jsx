@@ -99,12 +99,16 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       if (last && me) {
         // צד המאמן בלבד (22.8): המכנה הוא כל הסגל, והמונה — מה שהמאמן רשם
         const rosterQ = supabase.from('team_players').select('id').eq('coach_id', me).eq('team', last.team)
-        const [{ data: eff }, { data: roster }] = await Promise.all([
+        const [effRes, rosterRes] = await Promise.all([
           // select('*'): העמודה source (22.8) עשויה עוד לא להתקיים — כוכבית לא נופלת עליה
           supabase.from('session_effort').select('*').eq('coach_id', me).eq('session_id', last.id),
           PLAYER_SIDE ? rosterQ.not('player_id', 'is', null) : rosterQ,
         ])
         if (!alive) return
+        // שליפה שנכשלה (למשל בלי רשת) — לא מציגים רצועה חלולה שכל
+        // המספרים בה אפס ו«פתח» שלה מוביל למסך שגיאה. אין נתונים = אין רצועה.
+        if (effRes.error || rosterRes.error) { setLoading(false); return }
+        const eff = effRes.data, roster = rosterRes.data
         // עם צד שחקן פתוח סופרים רק דירוג עצמי — שורות שהמאמן רשם כשהמתג היה כבוי אינן «מילאו סיכום»
         const vals = (eff || []).filter((r) => !PLAYER_SIDE || r.source !== 'coach').map((r) => r.effort)
         setRecent({

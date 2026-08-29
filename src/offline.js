@@ -52,7 +52,11 @@ const tx = async (store, mode, fn) => {
 export const isNetErr = (e) => {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true
   const m = String(e?.message || e || '')
-  return /failed to fetch|networkerror|network request failed|load failed|fetch failed|err_internet|timeout/i.test(m)
+  // 'timeout' בדיוק — הזקיף של מרוצי ה-Promise.race שלנו (8 שניות מול
+  // תקיעה). «canceling statement due to statement timeout» של פוסטגרס הוא
+  // כשל שרת, לא רשת — מאמן מחובר קיבל ממנו באנר «אין אינטרנט» כוזב.
+  if (m === 'timeout') return true
+  return /failed to fetch|networkerror|network request failed|load failed|fetch failed|err_internet/i.test(m)
 }
 
 // «עוד לא נפרס בפרודקשן» — עותק מקומי של הבדיקה מ-PlanNotebook. לא מייבאים

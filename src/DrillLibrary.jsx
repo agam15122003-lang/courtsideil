@@ -223,14 +223,20 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
     // מסד שטרם הריץ את supabase_launch_migration.sql — חסרות עמודות
     if (error && notDeployed(error)) ({ data, error } = await page(DRILL_COLS_LEGACY, false))
 
-    // מטמון אופליין — רק לתצוגת ברירת המחדל (בלי חיפוש ובלי פילטרים):
-    // העותק השמור הוא של הרשימה המלאה, לא של תוצאה מסוננת.
+    // מטמון אופליין. נשמר רק מתצוגת ברירת המחדל (העותק הוא הרשימה המלאה,
+    // לא תוצאה מסוננת), עם המאמן במפתח — עותק של חשבון אחד לא מוגש לאחר
+    // במכשיר משותף. נופלים אליו בכל כשל רשת, כולל עם חיפוש או פילטר
+    // (29.8): רשת הביטחון בלקוח (filtered שלמטה) מסננת את העותק לפי מה
+    // שפעיל עכשיו. אבל לא ברענון שקט (אחרי דירוג/שמירה/מחיקה) — החוזה
+    // שלו הוא שכשל חולף לא נוגע ברשימה שעל המסך, והחלפה בעותק השמור
+    // הייתה מעלימה את הכרטיס שהמאמן בדיוק דירג.
     const cacheable = !append && !q && !catFilter && !ageFilter.length && !tagFilter && !onlySaved && source !== 'mine' && source !== 'community'
-    if (error && isNetErr(error) && cacheable) {
-      const c = await cacheGet('drills:list')
-      if (c?.data) { data = c.data; error = null; setOfflineList(true) }
+    let offlineFallback = false
+    if (error && isNetErr(error) && !append && !opts.silent) {
+      const c = await cacheGet(`drills:list:${uid}`)
+      if (c?.data) { data = c.data; error = null; offlineFallback = true }
     } else if (!error && cacheable) {
-      cachePut('drills:list', data || [])
+      cachePut(`drills:list:${uid}`, data || [])
     }
 
     // תגובה של חיפוש קודם שהגיעה מאוחר — אסור לה לדרוס תוצאה עדכנית.
@@ -243,7 +249,11 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
       } else {
         const rows = data || []
         setDrills((cur) => (append ? [...cur, ...rows] : rows))
-        setHasMore(rows.length === size)
+        // מהעותק השמור אין «טען עוד» — הוא היה נכשל מיד; רשת חיה מנקה
+        // את חיווי האופליין. הקביעה כאן, אחרי בדיקת ה-stale — תגובה
+        // מאוחרת של חיפוש ישן לא מדליקה את הבאנר מעל תוצאות חיות.
+        setHasMore(offlineFallback ? false : rows.length === size)
+        setOfflineList(offlineFallback)
         setError(null) // רענון מוצלח מנקה שגיאה קודמת שנתקעה
       }
     }
@@ -557,7 +567,9 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
                 להביא. כשיש עוד עמוד — הניסוח מדויק: לא נמצא *במה שנטען*,
                 ופעולת ההמשך היא «טען עוד» ולא «נקה סינון». */}
             <div className="empty-title">
-              {hasMore
+              {offlineList
+                ? L('לא נמצא בין התרגילים השמורים במכשיר', 'Not found among the drills saved on this device')
+                : hasMore
                 ? L('לא נמצאו תוצאות בין התרגילים שנטענו', 'No matches among the drills loaded so far')
                 : onlySaved
                 ? L('עדיין לא שמרת תרגילים', "You haven't saved any drills yet")
@@ -570,7 +582,9 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
                 : L('אין תוצאות לסינון', 'No results for this filter')}
             </div>
             <p className="muted small">
-              {hasMore
+              {offlineList
+                ? L('בלי רשת רואים רק את מה שנשמר במכשיר — ייתכן שיש עוד בספרייה. כשהרשת תחזור הכול יופיע.', 'Without a connection only the drills saved on this device are shown — there may be more in the library. Everything appears once the network is back.')
+                : hasMore
                 ? L(`נבדקו ${drills.length} תרגילים — יש עוד בספרייה. «טען עוד תרגילים» ימשיך לחפש.`, `${drills.length} drills checked — there are more in the library. “Load more” keeps searching.`)
                 : onlySaved
                 ? L('לחצו על אייקון הסימנייה בכרטיס תרגיל כדי לשמור אותו לכאן.', 'Tap the bookmark icon on a drill card to keep it here.')

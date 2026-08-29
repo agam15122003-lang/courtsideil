@@ -9,6 +9,7 @@ import {
   NEWS_FALLBACK_IMAGES,
   COACHING_QUOTES, safeUrl } from './constants'
 import { supabase } from './supabaseClient'
+import { cachedRead } from './offline'
 import { signedThumbUrls } from './storage'
 import { L } from './i18n'
 import { PLAYER_SIDE } from './flags'
@@ -47,16 +48,25 @@ function useHomeSchedule(userId) {
     ;(async () => {
       const from = new Date(Date.now() - HOME_PAST_DAYS * 86400000)
       const until = new Date(Date.now() + HOME_FUTURE_DAYS * 86400000)
+      // עטוף במטמון (29.8): בלי רשת «האימון הבא» הציג «אין אימון קרוב» —
+      // ריק כוזב, דווקא באולם. המפתח כולל את המאמן כדי שמכשיר משותף לא
+      // יציג לו"ז של חשבון אחר. חלון התאריכים של העותק ישן ביום לכל
+      // היותר — הוא עדיין מכסה את האימונים הקרובים, והסינון בהמשך ממילא
+      // עובד לפי תאריך.
       const [entries, slots] = await Promise.all([
         // schedule_entries מסונן ב-RLS ולכן אין כאן eq על המאמן (כפי שהיה)
-        supabase.from('schedule_entries')
+        userId ? cachedRead(`home-entries:${userId}`, () => supabase.from('schedule_entries')
           .select('*, plan:training_plans(id, name)')
           .gte('date', ymdLocal(from)).lte('date', ymdLocal(until))
-          .order('date').order('start_time'),
+          .order('date').order('start_time'))
+          : supabase.from('schedule_entries')
+            .select('*, plan:training_plans(id, name)')
+            .gte('date', ymdLocal(from)).lte('date', ymdLocal(until))
+            .order('date').order('start_time'),
         // אימונים מלוח קבוע אינם שורות ב-schedule_entries. בלעדיהם מאמן
         // שעובד בימים קבועים ראה "0 אימונים השבוע" בזמן שהלו"ז מלא.
         userId
-          ? supabase.from('team_practice_slots').select('*').eq('coach_id', userId)
+          ? cachedRead(`home-slots:${userId}`, () => supabase.from('team_practice_slots').select('*').eq('coach_id', userId))
           : Promise.resolve({ data: [], error: null }),
       ])
       if (!alive) return
@@ -66,6 +76,7 @@ function useHomeSchedule(userId) {
         slots: slots.error ? [] : (slots.data || []),
         entriesError: entries.error || null,
         slotsError: slots.error || null,
+        fromCache: !!(entries.fromCache || slots.fromCache),
       })
     })()
     return () => { alive = false }
@@ -340,6 +351,11 @@ export default function Home({ session, profile, onNavigate, onStartTour }) {
           <span className="nh-hero-bell"><Notifications session={session} onNavigate={onNavigate} /></span>
         </div>
 
+        {/* באולם עם WiFi «מחובר» בלי אינטרנט פס האופליין הראשי לא מופיע
+            (navigator.onLine נשאר true) — השורה הזו אומרת בכל זאת את האמת */}
+        {sched.fromCache && (
+          <p className="nh-cache-note">{L('הלו״ז מוצג מהעותק השמור במכשיר', 'Schedule shown from the copy saved on this device')}</p>
+        )}
         <p className="nh-quote" key={beat}>
           <span className="nh-quote-mark" aria-hidden="true">״</span>
           <span className="nh-quote-tx">

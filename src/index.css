@@ -31485,3 +31485,11 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   .offline-bar svg { margin-left: 8px; }
   .offline-pend { margin-right: 8px; padding: 1px 8px; }
 }
+
+/* שורת «עותק שמור» בבאנר הבית — כשהלו״ז מגיע מהמטמון בלי רשת */
+.nh-cache-note {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.78);
+}
