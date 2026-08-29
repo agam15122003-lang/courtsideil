@@ -800,7 +800,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
 // (בלי גוף) מוצגת מהפריטים שלה.
 function PlanViewer({ plan, onBack, onCopy }) {
   return (
-    <div className="welcome-card">
+    <div className="welcome-card nbk-focus">
       <button className="link-button" onClick={onBack}>
         <ArrowBack size={15} className="back-ic" /> {L('חזרה לתוכניות', 'Back to plans')}
       </button>
