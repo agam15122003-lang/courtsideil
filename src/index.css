@@ -31312,3 +31312,41 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   margin-top: 12px;
 }
 .nbk-crash-acts { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* ===== 30.8.2026 — דפדפן עתיק (WebView לפני Chrome 87) ===== */
+/* הטאבלט של הבעלים מריץ WebView שלא מכיר margin-inline, inset-inline,   */
+/* clamp() ו-gap של flex — ומסך ההתחברות קרס לרבע מסך. במקום לרדוף אחרי  */
+/* כל תכונה: מנוע שלא מבין margin-inline מקבל התחברות בעמודה אחת פשוטה,  */
+/* בלי הבאנר. מנוע מודרני לא מושפע — התנאי לא מתקיים אצלו.               */
+@supports not (margin-inline: auto) {
+  .csa { display: block !important; min-height: 100vh; }
+  /* הבאנר הנייבי יורד — נשאר רק הטופס, מלא ופשוט */
+  .csa .csa-banner,
+  .csa .csa-banner--signup,
+  .csa .csa-banner--flat,
+  .csa .csa-banner--role,
+  .auth-hero-panel { display: none !important; }
+  .csa .csa-sheet,
+  .csa .csa-sheet--flat {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 24px 20px !important;
+    border-radius: 0 !important;
+  }
+  .csa .csa-sheet-in {
+    display: block !important;
+    width: 100% !important;
+    max-width: 420px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .csa .csa-form { display: block !important; width: 100% !important; }
+  .csa .csa-lbl { display: block !important; margin-bottom: 14px; }
+  .csa .csa-field input { width: 100% !important; box-sizing: border-box; }
+  /* gap של flex לא קיים במנוע הזה — מרווח בין כפתורים בדרך הישנה */
+  .csa .csa-form button { margin-bottom: 10px; }
+
+  /* גם מסכי האפליקציה: מרכוז שנשען על margin-inline מקבל גיבוי פיזי */
+  .main-inner { margin-left: auto !important; margin-right: auto !important; }
+}

@@ -878,6 +878,13 @@ async function recordTermsAcceptance(data, acceptedAt) {
 
 function translateError(msg) {
   msg = String(msg || '')
+  // אין רשת — ההסבר האמיתי, לא «שגיאה». התחברות ראשונה חייבת אינטרנט;
+  // אחרי שהתחברת פעם אחת, הכניסה עובדת גם בלי.
+  if ((typeof navigator !== 'undefined' && navigator.onLine === false) ||
+      /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(msg)) {
+    return L('אין חיבור לאינטרנט. התחברות ראשונה דורשת רשת — אחרי שנכנסים פעם אחת, האפליקציה נפתחת גם בלי אינטרנט.',
+             'No internet connection. The first sign-in needs a network — after signing in once, the app opens offline too.')
+  }
   // שגיאה ריקה ({} / חסר) = כשל בשליחת מייל מצד Supabase (SMTP/מכסה)
   if (!msg || msg === '{}' || msg === '[object Object]' || msg === 'undefined') {
     return L('שליחת או אימות הקוד נכשלו — נסו שוב בעוד כמה דקות.', 'Sending or verifying the code failed — try again in a few minutes.')

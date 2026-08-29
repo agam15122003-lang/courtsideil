@@ -211,11 +211,31 @@ export default function App() {
     //
     // settle-once: הראשון שמגיע קובע. הגרוע ביותר הוא מסך התחברות,
     // ו-onAuthStateChange שלמטה מתקן את הסשן אם התשובה מגיעה באיחור.
+    // ---------- כניסה בלי רשת (30.8) ----------
+    // הטוקן של Supabase פג אחרי שעה. בלי רשת אי אפשר לרענן אותו, ולכן
+    // getSession מחזיר null — והמאמן שפתח את האפליקציה באולם בלי קליטה
+    // נזרק למסך התחברות שהוא גם לא יכול לעבור. במקום זה: אם אין רשת ויש
+    // סשן שמור במכשיר, נכנסים איתו. הטוקן הפג לא מפריע לעבודה בלי רשת —
+    // הקריאות מוגשות מהמטמון והכתיבות נכנסות לתור ממילא — וכשהרשת חוזרת
+    // supabase מרענן את הטוקן לבד ומחליף את הסשן באמיתי.
+    const offlineStoredSession = () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine !== false) return null
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i)
+          if (!/^sb-.*-auth-token$/.test(k)) continue
+          const raw = JSON.parse(localStorage.getItem(k))
+          const s = raw?.user ? raw : raw?.currentSession
+          if (s?.user?.id) return s
+        }
+      } catch { /* אחסון חסום/פגום — נשארים במסך ההתחברות */ }
+      return null
+    }
     let settled = false
     const finish = (s) => {
       if (settled) return
       settled = true
-      setSession(s ?? null)
+      setSession(s ?? offlineStoredSession() ?? null)
       setLoading(false)
     }
     const bail = setTimeout(() => finish(null), 8000)
@@ -229,6 +249,11 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // בלי רשת, כשל רענון טוקן מדווח session=null — אסור לתת לזה לדרוס
+      // את הכניסה-בלי-רשת ולזרוק את המאמן באמצע עבודה. null מתקבל רק
+      // בהתנתקות מפורשת או כשיש רשת (ואז הוא באמת אומר «אין סשן»).
+      if (session == null && event !== 'SIGNED_OUT' &&
+          typeof navigator !== 'undefined' && navigator.onLine === false) return
       setSession(session)
       // יציאה מיד אחרי הרשמה באותו סשן נחתה על טופס «יצירת חשבון» —
       // authMode נשאר 'signup' מההרשמה. התנתקות מחזירה למסך הכניסה.
