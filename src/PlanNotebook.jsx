@@ -98,7 +98,7 @@ const PLAN_SELECT_MID = `id, name, created_by, created_at, is_public, ${PLAN_ITE
 const PLAN_SELECT_BARE = `id, name, created_by, created_at, ${PLAN_ITEM_COLS_BARE}`
 const PLAN_SELECTS = [PLAN_SELECT, PLAN_SELECT_MID, PLAN_SELECT_BARE]
 
-export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
+export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpenRun }) {
   const me = session.user.id
 
   const [loading, setLoading] = useState(!!planId)
@@ -647,6 +647,23 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel }) {
           <button type="button" className="btn-soft" onClick={() => setPreview(true)}>
             <BookOpen size={16} /> {L('תצוגה והדפסה', 'Preview & print')}
           </button>
+          {savedId && onOpenRun && (
+            <button type="button" className="btn-soft" onClick={async () => {
+              // «פתח כתוכנית» עוזב את העורך — אותה הגנה כמו יציאה רגילה
+              if (dirty) {
+                const ok = await confirmDialog({
+                  title: L('לצאת בלי לשמור?', 'Leave without saving?'),
+                  message: L('השינויים במחברת לא נשמרו. אפשר לחזור ולשמור כטיוטה.', 'Your changes were not saved. You can go back and save as a draft.'),
+                  confirmText: L('יציאה בלי לשמור', 'Leave without saving'),
+                  danger: true,
+                })
+                if (!ok) return
+              }
+              onOpenRun(savedId)
+            }}>
+              <BookOpen size={16} /> {L('פתח כתוכנית', 'Open as plan')}
+            </button>
+          )}
           {savedId && (
             <button type="button" className="btn-soft" onClick={() => setSending(true)}>
               <Send size={16} /> {PLAYER_SIDE ? L('שלח לשחקנים', 'Send to players') : L('כמשימה לשחקנים', 'As a task for players')}

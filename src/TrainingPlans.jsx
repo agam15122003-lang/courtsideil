@@ -2,6 +2,7 @@ import { toast } from './toast'
 import { useState, useEffect, useRef } from 'react'
 import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User, Copy, CopyPlus, Share2, Trash2 } from 'lucide-react'
 import RowMenu from './RowMenu'
+import PlanRun from './PlanRun'
 import Pick from './Pick'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
@@ -83,6 +84,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [error, setError] = useState(null)
   const [comError, setComError] = useState(null) // כשל בשליפת הקהילה בלבד — לא מפיל את המסך
   const [activePlanId, setActivePlanId] = useState(null)
+  const [runPlanId, setRunPlanId] = useState(null) // «פתח כתוכנית» — מסך האימון
   const [source, setSource] = useState(initialSource || '') // מקור התוכניות: '' הכול | 'mine' | 'community'
   const [search, setSearch] = useState('')   // מה שהמאמן מקליד
   const [q, setQ] = useState('')             // אותו דבר אחרי השהיה, וזה מה שנשלח לשרת
@@ -386,6 +388,19 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
 
   // אם נכנסנו לתוכנית — המחברת המלאה (עריכה). השמירה משאירה את המחברת
   // פתוחה ומרעננת את הרשימה ברקע; «כל התוכניות» חוזר לרשימה.
+  // «פתח כתוכנית» — הדף הנקי עם נוכחות, המסך שפותחים באולם
+  if (runPlanId) {
+    return (
+      <PlanRun
+        key={runPlanId}
+        session={session}
+        planId={runPlanId}
+        onBack={() => { setRunPlanId(null); loadPlans() }}
+        onEdit={(id) => { setRunPlanId(null); setActivePlanId(id) }}
+      />
+    )
+  }
+
   if (activePlanId) {
     return (
       <PlanNotebook
@@ -393,6 +408,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
         session={session}
         planId={activePlanId}
         onSaved={() => loadPlans()}
+        onOpenRun={(id) => { setActivePlanId(null); setRunPlanId(id) }}
         onCancel={() => {
           setActivePlanId(null)
           loadPlans()
@@ -406,6 +422,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
       <PlanNotebook
         session={session}
         onSaved={() => loadPlans()}
+        onOpenRun={(id) => { setNotebookNew(false); setRunPlanId(id) }}
         onCancel={() => {
           setNotebookNew(false)
           loadPlans()
@@ -652,6 +669,9 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
                         onClick={() => setActivePlanId(p.id)}
                       >
                         {L('פתח', 'Open')}
+                      </button>
+                      <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => setRunPlanId(p.id)}>
+                        {L('פתח כתוכנית', 'Open as plan')}
                       </button>
                       {/* פעולות משניות בתפריט אחד. «מחק» אחרון ובצבע סכנה,
                           ולא צמוד עוד ל«וואטסאפ» ברוחב אגודל. */}
