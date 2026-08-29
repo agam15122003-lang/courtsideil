@@ -151,8 +151,11 @@ async function playOp(op) {
       }
       if (error) return error
       if (Array.isArray(op.items)) {
-        // אותה לוגיקה כמו בשמירה החיה: מוחקים רק פריטים מקושרים ומכניסים מחדש
-        await supabase.from('plan_items').delete().eq('plan_id', op.id).not('drill_id', 'is', null)
+        // אותה לוגיקה כמו בשמירה החיה: מוחקים רק פריטים מקושרים ומכניסים מחדש.
+        // ⚠ כשל המחיקה נבדק: אם היא נכשלה וההכנסה הייתה מצליחה, כל התרגילים
+        //   המקושרים היו מוכפלים — והפעולה נזרקת מהתור, כלומר קלקול קבוע.
+        const del = await supabase.from('plan_items').delete().eq('plan_id', op.id).not('drill_id', 'is', null)
+        if (del.error) return del.error
         if (op.items.length) {
           const rows = op.items.map((it, i) => ({ plan_id: op.id, drill_id: it.drill_id, position: i, duration_minutes: it.duration_minutes || null }))
           let r = await supabase.from('plan_items').insert(rows.map((x) => ({ ...x, part: 1 })))
@@ -181,29 +184,45 @@ async function playOp(op) {
 }
 
 // ---------- ניגון התור ----------
-let flushing = false
-export async function flushOutbox() {
-  if (flushing) return
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return
-  flushing = true
-  try {
-    const entries = await outboxEntries()
-    let played = 0
-    for (const [key, op] of entries) {
-      const error = await playOp(op)
-      if (error && isNetErr(error)) break // הרשת נפלה שוב — נמשיך בפעם הבאה
-      if (error) console.warn('[offline] פעולה נדחתה על ידי השרת ונזרקה:', op.kind, error.message)
-      await outboxDel(key)
-      if (!error) played++
-    }
-    if (played > 0) notifyPending()
-    return played
-  } finally {
-    flushing = false
+// ⚠ מחזיקים את ההבטחה שבטיסה, לא דגל: `if (flushing) return` החזיר
+//   undefined, ו-await flushOutbox() בתחילת שמירת מחברת — שכל תפקידו
+//   לחכות שהתור יתרוקן — המשיך מיד בזמן שהניגון עוד רץ ברקע.
+let flushPromise = null
+export function flushOutbox() {
+  if (flushPromise) return flushPromise
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve(0)
+  flushPromise = doFlush().finally(() => { flushPromise = null })
+  return flushPromise
+}
+async function doFlush() {
+  const entries = await outboxEntries()
+  let played = 0
+  for (const [key, op] of entries) {
+    const error = await playOp(op)
+    if (error && isNetErr(error)) break // הרשת נפלה שוב — נמשיך בפעם הבאה
+    if (error) console.warn('[offline] פעולה נדחתה על ידי השרת ונזרקה:', op.kind, error.message)
+    await outboxDel(key)
+    if (!error) played++
   }
+  if (played > 0) notifyPending()
+  return played
 }
 
 // חיבור אוטומטי: הרשת חזרה → מנגנים. נרשם פעם אחת ברמת המודול.
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => { flushOutbox() })
+  // ⚠ אירוע online לבדו לא מספיק: באולם עם WiFi «מחובר» בלי אינטרנט אמיתי
+  //   navigator.onLine נשאר true כל הזמן, האירוע לא יורה לעולם — והקשות
+  //   שנכנסו לתור היו יושבות ימים. לכן גם: חזרה לאפליקציה (visibility)
+  //   ודופק כל דקה — שניהם זולים כשאין מה לנגן (התור נבדק לפני רשת).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') flushOutbox()
+  })
+  setInterval(() => {
+    pendingCount().then((n) => { if (n > 0) flushOutbox() })
+  }, 60000)
+  // אחסון עמיד: בלי הבקשה הזו אנדרואיד רשאי לפנות את IndexedDB בלחץ
+  // אחסון — כולל תור היציאה שמחזיק את העותק היחיד של נוכחות שסומנה
+  // בלי רשת. best-effort: דפדפן שמסרב פשוט משאיר את המצב כמו היום.
+  try { navigator.storage?.persist?.() } catch { /* לא קריטי */ }
 }

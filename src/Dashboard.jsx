@@ -24,7 +24,7 @@ import { isAdultPlayer } from './consent'
 // 22.8 — השקת צד המאמן בלבד (ראו src/flags.js): «מתאמנים אישיים» יורד
 // מהניווט, וחשבון שחקן שמתחבר רואה מסך המתנה במקום את האפליקציה שלו.
 import { PLAYER_SIDE } from './flags'
-import { cacheGet, cachePut, isNetErr, flushOutbox } from './offline'
+import { cacheGet, cachePut, isNetErr, flushOutbox, pendingCount, onPendingChange } from './offline'
 import PlayerSideClosed from './PlayerSideClosed'
 // מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
 import AccountBlocked from './AccountBlocked'
@@ -285,6 +285,12 @@ const PAGE_META = {
 export default function Dashboard({ session }) {
   const { t } = useLang()
   const online = useOnline()
+  // כמה פעולות שמורות במכשיר ומחכות לרשת — מוצג בפס האופליין
+  const [pendingOps, setPendingOps] = useState(0)
+  useEffect(() => {
+    pendingCount().then(setPendingOps)
+    return onPendingChange(setPendingOps)
+  }, [])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -654,12 +660,19 @@ export default function Dashboard({ session }) {
         {t('skip.toContent')}
       </a>
       {/* אין חיבור — פס אחד למעלה במקום שרשרת של שמירות שנכשלות בשקט */}
-      {!online && (
+      {!online ? (
         <div className="offline-bar" role="status">
           <WifiOff size={15} aria-hidden="true" />
-          {L('אין חיבור לאינטרנט — מה שתכתוב עכשיו לא יישמר', 'No internet connection — anything you write now will not be saved')}
+          {L('אין אינטרנט — הכול נשמר במכשיר ויעלה כשהרשת תחזור', 'No internet — everything is saved on this device and will sync when the network returns')}
+          {pendingOps > 0 && <b className="offline-pend"><bdi>{pendingOps}</bdi> {L('ממתינות', 'pending')}</b>}
         </div>
-      )}
+      ) : pendingOps > 0 ? (
+        <div className="offline-bar is-sync" role="status">
+          <WifiOff size={15} aria-hidden="true" />
+          {L('מעלה שינויים שנשמרו בלי רשת…', 'Uploading changes saved offline…')}
+          <b className="offline-pend"><bdi>{pendingOps}</bdi></b>
+        </div>
+      ) : null}
       {/* סרגל עליון — מובייל בלבד (המבורגר + מותג + מצב כהה) */}
       <header className="mobile-topbar">
         <button

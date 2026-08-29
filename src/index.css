@@ -31426,3 +31426,62 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* ===== 29.8.2026 — אימון על הטאבלט (סקירת האופליין) ===== */
+
+/* מונה «ממתין לסנכרון» בפס האופליין, וגרסה כחולה כשהרשת חזרה ומעלים */
+.offline-pend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.offline-bar.is-sync { background: var(--navy-2, #1b3a5c); }
+
+/* יעדי מגע באולם: הבורר «+ שחקן…» ותאריך הנוכחות היו נמוכים מ-44px */
+@media (pointer: coarse) {
+  .nbk-lineup-add { min-height: 44px; font-size: 16px; }
+  .plan-run-date input { min-height: 44px; font-size: 16px; }
+}
+
+/* אייפד לרוחב: רשימת נוכחות של 12+ שחקנים בעמודה אחת = גלילה בלי סוף.
+   עמודות CSS — נתמך גם במנוע העתיק — מפצלות אותה לשתיים כשיש רוחב. */
+@media (min-width: 900px) {
+  .plan-run .nbk-att-list {
+    display: block;
+    -webkit-column-width: 420px;
+    column-width: 420px;
+    -webkit-column-gap: 32px;
+    column-gap: 32px;
+  }
+  .plan-run .nbk-att-row {
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* המנוע העתיק של הטאבלט: אין gap בפלקס (וגם לא margin-inline) — בלעדיו
+   שם השחקן, הכפתורים והצ׳יפים נדבקים. מרווחים פיזיים: RTL ⇒ השכן הבא
+   נמצא משמאל, ולכן margin-left על כל ילד חוץ מהאחרון. */
+@supports not (margin-inline: auto) {
+  .nbk-att-row > * { margin-left: 10px; }
+  .nbk-att-row > *:last-child { margin-left: 0; }
+  .nbk-att-num { margin-left: 8px; }
+  .nbk-att-reason-in { margin-top: 6px; }
+  .nbk-att-reason-in select { margin-left: 8px; }
+  .chips > * { margin: 0 0 8px 8px; }
+  .nbk-lineups-add .btn-ghost { margin: 0 0 6px 6px; }
+  .nb-actions > * { margin: 0 0 8px 8px; }
+  .nbk-lineup-h b { margin-left: 8px; }
+  /* margin-inline-start:auto לא קיים שם — הפח נשאר צמוד לשם במקום בקצה */
+  .nbk-lineup-del { margin-right: auto; }
+  /* הפס העליון: inset-block-start לא נתמך + אין gap */
+  .offline-bar { top: 0; }
+  .offline-bar svg { margin-left: 8px; }
+  .offline-pend { margin-right: 8px; padding: 1px 8px; }
+}

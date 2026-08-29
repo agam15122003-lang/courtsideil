@@ -3,6 +3,7 @@ import { Clock, Users, CalendarDays } from 'lucide-react'
 import NotebookBody from './NotebookBody'
 import MiniCourt from './MiniCourt'
 import { supabase } from './supabaseClient'
+import { cacheGet, cachePut, isNetErr } from './offline'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 import { L, trTeam } from './i18n'
@@ -80,6 +81,16 @@ export function PlanSheetById({ planId }) {
         ;({ data, error } = await supabase.from('training_plans').select(SHEET_COLS[tier]).eq('id', planId).single())
       }
       if (!alive) return
+      // אין רשת — העותק השמור. זה הדף שנפתח מהלו״ז באולם («התוכנית של
+      // האימון של היום»), ובלעדי הנפילה הזו הוא היה מסך שגיאה בדיוק שם.
+      if ((error || !data) && isNetErr(error)) {
+        const c = await cacheGet(`plan-sheet:${planId}`)
+        if (!alive) return
+        if (c?.data) {
+          setState({ loading: false, error: null, plan: c.data, items: c.data.plan_items || [] })
+          return
+        }
+      }
       if (error || !data) {
         setState({ loading: false, error: L('שגיאה בטעינת התוכנית: ', 'Failed to load plan: ') + (error?.message || ''), plan: null, items: [] })
         return
@@ -87,7 +98,9 @@ export function PlanSheetById({ planId }) {
       const { data: pr } = await supabase.from('profiles').select('first_name, last_name, club').eq('id', data.created_by).maybeSingle()
       if (!alive) return
       const coach = pr ? { club: pr.club || '', name: `${pr.first_name || ''} ${pr.last_name || ''}`.trim() } : {}
-      setState({ loading: false, error: null, plan: { ...data, coach }, items: data.plan_items || [] })
+      const full = { ...data, coach }
+      cachePut(`plan-sheet:${planId}`, full)
+      setState({ loading: false, error: null, plan: full, items: data.plan_items || [] })
     })()
     return () => { alive = false }
   }, [planId, tick])

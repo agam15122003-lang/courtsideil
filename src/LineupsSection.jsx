@@ -93,7 +93,18 @@ export default function LineupsSection({ session, planId, team, roster }) {
   const doSave = async (next) => {
     pendingSave.current = null
     const row = { plan_id: planId, coach_id: me, groups: next, updated_at: new Date().toISOString() }
-    const { error } = await supabase.from('plan_lineups').upsert(row)
+    // בלי רשת — ישר לתור; רשת «מחוברת» בלי קליטה — מרוץ של 8 שניות מול
+    // תקיעה (אותו דפוס כמו הנוכחות במסך האימון)
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (await enqueue({ kind: 'lineups-upsert', row })) {
+        cachePut(`lineups:${planId}`, { groups: next })
+        return
+      }
+    }
+    const { error } = await Promise.race([
+      supabase.from('plan_lineups').upsert(row),
+      new Promise((res) => setTimeout(() => res({ error: { message: 'timeout' } }), 8000)),
+    ])
     if (error && isNetErr(error)) {
       // אין רשת — לתור היציאה, והעותק השמור מתעדכן כדי שכניסה מחדש תציג נכון
       if (await enqueue({ kind: 'lineups-upsert', row })) {

@@ -78,6 +78,7 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
   const [rosterError, setRosterError] = useState(null)
   const [att, setAtt] = useState({}) // team_players.id -> {status, preset, text, saving}
   const [offline, setOffline] = useState(false) // מוצג מהעותק השמור / הקשות נכנסות לתור
+  const offlineToastRef = useRef(false) // הטוסט «אין רשת» מוצג פעם אחת, לא לכל הקשה
   const reasonTimers = useRef({})
 
   // תוכנית בלי תאריך עדיין צריכה נוכחות — הרישום ממופתח לקבוצה+תאריך,
@@ -163,18 +164,41 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
   }, [team, date, me, tick])
 
   // ---------- שמירה מיידית ----------
+  // ⚠ מרוץ מול תקיעה: WiFi «מחובר» בלי קליטה אמיתית (מצב האולם) לא מפיל
+  //   את הבקשה — הוא תוקע אותה לדקות. navigator.onLine נשאר true, שום
+  //   שגיאה לא נזרקת, וההקשה לא מגיעה לא לשרת ולא לתור — והמסך משקר
+  //   «נשמר». אחרי 8 שניות הבקשה נחשבת כשל רשת ונכנסת לתור.
+  //   Promise.race ולא AbortController — הדפדפן העתיק בטאבלט קדם לו.
+  const raced = (q) => Promise.race([
+    q,
+    new Promise((res) => setTimeout(() => res({ error: { message: 'timeout' } }), 8000)),
+  ])
   const persist = async (playerId, entry) => {
+    // בלי רשת בכלל — ישר לתור, בלי לחכות לכישלון
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return { message: 'network request failed' }
+    }
     const row = {
       coach_id: me, team, session_date: date, player_id: playerId,
       status: entry.status || 'present',
       reason: entry.status === 'present' ? null : (joinReason(entry.preset, entry.text) || null),
     }
-    let { error } = await supabase.from('practice_attendance').upsert(row, { onConflict: 'coach_id,team,session_date,player_id' })
+    let { error } = await raced(supabase.from('practice_attendance').upsert(row, { onConflict: 'coach_id,team,session_date,player_id' }))
     if (error && notDeployed(error)) {
       const { reason, ...bare } = row
-      ;({ error } = await supabase.from('practice_attendance').upsert(bare, { onConflict: 'coach_id,team,session_date,player_id' }))
+      ;({ error } = await raced(supabase.from('practice_attendance').upsert(bare, { onConflict: 'coach_id,team,session_date,player_id' })))
     }
     return error
+  }
+
+  // ⚠ תור פר-שחקן: שתי הקשות מהירות על אותו שחקן חייבות להישמר בסדר
+  //   ההקשה. בלי זה, ההקשה הראשונה שנתקעה ונכשלה מאוחר נכנסה לתור אחרי
+  //   השנייה — והניגון החזיר את הסימון הישן על החדש.
+  const chains = useRef({})
+  const perPlayer = (playerId, job) => {
+    const next = (chains.current[playerId] || Promise.resolve()).then(job, job)
+    chains.current[playerId] = next
+    return next
   }
 
   const attOf = (id) => att[id] || { status: null, preset: '', text: '' }
@@ -197,37 +221,51 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
       const rows = (c?.data || []).filter((r) => r.player_id !== playerId)
       cachePut(key, [...rows, { player_id: playerId, status: row.status, reason: row.reason }])
     }
-    if (ok && !offline) {
+    if (ok && !offlineToastRef.current) {
+      // ref ולא state: הקשות מהירות רצות לפני ש-setOffline נקלט, וכל אחת
+      // הייתה מקפיצה עותק של אותו טוסט — ערימה של הודעות זהות על המסך.
+      offlineToastRef.current = true
       setOffline(true)
       toast.success(L('אין רשת — הסימונים נשמרים במכשיר ויסונכרנו כשהיא תחזור.', 'No connection — marks are saved on this device and will sync later.'))
     }
     return ok
   }
 
-  const tapStatus = async (playerId, status) => {
+  const tapStatus = (playerId, status) => {
     const prev = attOf(playerId)
     const next = { ...prev, status }
     setAtt((cur) => ({ ...cur, [playerId]: next }))
-    const error = await persist(playerId, next)
-    if (error && isNetErr(error)) {
-      if (await queueOffline(playerId, next)) return
-    }
-    if (error) {
-      // ההקשה לא נשמרה — מחזירים את המסך לאמת ואומרים זאת
-      setAtt((cur) => ({ ...cur, [playerId]: prev }))
-      toast.error(L('הסימון לא נשמר — נסו שוב.', 'The mark was not saved — try again.'))
-    }
+    // בתוך התור הפר-שחקן — הקשות על אותו שחקן נשמרות בסדר ההקשה
+    return perPlayer(playerId, async () => {
+      const error = await persist(playerId, next)
+      if (error && isNetErr(error)) {
+        if (await queueOffline(playerId, next)) return
+      }
+      if (error) {
+        // ההקשה לא נשמרה — מחזירים את המסך לאמת ואומרים זאת
+        setAtt((cur) => ({ ...cur, [playerId]: prev }))
+        toast.error(L('הסימון לא נשמר — נסו שוב.', 'The mark was not saved — try again.'))
+      }
+    })
   }
 
   const pendingReasons = useRef({}) // מה שמחכה להשהיה — כדי לא לאבד ביציאה
-  const flushReason = async (playerId, next) => {
+  const flushReason = (playerId, next) => {
     delete pendingReasons.current[playerId]
-    const error = await persist(playerId, next)
-    if (error && isNetErr(error)) {
-      if (await queueOffline(playerId, next)) return
-    }
-    if (error) toast.error(L('הסיבה לא נשמרה — נסו שוב.', 'The reason was not saved — try again.'))
+    return perPlayer(playerId, async () => {
+      const error = await persist(playerId, next)
+      if (error && isNetErr(error)) {
+        if (await queueOffline(playerId, next)) return
+      }
+      if (error) toast.error(L('הסיבה לא נשמרה — נסו שוב.', 'The reason was not saved — try again.'))
+    })
   }
+  // ⚠ ה-cleanup של unmount נוצר ברינדור הראשון — אז team ו-date עוד ריקים.
+  //   קריאה ישירה ל-flushReason משם הייתה כותבת שורת נוכחות-זבל עם team=''
+  //   (והסיבה האמיתית הלכה לאיבוד). ref שמתרענן בכל רינדור מחזיק תמיד את
+  //   ה-closure העדכני.
+  const flushReasonRef = useRef(flushReason)
+  flushReasonRef.current = flushReason
   const editReason = (playerId, patch) => {
     const next = { ...attOf(playerId), ...patch }
     setAtt((cur) => ({ ...cur, [playerId]: next }))
@@ -239,8 +277,15 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
   // יציאה מהמסך בתוך חלון ההשהיה — הסיבה האחרונה נשלחת, לא נזרקת
   useEffect(() => () => {
     Object.values(reasonTimers.current).forEach(clearTimeout)
-    for (const [pid, next] of Object.entries(pendingReasons.current)) flushReason(pid, next)
+    for (const [pid, next] of Object.entries(pendingReasons.current)) flushReasonRef.current(pid, next)
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // הרשת חזרה — הבאנר יורד והטוסט הבא (אם תיפול שוב) יוצג מחדש
+  useEffect(() => {
+    const onUp = () => { setOffline(false); offlineToastRef.current = false }
+    window.addEventListener('online', onUp)
+    return () => window.removeEventListener('online', onUp)
   }, [])
 
   const marked = roster.filter((p) => attOf(p.id).status)
