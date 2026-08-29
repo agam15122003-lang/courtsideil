@@ -29,9 +29,11 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@vitejs/plugin-legacy": "^6.1.1",
     "@vitejs/plugin-react": "^4.3.1",
     "playwright": "^1.62.0",
     "sharp": "^0.35.3",
+    "terser": "^5.51.2",
     "vite": "^6.4.3"
   }
 }

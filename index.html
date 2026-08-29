@@ -58,7 +58,7 @@
     <script>
       (function () {
         var shown = false
-        function bootFail(msg) {
+        function paint(msg) {
           try {
             var root = document.getElementById('root')
             if (shown || (root && root.children.length > 0)) return
@@ -70,6 +70,12 @@
             document.body.appendChild(d)
           } catch (e) { /* אין מה לעשות */ }
         }
+        // ⚠ לא מציגים מיד: בדפדפן עתיק הקוד המודרני נכשל בכוונה («Unexpected
+        //   token import») ומסלול התאימות הישן עולה במקומו. מחכים, ורק אם
+        //   המסך באמת נשאר ריק — מציגים את השגיאה שנתפסה.
+        function bootFail(msg) {
+          setTimeout(function () { paint(msg) }, 5000)
+        }
         window.addEventListener('error', function (e) {
           bootFail((e && e.message ? e.message : 'שגיאה לא מזוהה') + (e && e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''))
         })
@@ -77,12 +83,10 @@
           var r = e && e.reason
           bootFail(r && r.message ? r.message : String(r))
         })
-        // WebView עתיק שלא מריץ מודולים בכלל: שום שגיאה לא נזרקת — פשוט
-        // כלום לא קורה. אחרי 6 שניות עם שורש ריק, זו התשובה.
+        // שום שגיאה ושום מסך אחרי 8 שניות — כנראה הדפדפן המובנה ישן מאוד
         setTimeout(function () {
-          var root = document.getElementById('root')
-          if (root && root.children.length === 0) bootFail('הדפדפן המובנה במכשיר ישן מדי (לא טוען מודולים). עדכנו את Android System WebView בחנות Play.')
-        }, 6000)
+          paint('הדפדפן המובנה במכשיר ישן מאוד. עדכנו את Android System WebView ואת Chrome בחנות Play.')
+        }, 8000)
       })()
     </script>
     <div id="root"></div>
