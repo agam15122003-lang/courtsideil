@@ -161,7 +161,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
       : L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל מאמן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a coach profile. That’s it, you’re in.') },
     ...(!PLAYER_SIDE ? [{
       q: L('ומה עם השחקנים שלי?', 'What about my players?'),
-      a: L('בשלב הזה CourtSide פתוחה למאמנים. השחקנים לא צריכים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם. בהמשך ייפתח גם צד לשחקנים: כל שחקן יתחבר לקבוצה שלכם בקוד, ומה שרשמתם כבר יחכה לו שם.', 'Right now CourtSide is open to coaches. Players don’t need an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you. A player side is coming later: each player will join your team with a code, and what you logged will be waiting for them.'),
+      a: L('השחקנים לא צריכים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם בלבד.', 'Players don’t need an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you.'),
     }] : []),
     { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
   ]
@@ -233,35 +233,9 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         </div>
       </section>
 
-      {/* הלולאה מאמן↔שחקן — הבידול של CourtSide, הסיפור שהעיצוב צועק.
-          בהשקת צד המאמן בלבד הקטע הזה הופך לטיזר: מה השחקנים יקבלו בהמשך. */}
-      {!PLAYER_SIDE ? (
-        <section className="land-section land-loop land-soon reveal">
-          <span className="land-soon-chip"><Star size={13} aria-hidden="true" /> {L('בקרוב', 'Coming soon')}</span>
-          <h2 className="land-h2">{L('ובהמשך — גם צד לשחקנים.', 'And next — a side for the players.')}</h2>
-          <p className="land-lead">
-            {L('בשלב הראשון CourtSide פתוחה למאמנים. כל מה שאתם רושמים היום — יעדים, משוב, משימות — נשמר אצלכם, וכשצד השחקן ייפתח, כל שחקן יתחבר לקבוצה שלכם בקוד וימצא את זה מחכה לו.',
-               'CourtSide opens first for coaches. Everything you log today — goals, feedback, tasks — stays with you, and once the player side opens, each player will join your team with a code and find it waiting.')}
-          </p>
-          <div className="land-loop-grid">
-            <div className="land-loop-step">
-              <span className="lls-ic orange"><Send size={22} /></span>
-              <h3 className="land-feature-title">{L('השחקן יראה את המשימות והיעדים שלו', 'Players will see their tasks and goals')}</h3>
-              <p className="land-feature-desc">{L('מהטלפון, בלי וואטסאפ.', 'From the phone, no WhatsApp.')}</p>
-            </div>
-            <div className="land-loop-step">
-              <span className="lls-ic green"><Dumbbell size={22} /></span>
-              <h3 className="land-feature-title">{L('יאשר הגעה וידרג עומס', 'Confirm attendance and rate the load')}</h3>
-              <p className="land-feature-desc">{L('לפני האימון ואחריו.', 'Before and after practice.')}</p>
-            </div>
-            <div className="land-loop-step">
-              <span className="lls-ic navy"><Eye size={22} /></span>
-              <h3 className="land-feature-title">{L('יקבל ממך משוב אישי', 'Get personal feedback from you')}</h3>
-              <p className="land-feature-desc">{L('אחרי כל אימון ומשחק.', 'After every practice and game.')}</p>
-            </div>
-          </div>
-        </section>
-      ) : (
+      {/* הלולאה מאמן↔שחקן — מוצגת רק כשצד השחקן פתוח. בהשקת צד-המאמן
+          אין טיזר בכוונה (החלטת הבעלים 30.8): לא מבטיחים פיצ׳ר שלא קיים. */}
+      {PLAYER_SIDE && (
       <section className="land-section land-loop reveal">
         <h2 className="land-h2">{L('הקשר בין מאמן לשחקן מעולם לא היה נוח יותר.', 'The coach–player connection has never been easier.')}</h2>
         <div className="land-loop-grid">

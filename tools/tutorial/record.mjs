@@ -413,7 +413,7 @@ if (!only) {
   await scene(page, "וזהו — כל התפריט, מלמעלה למטה", 3600)
   await scene(page, "היום זה כולו שלך: השחקנים לא מתחברים לכלום", 4200)
   await scene(page, "ומה שרשמת עליהם נשאר אצלך בלבד", 3800)
-  await scene(page, "בקרוב ייפתח גם צד לשחקנים", 3600)
+  await scene(page, "כל מה שרשמת — שמור ומחכה לך", 3600)
   await scene(page, "courtsideil.vercel.app", 4000)
   await clearCap(page)
   await sleep(900)

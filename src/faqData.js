@@ -76,7 +76,7 @@ export function faqItems() {
       category: 'הקבוצה והסגל',
       q: L('השחקנים שלי צריכים להירשם?', 'Do my players need to sign up?'),
       a: L(
-        'לא, ובכוונה. בשלב הזה CourtSide פתוחה למאמנים בלבד: אתה מזין את הסגל, ורושם נוכחות, עומס, יעדים ומשוב — והכול נשמר אצלך. השחקנים לא מתחברים, לא רואים כלום ולא מקבלים שום הודעה.\nבהמשך ייפתח גם צד לשחקנים.',
+        'לא, ובכוונה. CourtSide פתוחה למאמנים בלבד: אתה מזין את הסגל, ורושם נוכחות, עומס, יעדים ומשוב — והכול נשמר אצלך. השחקנים לא מתחברים, לא רואים כלום ולא מקבלים שום הודעה.',
         'No, and that is deliberate. Right now CourtSide is for coaches only: you enter the roster and log attendance, load, goals and notes — and it all stays with you. Players do not log in, see anything, or get any message.\nA player side is coming later.'
       ),
     },
