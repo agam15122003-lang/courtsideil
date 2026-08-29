@@ -59,7 +59,7 @@ function MiniCourt({ board, onChange, tool = 'pen', color, onOpen, onRemove, ind
         {(step.arrows || []).map((a) => (
           <Arrow key={a.id} a={a} />
         ))}
-        <InkPaths strokes={strokes} draft={inkTool.draft} />
+        <InkPaths strokes={strokes} draftEl={inkTool.draftPath} />
         {(step.objects || []).map((o) => (
           <g key={o.id}>
             <ObjectShape o={o} />

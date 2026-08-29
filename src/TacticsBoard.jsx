@@ -398,7 +398,7 @@ function Board({
           ))}
         </g>
         {/* דיו חופשי — מתחת לשחקנים, מעל קווי המגרש */}
-        <InkPaths strokes={step.ink} draft={ink.draft} />
+        <InkPaths strokes={step.ink} draftEl={ink.draftPath} />
         {draft &&
           (tool === 'arrow-shot' ? (
             <path

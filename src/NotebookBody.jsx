@@ -128,7 +128,7 @@ export default function NotebookBody({
         aria-hidden="true"
         {...(inkTool.drawing ? inkTool.handlers : {})}
       >
-        <InkPaths strokes={strokes} draft={inkTool.draft} />
+        <InkPaths strokes={strokes} draftEl={inkTool.draftPath} />
       </svg>
     </div>
   )

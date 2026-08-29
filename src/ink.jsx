@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 
 // «דיו» — ציור חופשי (עט/אצבע/עכבר) שמשותף לשלושה מקומות:
 //   1. לוח הטקטיקה (TacticsBoard) — כלי «עט» ו«מחק» לצד החצים והשחקנים.
@@ -65,12 +65,15 @@ const StrokePath = ({ s }) => (
 const CommittedInk = memo(function CommittedInk({ strokes }) {
   return strokes.map((s) => <StrokePath key={s.id} s={s} />)
 })
-export function InkPaths({ strokes, draft }) {
-  if (!(strokes || []).length && !draft) return null
+// draftEl — ה-<path> של הקו-שבציור, שמגיע מ-useInkTool ומתעדכן ישירות
+// ב-DOM (לא דרך state). draft (הישן) עדיין נתמך לתצוגה בלבד.
+export function InkPaths({ strokes, draft, draftEl }) {
+  if (!(strokes || []).length && !draft && !draftEl) return null
   return (
     <g data-ink="1" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <CommittedInk strokes={strokes || []} />
       {draft && <StrokePath s={draft} />}
+      {draftEl}
     </g>
   )
 }
@@ -109,13 +112,40 @@ export function hitStroke(s, x, y, rx, ry = rx) {
 // כשה-tool אינו pen/eraser ה-handlers לא עושים כלום — כך אפשר לפרוס אותם
 // תמיד ולתת ל-handlers האחרים של המסך (גרירה/חצים) לפעול.
 export function useInkTool(svgRef, dim, opts) {
-  const [draft, setDraftState] = useState(null)
-  const draftRef = useRef(null) // אותו קו — ב-ref כדי לא להריץ תופעות לוואי בתוך updater
-  const setDraft = (d) => { draftRef.current = d; setDraftState(d) }
+  // הקו-שבציור לא עובר דרך state בכוונה. באייפד עם Apple Pencil מגיעות עד
+  // 120 תנועות בשנייה, וכל setState רינדר מחדש את כל הרכיב המארח — במחברת
+  // זה כל הדף, כולל הטקסט. זה בדיוק ה«סתם נתקע לפעמים» בזמן כתיבה בעט.
+  // במקום זה הקו מוחזק ב-ref, וה-d של ה-<path> מתעדכן ישירות ב-DOM פעם
+  // אחת בכל פריים (rAF) — אפס רינדורים של React עד שהקו מסתיים.
+  const draftRef = useRef(null)
+  const draftPathRef = useRef(null) // ה-<path> עצמו ב-DOM
+  const rafRef = useRef(0)
   const active = useRef(null) // { pointerId, pointerType }
   const last = useRef([0, 0])
   const { tool, color, width, strokes, onAdd, onErase, eraseRadius } = opts
   const drawing = tool === 'pen' || tool === 'eraser'
+
+  // אלמנט יציב — נוצר פעם אחת; הצבע והעובי נקבעים ישירות בתחילת כל קו
+  const draftPath = useMemo(
+    () => <path ref={draftPathRef} d="" vectorEffect="non-scaling-stroke" />,
+    []
+  )
+  const flushDraft = () => {
+    rafRef.current = 0
+    const node = draftPathRef.current
+    const d = draftRef.current
+    if (node) node.setAttribute('d', d ? inkPath(d.p) : '')
+  }
+  const scheduleFlush = () => {
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(flushDraft)
+  }
+  const clearDraft = () => {
+    draftRef.current = null
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
+    draftPathRef.current?.setAttribute('d', '')
+  }
+  // עזיבת המסך באמצע קו — לא להשאיר rAF תלוי
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }, [])
 
   const toSvg = (e) => {
     const svg = svgRef.current
@@ -147,8 +177,8 @@ export function useInkTool(svgRef, dim, opts) {
   useEffect(() => {
     if (drawing) return
     active.current = null
-    draftRef.current = null
-    setDraftState(null)
+    clearDraft()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawing])
 
   const onPointerDown = (e) => {
@@ -163,8 +193,7 @@ export function useInkTool(svgRef, dim, opts) {
       // העט גובר על מגע שהקדים אותו: הטיוטה של כף היד נזרקת והעט מצייר
       if (e.pointerType === 'pen' && active.current.pointerType === 'touch') {
         active.current = null
-        draftRef.current = null
-        setDraftState(null)
+        clearDraft()
       } else {
         // רק מצביע אחד בכל רגע — עט שכבר מצייר מתעלם ממגע נוסף
         return true
@@ -181,7 +210,14 @@ export function useInkTool(svgRef, dim, opts) {
       return true
     }
     last.current = pt
-    setDraft({ id: Date.now() + Math.random(), c: color || INK_COLORS[0].c, w: width || INK_WIDTH, p: [pt[0], pt[1]] })
+    draftRef.current = { id: Date.now() + Math.random(), c: color || INK_COLORS[0].c, w: width || INK_WIDTH, p: [pt[0], pt[1]] }
+    // הצבע והעובי — ישירות על ה-path, פעם אחת בתחילת הקו
+    const node = draftPathRef.current
+    if (node) {
+      node.setAttribute('stroke', draftRef.current.c)
+      node.setAttribute('stroke-width', draftRef.current.w)
+    }
+    scheduleFlush()
     return true
   }
 
@@ -202,7 +238,11 @@ export function useInkTool(svgRef, dim, opts) {
     if (dx * dx + dy * dy < 1.5) return true
     last.current = pt
     const d = draftRef.current
-    if (d) setDraft({ ...d, p: [...d.p, pt[0], pt[1]] })
+    if (d) {
+      // מוסיפים ל-ref בלבד; המסך מתעדכן ב-rAF — בלי רינדור React
+      d.p.push(pt[0], pt[1])
+      scheduleFlush()
+    }
     return true
   }
 
@@ -211,7 +251,7 @@ export function useInkTool(svgRef, dim, opts) {
     if (e && e.pointerId != null && e.pointerId !== active.current.pointerId) return true
     active.current = null
     const d = draftRef.current
-    setDraft(null)
+    clearDraft()
     if (d && d.p.length >= 2) onAdd?.(d)
     return true
   }
@@ -222,12 +262,12 @@ export function useInkTool(svgRef, dim, opts) {
     if (!active.current) return false
     if (e && e.pointerId != null && e.pointerId !== active.current.pointerId) return true
     active.current = null
-    setDraft(null)
+    clearDraft()
     return true
   }
 
   return {
-    draft,
+    draftPath,
     drawing,
     handlers: {
       onPointerDown,
