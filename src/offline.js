@@ -55,6 +55,12 @@ export const isNetErr = (e) => {
   return /failed to fetch|networkerror|network request failed|load failed|fetch failed|err_internet|timeout/i.test(m)
 }
 
+// «עוד לא נפרס בפרודקשן» — עותק מקומי של הבדיקה מ-PlanNotebook. לא מייבאים
+// משם: זה היה יוצר מעגל מודולים (PlanNotebook מייבא את offline).
+const notDeployed = (e) =>
+  ['42703', '42883', '42P01', 'PGRST202', 'PGRST204'].includes(e?.code) ||
+  /does not exist|could not find/i.test(e?.message || '')
+
 // ---------- מטמון קריאה ----------
 export async function cachePut(key, data) {
   try { await tx('cache', 'readwrite', (s) => s.put({ at: Date.now(), data }, key)) } catch { /* אין IDB — בלי מטמון */ }
@@ -135,8 +141,14 @@ async function notifyPending() {
 async function playOp(op) {
   switch (op.kind) {
     case 'plan-save': {
-      const { error } = await supabase.from('training_plans')
+      let { error } = await supabase.from('training_plans')
         .upsert({ id: op.id, created_by: op.me, ...op.payload }, { onConflict: 'id' })
+      // מסד שטרם הריץ את מיגרציית המחברת — אותה נפילה לאחור כמו בשמירה
+      // החיה: לפחות השם נשמר, במקום שהתוכנית כולה תיזרק מהתור.
+      if (error && notDeployed(error)) {
+        ;({ error } = await supabase.from('training_plans')
+          .upsert({ id: op.id, created_by: op.me, name: op.payload?.name }, { onConflict: 'id' }))
+      }
       if (error) return error
       if (Array.isArray(op.items)) {
         // אותה לוגיקה כמו בשמירה החיה: מוחקים רק פריטים מקושרים ומכניסים מחדש

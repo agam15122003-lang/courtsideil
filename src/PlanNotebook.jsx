@@ -18,7 +18,7 @@ import PlanSheet, { legacyItemsToBody } from './PlanSheet'
 import TacticsBoard from './TacticsBoard'
 import SendToPlayers from './SendToPlayers.jsx'
 import LineupsSection from './LineupsSection'
-import { cachedRead, cacheGet, cachePut, enqueue, isNetErr } from './offline'
+import { cachedRead, cacheGet, cachePut, enqueue, isNetErr, flushOutbox } from './offline'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 
@@ -518,6 +518,10 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       return
     }
     setSaving(true)
+    // קודם מנגנים כל מה שמחכה בתור מהעבודה בלי רשת — כדי ששמירה על תוכנית
+    // שנוצרה אופליין תפגוש שורה קיימת ותכתוב עליה את הגרסה החדשה ביותר,
+    // ולא תשמר «מעל» תור ישן שינוגן אחר כך וידרוס אותה.
+    try { await flushOutbox() } catch { /* אין רשת — התור יחכה */ }
     const now = new Date().toISOString()
     // העמודה שלמה במסד: מעגלים ומונעים שלילי, אחרת «90.5» היה מפיל את כל
     // השמירה (הטקסט, הדיו והמגרשים) בשגיאת Postgres גולמית.
@@ -540,7 +544,12 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
 
     const write = async (payload) => {
       if (id) {
-        const r = await supabase.from('training_plans').update(payload).eq('id', id)
+        // ⚠ upsert ולא update: לתוכנית שנוצרה בלי רשת יש id שקיים רק בתור
+        //   היציאה. update על שורה שאינה קיימת מחזיר הצלחה עם 0 שורות —
+        //   «שמירת פנטום» שמוחקת את טיוטת ההצלה בזמן שבמסד אין כלום.
+        //   upsert יוצר את השורה עם התוכן החדש ביותר אם היא חסרה, ומעדכן
+        //   רק את העמודות שנשלחו אם היא קיימת.
+        const r = await supabase.from('training_plans').upsert({ ...payload, id, created_by: me }, { onConflict: 'id' })
         return r.error
       }
       const r = await supabase.from('training_plans').insert({ ...payload, created_by: me }).select('id').single()
@@ -558,7 +567,18 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
     if (error && isNetErr(error)) {
       // לתוכנית חדשה נקבע id כבר עכשיו — כך העריכות הבאות והסנכרון
       // מדברים על אותה תוכנית, וההצלה המקומית עוברת למפתח הקבוע.
-      if (!id) id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      // ⚠ חייב להיות UUID אמיתי: העמודה במסד היא uuid, ומחרוזת «זמן-אקראי»
+      //   הייתה נדחית (22P02) בסנכרון — והתוכנית נזרקת מהתור בלי קול.
+      if (!id) {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) id = crypto.randomUUID()
+        else {
+          const bts = crypto.getRandomValues(new Uint8Array(16))
+          bts[6] = (bts[6] & 0x0f) | 0x40
+          bts[8] = (bts[8] & 0x3f) | 0x80
+          const h = [...bts].map((x) => x.toString(16).padStart(2, '0')).join('')
+          id = `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+        }
+      }
       const queued = await enqueue({
         kind: 'plan-save',
         id,
@@ -585,8 +605,20 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
         })
         await enqueue({ kind: 'att-upsert', rows })
       }
-      // מעדכנים את העותק השמור — כניסה מחדש בלי רשת תציג את הגרסה הזו
-      cachePut(`plan-edit:${id}`, { id, created_by: me, ...full, plan_items: [] })
+      // מעדכנים את העותק השמור — כניסה מחדש בלי רשת תציג את הגרסה הזו.
+      // ⚠ כולל התרגילים המקושרים, בצורה שמסך הטעינה מפרסר: בלעדיהם פתיחה
+      //   אופליין הייתה טוענת linked=[] והשמירה הבאה מוחקת את כל הקישורים.
+      const cachedItems = linked.map((l, i) => ({
+        id: l.id || null, drill_id: l.drill_id, position: i, part: 1,
+        duration_minutes: l.duration_minutes || null, note: null,
+        title: l.title || null, description: l.description || null, drill: null,
+      }))
+      cachePut(`plan-edit:${id}`, { id, created_by: me, ...full, plan_items: cachedItems })
+      // גם מסך האימון («פתח כתוכנית») קורא מהמטמון — בלי העדכון הזה הוא היה
+      // מציג תאריך ישן וכותב נוכחות לתאריך הלא נכון.
+      cacheGet(`plan-run:${id}`).then((c) => {
+        if (c?.data) cachePut(`plan-run:${id}`, { ...c.data, ...full, plan_items: cachedItems })
+      })
       setSaving(false)
       setSavedId(id)
       setIsDraft(!!draft)
@@ -598,6 +630,12 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       }
       snapParts.current = p2
       snapshot.current = p2.base + p2.ink + p2.att
+      // התוכן מאובטח בתור ובעותק השמור — טיוטת ההצלה סיימה את תפקידה.
+      // בלי הניקוי, פתיחת «תוכנית חדשה» אחרת הייתה מציעה לשחזר את מה שכבר נשמר.
+      try {
+        localStorage.removeItem(`nbk-draft:${me}:${id}`)
+        localStorage.removeItem(`nbk-draft:${me}:new`)
+      } catch { /* לא קריטי */ }
       toast.success(L('אין חיבור — התוכנית נשמרה במכשיר ותסונכרן כשהרשת תחזור.', 'No connection — the plan is saved on this device and will sync when you are back online.'))
       onSaved?.(id)
       return
@@ -657,6 +695,15 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       if (e3 && notDeployed(e3)) {
         ;({ error: e3 } = await supabase.from('practice_attendance').upsert(rows.map(({ reason, ...r }) => r), { onConflict: 'coach_id,team,session_date,player_id' }))
       }
+      // הרשת נפלה בין שמירת התוכנית לשמירת הנוכחות — הנוכחות לא הולכת
+      // לאיבוד: נכנסת לתור ומסונכרנת כשהרשת חוזרת.
+      if (e3 && isNetErr(e3)) {
+        const ok = await enqueue({ kind: 'att-upsert', rows })
+        if (ok) {
+          toast.success(L('הנוכחות נשמרה במכשיר ותסונכרן כשהרשת תחזור.', 'Attendance saved on this device — it syncs when you are back online.'))
+          e3 = null
+        }
+      }
       if (e3) toast.error(L('הנוכחות לא נשמרה: ', 'Attendance was not saved: ') + e3.message)
     } else if (team && roster.length && !usedLegacy && !attWorthSaving) {
       toast.info(L('הנוכחות עוד לא נרשמה — היא תישמר ברגע שתסמנו אותה בדף.', 'Attendance was not recorded yet — it saves the moment you mark it on the page.'))
@@ -678,6 +725,18 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       }
       snapParts.current = p
       snapshot.current = p.base + p.ink + p.att
+      // העותקים השמורים מתעדכנים גם בשמירה מקוונת — אחרת פתיחה בלי רשת
+      // אחרי שמירה מוצלחת הייתה מציגה את הגרסה הקודמת, ושמירה מעליה
+      // הייתה דורסת את החדשה. אותה צורה בדיוק כמו בענף האופליין.
+      const cachedItems2 = nextLinked.map((l, i) => ({
+        id: l.id || null, drill_id: l.drill_id, position: i, part: 1,
+        duration_minutes: l.duration_minutes || null, note: null,
+        title: l.title || null, description: l.description || null, drill: null,
+      }))
+      cachePut(`plan-edit:${id}`, { id, created_by: me, ...full, plan_items: cachedItems2 })
+      cacheGet(`plan-run:${id}`).then((c) => {
+        if (c?.data) cachePut(`plan-run:${id}`, { ...c.data, ...full, plan_items: cachedItems2 })
+      })
     }
     if (usedLegacy) {
       toast.error(L('נשמר השם בלבד! הטקסט, כתב היד והמגרשים לא נשמרו — צריך להריץ במסד את supabase_notebook_18_8.sql.', 'Only the name was saved! The text, handwriting and courts were not — run supabase_notebook_18_8.sql on the database.'))

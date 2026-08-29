@@ -37,8 +37,11 @@ export default function LineupsSection({ session, planId, team, roster }) {
   const [groups, setGroups] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [sqlMissing, setSqlMissing] = useState(false)
+  const [loadErr, setLoadErr] = useState(false) // הטעינה נכשלה — עריכה נחסמת
+  const [loadTick, setLoadTick] = useState(0)   // «נסה שוב»
   const [prev, setPrev] = useState(null) // ההרכבים מהאימון הקודם של אותה קבוצה
   const saveTimer = useRef(0)
+  const pendingSave = useRef(null) // מה שמחכה להשהיה — נשלח גם ביציאה מהמסך
 
   const byId = new Map((roster || []).map((p) => [p.id, p]))
 
@@ -53,14 +56,18 @@ export default function LineupsSection({ session, planId, team, roster }) {
       if (!alive) return
       if (error) {
         if (notDeployed(error)) setSqlMissing(true)
+        // כשל אמיתי (לא «אין טבלה») חוסם עריכה: מקטע ריק־ועריך אחרי כשל
+        // טעינה היה שומר [] ודורס את ההרכבים הקיימים בשקט.
+        else setLoadErr(true)
         setLoaded(true)
         return
       }
+      setLoadErr(false)
       setGroups(Array.isArray(data?.groups) ? data.groups : [])
       setLoaded(true)
     })()
     return () => { alive = false }
-  }, [planId])
+  }, [planId, loadTick])
 
   // «העתקה מהאימון הקודם» — ההרכבים האחרונים של אותה קבוצה, מתוכנית אחרת
   useEffect(() => {
@@ -83,28 +90,36 @@ export default function LineupsSection({ session, planId, team, roster }) {
   }, [planId, team, sqlMissing, loaded, groups.length])
 
   // ---------- שמירה מיידית (בהשהיה קצרצרה — הקשות רצופות מתאחדות) ----------
+  const doSave = async (next) => {
+    pendingSave.current = null
+    const row = { plan_id: planId, coach_id: me, groups: next, updated_at: new Date().toISOString() }
+    const { error } = await supabase.from('plan_lineups').upsert(row)
+    if (error && isNetErr(error)) {
+      // אין רשת — לתור היציאה, והעותק השמור מתעדכן כדי שכניסה מחדש תציג נכון
+      if (await enqueue({ kind: 'lineups-upsert', row })) {
+        cachePut(`lineups:${planId}`, { groups: next })
+        return
+      }
+    }
+    if (error) {
+      if (notDeployed(error)) setSqlMissing(true)
+      else toast.error(L('ההרכבים לא נשמרו — נסו שוב.', 'The lineups were not saved — try again.'))
+    } else {
+      cachePut(`lineups:${planId}`, { groups: next })
+    }
+  }
   const persist = (next) => {
     setGroups(next)
+    pendingSave.current = next
     clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(async () => {
-      const row = { plan_id: planId, coach_id: me, groups: next, updated_at: new Date().toISOString() }
-      const { error } = await supabase.from('plan_lineups').upsert(row)
-      if (error && isNetErr(error)) {
-        // אין רשת — לתור היציאה, והעותק השמור מתעדכן כדי שכניסה מחדש תציג נכון
-        if (await enqueue({ kind: 'lineups-upsert', row })) {
-          cachePut(`lineups:${planId}`, { groups: next })
-          return
-        }
-      }
-      if (error) {
-        if (notDeployed(error)) setSqlMissing(true)
-        else toast.error(L('ההרכבים לא נשמרו — נסו שוב.', 'The lineups were not saved — try again.'))
-      } else {
-        cachePut(`lineups:${planId}`, { groups: next })
-      }
-    }, 400)
+    saveTimer.current = setTimeout(() => doSave(next), 400)
   }
-  useEffect(() => () => clearTimeout(saveTimer.current), [])
+  // יציאה מהמסך בתוך חלון ההשהיה — השינוי האחרון נשלח, לא נזרק
+  useEffect(() => () => {
+    clearTimeout(saveTimer.current)
+    if (pendingSave.current) doSave(pendingSave.current)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---------- פעולות ----------
   const addGroup = (size) => {
@@ -138,6 +153,11 @@ export default function LineupsSection({ session, planId, team, roster }) {
       {sqlMissing ? (
         <p className="muted small nbk-att-hint">
           {L('כדי להשתמש בהרכבים צריך להריץ במסד את supabase_lineups_29_8.sql.', 'To use lineups, run supabase_lineups_29_8.sql on the database.')}
+        </p>
+      ) : loadErr ? (
+        <p className="muted small nbk-att-hint">
+          {L('ההרכבים לא נטענו — העריכה חסומה כדי לא לדרוס אותם. ', 'The lineups did not load — editing is blocked so they are not overwritten. ')}
+          <button type="button" className="link-button" onClick={() => setLoadTick((t) => t + 1)}>{L('נסה שוב', 'Try again')}</button>
         </p>
       ) : !loaded ? (
         <p className="muted small nbk-att-hint">{L('טוען…', 'Loading…')}</p>

@@ -157,7 +157,8 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
       setAtt(next)
     })()
     return () => { alive = false }
-  }, [team, date, me])
+    // tick — «נסה שוב» של הסגל חייב לשלוף מחדש גם כאן, לא רק את התוכנית
+  }, [team, date, me, tick])
 
   // ---------- שמירה מיידית ----------
   const persist = async (playerId, entry) => {
@@ -184,7 +185,16 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
     reason: entry.status === 'present' ? null : (joinReason(entry.preset, entry.text) || null),
   })
   const queueOffline = async (playerId, entry) => {
-    const ok = await enqueue({ kind: 'att-upsert', rows: [rowOf(playerId, entry)] })
+    const row = rowOf(playerId, entry)
+    const ok = await enqueue({ kind: 'att-upsert', rows: [row] })
+    if (ok) {
+      // גם העותק השמור מתעדכן — סגירה ופתיחה מחדש בלי רשת מציגה את
+      // ההקשות, לא רק את מה שהיה לפני שהרשת נפלה.
+      const key = `att:${me}:${team}:${date}`
+      const c = await cacheGet(key)
+      const rows = (c?.data || []).filter((r) => r.player_id !== playerId)
+      cachePut(key, [...rows, { player_id: playerId, status: row.status, reason: row.reason }])
+    }
     if (ok && !offline) {
       setOffline(true)
       toast.success(L('אין רשת — הסימונים נשמרים במכשיר ויסונכרנו כשהיא תחזור.', 'No connection — marks are saved on this device and will sync later.'))
@@ -207,20 +217,29 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
     }
   }
 
+  const pendingReasons = useRef({}) // מה שמחכה להשהיה — כדי לא לאבד ביציאה
+  const flushReason = async (playerId, next) => {
+    delete pendingReasons.current[playerId]
+    const error = await persist(playerId, next)
+    if (error && isNetErr(error)) {
+      if (await queueOffline(playerId, next)) return
+    }
+    if (error) toast.error(L('הסיבה לא נשמרה — נסו שוב.', 'The reason was not saved — try again.'))
+  }
   const editReason = (playerId, patch) => {
     const next = { ...attOf(playerId), ...patch }
     setAtt((cur) => ({ ...cur, [playerId]: next }))
     // הסיבה נשמרת בהשהיה קצרה — לא upsert על כל אות
+    pendingReasons.current[playerId] = next
     clearTimeout(reasonTimers.current[playerId])
-    reasonTimers.current[playerId] = setTimeout(async () => {
-      const error = await persist(playerId, next)
-      if (error && isNetErr(error)) {
-        if (await queueOffline(playerId, next)) return
-      }
-      if (error) toast.error(L('הסיבה לא נשמרה — נסו שוב.', 'The reason was not saved — try again.'))
-    }, 600)
+    reasonTimers.current[playerId] = setTimeout(() => flushReason(playerId, next), 600)
   }
-  useEffect(() => () => { Object.values(reasonTimers.current).forEach(clearTimeout) }, [])
+  // יציאה מהמסך בתוך חלון ההשהיה — הסיבה האחרונה נשלחת, לא נזרקת
+  useEffect(() => () => {
+    Object.values(reasonTimers.current).forEach(clearTimeout)
+    for (const [pid, next] of Object.entries(pendingReasons.current)) flushReason(pid, next)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const marked = roster.filter((p) => attOf(p.id).status)
   const attending = marked.filter((p) => attOf(p.id).status !== 'absent').length
