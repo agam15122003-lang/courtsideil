@@ -278,7 +278,14 @@ function builder(name) {
   const result = () => {
     if (op === 'insert' || op === 'upsert') {
       DB[name] = DB[name] || []
-      for (const r of payload) DB[name].push({ id: 'new-' + Math.random().toString(36).slice(2, 8), created_at: now, ...r })
+      for (const r of payload) {
+        // upsert אמיתי: שורה עם אותו id מתעדכנת במקום להישתל פעמיים.
+        // בלי זה בדיקת הסנכרון האופליין קראה את השורה הישנה וחשבה שהסנכרון
+        // לא עבד — כשבפועל זו הייתה סמנטיקת המוק.
+        const existing = op === 'upsert' && r.id != null ? DB[name].find((x) => x.id === r.id) : null
+        if (existing) Object.assign(existing, r)
+        else DB[name].push({ id: 'new-' + Math.random().toString(36).slice(2, 8), created_at: now, ...r })
+      }
       return { data: single || maybe ? payload[0] : payload, error: null, count: null }
     }
     if (op === 'update') {
@@ -295,7 +302,15 @@ function builder(name) {
     if (single || maybe) return { data: rows[0] || null, error: single && !rows[0] ? { code: 'PGRST116', message: 'no rows' } : null }
     return { data: rows, error: null, count: countMode ? rows.length : null }
   }
-  b.then = (res, rej) => Promise.resolve().then(result).then(res, rej)
+  // «אין רשת» מדומה — window.__mockOffline = true גורם לכל שאילתה להחזיר
+  // שגיאת fetch, בדיוק כמו supabase-js אמיתי בלי חיבור. משמש את בדיקות
+  // האופליין (מטמון הקריאה ותור היציאה של src/offline.js).
+  b.then = (res, rej) => Promise.resolve().then(() => {
+    if (typeof window !== 'undefined' && window.__mockOffline) {
+      return { data: null, error: { message: 'TypeError: Failed to fetch' }, count: null }
+    }
+    return result()
+  }).then(res, rej)
   return b
 }
 

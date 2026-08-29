@@ -9,6 +9,7 @@ import { notDeployed } from './PlanNotebook'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 import LineupsSection from './LineupsSection'
+import { cachedRead, cacheGet, cachePut, enqueue, isNetErr } from './offline'
 
 // «פתח כתוכנית» — מסך האימון. 29.8.2026, לבקשת הבעלים:
 // אחרי שהתוכנית נשמרה, פותחים אותה כדף נקי (בלי עורך ובלי סרגל — מצב
@@ -74,6 +75,7 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
   const [roster, setRoster] = useState([])
   const [rosterError, setRosterError] = useState(null)
   const [att, setAtt] = useState({}) // team_players.id -> {status, preset, text, saving}
+  const [offline, setOffline] = useState(false) // מוצג מהעותק השמור / הקשות נכנסות לתור
   const reasonTimers = useRef({})
 
   // תוכנית בלי תאריך עדיין צריכה נוכחות — הרישום ממופתח לקבוצה+תאריך,
@@ -99,14 +101,28 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
         ;({ data, error } = await supabase.from('training_plans').select(RUN_COLS[tier]).eq('id', planId).single())
       }
       if (!alive) return
+      // אין רשת — העותק השמור מהפתיחה המקוונת האחרונה
+      let fromCache = false
+      if ((error || !data) && isNetErr(error)) {
+        const c = await cacheGet(`plan-run:${planId}`)
+        if (!alive) return
+        if (c?.data) { data = c.data; error = null; fromCache = true }
+      }
       if (error || !data) {
         setState({ loading: false, error: L('שגיאה בטעינת התוכנית: ', 'Failed to load plan: ') + (error?.message || ''), plan: null, items: [] })
+        return
+      }
+      if (fromCache) {
+        setOffline(true)
+        setState({ loading: false, error: null, plan: data, items: data.plan_items || [] })
         return
       }
       const { data: pr } = await supabase.from('profiles').select('first_name, last_name, club').eq('id', data.created_by).maybeSingle()
       if (!alive) return
       const coach = pr ? { club: pr.club || '', name: `${pr.first_name || ''} ${pr.last_name || ''}`.trim() } : {}
-      setState({ loading: false, error: null, plan: { ...data, coach }, items: data.plan_items || [] })
+      const full = { ...data, coach }
+      cachePut(`plan-run:${planId}`, full)
+      setState({ loading: false, error: null, plan: full, items: data.plan_items || [] })
     })()
     return () => { alive = false }
   }, [planId, tick])
@@ -116,9 +132,10 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
     if (!team || !date) { setRoster([]); return }
     let alive = true
     ;(async () => {
+      // עטוף במטמון — נוכחות מסמנים גם בלי רשת (אותם מפתחות כמו במחברת)
       const [plRes, attRes] = await Promise.all([
-        supabase.from('team_players').select('id, name, number, status').eq('coach_id', me).eq('team', team),
-        supabase.from('practice_attendance').select('player_id, status, reason').eq('coach_id', me).eq('team', team).eq('session_date', date),
+        cachedRead(`roster:${me}:${team}`, () => supabase.from('team_players').select('id, name, number, status, player_id').eq('coach_id', me).eq('team', team)),
+        cachedRead(`att:${me}:${team}:${date}`, () => supabase.from('practice_attendance').select('player_id, status, reason').eq('coach_id', me).eq('team', team).eq('session_date', date)),
       ])
       let attRows = attRes.data
       if (attRes.error && notDeployed(attRes.error)) {
@@ -159,11 +176,30 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
 
   const attOf = (id) => att[id] || { status: null, preset: '', text: '' }
 
+  // הקשה שנכשלה בגלל רשת לא מוחזרת לאחור — היא נכנסת לתור היציאה
+  // ומסונכרנת כשהרשת חוזרת. רק דחייה אמיתית של השרת מחזירה לאחור.
+  const rowOf = (playerId, entry) => ({
+    coach_id: me, team, session_date: date, player_id: playerId,
+    status: entry.status || 'present',
+    reason: entry.status === 'present' ? null : (joinReason(entry.preset, entry.text) || null),
+  })
+  const queueOffline = async (playerId, entry) => {
+    const ok = await enqueue({ kind: 'att-upsert', rows: [rowOf(playerId, entry)] })
+    if (ok && !offline) {
+      setOffline(true)
+      toast.success(L('אין רשת — הסימונים נשמרים במכשיר ויסונכרנו כשהיא תחזור.', 'No connection — marks are saved on this device and will sync later.'))
+    }
+    return ok
+  }
+
   const tapStatus = async (playerId, status) => {
     const prev = attOf(playerId)
     const next = { ...prev, status }
     setAtt((cur) => ({ ...cur, [playerId]: next }))
     const error = await persist(playerId, next)
+    if (error && isNetErr(error)) {
+      if (await queueOffline(playerId, next)) return
+    }
     if (error) {
       // ההקשה לא נשמרה — מחזירים את המסך לאמת ואומרים זאת
       setAtt((cur) => ({ ...cur, [playerId]: prev }))
@@ -178,6 +214,9 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
     clearTimeout(reasonTimers.current[playerId])
     reasonTimers.current[playerId] = setTimeout(async () => {
       const error = await persist(playerId, next)
+      if (error && isNetErr(error)) {
+        if (await queueOffline(playerId, next)) return
+      }
       if (error) toast.error(L('הסיבה לא נשמרה — נסו שוב.', 'The reason was not saved — try again.'))
     }, 600)
   }
@@ -205,6 +244,12 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
       <button className="link-button" onClick={onBack}>
         <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
+      {offline && (
+        <p className="alert alert-info" style={{ marginTop: 12 }} role="status">
+          {L('אין חיבור לאינטרנט — המסך עובד מהעותק השמור, והסימונים יסונכרנו כשהרשת תחזור.',
+             'No internet connection — this screen works from the saved copy; marks sync when you are back online.')}
+        </p>
+      )}
       <div className="nb-actions" style={{ marginTop: 12 }}>
         <button className="btn-soft" onClick={() => onEdit?.(planId)}>
           <Pencil size={16} /> {L('עריכה במחברת', 'Edit in the notebook')}

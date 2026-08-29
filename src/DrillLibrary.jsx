@@ -4,6 +4,7 @@ import { Dumbbell, Plus, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { AGE_GROUPS, DRILL_CATEGORIES } from './constants'
 import { L, tr, trTeam } from './i18n'
+import { cacheGet, cachePut, isNetErr } from './offline'
 import { ErrorState } from './states'
 import useFocusTrap from './useFocusTrap'
 import { confirmDialog } from './confirm'
@@ -58,6 +59,7 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState(null)
+  const [offlineList, setOfflineList] = useState(false) // הרשימה מהעותק השמור — אין רשת
   const [adding, setAdding] = useState(false) // האם מציגים את טופס ההוספה
   const [editingDrill, setEditingDrill] = useState(null) // תרגיל שנבחר לעריכה
 
@@ -220,6 +222,16 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
     let { data, error } = await page(DRILL_COLS, true)
     // מסד שטרם הריץ את supabase_launch_migration.sql — חסרות עמודות
     if (error && notDeployed(error)) ({ data, error } = await page(DRILL_COLS_LEGACY, false))
+
+    // מטמון אופליין — רק לתצוגת ברירת המחדל (בלי חיפוש ובלי פילטרים):
+    // העותק השמור הוא של הרשימה המלאה, לא של תוצאה מסוננת.
+    const cacheable = !append && !q && !catFilter && !ageFilter.length && !tagFilter && !onlySaved && source !== 'mine' && source !== 'community'
+    if (error && isNetErr(error) && cacheable) {
+      const c = await cacheGet('drills:list')
+      if (c?.data) { data = c.data; error = null; setOfflineList(true) }
+    } else if (!error && cacheable) {
+      cachePut('drills:list', data || [])
+    }
 
     // תגובה של חיפוש קודם שהגיעה מאוחר — אסור לה לדרוס תוצאה עדכנית.
     // דגלי הטעינה כן מתאפסים גם אז, אחרת שלד הטעינה היה יכול להיתקע לנצח.
@@ -469,6 +481,11 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
           <option value="community">{L('תרגילים מהקהילה', 'Community drills')}</option>
         </select>
       </div>
+      {offlineList && (
+        <p className="alert alert-info" role="status">
+          {L('אין חיבור לאינטרנט — מוצגים התרגילים השמורים במכשיר.', 'No internet connection — showing the drills saved on this device.')}
+        </p>
+      )}
       {/* סינון ומיון היו באותה שורת צ׳יפים ובאותו עיצוב — אי אפשר היה לדעת
           מה מצמצם את הרשימה ומה רק משנה סדר. עכשיו שתי קבוצות מסומנות. */}
       <div className="filter-chips-row">

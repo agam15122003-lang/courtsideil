@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { notDeployed } from './PlanNotebook'
+import { cachedRead, cachePut, enqueue, isNetErr } from './offline'
 
 // הרכבים מוכנים לאימון — 29.8.2026, לבקשת הבעלים:
 // זוגות / שלשות / רביעיות / חמישיות שמכינים מראש, בתחתית דף התוכנית.
@@ -46,8 +47,9 @@ export default function LineupsSection({ session, planId, team, roster }) {
     if (!planId) return
     let alive = true
     ;(async () => {
-      const { data, error } = await supabase
-        .from('plan_lineups').select('groups').eq('plan_id', planId).maybeSingle()
+      // עטוף במטמון — ההרכבים זמינים גם בלי רשת
+      const { data, error } = await cachedRead(`lineups:${planId}`, () => supabase
+        .from('plan_lineups').select('groups').eq('plan_id', planId).maybeSingle())
       if (!alive) return
       if (error) {
         if (notDeployed(error)) setSqlMissing(true)
@@ -85,12 +87,20 @@ export default function LineupsSection({ session, planId, team, roster }) {
     setGroups(next)
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from('plan_lineups')
-        .upsert({ plan_id: planId, coach_id: me, groups: next, updated_at: new Date().toISOString() })
+      const row = { plan_id: planId, coach_id: me, groups: next, updated_at: new Date().toISOString() }
+      const { error } = await supabase.from('plan_lineups').upsert(row)
+      if (error && isNetErr(error)) {
+        // אין רשת — לתור היציאה, והעותק השמור מתעדכן כדי שכניסה מחדש תציג נכון
+        if (await enqueue({ kind: 'lineups-upsert', row })) {
+          cachePut(`lineups:${planId}`, { groups: next })
+          return
+        }
+      }
       if (error) {
         if (notDeployed(error)) setSqlMissing(true)
         else toast.error(L('ההרכבים לא נשמרו — נסו שוב.', 'The lineups were not saved — try again.'))
+      } else {
+        cachePut(`lineups:${planId}`, { groups: next })
       }
     }, 400)
   }

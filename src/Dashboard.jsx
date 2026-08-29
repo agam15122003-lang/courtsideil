@@ -24,6 +24,7 @@ import { isAdultPlayer } from './consent'
 // 22.8 — השקת צד המאמן בלבד (ראו src/flags.js): «מתאמנים אישיים» יורד
 // מהניווט, וחשבון שחקן שמתחבר רואה מסך המתנה במקום את האפליקציה שלו.
 import { PLAYER_SIDE } from './flags'
+import { cacheGet, cachePut, isNetErr, flushOutbox } from './offline'
 import PlayerSideClosed from './PlayerSideClosed'
 // מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
 import AccountBlocked from './AccountBlocked'
@@ -382,16 +383,30 @@ export default function Dashboard({ session }) {
     // כל שגיאה אחרת (רשת/timeout, נפוץ במובייל) לא מתחזה ל"פרופיל ריק"
     // כדי לא להציג טופס הרשמה שידרוס פרופיל קיים.
     if (error && error.code !== 'PGRST116') {
+      // אין רשת? הפרופיל השמור במכשיר מחזיק את האפליקציה על הרגליים —
+      // בלעדיו כל האפליקציה הייתה מסך שגיאה, כולל תוכניות שיש להן עותק שמור.
+      if (isNetErr(error)) {
+        const c = await cacheGet(`profile:${session.user.id}`)
+        if (c?.data) {
+          setProfile(c.data)
+          setLoading(false)
+          return
+        }
+      }
       console.error('שגיאה בטעינת הפרופיל:', error.message)
       setLoadError(true)
     } else {
       setProfile(data || null)
+      if (data) cachePut(`profile:${session.user.id}`, data)
     }
     setLoading(false)
   }
 
   // טוענים פרופיל רק כשמשתמש מתחלף — לא בכל רענון-טוקן אוטומטי (כל ~שעה),
   // שאחרת היה מפעיל loading=true ומאפס את המסך והעבודה שבתהליך.
+  // פעולות שנשמרו במכשיר בלי רשת — מנוגנות ברגע שנכנסים
+  useEffect(() => { flushOutbox() }, [])
+
   useEffect(() => {
     loadProfile()
     // eslint-disable-next-line react-hooks/exhaustive-deps

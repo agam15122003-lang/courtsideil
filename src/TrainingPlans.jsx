@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ClipboardList, BookOpen, Printer, ListChecks, Clock, Globe2, FileEdit, CalendarDays, User, Copy, CopyPlus, Share2, Trash2 } from 'lucide-react'
 import RowMenu from './RowMenu'
 import PlanRun from './PlanRun'
+import { cacheGet, cachePut, isNetErr } from './offline'
 import Pick from './Pick'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
@@ -85,6 +86,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
   const [comError, setComError] = useState(null) // כשל בשליפת הקהילה בלבד — לא מפיל את המסך
   const [activePlanId, setActivePlanId] = useState(null)
   const [runPlanId, setRunPlanId] = useState(null) // «פתח כתוכנית» — מסך האימון
+  const [offlineList, setOfflineList] = useState(false) // הרשימה מוצגת מהעותק השמור
   const [source, setSource] = useState(initialSource || '') // מקור התוכניות: '' הכול | 'mine' | 'community'
   const [search, setSearch] = useState('')   // מה שהמאמן מקליד
   const [q, setQ] = useState('')             // אותו דבר אחרי השהיה, וזה מה שנשלח לשרת
@@ -187,6 +189,20 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     }
 
     if (error) {
+      // אין רשת — הרשימה השמורה במכשיר במקום מסך שגיאה (בלי חיפוש: העותק
+      // השמור הוא של הרשימה המלאה, לא של תוצאות חיפוש)
+      if (!append && isNetErr(error) && !qRef.current) {
+        const c = await cacheGet(`plans:mine:${me}`)
+        if (c?.data) {
+          setMinePlans(c.data)
+          setHasMoreMine(false)
+          setOfflineList(true)
+          setError(null)
+          setLoading(false)
+          setLoadingMoreMine(false)
+          return
+        }
+      }
       if (!append) setError(L('שגיאה בטעינת התוכניות: ', 'Failed to load plans: ') + error.message)
       else toast.error(L('טעינת התוכניות הנוספות נכשלה', 'Failed to load more plans'))
     } else {
@@ -194,6 +210,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
       setMinePlans((cur) => (append ? [...cur, ...rows] : rows))
       setHasMoreMine(rows.length === size)
       setError(null)
+      if (!append && !qRef.current) cachePut(`plans:mine:${me}`, rows)
     }
     setLoading(false)
     setLoadingMoreMine(false)
@@ -232,6 +249,18 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
         setComPlans([])
         setHasMoreCom(false)
         setComError(null)
+      } else if (!append && isNetErr(error) && !qRef.current) {
+        // אין רשת — תוכניות הקהילה מהעותק השמור
+        const c = await cacheGet('plans:com')
+        if (c?.data) {
+          comLoadedRef.current = true
+          setComPlans(c.data)
+          setHasMoreCom(false)
+          setOfflineList(true)
+          setComError(null)
+        } else {
+          setComError(L('שגיאה בטעינת תוכניות הקהילה: ', 'Failed to load community plans: ') + error.message)
+        }
       } else if (append) {
         toast.error(L('טעינת תוכניות הקהילה הנוספות נכשלה', 'Failed to load more community plans'))
       } else {
@@ -243,6 +272,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
       setComPlans((cur) => (append ? [...cur, ...rows] : rows))
       setHasMoreCom(rows.length === size)
       setComError(null)
+      if (!append && !qRef.current) cachePut('plans:com', rows)
     }
     setLoadingMoreCom(false)
   }
@@ -451,6 +481,11 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
 
   return (
     <div className="welcome-card">
+      {offlineList && (
+        <p className="alert alert-info" role="status">
+          {L('אין חיבור לאינטרנט — מוצגות התוכניות השמורות במכשיר.', 'No internet connection — showing the plans saved on this device.')}
+        </p>
+      )}
       {/* אין כאן כותרת: Dashboard עוטף את המסך ב-<Page> שכבר נותן
           eyebrow, H1 ותת-כותרת. שתי כותרות = שני H1 באותו מסך. */}
       {/* שתי דלתות לחדר. «בנה לי» (הבנאי האוטומטי) הוסר לבקשת הבעלים.

@@ -18,6 +18,7 @@ import PlanSheet, { legacyItemsToBody } from './PlanSheet'
 import TacticsBoard from './TacticsBoard'
 import SendToPlayers from './SendToPlayers.jsx'
 import LineupsSection from './LineupsSection'
+import { cachedRead, cacheGet, cachePut, enqueue, isNetErr } from './offline'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 
@@ -152,6 +153,7 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
   const [preview, setPreview] = useState(false)
   const [sending, setSending] = useState(false)
   const [savedId, setSavedId] = useState(planId || null)
+  const [offlineView, setOfflineView] = useState(false) // התוכנית נטענה מהעותק השמור
   const snapshot = useRef('')
   const snapParts = useRef(null) // { base, ink, att } — חלקי הצילום, כדי לעדכן חלק בלי לפרסר
 
@@ -258,11 +260,22 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
         ;({ data, error } = await supabase.from('training_plans').select(PLAN_SELECTS[tier]).eq('id', planId).single())
       }
       if (!alive) return
+      // אין רשת — נופלים לעותק השמור במכשיר (מהפתיחה המקוונת האחרונה)
+      if ((error || !data) && isNetErr(error)) {
+        const c = await cacheGet(`plan-edit:${planId}`)
+        if (!alive) return
+        if (c?.data) {
+          data = c.data
+          error = null
+          setOfflineView(true)
+        }
+      }
       if (error || !data) {
         setLoadError(L('שגיאה בטעינת התוכנית: ', 'Failed to load plan: ') + (error?.message || ''))
         setLoading(false)
         return
       }
+      cachePut(`plan-edit:${planId}`, data)
       const items = (data.plan_items || []).slice().sort((a, b) => ((a.part || 1) - (b.part || 1)) || (a.position - b.position))
       setName(data.name || '')
       setTeam(data.team || '')
@@ -315,9 +328,10 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
     let alive = true
     ;(async () => {
       setRosterLoading(true)
+      // עטוף במטמון: בלי רשת הסגל והנוכחות מגיעים מהעותק השמור
       const [plRes, attRes] = await Promise.all([
-        supabase.from('team_players').select('id, name, number, status, player_id').eq('coach_id', me).eq('team', team),
-        supabase.from('practice_attendance').select('player_id, status, reason').eq('coach_id', me).eq('team', team).eq('session_date', date),
+        cachedRead(`roster:${me}:${team}`, () => supabase.from('team_players').select('id, name, number, status, player_id').eq('coach_id', me).eq('team', team)),
+        cachedRead(`att:${me}:${team}:${date}`, () => supabase.from('practice_attendance').select('player_id, status, reason').eq('coach_id', me).eq('team', team).eq('session_date', date)),
       ])
       let attRows = attRes.data
       if (attRes.error && notDeployed(attRes.error)) {
@@ -413,11 +427,12 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
   const loadPickDrills = async () => {
     setPickError(null)
     setAllDrills(null)
-    const { data, error } = await supabase
+    // עטוף במטמון — «תרגיל מהספרייה» עובד גם בלי רשת
+    const { data, error } = await cachedRead('drills:pick', () => supabase
       .from('drills')
       .select('id, title, description, category, duration_minutes')
       .order('created_at', { ascending: false })
-      .limit(PICK_PAGE)
+      .limit(PICK_PAGE))
     if (error) { setPickError(L('טעינת התרגילים נכשלה: ', 'Failed to load drills: ') + error.message); setAllDrills([]); return }
     setAllDrills(data || [])
   }
@@ -538,6 +553,55 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       if (error && notDeployed(error)) { usedLegacy = true; legacyDb.current = true; error = null }
     }
     if (usedLegacy && !error) error = await write({ name: full.name })
+
+    // ---------- אין רשת: נשמר במכשיר ומסונכרן כשהיא חוזרת (29.8) ----------
+    if (error && isNetErr(error)) {
+      // לתוכנית חדשה נקבע id כבר עכשיו — כך העריכות הבאות והסנכרון
+      // מדברים על אותה תוכנית, וההצלה המקומית עוברת למפתח הקבוע.
+      if (!id) id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const queued = await enqueue({
+        kind: 'plan-save',
+        id,
+        me,
+        payload: full,
+        items: linked.map((l) => ({ drill_id: l.drill_id, duration_minutes: l.duration_minutes || null })),
+      })
+      if (!queued) {
+        // אין גם IndexedDB (מצב פרטי קיצוני) — מתנהגים ככשל רגיל; טיוטת
+        // ההצלה ב-localStorage עדיין שומרת על הכתוב.
+        setSaving(false)
+        toast.error(L('אין חיבור, והשמירה המקומית חסומה — הטקסט נשמר בטיוטת ההצלה.', 'No connection and local storage is blocked — the text is kept in the crash draft.'))
+        return
+      }
+      // נוכחות שסומנה — נכנסת לתור באותו סדר (אחרי התוכנית)
+      if (team && roster.length && attTouched.current) {
+        const rows = roster.map((p) => {
+          const a = attOf(p.id)
+          return {
+            coach_id: me, team, session_date: date, player_id: p.id,
+            status: a.status || 'present',
+            reason: a.status === 'present' ? null : (joinReason(a.preset, a.text) || null),
+          }
+        })
+        await enqueue({ kind: 'att-upsert', rows })
+      }
+      // מעדכנים את העותק השמור — כניסה מחדש בלי רשת תציג את הגרסה הזו
+      cachePut(`plan-edit:${id}`, { id, created_by: me, ...full, plan_items: [] })
+      setSaving(false)
+      setSavedId(id)
+      setIsDraft(!!draft)
+      attTouched.current = false
+      const p2 = {
+        base: JSON.stringify({ name, team, date, duration, body, linked: linked.map((l) => l.drill_id), isDraft: !!draft }),
+        ink: JSON.stringify({ ink, courts }),
+        att: JSON.stringify(att),
+      }
+      snapParts.current = p2
+      snapshot.current = p2.base + p2.ink + p2.att
+      toast.success(L('אין חיבור — התוכנית נשמרה במכשיר ותסונכרן כשהרשת תחזור.', 'No connection — the plan is saved on this device and will sync when you are back online.'))
+      onSaved?.(id)
+      return
+    }
 
     if (error) {
       setSaving(false)
@@ -700,6 +764,14 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       <button className="link-button" onClick={cancel}>
         <ArrowBack size={15} className="back-ic" /> {L('כל התוכניות', 'All plans')}
       </button>
+
+      {/* התוכנית נטענה מהעותק השמור — אין רשת */}
+      {offlineView && (
+        <p className="alert alert-info" style={{ marginTop: 12 }} role="status">
+          {L('אין חיבור לאינטרנט — מוצג העותק השמור במכשיר. אפשר להמשיך לכתוב ולשמור; הכל יסונכרן כשהרשת תחזור.',
+             'No internet connection — showing the copy saved on this device. Keep writing and saving; everything syncs when you are back online.')}
+        </p>
+      )}
 
       {/* טיוטת הצלה מקריסה — מוצעת, לא נכפית */}
       {crashDraft && (
