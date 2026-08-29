@@ -5,6 +5,7 @@ import RowMenu from './RowMenu'
 import PlanRun from './PlanRun'
 import { cacheGet, cachePut, isNetErr } from './offline'
 import Pick from './Pick'
+import useFocusMode from './useFocusMode'
 // חצי «חזרה» מתהפכים לפי שפה — אסור לייבא ArrowRight ישירות מ-lucide
 import { ArrowBack } from './DirIcon'
 import { supabase } from './supabaseClient'
@@ -854,6 +855,7 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
 // 18.8 — הדף המלא (טקסט, דיו, מגרשים) דרך PlanSheetById; תוכנית ישנה
 // (בלי גוף) מוצגת מהפריטים שלה.
 function PlanViewer({ plan, onBack, onCopy }) {
+  useFocusMode()
   return (
     <div className="welcome-card nbk-focus">
       <button className="link-button" onClick={onBack}>

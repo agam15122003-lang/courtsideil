@@ -9,6 +9,7 @@ import { notDeployed } from './PlanNotebook'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
 import LineupsSection from './LineupsSection'
+import useFocusMode from './useFocusMode'
 import { cachedRead, cacheGet, cachePut, enqueue, isNetErr } from './offline'
 
 // «פתח כתוכנית» — מסך האימון. 29.8.2026, לבקשת הבעלים:
@@ -68,6 +69,7 @@ const RUN_COLS = [
 ]
 
 export default function PlanRun({ session, planId, onBack, onEdit }) {
+  useFocusMode()
   const me = session.user.id
   const [state, setState] = useState({ loading: true, error: null, plan: null, items: [] })
   const [tick, setTick] = useState(0)

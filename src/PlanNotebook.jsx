@@ -18,6 +18,7 @@ import PlanSheet, { legacyItemsToBody } from './PlanSheet'
 import TacticsBoard from './TacticsBoard'
 import SendToPlayers from './SendToPlayers.jsx'
 import LineupsSection from './LineupsSection'
+import useFocusMode from './useFocusMode'
 import { cachedRead, cacheGet, cachePut, enqueue, isNetErr, flushOutbox } from './offline'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
@@ -101,6 +102,7 @@ const PLAN_SELECT_BARE = `id, name, created_by, created_at, ${PLAN_ITEM_COLS_BAR
 const PLAN_SELECTS = [PLAN_SELECT, PLAN_SELECT_MID, PLAN_SELECT_BARE]
 
 export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpenRun }) {
+  useFocusMode()
   const me = session.user.id
 
   const [loading, setLoading] = useState(!!planId)

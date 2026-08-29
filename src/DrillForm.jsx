@@ -4,6 +4,7 @@ import {
   SlidersHorizontal, Globe2, Clock, Users, Package, Repeat, Target,
 } from 'lucide-react'
 import { toast } from './toast'
+import useFocusMode from './useFocusMode'
 import { supabase } from './supabaseClient'
 import { uploadImage, FEED_THUMB } from './storage'
 import SignedImg from './SignedImg'
@@ -43,6 +44,7 @@ function NbLines({ value, onChange, placeholder, ariaLabel }) {
 //   onCancel - מופעל בלחיצה על "ביטול"
 //   drill    - (אופציונלי) תרגיל קיים לעריכה. אם קיים — הטופס נטען מלא ומעדכן במקום להוסיף.
 export default function DrillForm({ onSaved, onCancel, drill }) {
+  useFocusMode()
   const editing = !!drill?.id
   const [mode, setMode] = useState('notebook') // 'notebook' (ברירת מחדל) | 'form'
   // שדות הבסיס — נטענים מהתרגיל הקיים בעריכה

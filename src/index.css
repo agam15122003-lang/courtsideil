@@ -31350,3 +31350,79 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   /* גם מסכי האפליקציה: מרכוז שנשען על margin-inline מקבל גיבוי פיזי */
   .main-inner { margin-left: auto !important; margin-right: auto !important; }
 }
+
+/* ===== 31.8.2026 — מיקוד בלי :has + מצב לייט לדפדפן עתיק ===== */
+/* מנגנון המיקוד נשען על :has() — שלא קיים ב-WebView של הטאבלט, ולכן  */
+/* הסרגל נשאר על המסך באמצע אימון. useFocusMode מדליק מחלקה על body,   */
+/* והכללים כאן — העתק של בלוק המיקוד — עובדים בכל דפדפן. רק מאפיינים    */
+/* פיזיים בכוונה (right, לא inset-inline): גם הם חייבים לרוץ שם.        */
+@media (min-width: 841px) {
+  body.is-focus .layout { display: block; }
+  body.is-focus .mobile-topbar {
+    display: flex;
+    align-items: center;
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  body.is-focus .mobile-topbar .sidebar-brand { padding: 0; flex: 1; font-size: var(--text-base); }
+  body.is-focus .drawer-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+  body.is-focus .drawer-overlay {
+    display: block;
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(10, 14, 24, 0.45);
+    z-index: 55;
+  }
+  body.is-focus .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 272px;
+    max-width: 82vw;
+    height: 100vh;
+    flex-direction: column;
+    padding: 20px 16px;
+    box-shadow: -8px 0 28px rgba(10, 37, 64, 0.18);
+    z-index: 60;
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    overflow-y: auto;
+  }
+  body.is-focus .sidebar.open { transform: translateX(0); }
+  body.is-focus .main-content { padding: 16px 20px; }
+  body.is-focus .main-inner { max-width: 1120px; }
+  body.is-focus .nbk-courts { flex-basis: 188px; }
+  body.is-focus .cs-hero,
+  body.is-focus .cs-hero-bar,
+  body.is-focus .work-tabs,
+  body.is-focus .quote-strip { display: none; }
+}
+
+/* מצב לייט לדפדפן עתיק: אנימציות, מעברים וצללים הם רוב עלות הציור    */
+/* במכשיר ישן — וכולם קישוט. המנוע שעונה על התנאי הזה הוא בדיוק זה     */
+/* שנתקע, ולכן כאן הכול יורד. מכשיר מודרני לא מושפע.                   */
+@supports not (margin-inline: auto) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}
