@@ -14,6 +14,7 @@ import AdultConfirm from './AdultConfirm'
 import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
 import useOnline from './useOnline'
+import OfflineGate from './OfflineGate'
 import PocketNav from './PocketNav'
 import { useLang, L } from './i18n'
 // שמירה על עבודה פתוחה (המחברת) לפני מעבר מסך — ראו src/unsavedGuard.js
@@ -195,6 +196,10 @@ const POCKET_NAV = [
   { id: 'teams', key: 'nav.teamsShort', Icon: Shield },
   { id: 'messages', key: 'nav.messages', Icon: MessageSquare },
 ]
+// המסכים שעובדים בלי רשת — «התוכנה הבסיסית» של האולם (30.8): בית,
+// תוכניות ותרגילים (מהעותק השמור) ועזרה (טקסט מקומי). כל השאר מקבל
+// בלי רשת מסך «צריך אינטרנט» במקום חצי-מסך שבור, ונפתח לבד כשהיא חוזרת.
+const OFFLINE_OK = new Set(['home', 'work', 'help'])
 const ADMIN_NAV = { id: 'admin', key: 'nav.admin', Icon: ShieldCheck }
 // «תיק שחקן» — תצוגה מוקדמת על נתוני דוגמה, גלויה למנהלי מערכת בלבד
 // עד שהמסכים יאושרו ויחוברו למסד.
@@ -285,6 +290,13 @@ const PAGE_META = {
 export default function Dashboard({ session }) {
   const { t } = useLang()
   const online = useOnline()
+  // השער של «צריך אינטרנט» מוצג רק כשנכנסים למסך בלי רשת. נפילת רשת
+  // באמצע עבודה על מסך פתוח לא מחליפה אותו — החלפה כזו הייתה זורקת
+  // טקסט שבאמצע הקלדה (משוב, הודעה) בלי שום אזהרה. מסך שכבר פתוח
+  // ממשיך להתנהג כמו קודם: שגיאות נקודתיות, והפס האדום למעלה.
+  const onlineRef = useRef(online)
+  onlineRef.current = online
+  const [enteredOffline, setEnteredOffline] = useState(false)
   // כמה פעולות שמורות במכשיר ומחכות לרשת — מוצג בפס האופליין
   const [pendingOps, setPendingOps] = useState(0)
   useEffect(() => {
@@ -297,6 +309,8 @@ export default function Dashboard({ session }) {
   // מסך 10a — מתג «כך רואים אותך»: הצד הפרטי מול התצוגה הציבורית
   const [profileTab, setProfileTab] = useState('private')
   const [view, setView] = useState('home')
+  // חייב לשבת אחרי הגדרת view — קריאה לפניה היא ReferenceError
+  useEffect(() => { setEnteredOffline(onlineRef.current === false) }, [view])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const sidebarRef = useRef(null)
   // המפתח כולל is_admin כי הוא מוסיף פריט לרשימה ומזיז את כל מה שמתחתיו
@@ -728,7 +742,7 @@ export default function Dashboard({ session }) {
             <button
               key={item.id}
               data-nav={item.id}
-              className={view === item.id ? 'nav-item active' : 'nav-item'}
+              className={(view === item.id ? 'nav-item active' : 'nav-item') + (!online && !OFFLINE_OK.has(item.id) ? ' nav-offline' : '')}
               onClick={async () => {
                 if (!(await confirmLeave())) return
                 // עורך הפרופיל (showForm) מאפיל על ה-view, ולכן בלי איפוסו
@@ -741,6 +755,9 @@ export default function Dashboard({ session }) {
             >
               <item.Icon size={18} />
               {t(item.key)}
+              {!online && !OFFLINE_OK.has(item.id) && (
+                <WifiOff size={12} className="nav-offline-ic" aria-hidden="true" />
+              )}
               {item.id === 'messages' && unread > 0 && (
                 <span className="nav-badge">{unread > 9 ? '9+' : unread}</span>
               )}
@@ -845,6 +862,11 @@ export default function Dashboard({ session }) {
                 onCancel={isComplete ? () => setEditing(false) : undefined}
               />
             </>
+          ) : !online && enteredOffline && !OFFLINE_OK.has(view) ? (
+            <OfflineGate
+              onGoPlans={() => navigate('plans')}
+              onGoHome={() => navigate('home')}
+            />
           ) : view === 'home' ? (
             <Home
               session={session}
