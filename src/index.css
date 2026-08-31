@@ -31567,3 +31567,13 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 @media screen and (min-width: 1280px) and (min-height: 541px) {
   .layout:has(.nbk-focus) .nbk-courts { flex: 0 0 340px; width: 340px; }
 }
+
+/* ===== 30.8.2026 — התפריט «⋯» בכרטיס תוכנית נחתך ===== */
+/* overflow:hidden של הכרטיס (שנועד לפס הכתום בקצה) בלע את התפריט
+   שנפתח כלפי מטה — נשארה רצועה לבנה חתוכה בלי הטקסט. שני תיקונים:
+   הכרטיס מפסיק לחתוך (פס הקצה מקבל עיגול משלו במקום), והתפריט נפתח
+   כלפי מעלה — הכפתורים יושבים בתחתית הכרטיס, ולמעלה יש מקום; פתיחה
+   למטה הייתה מצטיירת מתחת לכרטיס הבא ונבלעת. */
+.coach-card { overflow: visible; }
+.coach-card::after { border-radius: 14px; }
+.row-menu-pop { top: auto; bottom: calc(100% + 6px); }
