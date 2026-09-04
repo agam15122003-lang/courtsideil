@@ -1,4 +1,5 @@
 import { L } from './i18n'
+import { PLAYER_SIDE } from './flags'
 
 // צעדי הסיור המודרך.
 //
@@ -111,7 +112,11 @@ export default function tourSteps() {
       view: 'teams',
       anchor: ['.roster-list', '.roster-cols', '.empty-state'],
       title: L('הסגל', 'The roster'),
-      body: L(
+      // 2.9 — עם צד שחקן פתוח: לא חייבים חשבון, אבל יש דרך לחבר
+      body: PLAYER_SIDE ? L(
+        'שחקן נוסף כאן פעם אחת, ומופיע מאליו בנוכחות, ביעדים, במשוב ובסקירה. לא חייבים לו חשבון — ומי שרוצה לראות את הדברים בטלפון שלו מצטרף עם קוד הקבוצה שמופיע כאן.',
+        'Add a player once here and they appear on their own in attendance, goals, feedback and the review. No account required — a player who wants it on their phone joins with the team code shown here.'
+      ) : L(
         'שחקן נוסף כאן פעם אחת, ומופיע מאליו בנוכחות, ביעדים, במשוב ובסקירה. אין צורך שלשחקנים יהיה חשבון — הכול נשמר אצלך.',
         'Add a player once here and they appear on their own in attendance, goals, feedback and the review. Players do not need accounts — everything is kept on your side.'
       ),

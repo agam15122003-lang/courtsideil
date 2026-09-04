@@ -20,7 +20,7 @@ import TeamGoalsBoard from './TeamGoalsBoard'
 import TeamFocus from './TeamFocus'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
@@ -189,8 +189,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   const [fbRating, setFbRating] = useState(0)
   const [fbHistory, setFbHistory] = useState([]) // 5 המשובים האחרונים לשחקן הפתוח
   // צד המאמן בלבד (22.8): המשוב נשמר על שורת הסגל (roster_id) ולא על חשבון
-  // השחקן — ולכן זמין לכל שחקן, מחובר או לא. עם צד שחקן פתוח — כמו קודם.
-  const fbByRoster = !PLAYER_SIDE
+  // השחקן — ולכן זמין לכל שחקן, מחובר או לא.
+  // 3.9 — שתי אמיתות: תמיד לפי שורת הסגל (COACH_LOGS); לשחקן מקושר קוראים
+  // גם לפי player_id (משובים שנשמרו על החשבון לפני 22.8). לא נגזר מ-PLAYER_SIDE.
+  const fbByRoster = COACH_LOGS
   const fbOpen = !!pEdit?.id && (fbByRoster || !!pEdit.player_id)
   useEffect(() => {
     // טיוטה של שחקן אחד לא נשארת בתיבה של השחקן הבא
@@ -199,7 +201,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     ;(async () => {
       const base = () => supabase.from('player_feedback').select('id, content, rating, created_at').eq('coach_id', me)
         .order('created_at', { ascending: false }).limit(5)
-      let { data, error } = await (fbByRoster ? base().eq('roster_id', pEdit.id) : base().eq('player_id', pEdit.player_id))
+      let { data, error } = await (fbByRoster
+        ? (pEdit.player_id ? base().or(`roster_id.eq.${pEdit.id},player_id.eq.${pEdit.player_id}`) : base().eq('roster_id', pEdit.id))
+        : base().eq('player_id', pEdit.player_id))
       // מסד בלי roster_id (המיגרציה של 22.8 טרם רצה) — לשחקן מקושר קוראים לפי חשבון
       if (error && fbByRoster && pEdit.player_id && /roster_id/i.test(error.message || '')) ({ data, error } = await base().eq('player_id', pEdit.player_id))
       setFbHistory(error ? [] : (data || []))
@@ -403,8 +407,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     const res = await decideMembership({ ...r }, approve)
     setDeciding(null)
     if (!res.ok) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + res.reason); return }
+    // 3.9 — אם החשבון חובר לשורת סגל קיימת (או שנוצרה שורה חדשה) — אומרים את זה
     toast.success(approve
-      ? L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster')
+      ? (res.hint || L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster'))
       : L('הבקשה נדחתה', 'Request declined'))
     loadReqs()
     setReqsRev((v) => v + 1) // מרענן גם את רשימת הבקשות בפאנל החיבור
@@ -894,8 +899,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                   <button className={`status-pill status-${p.status}`} onClick={(e) => { e.stopPropagation(); cycleStatus(p) }} title={L('שנה סטטוס', 'Change status')}>
                     {statusLabel(p.status)}
                   </button>
-                  {/* צד המאמן בלבד: יעדים לכל שורת סגל, לא רק לשחקן מחובר */}
-                  {(PLAYER_SIDE ? p.player_id : true) && (
+                  {/* 3.9 — יעדים לכל שורת סגל, מחובר או לא (המאמן רושם על roster_id) */}
+                  {COACH_LOGS && (
                     <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, roster_id: p.id, name: p.name, team }) }} aria-label={L('יעדים', 'Goals')} title={L('יעדים אישיים', 'Personal goals')}><Target size={15} /></button>
                   )}
                   <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
@@ -1219,17 +1224,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 )}
               </div>
             )}
-            {(PLAYER_SIDE ? pEdit.player_id : true) && (
+            {/* 3.9 — עורך היעדים לכל שורת סגל (roster_id + player_id כשיש); ההנחיה
+                «ייפתחו כשהשחקן יתחבר» הוסרה — היעדים לא תלויים בחשבון */}
+            {COACH_LOGS && (
               <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} rosterId={pEdit.id} team={pEdit.team} playerName={pEdit.name} />
-            )}
-            {PLAYER_SIDE && !pEdit.player_id && (
-              <div className="tm-connect-hint">
-                <span className="tm-connect-hint-ic"><Target size={16} /></span>
-                <div>
-                  <strong>{L('יעדים ומשוב אישי ייפתחו כשהשחקן יתחבר', 'Goals & personal feedback unlock once the player connects')}</strong>
-                  <p className="muted small">{L('שתפו את השחקן בקוד ההצטרפות של הקבוצה (בתחתית טאב «סגל»). ברגע שהוא נכנס לאפליקציה ומתחבר, תוכלו להגדיר לו יעדים שבועיים/חודשיים/עונתיים ולשלוח משוב אישי — הכל יופיע אצלו מסודר.', 'Share your team join code with the player (bottom of the roster tab). Once they sign in, you can set them weekly/monthly/season goals and send personal feedback — it all shows up neatly on their side.')}</p>
-                </div>
-              </div>
             )}
           </div>
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Bell, Heart, MessageCircle, MessageSquare, CalendarDays, BarChart3, Check, Trophy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, BASKETBALL_WORLD } from './flags'
 import { SkeletonConvos } from './Skeleton'
 import useFocusTrap from './useFocusTrap'
 import useNotifications, { markAllRead, retryNotifications } from './notificationsStore'
@@ -58,7 +58,10 @@ function timeAgo(ts) {
 // props: session, onNavigate(viewId)
 export default function Notifications({ session, onNavigate }) {
   const myId = session.user.id
-  const { items, available, loading, failed } = useNotifications(myId)
+  const { items: allItems, available, loading, failed } = useNotifications(myId)
+  // 2.9 — «עולם הכדורסל» מוסתר: התראות ישנות של המשחק (אתגר, דירוג, פרס —
+  // nav='boards') לא מוצגות ולא נספרות. הן היו מפרסמות מסך שאי אפשר להגיע אליו.
+  const items = BASKETBALL_WORLD ? allItems : allItems.filter((n) => n.nav !== 'boards')
   const [open, setOpen] = useState(false)
   // ה-ref של מלכודת הפוקוס משמש גם לזיהוי לחיצה מחוץ לפאנל
   const panelRef = useFocusTrap(open, () => setOpen(false))

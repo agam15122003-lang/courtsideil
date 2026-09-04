@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
 
 // כל הקריאות והכתיבות של «תיק שחקן» במקום אחד.
 // המסך (PlayerDossier.jsx) לא מדבר עם המסד ישירות — כך גם קל להחליף
@@ -340,30 +339,47 @@ export async function loadAutoStats({ rosterId, playerId, coachId, team }) {
   // צד המאמן בלבד (22.8): העומס והמשימות נרשמים על שורת הסגל (roster_id),
   // לא על חשבון השחקן. מסד שטרם הריץ supabase_coach_only_22_8.sql מחזיר
   // שגיאה על העמודה — ואז פשוט לא מציגים את המספר (כמו כל השאר כאן).
-  if (!PLAYER_SIDE && rosterId) {
-    // עומס מדווח הוא 1–10 (supabase_effort.sql), לא 1–5
-    const ef = await supabase.from('session_effort').select('effort').eq('roster_id', rosterId).limit(200)
-    if (!ef.error && (ef.data || []).length) {
-      const v = ef.data.map((r) => Number(r.effort)).filter((n) => !Number.isNaN(n))
-      if (v.length) out.effort = Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10
+  // 2.9 — צד השחקן חזר (פיילוט), אבל המאמן ממשיך לרשום על שורת הסגל:
+  // קוראים את **שתי** האמיתות — מה שהמאמן רשם (roster_id) ומה שהשחקן
+  // דיווח בעצמו (player_id) — ומאחדים. משימה שסומנה בשני הצדדים נספרת פעם אחת.
+  // 3.9 — כמו ב-PlayerCard: מאחדים לפי אימון, ולא ממוצע שטוח — אימון שדורג
+  // גם על ידי המאמן וגם על ידי השחקן נספר פעם אחת, ושל המאמן מנצח.
+  // select('*'): העמודות של 22.8 (roster_id/source) עשויות עוד לא להתקיים.
+  const effBySession = new Map() // session_id|date -> { coach, player }
+  const addEff = (rows, fallbackWho) => {
+    for (const r of rows || []) {
+      const n = Number(r.effort)
+      if (Number.isNaN(n)) continue
+      const key = r.session_id || r.session_date || r.id
+      const who = r.source === 'coach' ? 'coach' : r.source === 'player' ? 'player' : fallbackWho
+      const cur = effBySession.get(key) || {}
+      cur[who] = n
+      effBySession.set(key, cur)
     }
+  }
+  const taskIds = new Set()
+  let tasksOk = false
+  if (rosterId) {
+    // עומס מדווח הוא 1–10 (supabase_effort.sql), לא 1–5
+    const ef = await supabase.from('session_effort').select('*').eq('roster_id', rosterId).limit(200)
+    if (!ef.error) addEff(ef.data, 'coach')
     const done = await supabase
       .from('assignment_coach_marks')
-      .select('assignment_id', { count: 'exact', head: true })
-      .eq('roster_id', rosterId).not('done_at', 'is', null)
-    if (!done.error && typeof done.count === 'number') out.tasks = done.count
-  } else if (playerId) {
-    // עומס מדווח הוא 1–10 (supabase_effort.sql), לא 1–5
-    const ef = await supabase.from('session_effort').select('effort').eq('player_id', playerId).limit(200)
-    if (!ef.error && (ef.data || []).length) {
-      const v = ef.data.map((r) => Number(r.effort)).filter((n) => !Number.isNaN(n))
-      if (v.length) out.effort = Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10
-    }
+      .select('assignment_id')
+      .eq('roster_id', rosterId).not('done_at', 'is', null).limit(500)
+    if (!done.error) { tasksOk = true; for (const r of done.data || []) taskIds.add(r.assignment_id) }
+  }
+  if (playerId) {
+    const ef = await supabase.from('session_effort').select('*').eq('player_id', playerId).limit(200)
+    if (!ef.error) addEff(ef.data, 'player')
     const done = await supabase
       .from('assignment_completions')
-      .select('assignment_id', { count: 'exact', head: true })
-      .eq('player_id', playerId)
-    if (!done.error && typeof done.count === 'number') out.tasks = done.count
+      .select('assignment_id')
+      .eq('player_id', playerId).not('done_at', 'is', null).limit(500)
+    if (!done.error) { tasksOk = true; for (const r of done.data || []) taskIds.add(r.assignment_id) }
   }
+  const v = [...effBySession.values()].map((e) => (e.coach !== undefined ? e.coach : e.player))
+  if (v.length) out.effort = Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10
+  if (tasksOk) out.tasks = taskIds.size
   return { stats: out }
 }

@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { toast } from './toast'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import Avatar from './Avatar'
 import { SkeletonCards } from './Skeleton'
 import { ErrorState } from './states'
@@ -17,7 +17,12 @@ const taToday = () => { const d = new Date(); return `${d.getFullYear()}-${taPad
 // בלי צד שחקן: אותה רשימה, אבל המאמן הוא שמסמן «ביצע» (אחרי שבדק עם
 // השחקן באימון) — ב-assignment_coach_marks, על שורת הסגל (roster_id).
 // מפתח השחקן בכל המפות: חשבון (player_id) בצד שחקן, שורת סגל (id) בצד מאמן.
-const COACH_MODE = !PLAYER_SIDE
+//
+// 3.9 — שתי אמיתות: המאמן מסמן «ביצע» תמיד על שורת הסגל (COACH_LOGS,
+// assignment_coach_marks), וגם כשצד השחקן פתוח. «ביצעתי» של שחקן מחובר
+// (assignment_completions, לפי player_id) ממופה לשורת הסגל שלו ומאוחד —
+// כל אחד מהם מספיק כדי שהשורה תיחשב «בוצע», ותג קטן אומר מי סימן.
+const COACH_MODE = COACH_LOGS
 const keyOf = (p) => (COACH_MODE ? p.id : p.player_id)
 const notDeployed = (e) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || /relation .* does not exist|could not find the table/i.test(e.message || ''))
 
@@ -38,11 +43,13 @@ export default function TeamAssignments({ coachId, team }) {
       .from('team_players')
       .select('id, name, number, player_id')
       .eq('coach_id', coachId).eq('team', team).order('number')
-    // צד שחקן: מחוברים בלבד. צד מאמן: כל הסגל.
+    // צד שחקן: מחוברים בלבד. צד מאמן (3.9 — תמיד): כל הסגל.
     const players = COACH_MODE ? (rp || []) : (rp || []).filter((p) => p.player_id)
     setRoster(players)
     const authIds = new Set(players.map((p) => p.player_id).filter(Boolean))
     const rosterIds = new Set(players.map((p) => p.id))
+    // חשבון → שורת סגל (3.9): «ביצעתי» של שחקן מחובר נספר על השורה שלו
+    const rosterOfAuth = new Map(players.filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
 
     const { data: asg, error: asgErr } = await supabase
       .from('player_assignments')
@@ -60,12 +67,29 @@ export default function TeamAssignments({ coachId, team }) {
     // בוצע = done_at מלא; שורה בלי done_at = התקדמות חלקית. fallback אם המיגרציה טרם רצה.
     let compl = []
     if (COACH_MODE) {
+      const ids = mine.map((a) => a.id)
       const { data, error } = await supabase
         .from('assignment_coach_marks')
         .select('assignment_id, roster_id, done_at, progress_value')
-        .in('assignment_id', mine.map((a) => a.id))
+        .in('assignment_id', ids)
       setMarksMissing(!!error && notDeployed(error))
-      compl = (data || []).map((c) => ({ ...c, who: c.roster_id }))
+      compl = (data || []).map((c) => ({ ...c, who: c.roster_id, by: 'coach' }))
+      // 3.9 — שתי אמיתות: גם «ביצעתי» שסימן שחקן מחובר (player_id → שורת הסגל).
+      // הטבלה/העמודה עשויות להיות חסרות — שקט, נשארים עם סימוני המאמן.
+      if (PLAYER_SIDE && rosterOfAuth.size > 0) {
+        let { data: pc, error: pcErr } = await supabase
+          .from('assignment_completions')
+          .select('assignment_id, player_id, done_at, progress_value')
+          .in('assignment_id', ids)
+        if (pcErr) {
+          const legacy = await supabase.from('assignment_completions').select('assignment_id, player_id, done_at').in('assignment_id', ids)
+          pc = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+        }
+        for (const c of pc || []) {
+          const rid = rosterOfAuth.get(c.player_id)
+          if (rid) compl.push({ ...c, who: rid, by: 'player' })
+        }
+      }
     } else {
       let { data, error } = await supabase
         .from('assignment_completions')
@@ -80,20 +104,34 @@ export default function TeamAssignments({ coachId, team }) {
     }
     const doneBy = {}
     const progBy = {} // assignment_id -> { who: progress_value }
+    const whoBy = {}  // assignment_id -> { who: Set('coach'|'player') } — מי סימן «ביצע» (3.9)
     for (const c of compl) {
-      if (c.done_at) (doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.who)
-      if (Number(c.progress_value) > 0) (progBy[c.assignment_id] = progBy[c.assignment_id] || {})[c.who] = Number(c.progress_value)
+      if (c.done_at) {
+        ;(doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.who)
+        if (c.by) {
+          const w = (whoBy[c.assignment_id] = whoBy[c.assignment_id] || {})
+          ;(w[c.who] = w[c.who] || new Set()).add(c.by)
+        }
+      }
+      // התקדמות: כשיש שני ערכים לאותה שורה — הגבוה מביניהם
+      if (Number(c.progress_value) > 0) {
+        const cur = (progBy[c.assignment_id] = progBy[c.assignment_id] || {})[c.who] || 0
+        progBy[c.assignment_id][c.who] = Math.max(cur, Number(c.progress_value))
+      }
     }
 
     const rows = mine.map((a) => {
       const title = a.drill?.title || a.plan?.name || a.title || (a.video_url ? L('סרטון', 'Video') : L('משימה', 'Task'))
-      const targets = a.player_id
-        ? players.filter((p) => p.player_id === a.player_id)
-        : a.roster_id
-          ? players.filter((p) => p.id === a.roster_id)
+      // 3.9 — שורת הסגל קודמת לחשבון: מ-3.9 משימה אישית נושאת את שני המזהים,
+      // ואם החשבון נותק/הוחלף בינתיים — הסינון לפי player_id מוצא אף אחד
+      // והמשימה מוצגת 0/0. השורה בסגל שרירה תמיד (כמו ב-CoachTodo).
+      const targets = a.roster_id
+        ? players.filter((p) => p.id === a.roster_id)
+        : a.player_id
+          ? players.filter((p) => p.player_id === a.player_id)
           : players
       const doneSet = doneBy[a.id] || new Set()
-      return { ...a, title, targets, doneSet, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(keyOf(p))).length, total: targets.length }
+      return { ...a, title, targets, doneSet, who: whoBy[a.id] || {}, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(keyOf(p))).length, total: targets.length }
     })
 
     // 1.6 — ארכוב אוטומטי: כשכל המקבלים סומנו «ביצע».
@@ -122,7 +160,8 @@ export default function TeamAssignments({ coachId, team }) {
   // א-1 — תזכורת לכל מי שטרם ביצע, באותו מנגנון של אישורי ההגעה
   const remindPending = async (a) => {
     setReminding(a.id)
-    const pending = a.targets.filter((p) => !a.doneSet.has(keyOf(p)))
+    // 3.9 — תזכורת רק למי שיש לו חשבון; שורת סגל בלי חשבון אין למי להודיע
+    const pending = a.targets.filter((p) => p.player_id && !a.doneSet.has(keyOf(p)))
     await Promise.all(pending.map((p) => sendNotification({
       to: p.player_id,
       actor: coachId,
@@ -237,7 +276,8 @@ export default function TeamAssignments({ coachId, team }) {
                 {isOpen && view === 'active' && (
                   <div className="ta-item-acts">
                     {/* תזכורת — רק כשיש למי להודיע (צד שחקן פתוח) */}
-                    {PLAYER_SIDE && a.done < a.total && (
+                    {/* 3.9 — רק למי שיש חשבון שיקבל את ההתראה */}
+                    {PLAYER_SIDE && a.targets.some((p) => p.player_id && !a.doneSet.has(keyOf(p))) && (
                       <button
                         type="button"
                         className="btn-soft ta-remind"
@@ -247,7 +287,7 @@ export default function TeamAssignments({ coachId, team }) {
                         <BellRing size={14} aria-hidden="true" />
                         {reminding === a.id
                           ? L('שולח...', 'Sending...')
-                          : <>{L('תזכורת ל-', 'Remind ')}<bdi dir="ltr">{a.total - a.done}</bdi> {L('שטרם ביצעו', 'pending')}</>}
+                          : <>{L('תזכורת ל-', 'Remind ')}<bdi dir="ltr">{a.targets.filter((p) => p.player_id && !a.doneSet.has(keyOf(p))).length}</bdi> {L('מחוברים שטרם ביצעו', 'connected pending')}</>}
                       </button>
                     )}
                     {/* 1.6 — סגירה ידנית של המאמן */}
@@ -263,6 +303,8 @@ export default function TeamAssignments({ coachId, team }) {
                     ) : a.targets.map((p) => {
                       const k = keyOf(p)
                       const done = a.doneSet.has(k)
+                      // 3.9 — מי סימן: המאמן («סימנת»), השחקן («סימן בעצמו»), או שניהם
+                      const who = a.who[k] || new Set()
                       const prog = done && a.target_value ? Number(a.target_value) : (a.prog[k] || 0)
                       const ppct = a.target_value ? Math.min(100, Math.round((prog / Number(a.target_value)) * 100)) : (done ? 100 : 0)
                       const dk = `${a.id}:${p.id}`
@@ -270,6 +312,11 @@ export default function TeamAssignments({ coachId, team }) {
                         <li key={p.id} className="ta-player">
                           {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
                           <span className="ta-player-name">{p.name}</span>
+                          {COACH_MODE && done && who.size > 0 && (
+                            <span className="mini-tag" title={L('מי סימן «ביצע»', 'Who marked done')}>
+                              {who.has('coach') && who.has('player') ? L('סימנת · סימן בעצמו', 'You · himself') : who.has('player') ? L('סימן בעצמו', 'Marked himself') : L('סימנת', 'You marked')}
+                            </span>
+                          )}
                           {/* 1.6 — פס התקדמות ליעד מספרי, וי לסיום */}
                           {a.target_value ? (
                             <span className="ta-pwrap">
@@ -295,8 +342,10 @@ export default function TeamAssignments({ coachId, team }) {
                           {COACH_MODE ? (
                             /* המאמן מסמן «ביצע» בעצמו — לחיצה נוספת מבטלת.
                                גם בארכיון: ביטול שם מחזיר את המשימה לפעילה. */
+                            /* 3.9 — הכפתור מפעיל/מבטל את סימון **המאמן**; «ביצעתי» של השחקן
+                               לא ניתן לביטול מכאן (זו האמת שלו) */
                             <button type="button" className={done ? 'ta-status done ta-mark' : 'ta-status ta-mark'}
-                              aria-pressed={done} onClick={() => writeMark(a, p, { done: !done })}>
+                              aria-pressed={done} onClick={() => writeMark(a, p, { done: !who.has('coach') })}>
                               {done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('סמן ביצע', 'Mark done')}</>}
                             </button>
                           ) : (

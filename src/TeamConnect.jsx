@@ -41,7 +41,8 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   const decide = async (m, approve) => {
     const res = await decideMembership({ ...m }, approve)
     if (!res.ok) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + res.reason); return }
-    toast.success(approve ? L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster') : L('הבקשה נדחתה', 'Request declined'))
+    // 3.9 — «חובר לשורה הקיימת של …» / «נוצרה שורה חדשה …» כשיש רמז כזה
+    toast.success(approve ? (res.hint || L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster')) : L('הבקשה נדחתה', 'Request declined'))
     loadReqs()
     if (approve) onApproved?.()
   }

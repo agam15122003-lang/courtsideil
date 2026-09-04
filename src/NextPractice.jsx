@@ -97,23 +97,31 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       const done = all.filter((e) => e.team && !e.is_personal && !isNaN(endOf(e)) && endOf(e) < nowTs)
       const last = done[done.length - 1] || null
       if (last && me) {
-        // צד המאמן בלבד (22.8): המכנה הוא כל הסגל, והמונה — מה שהמאמן רשם
-        const rosterQ = supabase.from('team_players').select('id').eq('coach_id', me).eq('team', last.team)
+        // המכנה הוא כל הסגל (22.8) — וגם עם צד שחקן פתוח (2.9): המאמן ממשיך
+        // לרשום עומס על שורת הסגל, ורוב הילדים עוד לא מחוברים
         const [effRes, rosterRes] = await Promise.all([
-          // select('*'): העמודה source (22.8) עשויה עוד לא להתקיים — כוכבית לא נופלת עליה
+          // select('*'): העמודות source/roster_id (22.8) עשויות עוד לא להתקיים — כוכבית לא נופלת עליהן
           supabase.from('session_effort').select('*').eq('coach_id', me).eq('session_id', last.id),
-          PLAYER_SIDE ? rosterQ.not('player_id', 'is', null) : rosterQ,
+          supabase.from('team_players').select('id, player_id').eq('coach_id', me).eq('team', last.team),
         ])
         if (!alive) return
         // שליפה שנכשלה (למשל בלי רשת) — לא מציגים רצועה חלולה שכל
         // המספרים בה אפס ו«פתח» שלה מוביל למסך שגיאה. אין נתונים = אין רצועה.
         if (effRes.error || rosterRes.error) { setLoading(false); return }
         const eff = effRes.data, roster = rosterRes.data
-        // עם צד שחקן פתוח סופרים רק דירוג עצמי — שורות שהמאמן רשם כשהמתג היה כבוי אינן «מילאו סיכום»
-        const vals = (eff || []).filter((r) => !PLAYER_SIDE || r.source !== 'coach').map((r) => r.effort)
+        // 2.9 — שתי האמיתות נספרות: מה שהמאמן רשם (roster_id) ומה שהשחקן
+        // דיווח בעצמו (player_id). שחקן שיש לו גם וגם נספר פעם אחת.
+        const rosterOfAuth = new Map((roster || []).filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
+        const rows = eff || []
+        const who = new Set(rows.map((r) => (
+          r.roster_id ? `r:${r.roster_id}` : rosterOfAuth.has(r.player_id) ? `r:${rosterOfAuth.get(r.player_id)}` : `p:${r.player_id}`
+        )))
+        const vals = rows.map((r) => Number(r.effort)).filter((n) => !Number.isNaN(n))
+        // שורות המאמן נשארות בלי player_id לתמיד (README) — כל שורה עם player_id היא דיווח עצמי
+        const self = rows.filter((r) => r.player_id).length
         setRecent({
           id: last.id, team: last.team, date: last.date, start_time: last.start_time, location: last.location,
-          rated: vals.length, total: (roster || []).length,
+          rated: who.size, total: (roster || []).length, self,
           avg: vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null,
         })
       }
@@ -154,9 +162,11 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       <span className="np-report-body">
         <strong>{L('דוח האימון האחרון', 'Last practice report')} · {trTeam(recent.team)}</strong>
         <span className="np-report-meta">
-          {recent.total > 0 && <span>{recent.rated}/{recent.total} {PLAYER_SIDE ? L('מילאו סיכום', 'checked in') : L('עומס נרשם', 'load logged')}</span>}
+          {recent.total > 0 && <span>{recent.rated}/{recent.total} {L('עומס נרשם', 'load logged')}</span>}
+          {/* 2.9 — כמה מהם דיווחו בעצמם מהטלפון (צד שחקן פתוח) */}
+          {PLAYER_SIDE && recent.self > 0 && <span>{recent.self} {L('דיווחו בעצמם', 'self-reported')}</span>}
           {recent.avg != null && <span className="np-report-avg"><Flame size={12} /> {L('עומס ממוצע', 'avg load')} {recent.avg.toFixed(1)}</span>}
-          {recent.total > 0 && recent.rated === 0 && <span>{PLAYER_SIDE ? L('ממתין לשחקנים...', 'waiting for players...') : L('עוד לא נרשם עומס', 'no load logged yet')}</span>}
+          {recent.total > 0 && recent.rated === 0 && <span>{L('עוד לא נרשם עומס', 'no load logged yet')}</span>}
         </span>
       </span>
       <span className="np-report-cta">{L('פתח', 'Open')}</span>

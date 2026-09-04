@@ -4,7 +4,7 @@ import { X, Flame, Crown, StickyNote, Save, Check, Minus, Target } from 'lucide-
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { sendNotification } from './notify'
 import { confirmDialog } from './confirm'
 import Avatar from './Avatar'
@@ -24,7 +24,12 @@ const ATT = [
 // ורושם בעצמו — וגם מסמן לכל שחקן אם עמד ביעד (המיקוד הקבוצתי + יעדים
 // אישיים). הכול נשמר על שורת הסגל (roster_id), ראו supabase_coach_only_22_8.sql.
 // השורות שהשחקן דירג בעצמו (אם יהיו בעתיד) ממשיכות להיקרא ולהיות מוצגות.
-const COACH_MODE = !PLAYER_SIDE
+//
+// 3.9 — שתי אמיתות: המאמן רושם **תמיד** על שורת הסגל (COACH_LOGS), גם כשצד
+// השחקן פתוח; מה שהשחקן דירג בעצמו (player_id) נקרא ומוצג **לצד** מה שהמאמן
+// רשם, לא במקומו. COACH_MODE לא נגזר יותר מ-PLAYER_SIDE — אחרת הדלקת צד
+// השחקן מחקה למאמן את שורת העומס, «עמד ביעד» וכל מה שנרשם מ-22.8.
+const COACH_MODE = COACH_LOGS
 const EFFORT_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 // כל הטווחים של PlayerGoals.PERIODS — בלי חצי-שנתי ושנתי יעדים ארוכי-טווח
 // פשוט לא הופיעו כאן לסימון «עמד ביעד»
@@ -251,29 +256,40 @@ export default function SessionDetail({ session, entry, onClose }) {
       }
     }
 
-    // 2) משוב אישי (הערה) — לשחקנים מחוברים; בצד המאמן בלבד — לכל שורת סגל
+    // 2) הערה אישית לכל שורת סגל.
+    // 3.9 — פרטיות בפיילוט: ההערה שנכתבת כאן היא **של המאמן בלבד** — roster_id
+    // מלא, player_id ריק (השחקן קורא player_feedback רק לפי player_id — fb_player_read),
+    // ובלי התראה לשחקן גם כשצד השחקן פתוח. משוב מפורש לשחקן נשאר ב«שליחת
+    // משוב לשחקן» (Teams / PlayerCard).
+    // 3.9 — גם בעדכון שולחים player_id:null: הערה שנערכת בתיבה הזו היא פרטית
+    // בהגדרה. בלי זה, הערה ישנה שנשמרה עם player_id (22.8–3.9, או לפני 22.8)
+    // נשארת גלויה לשחקן — והתווית «רק אתה רואה» משקרת בדיוק עליה. ניקוי
+    // חד-פעמי להערות הישנות: ראו supabase_roster_link_merge_3_9.sql.
     const notified = new Set()
     for (const p of roster) {
-      if (!COACH_MODE && !p.player_id) continue
       const nt = (note[p.id] || '').trim() || null
       if (!nt && !fbId[p.id]) continue
       const payload = {
-        coach_id: me, player_id: p.player_id || null, roster_id: p.id, content: nt,
+        coach_id: me, roster_id: p.id, content: nt,
         session_type: sessionType, session_id: sessionId, session_date: sessionDate,
         opponent: entry.opponent || null,
       }
       if (fbId[p.id]) {
-        let { error } = await supabase.from('player_feedback').update(payload).eq('id', fbId[p.id])
+        let { error } = await supabase.from('player_feedback').update({ ...payload, player_id: null }).eq('id', fbId[p.id])
+        // מסד שטרם הריץ 22.8: אין roster_id, והשורה שם ממוקשת ב-player_id —
+        // לא נוגעים בו (איפוס היה מייתם את השורה גם מהמאמן)
         if (error && missingCol(error, 'roster_id')) ({ error } = await supabase.from('player_feedback').update({ ...payload, roster_id: undefined }).eq('id', fbId[p.id]))
         if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
       } else {
-        let { error } = await supabase.from('player_feedback').insert(payload)
+        let { error } = await supabase.from('player_feedback').insert({ ...payload, player_id: null })
         if (error && missingCol(error, 'roster_id')) {
-          if (p.player_id) ({ error } = await supabase.from('player_feedback').insert({ ...payload, roster_id: undefined }))
-          else { sqlMissing = true; continue }
+          // 3.9 — מסד שטרם הריץ 22.8: אין roster_id, ושורה שם נכתבת רק על
+          // player_id — כלומר גלויה לשחקן. הערה «רק אתה רואה» לא נכתבת לעמודה
+          // שהשחקן קורא: מתנהגים כמו בלי חשבון — מבקשים להריץ את ה-SQL.
+          // (הניסיון הקודם גם נכשל תמיד — ה-payload עוד הכיל roster_id.)
+          sqlMissing = true; continue
         }
         if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
-        if (PLAYER_SIDE && nt && p.player_id) { sendNotification({ to: p.player_id, actor: me, type: 'message', content: L('המאמן כתב לך משוב מהאימון', 'Your coach left you session feedback'), nav: 'feedback' }); notified.add(p.player_id) }
       }
     }
 
@@ -364,7 +380,11 @@ export default function SessionDetail({ session, entry, onClose }) {
         <div className="sd-scroll">
           <p className="sd-hint">
             {COACH_MODE
-              ? L('נוכחות, עומס, יעדים ומילה אישית — הכול נרשם על ידך. שאל את השחקנים בסוף האימון «כמה קשה היה, 1 עד 10?» ורשום לכל אחד.',
+              ? PLAYER_SIDE
+                /* 3.9 — שתי אמיתות: המאמן רושם, והדירוג העצמי של שחקן מחובר מופיע לצידו */
+                ? L('נוכחות, עומס, יעדים והערה פרטית — הכול נרשם על ידך. שחקן מחובר שדירג את עצמו — הדירוג שלו יופיע ליד שלך.',
+                    'Attendance, load, goals and a private note — all logged by you. A connected player who rated himself shows next to your rating.')
+                : L('נוכחות, עומס, יעדים ומילה אישית — הכול נרשם על ידך. שאל את השחקנים בסוף האימון «כמה קשה היה, 1 עד 10?» ורשום לכל אחד.',
                   'Attendance, load, goals and a personal line — all logged by you. Ask the players at the end of practice “how hard was it, 1 to 10?” and log it per player.')
               : L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}
           </p>
@@ -383,8 +403,10 @@ export default function SessionDetail({ session, entry, onClose }) {
             </button>
             <ul className="sd-roster">
               {roster.map((p) => {
-                // בצד המאמן בלבד כל שורת סגל «מחוברת» — הכול נרשם עליה
+                // 3.9 — המאמן רושם על כל שורת סגל (COACH_LOGS), ולכן כל שורה
+                // «מחוברת» לרישום; linked = יש חשבון שחקן (דירוג עצמי, «ראיתי»)
                 const connected = COACH_MODE || !!p.player_id
+                const linked = !!p.player_id
                 const eff = efforts[p.id]
                 const opts = goalOpts[p.id] || []
                 return (
@@ -399,7 +421,8 @@ export default function SessionDetail({ session, entry, onClose }) {
                           <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
                             <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
                           </span>
-                          {PLAYER_SIDE && eff && !coachEff[p.id] && <span className="muted small" dir="ltr">{L('השחקן: ', 'Player: ')}{eff}/10</span>}
+                          {/* 3.9 — הדירוג העצמי של שחקן מקושר מוצג לצד מה שהמאמן רשם, לא במקומו */}
+                          {linked && eff && <span className="sd-eff-badge" title={L('מאמץ (דירוג עצמי של השחקן)', 'Effort (player self-rated)')}>{L('השחקן: ', 'Player: ')}<bdi dir="ltr">{eff}/10</bdi></span>}
                         </>
                       ) : connected && (
                         <span className={eff ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('מאמץ (דירוג עצמי)', 'Effort (self-rated)')}>
@@ -419,7 +442,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                         ))}
                       </div>
                       {connected && (
-                        <button className={openNote[p.id] || note[p.id] ? 'sd-note-btn on' : 'sd-note-btn'} onClick={() => setP(setOpenNote)(p.id, !openNote[p.id])} title={L('הערה אישית', 'Personal note')}>
+                        <button className={openNote[p.id] || note[p.id] ? 'sd-note-btn on' : 'sd-note-btn'} onClick={() => setP(setOpenNote)(p.id, !openNote[p.id])} title={L('הערה פרטית — רק אתה רואה', 'Private note — only you')} aria-label={L('הערה פרטית — רק אתה רואה', 'Private note — only you')}>
                           <StickyNote size={15} />
                         </button>
                       )}
@@ -435,7 +458,8 @@ export default function SessionDetail({ session, entry, onClose }) {
                       </div>
                     )}
                     {connected && (openNote[p.id] || note[p.id]) && (
-                      <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} placeholder={L('מה בלט אצלו היום — לזכור לאימון הבא...', 'What stood out today — to remember next practice...')} maxLength={300} />
+                      /* 3.9 — הערה פרטית של המאמן (roster_id בלבד, בלי התראה) */
+                      <input className="finder-input sd-note-input" value={note[p.id] || ''} onChange={(e) => setP(setNote)(p.id, e.target.value)} aria-label={L('הערה פרטית — רק אתה רואה', 'Private note — only you')} placeholder={L('הערה פרטית — רק אתה רואה. מה בלט אצלו היום...', 'Private note — only you. What stood out today...')} maxLength={300} />
                     )}
                     {/* «עמד ביעד?» — המאמן מסמן (צד המאמן בלבד): ריק → ✓ → — → ריק */}
                     {COACH_MODE && opts.length > 0 && (
@@ -500,7 +524,8 @@ export default function SessionDetail({ session, entry, onClose }) {
           )}
 
           <label className="sd-overall">
-            <span>{COACH_MODE ? L('סיכום האימון (נשמר להיסטוריה)', 'Session summary (saved to history)') : L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים)', 'Session summary (saved to history, visible to players)')}</span>
+            {/* 3.9 — הסיכום הכללי נקרא על ידי חברי הקבוצה (sr_member_read) — לפי PLAYER_SIDE, לא לפי מי רושם */}
+            <span>{!PLAYER_SIDE ? L('סיכום האימון (נשמר להיסטוריה)', 'Session summary (saved to history)') : L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים מחוברים)', 'Session summary (saved to history, visible to connected players)')}</span>
             <textarea className="finder-input" value={overall} onChange={(e) => { dirty.current = true; setOverall(e.target.value) }} rows={3} placeholder={L('איך היה האימון? על מה עבדנו, מה בלט...', 'How was the session? What we worked on, what stood out...')} maxLength={2000} />
           </label>
         </div>

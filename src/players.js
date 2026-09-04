@@ -172,6 +172,11 @@ export async function decideMembership(membership, approve) {
   }
 
   if (approve) {
+    // 3.9 — התראת האישור במקום אחד (הייתה משוכפלת בשלושה ענפים), ודרך L()
+    const notifyApproved = () => sendNotification({
+      to: membership.player_id, actor: membership.coach_id, type: 'message',
+      content: L('המאמן אישר אותך לקבוצה! 🎉', 'Your coach approved you to the team! 🎉'), nav: 'drills',
+    })
     // מוסיפים לסגל אם עדיין אין שורה מקושרת לשחקן הזה
     const { data: existing, error: existErr } = await supabase
       .from('team_players')
@@ -188,6 +193,17 @@ export async function decideMembership(membership, approve) {
       const nm = membership.player
         ? `${membership.player.first_name || ''} ${membership.player.last_name || ''}`.trim()
         : 'שחקן'
+      // 3.9 — שתי אמיתות: רוב הילדים כבר יושבים בסגל כשורה שהמאמן הקליד ביד
+      // (בלי player_id), וכל מה שנרשם עליהם (עומס, יעדים, משימות) יושב על השורה
+      // הזו. הוספת שורה חדשה יצרה כפילות והשאירה את ההיסטוריה על הישנה.
+      // לכן קודם מחפשים שורה **לא מקושרת** באותה קבוצה עם אותו שם (מנורמל) —
+      // בדיוק אחת → מחברים אותה (player_id) ומספרים למאמן. אפס או יותר מאחת →
+      // שורה חדשה כמו קודם, עם רמז לחבר ידנית בטאב סגל.
+      const merged = await linkToExistingRosterRow(membership, nm)
+      if (merged.linked) {
+        notifyApproved()
+        return { ok: true, linkedTo: merged.name, hint: L(`חובר לשורה הקיימת של ${merged.name}`, `Linked to the existing roster row of ${merged.name}`) }
+      }
       const row = { coach_id: membership.coach_id, team: membership.team, name: nm || 'שחקן', status: 'active', player_id: membership.player_id }
       const { error: e2 } = await supabase.from('team_players').insert(row)
       if (e2 && /column .* does not exist/i.test(e2.message)) {
@@ -197,14 +213,50 @@ export async function decideMembership(membership, approve) {
         if (e3) reportError('decideMembership/roster-insert-basic', e3, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
       } else if (e2) {
         reportError('decideMembership/roster-insert', e2, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
+      } else {
+        notifyApproved()
+        // רמז רק כשבאמת נוצרה שורה חדשה (ולא נמצאה שורה אחת מתאימה)
+        return { ok: true, created: true, hint: L('נוצרה שורה חדשה — אם השחקן כבר בסגל, חבר אותו לשורה בטאב סגל', 'A new roster row was created — if the player is already on the roster, link him to that row in the roster tab') }
       }
     }
-    sendNotification({
-      to: membership.player_id, actor: membership.coach_id, type: 'message',
-      content: 'המאמן אישר אותך לקבוצה! 🎉', nav: 'drills',
-    })
+    notifyApproved()
   }
   return { ok: true }
+}
+
+// שם לצורך השוואה: רווחים מכווצים, בלי גרשיים/מקפים, בלי רישיות
+const normName = (s) => String(s || '')
+  .toLowerCase()
+  .replace(/[׳״'"`\-–—]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim()
+
+// 3.9 — מחבר חשבון שחקן לשורת סגל קיימת (לא מקושרת) עם אותו שם.
+// מחזיר { linked: true, name } כשחוברה בדיוק שורה אחת; אחרת { linked: false }.
+// בטוח לפרוד בלי העמודה player_id — כל שגיאת שליפה/עדכון = לא חוברה.
+async function linkToExistingRosterRow(membership, fullName) {
+  // 3.9 — בלי פרופיל אין שם אמיתי: fullName הוא אז «שחקן» הגנרי, ושורת סגל
+  // שהוקלדה ביד עם השם הזה (יש כאלה) הייתה מתחברת לחשבון לא ידוע. לא מנחשים.
+  if (!membership.player) return { linked: false }
+  const cands = [fullName]
+  const p = membership.player || {}
+  // גם שם תצוגה/כינוי, אם הפרופיל מחזיק כזה (לא קיים היום — לא מזיק)
+  for (const alt of [p.display_name, p.nickname, `${p.last_name || ''} ${p.first_name || ''}`]) if (alt) cands.push(alt)
+  const wanted = new Set(cands.map(normName).filter((n) => n.length >= 2))
+  if (wanted.size === 0) return { linked: false }
+  const { data, error } = await supabase
+    .from('team_players')
+    .select('id, name, player_id')
+    .eq('coach_id', membership.coach_id)
+    .eq('team', membership.team)
+    .is('player_id', null)
+  if (error) { reportError('decideMembership/link-lookup', error); return { linked: false } }
+  const matches = (data || []).filter((r) => wanted.has(normName(r.name)))
+  if (matches.length !== 1) return { linked: false }
+  const row = matches[0]
+  const { error: upErr } = await supabase.from('team_players').update({ player_id: membership.player_id }).eq('id', row.id).is('player_id', null)
+  if (upErr) { reportError('decideMembership/link-update', upErr); return { linked: false } }
+  return { linked: true, name: row.name }
 }
 
 // קודי שגיאה שמשמעותם "העמודה/הטבלה עוד לא קיימת אצל המשתמש הזה" ולא כשל

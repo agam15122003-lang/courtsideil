@@ -11,7 +11,8 @@ import { ConfirmHost } from './confirm'
 import { useLang, L } from './i18n'
 // 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
 // הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
-import { PLAYER_SIDE } from './flags'
+// 2.9 — צד השחקן חזר לפיילוט; «עולם הכדורסל» (#/court, #/r) מוסתר במתג משלו.
+import { PLAYER_SIDE, BASKETBALL_WORLD } from './flags'
 import Logo from './Logo'
 
 // מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
@@ -45,11 +46,16 @@ function captureJoinCode() {
 // מדלגים על בחירת התפקיד **וגם** על מסך קוד-הקבוצה: שחקן שמגיע לאתגר לא
 // בהכרח שייך לאיזו קבוצה, ומסך קוד באמצע הוא בדיוק המקום שבו ילד נושר.
 // pending_view גורם ל-PlayerDashboard לפתוח את המגרש ולא את הבית הכללי.
+// 2.9 — כש«עולם הכדורסל» מוסתר (BASKETBALL_WORLD=false) הקישור הישן
+// מוואטסאפ לא מוביל לשום מקום מיוחד: מנקים את ה-hash ונוחתים בדף הנחיתה
+// הרגיל — בלי pending_view, בלי pending_ref ובלי לקפוץ להרשמה כשחקן.
+// #/join ממשיך לעבוד כרגיל.
 function captureCourtEntry() {
   const h = window.location.hash
   const ref = h.match(/^#\/r\/([A-Za-z0-9_-]{1,40})/)
   const court = /^#\/court\b/.test(h)
   if (!ref && !court) return false
+  if (!BASKETBALL_WORLD) { window.location.hash = ''; return false }
   try {
     localStorage.setItem('pending_view', 'boards')
     if (ref) localStorage.setItem('pending_ref', ref[1])
@@ -147,6 +153,8 @@ export default function App() {
     const onHash = () => {
       // צד המאמן בלבד: קישור הצטרפות/מגרש שהודבק אחרי הטעינה — מנקים גם כאן
       if (!PLAYER_SIDE && /^#\/(join|court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
+      // «עולם הכדורסל» מוסתר (2.9): קישור מגרש שהודבק אחרי הטעינה — מנקים גם כאן
+      if (!BASKETBALL_WORLD && /^#\/(court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
       setSharedDrill(publicDrillId())
       setConsentToken(consentTokenFromHash())
     }

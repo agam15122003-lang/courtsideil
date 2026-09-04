@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Users,
   CalendarDays,
-  MessageSquare,
   PlayCircle,
   Star,
   Target,
@@ -24,7 +23,10 @@ import { L } from './i18n'
 import { ArrowFwd } from './DirIcon'
 import { COACHING_QUOTES } from './constants'
 // 22.8 — השקת צד המאמן בלבד: הטקסטים של «מאמן ושחקן» נשארים כאן מאחורי
-// המתג, והדף מציג גרסה למאמנים עם טיזר «בקרוב: צד השחקן».
+// המתג, והדף מציג גרסה למאמנים (בלי טיזר — הוסר 30.8, החלטת הבעלים).
+// 2.9 — צד השחקן חזר לפיילוט: הגרסה עם המתג דלוק מתארת את הצד המקצועי
+// בלבד (לו״ז, משימות, יעדים, משוב) — בלי משחק, בלי נקודות, ובלי הבטחת
+// «תזכורת» שאין לנו (אין התראות דחיפה).
 import { PLAYER_SIDE } from './flags'
 import Logo from './Logo'
 
@@ -100,21 +102,21 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   useReveal()
   const goLogin = onLogin || onEnter
   const goSignup = onSignup || onEnter
-  const FEATURES = !PLAYER_SIDE ? [
-    /* גרסת המאמן — כל פיצ׳ר כאן קיים ועובד בלי חשבון שחקן */
+  /* גרסת המאמן — כל פיצ׳ר כאן קיים ועובד בלי חשבון שחקן */
+  const COACH_FEATURES = [
     { Icon: ClipboardList, title: L('מחברת אימון', 'Practice notebook'), desc: L('בונים תוכנית אימון כדף אחד — תרגילים מהספרייה, כתב יד ומגרשים — ושומרים אותה לעונה הבאה.', 'Build a practice as a single page — library drills, handwriting and court diagrams — and keep it for next season.') },
     { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('ספריית תרגילים בעברית שגדלה כל שבוע — עם הסבר מלא, דירוג ומועדפים. כל תרגיל שאתם כותבים נשמר אצלכם.', 'A Hebrew drill library that grows every week — with full explanations, ratings and favorites. Every drill you write is saved to you.') },
     { Icon: Users, title: L('סגל ונוכחות', 'Roster & attendance'), desc: L('הסגל של כל קבוצה, נוכחות לכל אימון, עומס שרושמים אחרי האימון, ומי מחסיר ברצף — הכול במקום אחד.', 'Every team roster, attendance for every practice, the load you log after practice, and who keeps missing — all in one place.') },
     { Icon: Target, title: L('יעדים ומשוב לכל שחקן', 'Goals & feedback per player'), desc: L('מציבים לכל שחקן יעד לאימון, לחודש או לעונה, מסמנים בסוף האימון אם עמד בו, וכותבים משוב אישי שנשמר בכרטיס שלו.', 'Set each player a goal for the practice, the month or the season, mark after practice whether they met it, and write personal feedback that stays on their card.') },
     { Icon: CalendarDays, title: L('לו"ז שבועי', 'Weekly schedule'), desc: L('ימי אימון קבועים, משחקים ופגישות בשבוע אחד — עם תוכנית האימון מחוברת לכל מועד.', 'Fixed practice days, games and meetings in one week — with the practice plan attached to each slot.') },
     { Icon: PlayCircle, title: L('מדיה וקהילה', 'Media & community'), desc: L('סרטונים מסוננים לפי קטגוריות, וקהילת מאמנים שמשתפת תרגילים, תוכניות ושאלות.', 'Videos filtered by category, and a community of coaches sharing drills, plans and questions.') },
-  ] : [
-    { Icon: Target, title: L('הצבת יעדים', 'Goal Setting'), desc: L('מציבים יעדים מוגדרים בזמן, שנשמרים וניתן לעקוב אחריהם.', 'Set time-bound goals that are saved and easy to track.') },
-    { Icon: ClipboardList, title: L('משימות אישיות', 'Personal Tasks'), desc: L('מתאימים לכל שחקן משימות אישיות שמתאימות בדיוק לו — כי לכל אחד מגיע יחס אישי.', 'Tailor personal tasks that fit each player exactly — because everyone deserves personal attention.') },
-    { Icon: CalendarDays, title: L('לו"ז מותאם אישית', 'Personalized Schedule'), desc: L('המאמן מסדר את הלו"ז, השחקנים רואים בזמן אמת את שעות האימונים והמשחק הבא — ואפילו מקבלים תזכורת.', 'The coach sets the schedule, players see practice times and the next game in real time — and even get a reminder.') },
-    { Icon: MessageSquare, title: L('תקשורת נוחה', 'Easy Communication'), desc: L('אחרי כל אימון או משחק השחקן מסמן אם ביצע את המשימות ויכול לכתוב הודעה אישית למאמן. המאמן מקבל דוח סיכום ויכול לשלוח הודעה לכולם — ומשוב אישי לכל שחקן.', 'After every practice or game the player marks completed tasks and can message the coach. The coach gets a summary report and can message everyone — plus personal feedback for each player.') },
-    { Icon: Dumbbell, title: L('ספריית תרגילים', 'Drill Library'), desc: L('ספריית תרגילים בעברית שגדלה כל שבוע — עם הסבר מלא, דירוג ומועדפים.', 'A Hebrew drill library that grows every week — with full explanations, ratings and favorites.') },
-    { Icon: PlayCircle, title: L('אזור מדיה', 'Media Zone'), desc: L('סרטונים מסוננים לפי קטגוריות — בלי לחפש שעות באינטרנט. רוצים לעבוד על יכולות אישיות? מסננים, ועשרות סרטונים מוכנים מופיעים.', 'Videos filtered by category — no more hours of searching. Want to work on individual skills? Filter, and dozens of ready videos appear.') },
+  ]
+  // 2.9 — צד השחקן בפיילוט: אותם שישה כרטיסים של המאמן, ועוד אחד על מה
+  // שהשחקן רואה בטלפון. רק הצד המקצועי — בלי משחק, בלי נקודות, ובלי
+  // הבטחת «תזכורת» (אין התראות דחיפה).
+  const FEATURES = !PLAYER_SIDE ? COACH_FEATURES : [
+    ...COACH_FEATURES,
+    { Icon: UserPlus, title: L('צד השחקן', 'The player side'), desc: L('שחקן שמצטרף בקוד מהמאמן רואה בטלפון שלו את האימון הבא, המשימות, היעדים והמשוב — ואחרי כל אימון מסמן בעצמו כמה היה קשה ומה ביצע. המאמן רואה, ומגיב.', 'A player who joins with the coach’s code sees the next practice, tasks, goals and feedback on their phone — and after every practice marks how hard it was and what they did. The coach sees it, and responds.') },
   ]
 
   const STEPS = !PLAYER_SIDE ? [
@@ -122,9 +124,10 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
     { n: '2', title: L('מזינים את הסגל', 'Add your roster'), desc: L('שם ומספר לכל שחקן — וכבר אפשר לסמן נוכחות, להציב יעדים ולכתוב משוב.', 'A name and a number for every player — and you can already mark attendance, set goals and write feedback.') },
     { n: '3', title: L('מנהלים את העונה', 'Run the season'), desc: L('בונים אימונים במחברת, וסוגרים כל אימון בסקירה קצרה של דקה.', 'Build practices in the notebook, and close every practice with a one-minute review.') },
   ] : [
-    { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים כמאמן או כשחקן וממלאים את הפרטים. מאמנים פשוט מתחברים; שחקנים מצטרפים לקבוצה עם קוד מהמאמן.', 'Sign up as a coach or a player and fill in your details. Coaches just log in; players join a team with a code from the coach.') },
-    { n: '2', title: L('אתם בפנים', "You're in"), desc: L('חוקרים את האפליקציה וממלאים את החלקים: יעדים, לו"ז ומשימות.', 'Explore the app and fill in the parts: goals, schedule and tasks.') },
-    { n: '3', title: L('נהנים', 'Enjoy'), desc: L('מנצלים את CourtSide כדי להשתפר ולנהל את העונה בצורה הכי נוחה ומקצועית.', 'Use CourtSide to improve and run the season in the most convenient, professional way.') },
+    // 2.9 — צד השחקן בפיילוט: שלבי המאמן נשארים, וההזמנה בקוד היא חלק מהם
+    { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים עם אימייל, ממלאים שם, מועדון ושכבות הגיל שאתם מאמנים. דקה. שחקן שקיבל קוד מהמאמן נרשם כשחקן ומצטרף לקבוצה.', 'Sign up with an email, fill in your name, club and the age groups you coach. One minute. A player with a code from the coach signs up as a player and joins the team.') },
+    { n: '2', title: L('מזינים את הסגל ומזמינים', 'Add your roster and invite'), desc: L('שם ומספר לכל שחקן — וכבר אפשר לסמן נוכחות, להציב יעדים ולכתוב משוב. מי שרוצה לראות את זה בטלפון מצטרף עם קוד הקבוצה.', 'A name and a number for every player — and you can already mark attendance, set goals and write feedback. Anyone who wants it on their phone joins with the team code.') },
+    { n: '3', title: L('מנהלים את העונה', 'Run the season'), desc: L('בונים אימונים במחברת, סוגרים כל אימון בסקירה קצרה — והשחקנים מדווחים מהטלפון איך היה.', 'Build practices in the notebook, close every practice with a short review — and the players report from their phones how it went.') },
   ]
 
   const STATS = [
@@ -280,7 +283,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
             <span className="land-why-ic"><BarChart3 size={22} /></span>
             <h3 className="land-feature-title">{PLAYER_SIDE ? L('המאמן', 'The coach') : L('לאורך העונה', 'Across the season')}</h3>
             <p className="land-feature-desc">{PLAYER_SIDE
-              ? L('מקבל דוח קבוצתי: כמה האימון היה קשה, מי ביצע את המשימות, אחוז הנוכחות ומי מחסיר ברצף — ומגיב.', 'Gets a team report: how hard the practice felt, who completed the tasks, the attendance rate and who keeps missing — and responds.')
+              ? L('מקבל דוח קבוצתי: כמה האימון היה קשה, מי ביצע את המשימות, אחוז הנוכחות ומי מחסיר ברצף — ומגיב. והכול מצטבר בכרטיס השחקן ובתיק שעובר איתו משנה לשנה.', 'Gets a team report: how hard the practice felt, who completed the tasks, the attendance rate and who keeps missing — and responds. It all accumulates in the player card and in a dossier that follows the player year to year.')
               : L('כרטיס שחקן עם אחוז נוכחות, מגמה, ממוצע עומס, היעדים והמשובים — ותיק שחקן שעובר איתו משנה לשנה.', 'A player card with attendance rate, trend, average load, goals and feedback — and a dossier that follows the player year to year.')}</p>
           </div>
         </div>

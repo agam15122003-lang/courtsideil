@@ -11,6 +11,7 @@ import { supabase } from './supabaseClient'
 import { isNotDeployed } from './consent'
 import { L } from './i18n'
 import { SITE_URL } from './constants'
+import { BASKETBALL_WORLD } from './flags'
 
 // ===== קריאה אחידה =====
 async function callRpc(fn, args) {
@@ -138,7 +139,12 @@ export async function kpis() {
 // ההודעה היא לא קישוט — היא המשפך עצמו. הקישור מוביל ל-#/court, שמדלג
 // על בחירת התפקיד ועל מסך קוד-הקבוצה ונוחת ישר על המגרש.
 
+// 2.9 — כש«עולם הכדורסל» מוסתר (BASKETBALL_WORLD=false) אין לאן להוביל:
+// הקישור חוזר לדף הנחיתה הרגיל, בלי #/court, כדי שהודעה שמישהו יעתיק
+// לא תבטיח מגרש שלא קיים. ההודעות עצמן נשארות — הן נשלחות רק מתוך מסכי
+// המגרש, שממילא לא נטענים כשהמתג כבוי.
 export function courtLink(ref) {
+  if (!BASKETBALL_WORLD) return `${SITE_URL}/`
   const base = `${SITE_URL}/#/court`
   return ref ? `${SITE_URL}/#/r/${encodeURIComponent(ref)}` : base
 }

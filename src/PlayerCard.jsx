@@ -11,7 +11,7 @@ import {
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { confirmDialog } from './confirm'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
@@ -44,9 +44,11 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
   const rosterId = player.id
   const authId = player.player_id || null
   // צד המאמן בלבד (22.8): עומס, יעדים, משובים ומשימות נשמרים על שורת הסגל
-  // (roster_id) — ולכן זמינים לכל שחקן, גם בלי חשבון. עם צד שחקן פתוח —
-  // דרך החשבון, כמו קודם.
-  const byRoster = !PLAYER_SIDE
+  // (roster_id) — ולכן זמינים לכל שחקן, גם בלי חשבון.
+  // 3.9 — שתי אמיתות: תמיד לפי שורת הסגל (COACH_LOGS), וכשיש חשבון מקושר
+  // קוראים **גם** לפי player_id (מה שהשחקן רשם בעצמו) ומאחדים. לא נגזר
+  // יותר מ-PLAYER_SIDE — אחרת שחקן בלי חשבון איבד כרטיס שלם ברגע שהמתג נדלק.
+  const byRoster = COACH_LOGS
   const hasPerson = byRoster || !!authId
 
   // ---------- פרטים יבשים (עריכה ישירה) ----------
@@ -90,19 +92,41 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [attRes, effRes] = await Promise.all([
+      // 3.9 — שתי אמיתות: מה שהמאמן רשם (roster_id) וגם מה שהשחקן דירג בעצמו
+      // (player_id), מאוחדים לפי אימון; כשיש שניהם לאותו אימון — של המאמן מנצח
+      // בממוצע (כמו ב-SessionDetail), ושניהם מוצגים בשורת «לאחרונה».
+      // select('*'): העמודות של 22.8 (roster_id/source) עשויות עוד לא להתקיים — כוכבית לא נופלת עליהן
+      const effCols = '*'
+      const [attRes, effRosterRes, effAuthRes] = await Promise.all([
         supabase.from('practice_attendance').select('status, session_date')
           .eq('coach_id', coachId).eq('player_id', rosterId).order('session_date', { ascending: false }),
         byRoster
-          // הדירוגים שהמאמן רשם על שורת הסגל (+ דירוג עצמי של שחקן מקושר, אם יש)
-          ? supabase.from('session_effort').select('effort, session_date')
+          ? supabase.from('session_effort').select(effCols)
               .eq('coach_id', coachId).eq('roster_id', rosterId).order('session_date', { ascending: false })
-          : authId
-            ? supabase.from('session_effort').select('effort, session_date')
-                .eq('coach_id', coachId).eq('player_id', authId).order('session_date', { ascending: false })
-            : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [] }),
+        authId
+          ? supabase.from('session_effort').select(effCols)
+              .eq('coach_id', coachId).eq('player_id', authId).order('session_date', { ascending: false })
+          : Promise.resolve({ data: [] }),
       ])
       if (!alive) return
+      // מסד שטרם הריץ 22.8 (אין roster_id/source) — נשארים עם מה שנקרא דרך החשבון
+      const effBySession = new Map() // session_id|date -> { coach, player, session_date }
+      const addEff = (rows, fallbackWho) => {
+        for (const r of rows || []) {
+          const key = r.session_id || r.session_date
+          const who = r.source === 'coach' ? 'coach' : r.source === 'player' ? 'player' : fallbackWho
+          const cur = effBySession.get(key) || { session_date: r.session_date }
+          if (who === 'coach') cur.coach = r.effort; else cur.player = r.effort
+          effBySession.set(key, cur)
+        }
+      }
+      addEff(effRosterRes.error ? [] : effRosterRes.data, 'coach')
+      addEff(effAuthRes.error ? [] : effAuthRes.data, 'player')
+      const effRows = [...effBySession.values()]
+        .sort((a, b) => String(b.session_date || '').localeCompare(String(a.session_date || '')))
+        .map((e) => ({ ...e, effort: e.coach ?? e.player }))
+      const effRes = { data: effRows }
       const att = attRes.data || []
       const present = att.filter((a) => a.status && a.status !== 'absent').length
       // מגמה — חמשת הסימונים האחרונים מול החמישה שלפניהם
@@ -136,21 +160,30 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       const mine = (asg || []).filter((a) =>
         (a.status || 'active') !== 'archived' &&
         ((authId && a.player_id === authId) || (a.roster_id && a.roster_id === rosterId) || (!a.player_id && !a.roster_id && a.team === team)))
+      // 3.9 — שתי אמיתות: «ביצע» שהמאמן סימן (assignment_coach_marks, roster_id)
+      // וגם «ביצעתי» של שחקן מחובר (assignment_completions, player_id) — איחוד
+      // לפי משימה: בוצע אם מישהו סימן, התקדמות = הגבוהה. טבלה חסרה — פשוט אין סימונים.
       let compl = []
-      if (mine.length && byRoster) {
-        // «ביצע» שהמאמן סימן (supabase_coach_only_22_8.sql) — אם הטבלה חסרה, פשוט אין סימונים
-        const { data } = await supabase.from('assignment_coach_marks')
-          .select('assignment_id, done_at, progress_value')
-          .eq('roster_id', rosterId).in('assignment_id', mine.map((a) => a.id))
-        compl = data || []
-      } else if (mine.length && authId) {
-        const { data } = await supabase.from('assignment_completions')
-          .select('assignment_id, done_at, progress_value')
-          .eq('player_id', authId).in('assignment_id', mine.map((a) => a.id))
-        compl = data || []
+      if (mine.length) {
+        const ids = mine.map((a) => a.id)
+        const [cm, pc] = await Promise.all([
+          byRoster
+            ? supabase.from('assignment_coach_marks').select('assignment_id, done_at, progress_value').eq('roster_id', rosterId).in('assignment_id', ids)
+            : Promise.resolve({ data: [] }),
+          authId
+            ? supabase.from('assignment_completions').select('assignment_id, done_at, progress_value').eq('player_id', authId).in('assignment_id', ids)
+            : Promise.resolve({ data: [] }),
+        ])
+        compl = [...(cm.error ? [] : cm.data || []), ...(pc.error ? [] : pc.data || [])]
       }
       if (!alive) return
-      const by = new Map(compl.map((c) => [c.assignment_id, c]))
+      const by = new Map()
+      for (const c of compl) {
+        const cur = by.get(c.assignment_id)
+        if (!cur) { by.set(c.assignment_id, { ...c }); continue }
+        cur.done_at = cur.done_at || c.done_at
+        cur.progress_value = Math.max(Number(cur.progress_value) || 0, Number(c.progress_value) || 0)
+      }
       setTasks(mine.slice(0, 6).map((a) => ({
         id: a.id,
         title: a.drill?.title || a.plan?.name || a.title || L('משימה', 'Task'),
@@ -169,7 +202,10 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
     const base = () => supabase.from('player_feedback')
       .select('id, content, rating, created_at, session_date, session_type')
       .eq('coach_id', coachId).order('created_at', { ascending: false }).limit(50)
-    let { data, error } = await (byRoster ? base().eq('roster_id', rosterId) : base().eq('player_id', authId))
+    // 3.9 — שתי אמיתות: לשחקן מקושר גם משובים שנשמרו על החשבון (לפני 22.8)
+    let { data, error } = await (byRoster
+      ? (authId ? base().or(`roster_id.eq.${rosterId},player_id.eq.${authId}`) : base().eq('roster_id', rosterId))
+      : base().eq('player_id', authId))
     // מסד שטרם הריץ supabase_coach_only_22_8.sql — חוזרים לחשבון השחקן, אם יש.
     // כשל שליפה לא מתחפש ל«עוד לא נכתב משוב».
     if (error && byRoster && /roster_id/i.test(error.message || '')) {
@@ -325,8 +361,15 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
             )}
             {stats.recentEff.length > 0 && (
               <p className="muted small">
-                {PLAYER_SIDE ? L('דיווחי העומס האחרונים: ', 'Recent load reports: ') : L('העומס שרשמת לו לאחרונה: ', 'Load you logged for him recently: ')}
-                {stats.recentEff.map((r) => `${r.session_date ? ilShort(r.session_date).slice(0, -5) : ''} ${r.effort}/10`).join(' · ')}
+                {/* 3.9 — כשיש שתי אמיתות לאותו אימון: «המאמן 7 · השחקן 8» */}
+                {L('העומס לאחרונה: ', 'Recent load: ')}
+                {stats.recentEff.map((r) => {
+                  const d = r.session_date ? ilShort(r.session_date).slice(0, -5) : ''
+                  const v = r.coach != null && r.player != null
+                    ? L(`המאמן ${r.coach} · השחקן ${r.player}`, `coach ${r.coach} · player ${r.player}`)
+                    : `${r.effort}/10`
+                  return `${d} ${v}`
+                }).join(' · ')}
               </p>
             )}
           </>

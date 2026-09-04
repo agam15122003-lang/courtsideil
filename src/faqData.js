@@ -1,13 +1,16 @@
 import { L } from './i18n'
 import { CONTACT_EMAIL } from './constants'
+import { PLAYER_SIDE } from './flags'
 
 // תוכן «שאלות ותשובות». מופרד מ-Help.jsx כדי שאפשר יהיה לערוך נוסח
 // בלי לגעת ברכיב.
 //
 // ⚠ כלל אחד שולט בקובץ: כל תשובה כאן חייבת להיות **נכונה לאפליקציה כפי
-// שהיא היום**, עם PLAYER_SIDE=false. אם משהו עוד לא קיים — אומרים את זה
-// בפירוש, ואומרים מה לעשות במקום. תשובה שמבטיחה פיצ'ר שלא קיים גרועה
-// מאין תשובה בכלל, כי מאמן יחפש אותו ולא ימצא.
+// שהיא היום**. אם משהו עוד לא קיים — אומרים את זה בפירוש, ואומרים מה
+// לעשות במקום. תשובה שמבטיחה פיצ'ר שלא קיים גרועה מאין תשובה בכלל,
+// כי מאמן יחפש אותו ולא ימצא.
+// 2.9 — צד השחקן חזר לפיילוט (PLAYER_SIDE=true): התשובות על «השחקנים
+// שלי» מתפצלות לפי המתג — עם חשבונות שחקן ובלי — כדי ששני המצבים יישארו נכונים.
 export const FAQ_CATEGORIES = [
   'התחלה',
   'הקבוצה והסגל',
@@ -75,7 +78,10 @@ export function faqItems() {
     {
       category: 'הקבוצה והסגל',
       q: L('השחקנים שלי צריכים להירשם?', 'Do my players need to sign up?'),
-      a: L(
+      a: PLAYER_SIDE ? L(
+        'לא חובה. אתה מזין את הסגל ורושם נוכחות, עומס, יעדים ומשוב — גם בלי שאף שחקן מתחבר.\nשחקן שתרצה שיראה את הדברים בטלפון שלו מצטרף עם קוד הקבוצה (מסך «הקבוצות שלי»), ואחרי שתאשר אותו הוא רואה את הלו״ז, המשימות, היעדים והמשוב שנשלחו לו — ויכול לדווח בעצמו אחרי אימון. מי שלא מתחבר — הכול נשאר אצלך כמו היום.',
+        'Not required. You enter the roster and log attendance, load, goals and notes — even if no player ever signs in.\nA player you want to see things on their phone joins with the team code (Teams screen); once you approve them they see the schedule, tasks, goals and feedback sent to them — and can report after practice. Anyone who does not join — everything stays with you as today.'
+      ) : L(
         'לא, ובכוונה. CourtSide פתוחה למאמנים בלבד: אתה מזין את הסגל, ורושם נוכחות, עומס, יעדים ומשוב — והכול נשמר אצלך. השחקנים לא מתחברים, לא רואים כלום ולא מקבלים שום הודעה.',
         'No, and that is deliberate. Right now CourtSide is for coaches only: you enter the roster and log attendance, load, goals and notes — and it all stays with you. Players do not log in, see anything, or get any message.\nA player side is coming later.'
       ),
@@ -83,7 +89,10 @@ export function faqItems() {
     {
       category: 'הקבוצה והסגל',
       q: L('מה קורה למה שאני כותב על שחקן? מישהו רואה את זה?', 'What happens to what I write about a player? Does anyone see it?'),
-      a: L(
+      a: PLAYER_SIDE ? L(
+        'תלוי מה. העומס שרשמת, סימוני «עמד ביעד» ותיק השחקן — רק אתה. משוב אישי, יעד, וההערה שאתה כותב לשחקן בסקירת האימון — שחקן שמחובר לסגל רואה אותם בטלפון שלו (זו המטרה, והוא מקבל על זה התראה). שחקן שלא מחובר — הכול נשאר אצלך. מאמן אחר לא רואה את הסגל שלך בשום מקרה.',
+        'Depends. The load you logged, "met the goal" marks and the dossier — only you. Personal feedback, goals, and the line you write a player in the practice review — a player connected to the roster sees them on their phone (that is the point, and they get a notification). A player who is not connected — everything stays with you. No other coach ever sees your roster.'
+      ) : L(
         'רק אתה. המשוב, היעדים, ציוני העומס וההערות שאתה כותב על שחקן נשמרים בחשבון שלך בלבד. שום שחקן והורה לא רואים אותם, ומאמן אחר לא רואה את הסגל שלך.',
         'Only you. The notes, goals, load scores and remarks you write about a player are stored in your account only. No player or parent sees them, and no other coach sees your roster.'
       ),
@@ -117,13 +126,15 @@ export function faqItems() {
       category: 'הקבוצה והסגל',
       q: L('איך מוסיפים שחקן? צריך ממנו מייל או אישור?', 'How do I add a player? Do I need their email or approval?'),
       a: L(
-        'לא צריך ממנו כלום. ב«הקבוצות שלי» מקלידים שם ומספר חולצה — וזה מספיק כדי להתחיל לסמן נוכחות ולהציב יעדים. עמדה, שנת לידה וטלפון אפשר להוסיף אחר כך בכרטיס השחקן, אם בכלל צריך.',
-        'Nothing from them. On the Teams screen type a name and jersey number — that is enough to start marking attendance and setting goals. Position, birth year and phone can be added later in the player card, if you need them at all.'
+        'לא צריך ממנו כלום. ב«הקבוצות שלי» מקלידים שם ומספר חולצה — וזה מספיק כדי להתחיל לסמן נוכחות ולהציב יעדים. עמדה, שנת לידה וטלפון אפשר להוסיף אחר כך בכרטיס השחקן, אם בכלל צריך.' + (PLAYER_SIDE ? ' ואם תרצה שיראה את הדברים בטלפון שלו — שולחים לו את קוד הקבוצה מאותו מסך.' : ''),
+        'Nothing from them. On the Teams screen type a name and jersey number — that is enough to start marking attendance and setting goals. Position, birth year and phone can be added later in the player card, if you need them at all.' + (PLAYER_SIDE ? ' And if you want them to see things on their phone — send them the team code from that same screen.' : '')
       ),
     },
     {
       category: 'הקבוצה והסגל',
-      q: L('אם לשחקן אין חשבון, מה הטעם ביעדים ובמשוב?', 'If the player has no account, what is the point of goals and notes?'),
+      q: PLAYER_SIDE
+        ? L('גם בלי חשבון לשחקן — מה הטעם ביעדים ובמשוב?', 'Even without a player account — what is the point of goals and notes?')
+        : L('אם לשחקן אין חשבון, מה הטעם ביעדים ובמשוב?', 'If the player has no account, what is the point of goals and notes?'),
       a: L(
         'הטעם הוא אתה. הכול מצטבר בכרטיס השחקן לאורך העונה — אחוז נוכחות, ממוצע עומס, היעדים וההערות שכתבת — וכשמגיעה שיחה עם השחקן או עם ההורה יש לך נתונים ולא תחושות.\nאת השיחה עצמה אתה עושה בעל פה. בכרטיס יש דוח אישי להדפסה או לשמירה כ-PDF, אם נוח לך עם דף ביד.',
         'The point is you. It all accumulates in the player card over the season — attendance, average load, goals and your notes — so when you sit down with a player or a parent you have data, not impressions.\nThe conversation itself you have in person. The card has a printable report, or a PDF, if you prefer paper in hand.'
@@ -235,8 +246,8 @@ export function faqItems() {
       category: 'לו״ז וסקירה',
       q: L('מה זה «עומס» ולמה זה 1 עד 10?', 'What is "load" and why 1 to 10?'),
       a: L(
-        'זו מדידה פשוטה של כמה האימון היה קשה לשחקן. שואלים אותו בסוף האימון «כמה קשה היה, 1 עד 10?» ורושמים. אחרי כמה אימונים רואים ממוצע קבוצתי ואפשר לזהות מי נשחק ומי לא עובד מספיק.',
-        'A simple measure of how hard the practice was for a player. At the end you ask "how hard was it, 1 to 10?" and log it. After a few practices you get a team average and can spot who is being overworked and who is coasting.'
+        'זו מדידה פשוטה של כמה האימון היה קשה לשחקן. שואלים אותו בסוף האימון «כמה קשה היה, 1 עד 10?» ורושמים. אחרי כמה אימונים רואים ממוצע קבוצתי ואפשר לזהות מי נשחק ומי לא עובד מספיק.' + (PLAYER_SIDE ? ' שחקן מחובר יכול גם לדרג בעצמו מהטלפון אחרי האימון — והמספר שלו מופיע בסקירת האימון.' : ''),
+        'A simple measure of how hard the practice was for a player. At the end you ask "how hard was it, 1 to 10?" and log it. After a few practices you get a team average and can spot who is being overworked and who is coasting.' + (PLAYER_SIDE ? ' A connected player can also rate it themselves from their phone after practice — their number shows up in the practice review.' : '')
       ),
     },
     {

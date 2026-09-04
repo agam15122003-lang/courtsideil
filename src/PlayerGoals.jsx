@@ -37,7 +37,9 @@ const dueLabel = (d) => { const x = new Date(d + 'T00:00'); return isNaN(x) ? ''
 // onChange (לא חובה) — נקרא אחרי כל שינוי שנשמר, כדי שמסך שמציג סיכום
 // יעדים מסביב לעורך (לוח היעדים) יתרענן ולא יישאר עם מספרים ישנים.
 export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerName, onChange }) {
-  const byRoster = !PLAYER_SIDE && !!rosterId
+  // 3.9 — שתי אמיתות: שורת הסגל היא הזהות (תמיד, לא לפי PLAYER_SIDE); כשידועים
+  // שני המזהים קוראים ב-OR (יעדים על roster_id וגם על player_id) — ראו load
+  const byRoster = !!rosterId
   const [goals, setGoals] = useState(null)
   const [progDraft, setProgDraft] = useState({}) // {goalId: '120'} — הקלדה ישירה של התקדמות
   const [period, setPeriod] = useState('session')
@@ -58,12 +60,14 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
     const base = () => supabase.from('player_goals').select('*').eq('coach_id', coachId).order('created_at', { ascending: false })
     // צד שחקן פתוח + שני המזהים ידועים: גם יעדים שנרשמו על שורת הסגל כשהמתג
     // היה כבוי (roster_id בלי player_id) שייכים לאותו שחקן
-    let { data, error } = await (byRoster
-      ? base().eq('roster_id', rosterId)
-      : rosterId && playerId
-        ? base().or(`player_id.eq.${playerId},roster_id.eq.${rosterId}`)
+    // 3.9 — כששני המזהים ידועים תמיד OR; שורת סגל בלבד → roster_id; חשבון בלבד → player_id
+    let { data, error } = await (rosterId && playerId
+      ? base().or(`player_id.eq.${playerId},roster_id.eq.${rosterId}`)
+      : byRoster
+        ? base().eq('roster_id', rosterId)
         : base().eq('player_id', playerId))
-    if (error && !byRoster && rosterId && playerId && /roster_id/i.test(error.message || '')) ({ data, error } = await base().eq('player_id', playerId))
+    // מסד בלי roster_id (22.8 טרם רץ): לשחקן מקושר קוראים לפי החשבון
+    if (error && rosterId && playerId && /roster_id/i.test(error.message || '')) ({ data, error } = await base().eq('player_id', playerId))
     if (error) { setLoadErr(error); setGoals([]); setLogsBy({}); return }
     setLoadErr(null)
     setGoals(data || [])

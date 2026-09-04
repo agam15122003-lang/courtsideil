@@ -12,7 +12,7 @@ import {
 import { supabase } from './supabaseClient'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { ChevronFwd } from './DirIcon'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -60,10 +60,12 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       if (!alive) return
 
       const roster = rosterRes.error ? [] : rosterRes.data || []
-      // צד שחקן: רק מחוברים. צד המאמן בלבד (22.8): כל הסגל — היעדים
-      // והמשימות נרשמים על שורת הסגל, ולכן «מפתח» השחקן הוא מזהה השורה.
-      const linked = PLAYER_SIDE ? roster.filter((p) => p.player_id) : roster
-      const keyOf = (p) => (PLAYER_SIDE ? p.player_id : p.id)
+      // צד המאמן (22.8): כל הסגל — היעדים והמשימות נרשמים על שורת הסגל, ולכן
+      // «מפתח» השחקן הוא מזהה השורה.
+      // 3.9 — שתי אמיתות: תמיד כל הסגל ומפתח = שורת הסגל (COACH_LOGS); מה
+      // שנרשם על player_id ממופה לשורה דרך byAuth. לא נגזר מ-PLAYER_SIDE.
+      const linked = COACH_LOGS ? roster : roster.filter((p) => p.player_id)
+      const keyOf = (p) => (COACH_LOGS ? p.id : p.player_id)
       const byAuth = new Map(roster.filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
       // שורת סגל → חשבון מקושר (למצב מתג דלוק: שורות שנרשמו על roster_id כשהמתג היה כבוי)
       const authOfRoster = new Map(roster.filter((p) => p.player_id).map((p) => [p.id, p.player_id]))
@@ -98,7 +100,7 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       // 2 — שחקנים מחוברים בלי יעד פעיל
       {
         const withGoal = new Set((goalsRes.error ? [] : goalsRes.data || [])
-          .map((g) => (PLAYER_SIDE ? (g.player_id || (g.roster_id && authOfRoster.get(g.roster_id))) : (g.roster_id || (g.player_id && byAuth.get(g.player_id)))))
+          .map((g) => (COACH_LOGS ? (g.roster_id || (g.player_id && byAuth.get(g.player_id))) : (g.player_id || (g.roster_id && authOfRoster.get(g.roster_id)))))
           .filter(Boolean))
         const missing = linked.filter((p) => !withGoal.has(keyOf(p)))
         if (missing.length > 0) {
@@ -133,27 +135,29 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
         const overdue = (asgRes.error ? [] : asgRes.data || []).filter((a) => (a.status || 'active') !== 'archived')
         if (overdue.length > 0) {
           let comps = []
-          // צד המאמן בלבד: הסימונים של המאמן (assignment_coach_marks), לפי שורת סגל
+          // 3.9 — שתי אמיתות: הסימונים של המאמן (assignment_coach_marks, לפי שורת סגל)
+          // וגם «ביצעתי» של שחקן מחובר (assignment_completions, player_id → שורת הסגל)
           const { data: cData, error: cErr } = await supabase
-            .from(PLAYER_SIDE ? 'assignment_completions' : 'assignment_coach_marks')
-            .select(PLAYER_SIDE ? 'assignment_id, player_id, done_at' : 'assignment_id, roster_id, done_at')
+            .from('assignment_coach_marks')
+            .select('assignment_id, roster_id, done_at')
             .in('assignment_id', overdue.map((a) => a.id))
           if (!cErr) comps = cData || []
           if (!alive) return
           const doneBy = new Map()
           const markDone = (aid, who) => { if (!who) return; if (!doneBy.has(aid)) doneBy.set(aid, new Set()); doneBy.get(aid).add(who) }
-          for (const c of comps) if (c.done_at) markDone(c.assignment_id, PLAYER_SIDE ? c.player_id : c.roster_id)
-          // מתג דלוק: גם «ביצע» שהמאמן סימן כשהמתג היה כבוי סוגר את המשימה (הטבלה עשויה לא להתקיים — שקט)
+          for (const c of comps) if (c.done_at) markDone(c.assignment_id, c.roster_id)
+          // צד שחקן פתוח: גם «ביצעתי» של השחקן סוגר את המשימה (הטבלה עשויה לא להתקיים — שקט)
           if (PLAYER_SIDE) {
-            const cm = await supabase.from('assignment_coach_marks').select('assignment_id, roster_id, done_at').in('assignment_id', overdue.map((a) => a.id))
+            const pc = await supabase.from('assignment_completions').select('assignment_id, player_id, done_at').in('assignment_id', overdue.map((a) => a.id))
             if (!alive) return
-            for (const c of cm.error ? [] : cm.data || []) if (c.done_at) markDone(c.assignment_id, authOfRoster.get(c.roster_id))
+            for (const c of pc.error ? [] : pc.data || []) if (c.done_at) markDone(c.assignment_id, byAuth.get(c.player_id))
           }
           const stillOpen = overdue.filter((a) => {
-            const recipients = a.player_id
-              ? [PLAYER_SIDE ? a.player_id : byAuth.get(a.player_id)].filter(Boolean)
-              : a.roster_id
-                ? [PLAYER_SIDE ? authOfRoster.get(a.roster_id) : a.roster_id].filter(Boolean)
+            // נמענים לפי שורת סגל: roster_id ישירות, player_id דרך byAuth
+            const recipients = a.roster_id
+              ? [a.roster_id]
+              : a.player_id
+                ? [byAuth.get(a.player_id)].filter(Boolean)
                 : linked.filter((p) => p.team === a.team).map(keyOf)
             if (recipients.length === 0) return false
             const done = doneBy.get(a.id) || new Set()

@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient'
 import { L, trTeam } from './i18n'
-import { PLAYER_SIDE } from './flags'
 import { toast } from './toast'
 
 // א-6 — דוח התקדמות אישי לשחקן: דף אחד להדפסה / שמירה כ-PDF.
@@ -34,20 +33,25 @@ async function loadAssignments(pid, team) {
   return { data: rows }
 }
 
-// צד המאמן בלבד (22.8): אותו דוח, אבל הכול נקרא לפי שורת הסגל (roster_id)
-async function loadAssignmentsByRoster(rid, team) {
-  const cols = 'id, team, roster_id'
-  const [mine, byTeam] = await Promise.all([
+// צד המאמן בלבד (22.8): אותו דוח, אבל הכול נקרא לפי שורת הסגל (roster_id).
+// 3.9 — שתי אמיתות: לשחקן מקושר (pid) גם משימות שנשלחו על החשבון.
+async function loadAssignmentsByRoster(rid, team, pid) {
+  const cols = 'id, team, roster_id, player_id'
+  const [mine, byAuth, byTeam] = await Promise.all([
     supabase.from('player_assignments').select(cols).eq('roster_id', rid),
+    pid
+      ? supabase.from('player_assignments').select(cols).eq('player_id', pid)
+      : Promise.resolve({ data: [], error: null }),
     team
       ? supabase.from('player_assignments').select(cols).eq('team', team)
       : Promise.resolve({ data: [], error: null }),
   ])
   if (mine.error) console.error('playerReport assignments (roster):', mine.error.message)
+  if (byAuth.error) console.error('playerReport assignments (player):', byAuth.error.message)
   if (byTeam.error) console.error('playerReport assignments (team):', byTeam.error.message)
   const seen = new Set()
   const rows = []
-  for (const r of [...(mine.data || []), ...(byTeam.data || [])]) {
+  for (const r of [...(mine.data || []), ...(byAuth.data || []), ...(byTeam.data || [])]) {
     if (seen.has(r.id)) continue
     seen.add(r.id)
     rows.push(r)
@@ -61,27 +65,30 @@ const missing22_8 = (e) => !!e && (e.code === '42703' || e.code === '42P01' || e
 export async function printPlayerReport({ player, team, att }) {
   // המשוב, המשימות והיעדים — לשחקן מחובר (player_id = profiles.id);
   // בצד המאמן בלבד — לכל שורת סגל (roster_id).
+  // 3.9 — שתי אמיתות: תמיד לפי שורת הסגל (המאמן רושם על roster_id), ולשחקן
+  // מקושר גם לפי player_id (OR). «בוצע» = איחוד סימוני המאמן וסימוני השחקן.
   const pid = player.player_id
   const rid = player.id
-  const byRoster = !PLAYER_SIDE && !!rid
-  const [fb, goals, asg, compl] = await Promise.all([
-    byRoster
-      ? supabase.from('player_feedback').select('content, rating, created_at').eq('roster_id', rid).order('created_at', { ascending: false }).limit(3)
-      : pid
-        ? supabase.from('player_feedback').select('content, rating, created_at').eq('player_id', pid).order('created_at', { ascending: false }).limit(3)
-        : Promise.resolve({ data: [] }),
-    byRoster
-      ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('roster_id', rid).limit(10)
-      : pid
-        ? supabase.from('player_goals').select('title, period, status, progress_value, target_value').eq('player_id', pid).limit(10)
-        : Promise.resolve({ data: [] }),
-    byRoster ? loadAssignmentsByRoster(rid, team) : pid ? loadAssignments(pid, team) : Promise.resolve({ data: [] }),
+  const byRoster = !!rid
+  const whoFilter = (q) => (byRoster && pid ? q.or(`roster_id.eq.${rid},player_id.eq.${pid}`) : byRoster ? q.eq('roster_id', rid) : q.eq('player_id', pid))
+  const [fb, goals, asg, cm, pc] = await Promise.all([
+    byRoster || pid
+      ? whoFilter(supabase.from('player_feedback').select('content, rating, created_at')).order('created_at', { ascending: false }).limit(3)
+      : Promise.resolve({ data: [] }),
+    byRoster || pid
+      ? whoFilter(supabase.from('player_goals').select('title, period, status, progress_value, target_value')).limit(10)
+      : Promise.resolve({ data: [] }),
+    byRoster ? loadAssignmentsByRoster(rid, team, pid) : pid ? loadAssignments(pid, team) : Promise.resolve({ data: [] }),
     byRoster
       ? supabase.from('assignment_coach_marks').select('assignment_id, done_at').eq('roster_id', rid).not('done_at', 'is', null)
-      : pid
-        ? supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', pid).not('done_at', 'is', null)
-        : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [] }),
+    pid
+      ? supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', pid).not('done_at', 'is', null)
+      : Promise.resolve({ data: [] }),
   ])
+  // איחוד לפי משימה — סימון של המאמן או של השחקן, כל אחד מספיק
+  const doneIds = new Set([...(cm.data || []), ...(pc.data || [])].map((c) => c.assignment_id))
+  const compl = { data: [...doneIds].map((id) => ({ assignment_id: id })), error: cm.error || pc.error || null }
   // דוח עם אפסים מזויפים גרוע מאין דוח: כשל שליפה נאמר, לא מודפס
   const errs = [fb.error, goals.error, asg.error, compl.error].filter(Boolean)
   if (errs.length) {

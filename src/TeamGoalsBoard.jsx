@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Target, ChevronDown, Users2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { COACH_LOGS } from './flags'
 import Avatar from './Avatar'
 import { PlayerGoalsEditor } from './PlayerGoals'
 
@@ -20,8 +20,9 @@ export default function TeamGoalsBoard({ coachId, team }) {
       .select('id, name, number, player_id')
       .eq('coach_id', coachId).eq('team', team).order('number')
     // צד המאמן בלבד (22.8): כל הסגל, והיעדים נשמרים על שורת הסגל (roster_id).
-    // עם צד שחקן פתוח — רק מחוברים, לפי חשבון, כמו קודם.
-    const connected = PLAYER_SIDE ? (rp || []).filter((p) => p.player_id) : (rp || [])
+    // 3.9 — שתי אמיתות: תמיד כל הסגל (COACH_LOGS) — היעדים ממופים למטה לפי
+    // roster_id וגם לפי player_id, ולכן שחקן מחובר ושחקן בלי חשבון מופיעים יחד.
+    const connected = COACH_LOGS ? (rp || []) : (rp || []).filter((p) => p.player_id)
     setPlayers(connected)
     if (connected.length === 0) return
     // select('*') ולא רשימת עמודות: roster_id עלול עוד לא להתקיים במסד
@@ -50,8 +51,8 @@ export default function TeamGoalsBoard({ coachId, team }) {
       {players.length === 0 ? (
         <div className="empty-state">
           <span className="empty-ic"><Users2 size={24} /></span>
-          <div className="empty-title">{PLAYER_SIDE ? L('אין עדיין שחקנים מחוברים', 'No connected players yet') : L('אין עדיין שחקנים בסגל', 'No players in the roster yet')}</div>
-          <p className="muted small">{PLAYER_SIDE
+          <div className="empty-title">{!COACH_LOGS ? L('אין עדיין שחקנים מחוברים', 'No connected players yet') : L('אין עדיין שחקנים בסגל', 'No players in the roster yet')}</div>
+          <p className="muted small">{!COACH_LOGS
             ? L('שתפו את קוד ההצטרפות — וכשהשחקנים יתחברו תוכלו להציב להם יעדים כאן.', 'Share the join code — once players connect you can set their goals here.')
             : L('הוסיפו שחקנים בטאב «סגל» — ואז תוכלו להציב לכל אחד יעדים כאן.', 'Add players in the roster tab — then you can set each one goals here.')}</p>
         </div>

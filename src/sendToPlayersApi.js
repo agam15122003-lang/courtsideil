@@ -1,28 +1,29 @@
 import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 
 // מודול משותף לשליחת תרגולים לשחקנים (אישי + קבוצתי).
 // player_assignments תומך: coach_id, team, player_id, drill_id, plan_id, video_url, title, note, due_date.
 
-// טוען את הסגל של המאמן: קבוצות + שחקנים מחוברים (עם חשבון)
+// טוען את הסגל של המאמן: קבוצות + כל שורות הסגל, עם דגל linked למי שיש חשבון.
+// 3.9 — שתי אמיתות: המשימה נרשמת תמיד על שורת הסגל (COACH_LOGS); שחקן מחובר
+// (linked) מקבל אותה גם על החשבון + התראה. לא מסננים לפי PLAYER_SIDE יותר —
+// אחרת סגל שלם של ילדים בלי חשבון נעלם מהמסך ברגע שהמתג נדלק.
 export async function loadRoster(coachId) {
   const { data } = await supabase
     .from('team_players')
     .select('id, name, number, team, position, player_id')
     .eq('coach_id', coachId)
     .order('team').order('number')
-  const rows = data || []
+  const rows = (data || []).map((r) => ({ ...r, linked: !!r.player_id }))
   const teams = [...new Set(rows.map((r) => r.team))]
-  // צד שחקן פתוח: רק מי שחיבר חשבון. צד המאמן בלבד (22.8): כל הסגל —
-  // המשימה נרשמת על שורת הסגל (roster_id) והמאמן מסמן ביצוע בעצמו.
-  const players = PLAYER_SIDE ? rows.filter((r) => r.player_id) : rows
+  const players = COACH_LOGS ? rows : rows.filter((r) => r.player_id)
   return { teams, players }
 }
 
-// מזהה הבחירה של שחקן ברשימות: חשבון (צד שחקן) או שורת סגל (צד מאמן)
-export const pickId = (p) => (PLAYER_SIDE ? p.player_id : p.id)
+// מזהה הבחירה של שחקן ברשימות: שורת הסגל (3.9 — תמיד; קיימת עם חשבון או בלי)
+export const pickId = (p) => (COACH_LOGS ? p.id : p.player_id)
 
 // שולח שיגור אחד או יותר.
 // opts: { coachId, mode:'team'|'players', team, players:[{player_id,...}], content:{drillId,planId,videoUrl,title,kind}, note, dueDate, target, unit }
@@ -52,17 +53,18 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
       .select('id, player_id, team')
       .eq('coach_id', coachId)
       .eq('team', team)
-    recipients = (data || []).map((r) => r.player_id).filter(Boolean)
+    recipients = PLAYER_SIDE ? (data || []).map((r) => r.player_id).filter(Boolean) : []
     // ⚠ הנמענים הם רק מי שיש לו **חשבון**. בצד־המאמן־בלבד אין כאלה, ולכן
     //   ספירה לפיהם החזירה תמיד 0 — «נשלח ל־0 שחקנים» על משימה שכן נשלחה.
     //   מה שנשלח באמת הוא לכל שורות הסגל בקבוצה, וזה מה שנספר.
     teamSize = (data || []).length
   } else {
-    // צד המאמן בלבד: שורת הסגל היא הנמען (roster_id); חשבון — אם יש
-    rows = players.map((p) => (PLAYER_SIDE
-      ? { ...base, player_id: p.player_id }
-      : { ...base, player_id: p.player_id || null, roster_id: p.id }))
-    recipients = players.map((p) => p.player_id).filter(Boolean)
+    // 3.9 — שני המזהים תמיד: שורת הסגל היא הרשומה של המאמן (roster_id), והחשבון —
+    // אם יש — כדי שהשחקן יראה אותה אצלו (assign_coach_write מתיר שורה עם שניהם)
+    rows = players.map((p) => (COACH_LOGS
+      ? { ...base, player_id: p.player_id || null, roster_id: p.id }
+      : { ...base, player_id: p.player_id }))
+    recipients = PLAYER_SIDE ? players.map((p) => p.player_id).filter(Boolean) : []
   }
 
   // א-2 — הקצאה חוזרת: עותק לכל שבוע, עם תאריך יעד שנדחף ב-7 ימים.
@@ -136,7 +138,8 @@ export async function sendAssignments({ coachId, mode, team, players = [], conte
   }
   // מספר הנמענים, לא מספר השורות: משימה חוזרת ל-2 שחקנים ×4 שבועות היא
   // 8 שורות — והמסך דיווח «נרשם ל-8 שחקנים».
-  return { ok: true, count: mode === 'team' ? teamSize : players.length, warn }
+  // 3.9 — sent: כמה מהם מחוברים וקיבלו את המשימה גם על החשבון (והתראה)
+  return { ok: true, count: mode === 'team' ? teamSize : players.length, sent: recipients.length, warn }
 }
 
 // טוען את השיגורים האחרונים של המאמן + כמה סימנו בוצע
@@ -151,13 +154,24 @@ export async function loadSentFeed(coachId, roster) {
   if (rows.length === 0) return []
   const ids = rows.map((r) => r.id)
   // בוצע = done_at מלא; שורה עם done_at=null היא התקדמות חלקית בלבד.
-  // צד המאמן בלבד: הסימונים של המאמן (assignment_coach_marks), לא של השחקן.
-  const { data: compl } = await supabase
-    .from(PLAYER_SIDE ? 'assignment_completions' : 'assignment_coach_marks')
-    .select('assignment_id, done_at')
-    .in('assignment_id', ids)
+  // 3.9 — שתי אמיתות: סימוני המאמן (assignment_coach_marks, לפי roster_id) וגם
+  // «ביצעתי» של שחקנים מחוברים (assignment_completions, player_id → שורת הסגל),
+  // מאוחדים לפי (משימה, שורת סגל) כדי שנמען שסומן פעמיים ייספר פעם אחת.
+  // טבלה חסרה — שקט (כמו ב-CoachTodo).
+  const rosterOfAuth = new Map((roster?.players || []).filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
+  const [cm, pc] = await Promise.all([
+    supabase.from('assignment_coach_marks').select('assignment_id, roster_id, done_at').in('assignment_id', ids),
+    PLAYER_SIDE
+      ? supabase.from('assignment_completions').select('assignment_id, player_id, done_at').in('assignment_id', ids)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  const doneKeys = new Set()
+  for (const c of cm.error ? [] : cm.data || []) if (c.done_at) doneKeys.add(`${c.assignment_id}:${c.roster_id}`)
+  // 3.9 — «ביצעתי» של חשבון שכבר לא בסגל לא נספר (כמו ב-TeamAssignments):
+  // מפתח סינתטי לפי החשבון היה מנפח את המונה מעבר למכנה («2/1»).
+  for (const c of pc.error ? [] : pc.data || []) if (c.done_at) { const rid = rosterOfAuth.get(c.player_id); if (rid) doneKeys.add(`${c.assignment_id}:${rid}`) }
   const doneBy = {}
-  for (const c of compl || []) if (c.done_at) doneBy[c.assignment_id] = (doneBy[c.assignment_id] || 0) + 1
+  for (const k of doneKeys) { const aid = k.slice(0, k.indexOf(':')); doneBy[aid] = (doneBy[aid] || 0) + 1 }
 
   // גודל קבוצה = כמה שחקנים (מחוברים, או כל הסגל בצד המאמן) בקבוצה — למכנה של אחוז הביצוע
   const teamSize = {}

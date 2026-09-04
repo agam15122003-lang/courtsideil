@@ -28,7 +28,10 @@ import { FbReact } from './PlayerTimeline'
 import ErrorBoundary from './ErrorBoundary'
 import DrillText from './DrillText'
 import PlayerTeamHub from './PlayerTeamHub'
+// 2.9 — «עולם הכדורסל» מוסתר מהשחקנים בפיילוט (BASKETBALL_WORLD=false).
+// הרכיב נשאר מיובא ולא נמחק — המתג הוא הדבר היחיד שמחזיר אותו.
 import BasketballWorld from './BasketballWorld'
+import { BASKETBALL_WORLD } from './flags'
 import { MyGoals } from './PlayerGoals'
 import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
@@ -2227,18 +2230,27 @@ function NextPracticeGoal({ session, membership }) {
 //
 // המשפט «המאמן רואה את הממוצע של הקבוצה» אינו נימוס: בלעדיו נער מדרג
 // לפי מה שנוח לומר למאמן, לא לפי מה שהרגיש, והנתון מאבד את ערכו.
-function EffortScale({ session, sessionId, sessionDate }) {
+//
+// ⚠ 2.9 — coach_id / team / session_type הם NOT NULL ב-session_effort
+//   (supabase_effort.sql), ובלעדיהם ההוספה נכשלה (טוסט שגיאה), והמאמן ממילא
+//   לא היה רואה שורה בלי coach_id (se_coach_read). אותם שדות ואותו מפתח
+//   ייחודיות כמו בגיליון המלא (FeedbackSheet) — upsert, כדי שלחיצה שנייה
+//   תעדכן ולא תיפול על כפילות.
+function EffortScale({ session, sessionId, sessionDate, sessionType = 'practice', membership }) {
   const [val, setVal] = useState(null)
   const [busy, setBusy] = useState(false)
 
   const send = async (n) => {
     setBusy(true)
-    const { error } = await supabase.from('session_effort').insert({
+    const { error } = await supabase.from('session_effort').upsert({
       player_id: session.user.id,
+      coach_id: membership?.coach_id,
+      team: membership?.team,
+      session_type: sessionType,
       session_id: sessionId,
       session_date: sessionDate,
       effort: n,
-    })
+    }, { onConflict: 'session_id,player_id' })
     setBusy(false)
     if (error) {
       toast.error(L('לא הצלחנו לשמור: ', 'Could not save: ') + error.message)
@@ -2421,7 +2433,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
             {summary.kind === 'game' ? L('איך היה המשחק היום?', 'How was the game today?') : L('איך היה האימון היום?', 'How was practice today?')}
           </strong>
           {!restricted && summary.sessionId && (
-            <EffortScale session={session} sessionId={summary.sessionId} sessionDate={summary.date} />
+            <EffortScale session={session} sessionId={summary.sessionId} sessionDate={summary.date} sessionType={summary.kind} membership={membership} />
           )}
           <button type="button" className="nh-btn nh-btn-primary nh-ask-cta" onClick={onFeedback} disabled={restricted}>
             <Send size={16} aria-hidden="true" /> {L('מלא סיכום אימון', 'Log session summary')}
@@ -3471,9 +3483,13 @@ const PLAYER_NAV = [
   // הוא יעד שחוזרים אליו בכוונה, לא משהו שנתקלים בו בדרך למשימות.
   // במכוון **בלי team:true**: כל שחקן רשום מוזמן, גם בלי מאמן ובלי קבוצה
   // — זה בדיוק הקהל שמגיע מהלינק בוואטסאפ ומהאינסטגרם.
+  // ⚠ 2.9: בפיילוט «עולם הכדורסל» מוסתר (BASKETBALL_WORLD=false). הרשומה
+  // נשארת כאן, והסינון נעשה בשימוש (navVisible) — כך ההחזרה היא מתג בלבד.
   { id: 'boards', label: ['עולם הכדורסל', 'Basketball world'], short: ['הכדורסל', 'World'], Icon: Trophy },
   { id: 'profile', label: ['פרופיל', 'Profile'], Icon: User },
 ]
+// היעדים שבאמת מוצגים (סרגל צד, גיליון ניווט־הכיס): בלי «עולם הכדורסל» כשהמתג כבוי
+const navVisible = (item) => BASKETBALL_WORLD || item.id !== 'boards'
 // חמשת היעדים של המוקאפ (מסך 3b במסמך המסירה): בית · המשימות שלי ·
 // האימונים שלי · הקבוצה · פרופיל. עד היום ישבו כאן שני יעדי צ׳אט
 // (coach + teamchat) שתפסו 40% מהסרגל, בעוד היעדים והלו״ז היו במגירה בלבד.
@@ -3483,10 +3499,15 @@ const PLAYER_NAV = [
 // צדי הכפתור המרכזי, ופריט חמישי שובר את הסימטריה של מסמך העיצוב 3a.
 // לכן «המגרש» נכנס לגלולה רק אצל מי שאין לו קבוצה — אצלו «הקבוצה והלו״ז»
 // ממילא נעול, וכיסא בגלולה מתפנה.
+// 2.9 — כש«עולם הכדורסל» מוסתר, הכיסא הפנוי אצל מי שאין לו קבוצה הולך
+// ל«פרופיל»: שם רשימת הקבוצות שלו, ההצטרפות בקוד ומצב הבקשה — בדיוק מה
+// שילד שמחכה לאישור המאמן צריך. עדיין בדיוק ארבעה, בשני הענפים.
 const pocketNavFor = (hasTeam) =>
   hasTeam
     ? ['home', 'drills', 'feedback', 'schedule']
-    : ['home', 'boards', 'drills', 'feedback']
+    : BASKETBALL_WORLD
+      ? ['home', 'boards', 'drills', 'feedback']
+      : ['home', 'drills', 'feedback', 'profile']
 
 // המסכים שעברו לשפה של PlayerScreens.dc.html (17.8). הם חולקים קנבס
 // אחד (#F1F5FD / כהה), הבאנר שלהם הוא הכותרת, ולכן הסרגל העליון יורד
@@ -3502,12 +3523,14 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // נחיתה מכוונת: מי שהגיע מלינק המגרש (#/court) נוחת על המגרש ולא על
   // הבית הכללי. בלי זה כל לינק שנשלח בוואטסאפ מפיל את השחקן במסך הבית
   // והוא צריך למצוא לבד את מה שהובטח לו בהודעה.
+  // 2.9 — כש«עולם הכדורסל» מוסתר, 'boards' יורד מרשימת היעדים המותרים:
+  // pending_view='boards' ישן (מביקור ב-#/court באוגוסט) נוחת בבית.
   const [view, setView] = useState(() => {
     try {
       const v = localStorage.getItem('pending_view')
       if (v) {
         localStorage.removeItem('pending_view')
-        if (['boards', 'drills', 'home'].includes(v)) return v
+        if (['drills', 'home'].includes(v) || (BASKETBALL_WORLD && v === 'boards')) return v
       }
     } catch { /* ignore */ }
     return 'home'
@@ -3576,11 +3599,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   // לשני מקומות שונים לאותה התראה עצמה.
   // ⚠ יעד שאינו ברשימה נופל ל«המשימות שלי» — ולכן התראת «זכית באתגר»
   // הייתה פותחת את מסך המשימות. כל יעד חדש חייב להיכנס לכאן.
+  // 2.9 — 'boards' מותר רק כש«עולם הכדורסל» פתוח; התראת משחק ישנה נוחתת
+  // בבית, בשקט (הפאנל ממילא לא מציג אותה — Notifications.jsx)
   const navFromNotification = (v) => setView(
-    ['coach', 'goals', 'feedback', 'drills', 'teamchat', 'schedule', 'boards'].includes(v)
+    ['coach', 'goals', 'feedback', 'drills', 'teamchat', 'schedule'].includes(v) || (BASKETBALL_WORLD && v === 'boards')
       ? v
       // 'community' הוסר 19.8 — התראה ישנה שמצביעה לחדר הארצי נוחתת בבית
-      : v === 'community' ? 'home' : v === 'messages' ? 'coach' : 'drills'
+      : v === 'community' || v === 'boards' ? 'home' : v === 'messages' ? 'coach' : 'drills'
   )
   // ...ועם הסבר, אחרת הילד לוחץ על «הגיבו לך» ומוצא את עצמו בבית בלי סיבה
   const navFromBell = (v) => {
@@ -3588,7 +3613,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     navFromNotification(v)
   }
 
-  const nav = PLAYER_NAV
+  const nav = PLAYER_NAV.filter(navVisible)
   const label = (item) => L(item.label[0], item.label[1])
 
   // ---- המסכים בשפת PlayerScreens ----
@@ -3651,6 +3676,8 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     //    אישיות למסך הקבוצה.
     const personalIds = pCoachIds
     const ps = { bell: psBell, coachName: psCoachName, onCoach: psOnCoach, setView }
+    // הבית — ברירת המחדל, וגם היעד של «עולם הכדורסל» כשהוא מוסתר (2.9)
+    const home = <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromBell} personalIds={personalIds} />
     switch (view) {
       case 'drills': return <MyAssignments session={session} personalIds={personalIds} {...ps} />
       case 'pcoach': return <MyPersonalCoaches session={session} personalIds={personalIds} {...ps} />
@@ -3697,11 +3724,13 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               title={L('הקבוצה והלו״ז', 'Team & schedule')}
               desc={L('כאן תראו את חברי הקבוצה והאימון הבא. הצטרפו לקבוצה עם קוד מהמאמן.', 'See your teammates and next practice here. Join a team with a code from your coach.')} />
       case 'boards':
+        // 2.9 — מוסתר בפיילוט: כל דרך שעוד מגיעה לכאן מקבלת את הבית
+        if (!BASKETBALL_WORLD) return home
         // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
         return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromBell} />} />
       case 'profile':
         return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
-      default: return <PlayerHome session={session} profile={profile} membership={membership} setView={setView} onJoined={loadMemberships} onNotification={navFromBell} personalIds={personalIds} />
+      default: return home
     }
   }
 

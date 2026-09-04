@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { toast } from './toast'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { loadRoster, sendAssignments, loadSentFeed, pickId } from './sendToPlayersApi'
 import Avatar from './Avatar'
 import useFocusTrap from './useFocusTrap'
@@ -16,7 +16,12 @@ import useFocusTrap from './useFocusTrap'
 // (על שורת הסגל), והמאמן מסמן «ביצע» אחרי שבדק עם השחקן באימון.
 // כל הניסוחים של «שליחה» עוברים דרך הטבלה הזו, כדי שהמסך לא יבטיח
 // התראה שאף שחקן לא יקבל.
-const T = PLAYER_SIDE ? {
+//
+// 3.9 — שתי אמיתות: הרשימה היא של המאמן (COACH_LOGS — כל הסגל, המשימה נרשמת
+// על שורת הסגל), ולכן הניסוח הבסיסי הוא «רישום». מי שמחובר (תג «מחובר»)
+// מקבל אותה גם על החשבון + התראה — וזה נאמר במסך האישור («נשלח ל-M מחוברים»).
+// מצב הריק «אין שחקנים מחוברים» לא יכול להופיע יותר על סגל מלא.
+const T = !COACH_LOGS ? {
   emptyTitle: () => L('אין עדיין שחקנים מחוברים', 'No connected players yet'),
   emptyText: () => L('שתפו את קוד ההצטרפות מ«הקבוצה שלי» — ברגע ששחקן מתחבר, אפשר לשלוח לו כאן.', 'Share the join code from “My team” — once a player connects, you can send to them here.'),
   emptyMini: () => L('אין שחקנים מחוברים עדיין — שתפו את קוד ההצטרפות מטאב "סגל".', 'No connected players yet — share the join code from the roster tab.'),
@@ -174,7 +179,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
     if (res.warn) toast.error(res.warn)
     const label = mode === 'team' ? trTeam(team) : L(cnt(res.count, 'שחקן אחד', 'שחקנים'), `${res.count} players`)
     // אישור כמסך ולא כטוסט: השליחה היא סוף תהליך, וצריך לראות מה יצא
-    setSent({ count: res.count, label, title: buildContent().title, due: dueDate })
+    // 3.9 — sentTo: כמה מחוברים קיבלו את המשימה גם על החשבון (0 = אף אחד; הרשימה אצלך)
+    setSent({ count: res.count, sentTo: PLAYER_SIDE ? (res.sent || 0) : 0, label, title: buildContent().title, due: dueDate })
     resetForm()
     setRepeatWeeks(1)
     if (!embedded && !variant) refreshFeed(roster)
@@ -234,9 +240,17 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
   const sentPanel = () => (
     <div className="sp-sent-ok" role="status">
       <span className="sp-sent-ic"><CheckCheck size={34} /></span>
-      <h2 className="sp-sent-title">{T.sentTitle(sent.label)}</h2>
+      <h2 className="sp-sent-title">
+        {COACH_LOGS && PLAYER_SIDE
+          /* 3.9 — «נרשם ל-N · נשלח ל-M מחוברים»: בלי חשבון לא מגיע כלום, הרשימה אצל המאמן */
+          ? L(`נרשם ל-${sent.count} · נשלח ל-${sent.sentTo} מחוברים`, `Logged for ${sent.count} · sent to ${sent.sentTo} connected`)
+          : T.sentTitle(sent.label)}
+      </h2>
       <p className="muted">{sent.title}{sent.due ? L(` · עד ${ilDate(sent.due)}`, ` · by ${ilDate(sent.due)}`) : ''}</p>
-      <p className="sp-sent-next muted small">{T.sentNext()}</p>
+      <p className="sp-sent-next muted small">
+        {T.sentNext()}
+        {COACH_LOGS && PLAYER_SIDE && sent.sentTo > 0 && ' ' + L('שחקנים מחוברים קיבלו התראה ורואים את המשימה אצלם ב«המשימות שלי».', 'Connected players got a notification and see the task under “My tasks”.')}
+      </p>
       <div className="sp-sent-acts">
         <button type="button" className="btn-primary" style={{ marginTop: 0 }} onClick={() => { setSent(null); onClose ? onClose() : null }}>
           {onClose ? L('סגירה', 'Close') : L('סיימתי', 'Done')}
@@ -376,6 +390,8 @@ export default function SendToPlayers({ session, embedded, initialTeam, variant,
                         <span className="sp-check">{picked.has(pickId(p)) ? <Check size={14} /> : null}</span>
                         {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={30} />}
                         <span className="sp-player-name">{p.name}</span>
+                        {/* 3.9 — מי שיש לו חשבון יקבל את המשימה גם אצלו + התראה */}
+                        {PLAYER_SIDE && p.linked && <span className="mini-tag">{L('מחובר', 'Connected')}</span>}
                         <span className="muted small">{trTeam(p.team)}{p.position ? ` · ${p.position}` : ''}</span>
                       </button>
                     </li>
