@@ -20,7 +20,8 @@ import TeamGoalsBoard from './TeamGoalsBoard'
 import TeamFocus from './TeamFocus'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE, COACH_LOGS } from './flags'
+// 4.9 — PILOT_COACHES: פאנל קוד-ההצטרפות מוצג רק למאמני הפיילוט
+import { PLAYER_SIDE, COACH_LOGS, PILOT_COACHES } from './flags'
 import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
@@ -531,6 +532,24 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     // אחרת הפער היה ממשיך להופיע אחרי שהמאמן כבר תיקן אותו.
     toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load(); loadAges()
   }
+  // 4.9 — «בלי שאלות בוקר»: כיבוי הצ'ק-אין לילד בודד (בקשת הורה בוואטסאפ —
+  // בלי סבב הסכמות). טאפ אחד, נשמר מיד; סובלני למסד שטרם הריץ את המיגרציה.
+  const toggleWellness = async (p, v) => {
+    const { error } = await supabase.from('team_players').update({ wellness_off: v }).eq('id', p.id)
+    if (error) {
+      const colMissing = ['42703', 'PGRST204'].includes(error.code) || /wellness_off/i.test(error.message || '')
+      toast.error(colMissing
+        ? L('כדי לכבות את שאלות הבוקר צריך להריץ את supabase_checkins_4_9.sql', 'Turning morning questions off needs supabase_checkins_4_9.sql')
+        : L('העדכון נכשל — נסו שוב בעוד רגע.', 'Update failed — try again in a moment.'))
+      return
+    }
+    setPEdit((c) => (c && c.id === p.id ? { ...c, wellness_off: v } : c))
+    setPlayers((cur) => cur.map((x) => (x.id === p.id ? { ...x, wellness_off: v } : x)))
+    toast.success(v
+      ? L('שאלות הבוקר כובו לשחקן הזה', 'Morning questions turned off for this player')
+      : L('שאלות הבוקר הודלקו חזרה', 'Morning questions turned back on'))
+  }
+
   const delPlayer = async (id) => {
     if (!(await confirmDialog({
       title: L('להסיר את השחקן מהסגל?', 'Remove this player from the roster?'),
@@ -543,6 +562,26 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     const { error } = await supabase.from('team_players').delete().eq('id', id)
     if (error) { console.error('teams del player:', error.message); toast.error(L('ההסרה נכשלה — נסו שוב בעוד רגע.', 'Removal failed — try again in a moment.')); return }
     setPEdit(null); load(); loadAges()
+  }
+
+  // ---------- התפקיד שלי בקבוצה (4.9) ----------
+  // «מאמן ראשי» (ברירת מחדל) / «עוזר מאמן» — תצוגה בלבד, שום דבר אחר לא
+  // נשען על זה. נשמר על שורת ההגדרות של הקבוצה (team_iba — pk לכל
+  // מאמן+קבוצה, קיימת ממילא); שורה בלי קישור ליגה תקינה — league_id ריק.
+  // סובלני למסד שטרם הריץ את supabase_checkins_4_9.sql (העמודה חסרה).
+  const coachRole = iba?.coach_role || 'head'
+  const saveCoachRole = async (v) => {
+    if (v === coachRole) return
+    const { error } = await supabase.from('team_iba')
+      .upsert({ coach_id: me, team, coach_role: v }, { onConflict: 'coach_id,team' })
+    if (error) {
+      const colMissing = ['42703', 'PGRST204'].includes(error.code) || /coach_role/i.test(error.message || '')
+      toast.error(colMissing
+        ? L('כדי לסמן «עוזר מאמן» צריך להריץ את supabase_checkins_4_9.sql', 'Marking “assistant coach” needs supabase_checkins_4_9.sql')
+        : L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.'))
+      return
+    }
+    setIba((cur) => ({ ...(cur || { coach_id: me, team }), coach_role: v }))
   }
 
   // ---------- צוות מקצועי ----------
@@ -638,6 +677,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       size="sm"
       actions={(
         <div className="team-hero-stats">
+          {/* 4.9 — תג «עוזר מאמן» בבאנר הקבוצה (team_iba.coach_role, תצוגה בלבד) */}
+          {iba?.coach_role === 'assistant' && (
+            <span className="cs-hero-pill">{L('עוזר מאמן', 'Assistant coach')}</span>
+          )}
           <span className="cs-hero-pill">{L(`${players.length} שחקנים`, `${players.length} players`)}</span>
           {teamAtt != null && <span className="cs-hero-pill">{L('נוכחות ', 'Attendance ')}<b dir="ltr">{teamAtt}%</b></span>}
           {injured > 0 && <span className="cs-hero-pill">{L(`${injured} לא זמינים`, `${injured} unavailable`)}</span>}
@@ -977,7 +1020,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
               key: החלטה שהתקבלה בפאנל שלמעלה חייבת להיעלם גם מהרשימה שבפנים,
               אחרת נשארת שם בקשה שכבר הוכרעה. */}
           {/* צד המאמן בלבד: אין קוד הצטרפות, QR ומד «מחוברים» — אין למי */}
-          {PLAYER_SIDE && <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />}
+          {/* 4.9 — פיילוט: הפאנל מוצג רק למאמן שברשימת PILOT_COACHES (ריקה = כולם).
+              קישורי #/join שכבר יצאו ממשיכים לעבוד — רק הדלת ליצירת חדשים מוגבלת. */}
+          {PLAYER_SIDE && (PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session.user.email)) &&
+            <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />}
 
           {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת
               היחידה אליהם, והיא חייבת להיות בזרימה הראשית. */}
@@ -989,6 +1035,21 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </span>
             <ChevronFwd size={17} aria-hidden="true" />
           </button>
+
+          {/* 4.9 — התפקיד שלי בקבוצה: ראשי / עוזר (תצוגה בלבד; התג מופיע בבאנר) */}
+          <div className="pc4-role">
+            <span className="muted small">{L('התפקיד שלי בקבוצה:', 'My role on this team:')}</span>
+            <div className="chips">
+              <button type="button" className={coachRole === 'head' ? 'chip selected' : 'chip'}
+                aria-pressed={coachRole === 'head'} onClick={() => saveCoachRole('head')}>
+                {L('מאמן ראשי', 'Head coach')}
+              </button>
+              <button type="button" className={coachRole === 'assistant' ? 'chip selected' : 'chip'}
+                aria-pressed={coachRole === 'assistant'} onClick={() => saveCoachRole('assistant')}>
+                {L('עוזר מאמן', 'Assistant coach')}
+              </button>
+            </div>
+          </div>
 
           {/* ---- צוות מקצועי — מקופל: רוב מאמני הנוער לא מנהלים צוות ---- */}
           <details className="tg-collapse staff-block">
@@ -1182,6 +1243,18 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             <label className="pf-label" style={{ marginTop: 8 }}>{L('מידע נוסף', 'Notes')}
               <textarea className="finder-input" rows={3} value={pEdit.notes || ''} onChange={(e) => setPEdit((p) => ({ ...p, notes: e.target.value }))} placeholder={L('חוזקות, נקודות לשיפור, הערות...', 'Strengths, areas to improve, notes...')} />
             </label>
+            {/* 4.9 — כיבוי הצ'ק-אין לילד בודד (הורה שביקש). נשמר מיד בטאפ,
+                לא בכפתור «שמירה» — כדי שביטול הסכמה יהיה פעולה אחת. */}
+            {PLAYER_SIDE && (
+              <label className="pc4-well" style={{ marginTop: 10 }}>
+                <input type="checkbox" checked={!!pEdit.wellness_off}
+                  onChange={(e) => toggleWellness(pEdit, e.target.checked)} />
+                <span>
+                  <b>{L('בלי שאלות בוקר', 'No morning questions')}</b>{' '}
+                  <span className="muted small">{L('— הצ׳ק-אין היומי לא יוצג לשחקן הזה (בקשת הורה)', '— the daily check-in is hidden for this player (parent request)')}</span>
+                </span>
+              </label>
+            )}
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
               {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, יעדים ומשוב */}

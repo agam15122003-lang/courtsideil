@@ -31577,3 +31577,71 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .coach-card { overflow: visible; }
 .coach-card::after { border-radius: 14px; }
 .row-menu-pop { top: auto; bottom: calc(100% + 6px); }
+
+/* ===== 4.9.2026 — צ'ק-אין בוקר (פיילוט): כרטיס השחקן, רצועת «מוכנות היום»,
+   «בלי שאלות בוקר» ו«התפקיד שלי בקבוצה» ===== */
+/* הכרטיס יושב בקליפת nh-card הקיימת; הצ'יפים הם .chip/.chip.selected
+   הקיימים — כאן רק הפריסה, גובה מגע ≥44px, והקישורים הקטנים. */
+.pc4-card { display: flex; flex-direction: column; gap: 12px; }
+.pc4-head { display: flex; align-items: flex-start; gap: 10px; }
+.pc4-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex: 0 0 auto; border-radius: 10px;
+  background: var(--warn-soft); color: var(--accent-strong);
+}
+.pc4-head-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pc4-head-tx strong { font-size: 15px; }
+.pc4-sub { font-size: 12.5px; color: var(--muted); }
+.pc4-q { display: flex; flex-direction: column; gap: 6px; }
+.pc4-q-lbl { font-size: 13px; font-weight: 700; color: var(--navy); }
+.pc4-chips { gap: 6px; }
+.pc4-chips .chip { min-height: 44px; padding: 8px 13px; font-size: 13.5px; }
+.pc4-foot { display: flex; align-items: center; gap: 14px; margin-top: 2px; }
+.pc4-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 6px 0; cursor: pointer;
+  min-height: 44px; /* 4.9 — גובה מגע כמו הצ'יפים; «אני חולה» הוא הקישור הכי רגיש בכרטיס */
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px;
+}
+.pc4-link-grey { color: var(--muted); font-weight: 500; }
+.pc4-done-card { flex-direction: row; align-items: center; justify-content: space-between; }
+.pc4-done { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ok); }
+
+/* «בלי שאלות בוקר» — הטוגל במודאל פרטי השחקן (Teams) */
+.pc4-well { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.pc4-well input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent-strong); flex: 0 0 auto; }
+
+/* «התפקיד שלי בקבוצה» — ראשי / עוזר (Teams, טאב הסגל) */
+.pc4-role { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-block: 14px 4px; }
+
+/* --- רצועת «מוכנות היום» בכרטיס הלוח (np-report הקיים) + הגיליון --- */
+.rd-attn { color: var(--danger); font-weight: 700; }
+/* 4.9 — על הבאנר הכהה-תמיד --danger הבהיר של מצב כהה קבוע (ראו DESIGN.md),
+   כמו שכן .np-report-avg קובע גוון בהיר קבוע: אדום כהה על נייבי לא נקרא */
+.np-report .rd-attn { color: #F08A7E; }
+.rd-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rd-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--paper);
+}
+.rd-row.rd-red { border-color: var(--danger); background: var(--danger-soft); }
+.rd-row.rd-yellow { border-color: var(--warn); background: var(--warn-soft); }
+.rd-row.rd-grey { opacity: .75; }
+.rd-dot { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%; background: var(--surface-alt, var(--bg)); }
+.rd-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rd-tx b { font-size: 14px; }
+.rd-detail { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.rd-badge.red {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  background: var(--danger); color: #fff; font-size: 11.5px; font-weight: 700;
+}
+.rd-ack {
+  flex: 0 0 auto; min-height: 44px; padding: 8px 14px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--navy);
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rd-ack-done { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--ok); }
+.rd-foot { display: flex; gap: 10px; }
+.rd-foot .btn-soft { flex: 1; justify-content: center; }

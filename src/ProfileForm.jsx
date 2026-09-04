@@ -13,7 +13,7 @@ import MultiSelect from './MultiSelect'
 import TeamFromIba from './TeamFromIba'
 import { AGE_GROUPS, GENDERS, ISRAELI_CLUBS, teamLabel } from './constants'
 import { L, trTeam } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, PLAYER_SIGNUP } from './flags'
 import { createConsentRequest, consentShareText, consentRequestError } from './consent'
 import { waShare, copyText } from './share'
 
@@ -51,7 +51,20 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   // משתמש חדש (עדיין אין שם) — תמיד מתחילים ממסך בחירת התפקיד, גם אם
   // ברירת המחדל של העמודה במסד היא 'coach' (אחרת מסך הבחירה נדלג).
   // צד המאמן בלבד (22.8): אין מסך «מי אתם?» — כל משתמש חדש הוא מאמן.
-  const [role, setRole] = useState(PLAYER_SIDE ? (profile?.first_name ? (profile?.role || '') : '') : (profile?.role || 'coach')) // '' = טרם נבחר, 'coach' | 'player'
+  // 4.9 — פיילוט: המסך הזה הוא שער התפקיד **האמיתי** (אחרי ההתחברות), ולכן
+  // הסתרת «שחקן» ב-App/RolePicker לבדה לא סוגרת כלום. הדלת «שחקן» נפתחת
+  // כאן רק כשיש קוד הצטרפות שמור (הגעה מקישור #/join של מאמן) — או כשאין
+  // פיילוט בכלל (PLAYER_SIGNUP). בלי הדלת: מסך הבחירה נדלג והתפקיד 'coach'.
+  const canPickPlayer = PLAYER_SIGNUP || (PLAYER_SIDE && (() => {
+    try { return !!localStorage.getItem('pending_join_code') } catch { return false }
+  })())
+  const [role, setRole] = useState(
+    PLAYER_SIDE
+      ? (profile?.first_name
+          ? (profile?.role || '')
+          : (canPickPlayer ? '' : (profile?.role || 'coach'))) // 4.9 — בלי דלת שחקן אין מסך בחירה
+      : (profile?.role || 'coach')
+  ) // '' = טרם נבחר, 'coach' | 'player'
   const [firstName, setFirstName] = useState(profile?.first_name || '')
   const [lastName, setLastName] = useState(profile?.last_name || '')
   const [club, setClub] = useState(profile?.club || '')
@@ -443,11 +456,14 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
             <strong>{L('אני מאמן/ת', "I'm a coach")}</strong>
             <span className="muted small">{L('תרגילים, תוכניות אימון, ניהול קבוצה וקהילה', 'Drills, plans, team management and community')}</span>
           </button>
-          <button type="button" className="role-card" onClick={() => setRole('player')}>
-            <span className="role-ic player"><Dumbbell size={30} /></span>
-            <strong>{L('אני שחקן/ית', "I'm a player")}</strong>
-            <span className="muted small">{L('מתחברים לקבוצה ומקבלים תרגילים ומשוב מהמאמן', 'Join your team and get drills and feedback from your coach')}</span>
-          </button>
+          {/* 4.9 — פיילוט: כרטיס «שחקן» רק למי שהגיע מקישור #/join (canPickPlayer) */}
+          {canPickPlayer && (
+            <button type="button" className="role-card" onClick={() => setRole('player')}>
+              <span className="role-ic player"><Dumbbell size={30} /></span>
+              <strong>{L('אני שחקן/ית', "I'm a player")}</strong>
+              <span className="muted small">{L('מתחברים לקבוצה ומקבלים תרגילים ומשוב מהמאמן', 'Join your team and get drills and feedback from your coach')}</span>
+            </button>
+          )}
         </div>
       </div>
     )
@@ -455,7 +471,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
   return (
     <div className="welcome-card profile-form">
-      {isNew && PLAYER_SIDE && (
+      {/* 4.9 — פיילוט: בלי דלת שחקן אין מסך בחירה, ולכן גם אין «שינוי סוג משתמש» */}
+      {isNew && canPickPlayer && (
         <button type="button" className="link-button" style={{ marginBottom: 8 }} onClick={() => setRole('')}>
           {L('← שינוי סוג משתמש', '← Change who you are')}
         </button>

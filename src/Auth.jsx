@@ -7,7 +7,7 @@ import { toast } from './toast'
 import { COACHING_QUOTES, ISRAELI_CLUBS, SITE_URL, TERMS_VERSION, checkPassword, passwordServerError } from './constants'
 import { passwordStrength, PasswordRules } from './ResetPassword'
 import { L } from './i18n'
-import { PLAYER_SIDE } from './flags'
+import { PLAYER_SIDE, PLAYER_SIGNUP } from './flags'
 
 // מייל בלי סיום דומיין — הודעת שדה ליד הקלט, לא באנר בתחתית המסך
 const emailLooksWhole = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
@@ -513,7 +513,8 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
             <>
               {/* 1c — הקישור חוזר לבחירת התפקיד, לא להתחברות (README §1c) */}
               <button type="button" className="csa-back csa-back--push" onClick={onBack}>
-                <ChevronBack size={17} /> {PLAYER_SIDE ? L('חזרה לבחירת תפקיד', 'Back to role selection') : L('חזרה', 'Back')}
+                {/* 4.9 — בפיילוט אין מסך בחירת תפקיד — «חזרה» נוחתת בדף הנחיתה, והתווית לא משקרת */}
+                <ChevronBack size={17} /> {PLAYER_SIGNUP ? L('חזרה לבחירת תפקיד', 'Back to role selection') : L('חזרה', 'Back')}
               </button>
               <h1 className="csa-title">
                 {L('מצטרפים ל-CourtSide', 'Joining CourtSide')}

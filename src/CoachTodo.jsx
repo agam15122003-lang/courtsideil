@@ -7,13 +7,16 @@
 import { useEffect, useState } from 'react'
 import {
   ClipboardCheck, Target, CalendarDays, Hourglass, AlertTriangle, Users2, CheckCircle2,
-  Shield, Check, Rocket,
+  Shield, Check, Rocket, HeartPulse,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE, COACH_LOGS } from './flags'
+import { PLAYER_SIDE, COACH_LOGS, PILOT_COACHES } from './flags'
 import { ChevronFwd } from './DirIcon'
+// 4.9 — דגלים אדומים מהצ'ק-אין (כאב שמפריע לשחק / חולה): «דיברתי איתו» בטאפ
+import { localDate } from './CheckinCard'
+import { toast } from './toast'
 
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -37,7 +40,11 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       const from7 = addDays(now, -7)
       const monthKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
 
-      const [entriesRes, slotsRes, attRes, revRes, rosterRes, goalsRes, tgRes, asgRes, pendRes] = await Promise.all([
+      // 4.9 — דגלי הצ'ק-אין רק למאמן בפיילוט (PILOT_COACHES, כמו ReadinessStrip):
+      // אצל כל האחרים אין מה לשלוף — ולפני הרצת ה-SQL זו הייתה בקשה שנכשלת
+      // בכל טעינת בית. תאריך לפי שעון ישראל (localDate) — כך הצ'ק-אין נכתב.
+      const inPilot = PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session?.user?.email)
+      const [entriesRes, slotsRes, attRes, revRes, rosterRes, goalsRes, tgRes, asgRes, pendRes, ckRes] = await Promise.all([
         supabase.from('schedule_entries').select('id, team, date, start_time, end_time, is_personal')
           .gte('date', ymd(from7)).lte('date', todayStr),
         supabase.from('team_practice_slots').select('*').eq('coach_id', me),
@@ -56,6 +63,12 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
           ? supabase.from('team_memberships').select('id', { count: 'exact', head: true })
               .eq('coach_id', me).eq('status', 'pending')
           : Promise.resolve({ error: null, count: 0 }),
+        // 4.9 — דגלים אדומים מצ'ק-אין הבוקר (באותו אצווה — אין תלות בתוצאות).
+        // סובלני: טבלה חסרה / שגיאה — פשוט אין שורות (דפוס הקובץ כולו).
+        inPilot
+          ? supabase.from('player_checkins').select('*')
+              .eq('coach_id', me).eq('checkin_date', localDate())
+          : Promise.resolve({ error: null, data: [] }),
       ])
       if (!alive) return
 
@@ -71,6 +84,36 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       const authOfRoster = new Map(roster.filter((p) => p.player_id).map((p) => [p.id, p.player_id]))
       const teams = [...new Set(roster.map((p) => p.team).filter(Boolean))]
       const out = []
+
+      // 0 — דגלים אדומים מצ'ק-אין הבוקר (4.9): כאב שמפריע לשחק או «חולה היום».
+      // ראשונים ברשימה — זה הדבר הכי דחוף שיש למאמן הבוקר. הטאפ לא מנווט:
+      // הוא מסמן «דיברתי איתו» (handle_checkin) והשורה יורדת. אחד לילד ליום
+      // (ייחודיות במסד). שינה קצרה = צהוב בגיליון המוכנות בלבד, לא כאן.
+      // בלי התראה להורה ובלי פעמון — החלטת הבעלים: «רק שיחה עם הילד».
+      {
+        const flags = (ckRes.error ? [] : ckRes.data || [])
+          .filter((c) => (c.sick || c.pain_blocks === true) && !c.handled_at)
+        const nameById = new Map(roster.map((p) => [p.id, p.name]))
+        const nameByAuth2 = new Map(roster.filter((p) => p.player_id).map((p) => [p.player_id, p.name]))
+        for (const c of flags) {
+          const name = (c.roster_id && nameById.get(c.roster_id))
+            || (c.player_id && nameByAuth2.get(c.player_id)) || L('שחקן', 'Player')
+          const key = 'checkin' + c.id
+          out.push({
+            key, Icon: HeartPulse, tone: 'bad',
+            title: c.sick
+              ? L(`${name} חולה היום`, `${name} is sick today`)
+              : L(`${name} דיווח כאב שמפריע לשחק`, `${name} reported pain that blocks play`),
+            sub: L('לחיצה = «דיברתי איתו»', 'Tap = “I talked to him”'),
+            action: async () => {
+              const { error } = await supabase.rpc('handle_checkin', { p_id: c.id })
+              if (error) { toast.error(L('הסימון נכשל — נסו שוב', 'Failed to mark — try again')); return }
+              setRows((cur) => (cur || []).filter((r) => r.key !== key))
+              toast.success(L('סומן — דיברת איתו', 'Marked — you talked to him'))
+            },
+          })
+        }
+      }
 
       // 1 — אימונים שהסתיימו ולא נסגרו (נוכחות או סיכום חסרים)
       {
@@ -296,7 +339,8 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
         ) : (
           <div className="nh-rows">
             {rows.map((r) => (
-              <button key={r.key} type="button" className="nh-row" onClick={() => onNavigate && onNavigate(r.nav)}>
+              /* 4.9 — שורה עם action (דגל צ'ק-אין) מבצעת אותו במקום לנווט */
+              <button key={r.key} type="button" className="nh-row" onClick={() => (r.action ? r.action() : onNavigate && onNavigate(r.nav))}>
                 <span className={'nh-row-ic ' + r.tone} aria-hidden="true"><r.Icon size={16} /></span>
                 <span className="nh-row-tx">
                   <b>{r.title}</b>
@@ -331,7 +375,8 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       ) : (
         <div className="ctd-list">
           {rows.map((r) => (
-            <button key={r.key} type="button" className="ctd-row" onClick={() => onNavigate && onNavigate(r.nav)}>
+            /* 4.9 — שורה עם action (דגל צ'ק-אין) מבצעת אותו במקום לנווט */
+            <button key={r.key} type="button" className="ctd-row" onClick={() => (r.action ? r.action() : onNavigate && onNavigate(r.nav))}>
               <span className={'ctd-ic ' + r.tone} aria-hidden="true"><r.Icon size={16} /></span>
               <span className="ctd-tx">
                 <b>{r.title}</b>

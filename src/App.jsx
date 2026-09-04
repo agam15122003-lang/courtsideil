@@ -12,7 +12,9 @@ import { useLang, L } from './i18n'
 // 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
 // הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
 // 2.9 — צד השחקן חזר לפיילוט; «עולם הכדורסל» (#/court, #/r) מוסתר במתג משלו.
-import { PLAYER_SIDE, BASKETBALL_WORLD } from './flags'
+// 4.9 — פיילוט: הרשמה עצמאית כ«שחקן» מוסתרת כשיש רשימת מאמני פיילוט;
+// שחקן נכנס רק דרך קישור #/join ממאמן.
+import { PLAYER_SIDE, BASKETBALL_WORLD, PLAYER_SIGNUP } from './flags'
 import Logo from './Logo'
 
 // מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
@@ -64,11 +66,29 @@ function captureCourtEntry() {
   return true
 }
 
+// קישור הצ'ק-אין (4.9): #/checkin — נשלח בתזכורת הוואטסאפ של המאמן.
+// הכרטיס יושב בבית השחקן, ולכן היעד הוא פשוט הבית ('home' כבר ברשימת
+// היעדים המותרים של PlayerDashboard). מנקים את ה-hash כמו captureJoinCode.
+function captureCheckinLink() {
+  if (!/^#\/checkin\b/.test(window.location.hash)) return false
+  try { localStorage.setItem('pending_view', 'home') } catch { /* ignore */ }
+  window.location.hash = ''
+  return true
+}
+
 // תפקיד ההרשמה (מסך בחירת התפקיד) — שני תפקידים בלבד, "הורה" הוסר מהמסך.
 // נשמר ב-localStorage כדי שרענון באמצע ההרשמה לא יאבד את הבחירה.
+// 4.9 — פיילוט: כשיש רשימת PILOT_COACHES, הדלת «שחקן» יורדת ממסך ההרשמה
+// (אין בחירת תפקיד — «הרשמה» נוחתת ישר על הרשמת מאמן, כמו כשצד השחקן
+// סגור). שחקן ממשיך להיכנס דרך קישור #/join — המסלול ההוא שומר role='player'.
+// PLAYER_SIGNUP עבר ל-src/flags.js (4.9) — גם ProfileForm ו-Auth גוזרים ממנו.
 const ROLES = ['coach', 'player']
 function readRole() {
-  if (!PLAYER_SIDE) return 'coach' // צד המאמן בלבד — אין תפקיד אחר להירשם אליו
+  // 4.9 — גם בלי הרשמת שחקן עצמאית, 'player' שמור מכובד: רק מסלול #/join
+  // כותב אותו (saveRole למטה), ורענון באמצע הרשמת שחקן לא מפיל לדלת מאמן.
+  if (!PLAYER_SIGNUP) {
+    try { return localStorage.getItem('signup_role') === 'player' ? 'player' : 'coach' } catch { return 'coach' }
+  }
   try {
     const saved = localStorage.getItem('signup_role')
     return ROLES.includes(saved) ? saved : 'coach'
@@ -112,7 +132,7 @@ export default function App() {
 
   // תאימות לשער התרגיל הציבורי, שנשאר כפי שהיה: "פתיחת הדלת" = מסך בחירת התפקיד
   const setShowAuth = (open) => {
-    if (open) goAuth(PLAYER_SIDE ? 'role' : 'auth')
+    if (open) goAuth(PLAYER_SIGNUP ? 'role' : 'auth')
     else {
       setAuthStep(null)
       setAuthTrail([])
@@ -139,6 +159,9 @@ export default function App() {
     // אבל שניהם מובילים לאותה נחיתה: הרשמה כשחקן, בלי מסכי ביניים.
     const fromJoin  = captureJoinCode()
     const fromCourt = captureCourtEntry()
+    // 4.9 — קישור הצ'ק-אין מהתזכורת: רק שומר יעד ('home') ומנקה את ה-hash.
+    // מי שכבר מחובר נוחת בבית; מי שלא — יתחבר כרגיל ואז ינחת בבית.
+    captureCheckinLink()
     if ((fromJoin || fromCourt) && !session) {
       saveRole('player')
       setRole('player')
@@ -155,6 +178,8 @@ export default function App() {
       if (!PLAYER_SIDE && /^#\/(join|court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
       // «עולם הכדורסל» מוסתר (2.9): קישור מגרש שהודבק אחרי הטעינה — מנקים גם כאן
       if (!BASKETBALL_WORLD && /^#\/(court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
+      // 4.9 — קישור צ'ק-אין שהודבק אחרי הטעינה — נתפס גם כאן
+      if (captureCheckinLink()) return
       setSharedDrill(publicDrillId())
       setConsentToken(consentTokenFromHash())
     }
@@ -374,8 +399,8 @@ export default function App() {
       {authStep === null && (
         <Landing
           onLogin={() => goAuth('auth', 'signin')}
-          /* צד המאמן בלבד: «הרשמה» מדלגת על בחירת התפקיד ונוחתת ישר בהרשמת מאמן */
-          onSignup={() => goAuth(PLAYER_SIDE ? 'role' : 'auth', 'signup')}
+          /* צד המאמן בלבד / פיילוט (4.9): «הרשמה» מדלגת על בחירת התפקיד ונוחתת ישר בהרשמת מאמן */
+          onSignup={() => goAuth(PLAYER_SIGNUP ? 'role' : 'auth', 'signup')}
         />
       )}
 
@@ -404,7 +429,7 @@ export default function App() {
           /* צד המאמן בלבד: אין מסך בחירת תפקיד, ולכן אין לאן לנווט — בלי
              ה-prop הזה טאב «הרשמה» מחליף מצב בתוך Auth עצמו (goMode) במקום
              לנווט מחדש לאותו מסך ולא לעשות כלום. */
-          onSignupFlow={PLAYER_SIDE ? () => goAuth('role', 'signup') : undefined}
+          onSignupFlow={PLAYER_SIGNUP ? () => goAuth('role', 'signup') : undefined}
         />
       )}
 

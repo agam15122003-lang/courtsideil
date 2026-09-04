@@ -409,6 +409,11 @@ export default function SessionDetail({ session, entry, onClose }) {
                 const linked = !!p.player_id
                 const eff = efforts[p.id]
                 const opts = goalOpts[p.id] || []
+                // 4.9 — פיילוט: כשהשחקן כבר דירג את עצמו והמאמן לא רשם,
+                // הדירוג העצמי הוא התג הראשי ושורת ה-1–10 יורדת — הבעלים
+                // ממלא רק למי שלא דיווח. רשם המאמן בכל זאת? שני התגים מוצגים.
+                // == null ולא falsy: מאמן שניקה עומס שרשם ('' ) עדיין רואה את שורת ה-1–10
+                const selfPrimary = COACH_MODE && linked && !!eff && coachEff[p.id] == null
                 return (
                   <li key={p.id} className="sd-row">
                     <div className="sd-row-top">
@@ -418,11 +423,18 @@ export default function SessionDetail({ session, entry, onClose }) {
                         /* תצוגה בלבד — הבחירה עברה לשורת המספרים 1–10 מתחת (טאפ אחד
                            במקום בורר שנפתח, נגלל ונסגר, פעם לכל שחקן על המגרש) */
                         <>
-                          <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
-                            <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
-                          </span>
+                          {/* 4.9 — דיווח עצמי בלי רישום מאמן: הדירוג העצמי הוא התג הראשי */}
+                          {selfPrimary ? (
+                            <span className="sd-eff-badge on" title={L('מאמץ (דירוג עצמי של השחקן)', 'Effort (player self-rated)')}>
+                              <Flame size={13} /> <bdi dir="ltr">{eff}/10</bdi> · {L('דיווח עצמי', 'self')}
+                            </span>
+                          ) : (
+                            <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
+                              <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
+                            </span>
+                          )}
                           {/* 3.9 — הדירוג העצמי של שחקן מקושר מוצג לצד מה שהמאמן רשם, לא במקומו */}
-                          {linked && eff && <span className="sd-eff-badge" title={L('מאמץ (דירוג עצמי של השחקן)', 'Effort (player self-rated)')}>{L('השחקן: ', 'Player: ')}<bdi dir="ltr">{eff}/10</bdi></span>}
+                          {!selfPrimary && linked && eff && <span className="sd-eff-badge" title={L('מאמץ (דירוג עצמי של השחקן)', 'Effort (player self-rated)')}>{L('השחקן: ', 'Player: ')}<bdi dir="ltr">{eff}/10</bdi></span>}
                         </>
                       ) : connected && (
                         <span className={eff ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('מאמץ (דירוג עצמי)', 'Effort (self-rated)')}>
@@ -447,8 +459,10 @@ export default function SessionDetail({ session, entry, onClose }) {
                         </button>
                       )}
                     </div>
-                    {/* עומס 1–10 בטאפ אחד; לחיצה שנייה על אותו מספר מנקה */}
-                    {COACH_MODE && (
+                    {/* עומס 1–10 בטאפ אחד; לחיצה שנייה על אותו מספר מנקה.
+                        4.9 — לא מוצג כשיש דיווח עצמי בלי רישום מאמן (selfPrimary):
+                        הבעלים ממלא רק למי שלא דיווח. */}
+                    {COACH_MODE && !selfPrimary && (
                       <div className="sd-effort" role="group" aria-label={L(`עומס לשחקן ${p.name}`, `Load for ${p.name}`)}>
                         <span className="sd-effort-lbl">{L('עומס', 'Load')}</span>
                         {EFFORT_OPTS.map((n) => (

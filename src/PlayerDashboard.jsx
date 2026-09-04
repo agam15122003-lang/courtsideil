@@ -56,6 +56,8 @@ import { SkeletonCards, SkeletonMedia } from './Skeleton'
 import { PendingBanner, sendParentLink } from './PendingApproval'
 // 18.8 — תוכנית אימון ששוגרה לשחקן: רשימת התרגילים או הדף כולו (לפי בחירת המאמן)
 import PlayerPlanSheet from './PlayerPlanSheet'
+// 4.9 — צ'ק-אין בוקר (פיילוט): שלוש שאלות שינה/אנרגיה/גוף בבית השחקן
+import CheckinCard from './CheckinCard'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
 
@@ -159,6 +161,9 @@ function JoinTeam({ session, onJoined, compact }) {
     try { pendingCode = localStorage.getItem('pending_join_code') } catch { /* ignore */ }
     if (!pendingCode) return
     try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
+    // 4.9 — ההרשמה מהקישור הושלמה: מנקים גם את תפקיד ההרשמה השמור, כדי
+    // ש«הרשמה» הבאה מהמכשיר הזה לא תיפתח בטעות בדלת «שחקן» (App.readRole)
+    try { localStorage.removeItem('signup_role') } catch { /* ignore */ }
     setCode(pendingCode)
     ;(async () => {
       setBusy(true)
@@ -2778,7 +2783,9 @@ function LastPracticeFeedback({ session, membership, setView }) {
 }
 
 function PlayerHome({ session, profile, membership, setView, onJoined, onNotification, personalIds = [] }) {
-  const { restricted } = useRestricted()
+  // 4.9 — ההקשר כולו יורד לכרטיס הצ'ק-אין (הוא קובץ נפרד ולא רואה את ה-Context)
+  const restrictedCtx = useRestricted()
+  const { restricted } = restrictedCtx
   const [fbOpen, setFbOpen] = useState(false)
   const [fbRefresh, setFbRefresh] = useState(0) // מרענן את ההירו אחרי שליחת סיכום
   // (11.8) לוח המספרים ירד מהבית עם מסמך העיצוב, ואיתו שבע השאילתות
@@ -2799,6 +2806,10 @@ function PlayerHome({ session, profile, membership, setView, onJoined, onNotific
         refreshKey={fbRefresh}
         onNotification={onNotification}
       />
+
+      {/* 4.9 — צ'ק-אין בוקר (פיילוט): הכרטיס הראשון מתחת לבאנר, כל יום
+          06:00–24:00. שורד מסד בלי supabase_checkins_4_9.sql (לא מרונדר). */}
+      {membership && <CheckinCard session={session} membership={membership} restrictedCtx={restrictedCtx} />}
 
       {!membership && <JoinTeam session={session} onJoined={onJoined} compact />}
 

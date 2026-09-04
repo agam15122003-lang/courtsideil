@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy, Check as CheckLine } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy, Check as CheckLine, HeartPulse, X, Share2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { downloadIcs } from './ics'
 import SessionDetail from './SessionDetail'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
-import { PLAYER_SIDE } from './flags'
+// 4.9 — רצועת «מוכנות היום» מוצגת רק למאמני הפיילוט (PILOT_COACHES)
+import { PLAYER_SIDE, PILOT_COACHES } from './flags'
+// 4.9 — המילים והתאריך של הצ'ק-אין חיים בקובץ אחד, לא משוכפלים
+import { localDate, SLEEP_RANGES, ENERGY_WORDS, BODY_WORDS, painAreaLabel } from './CheckinCard'
+import useFocusTrap from './useFocusTrap'
+import { waShare } from './share'
+import { SITE_URL } from './constants'
+import { toast } from './toast'
 
 const pad = (n) => String(n).padStart(2, '0')
 const ilNum = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear() }
@@ -313,6 +321,8 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         </div>
 
         {rsvp}
+        {/* 4.9 — «מוכנות היום»: מי דיווח בצ'ק-אין הבוקר ומי צריך תשומת לב */}
+        {entry.team && !entry.is_personal && <ReadinessStrip session={session} team={entry.team} />}
         {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
         {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
       </div>
@@ -373,5 +383,196 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       {gameStrip}
       {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
     </div>
+  )
+}
+
+// ============================================================
+// 4.9.2026 — «מוכנות היום»: רצועת הצ'ק-אין של הבוקר בכרטיס הלוח
+// ============================================================
+// «דיווחו N מתוך M · K לשים לב: <שמות>» — השמות על הכרטיס עצמו (החלטת
+// הבעלים). טאפ פותח גיליון עם כל השורות: אדום (כאב שמפריע / חולה) →
+// צהוב (שינה מתחת ל-7 שעות) → תקין → אפור (לא דיווח / «בלי שאלות» /
+// ממתין לאישור הורה). M = שורות סגל עם חשבון מחובר ובלי wellness_off.
+//
+// הרצועה לא מרונדרת בכלל כשהטבלה חסרה (שגיאת שליפה), כשהסגל ריק, כשאין
+// אף שחקן מחובר — או אצל מאמן שאינו בפיילוט (PILOT_COACHES).
+function ReadinessStrip({ session, team }) {
+  const me = session?.user?.id
+  const inPilot = PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session?.user?.email)
+  const today = localDate()
+  const [data, setData] = useState(null) // {roster, checkins, pending:Set}
+  const [open, setOpen] = useState(false)
+  const [ackedIds, setAckedIds] = useState(() => new Set())
+  // 4.9 — כמו כל גיליון בפרויקט (FeedbackSheet): מלכודת פוקוס + Escape סוגר
+  const sheetRef = useFocusTrap(open, () => setOpen(false))
+
+  useEffect(() => {
+    if (!me || !team || !inPilot) return
+    let alive = true
+    ;(async () => {
+      // select('*') — סובלני למסד בלי wellness_off; שגיאה כלשהי = אין רצועה
+      const [rosterRes, ckRes] = await Promise.all([
+        supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team),
+        supabase.from('player_checkins').select('*').eq('coach_id', me).eq('team', team).eq('checkin_date', today),
+      ])
+      if (!alive) return
+      if (rosterRes.error || ckRes.error) return
+      // «ממתין לאישור הורה» — כשל כאן לא מפיל את הרצועה, רק את התווית
+      let pending = new Set()
+      try {
+        const { data: mem, error } = await supabase.from('team_memberships')
+          .select('player_id, status, player:profiles!player_id(approval_status)')
+          .eq('coach_id', me).eq('team', team).eq('status', 'approved')
+        if (!error) pending = new Set((mem || []).filter((m) => m.player?.approval_status === 'pending_parent').map((m) => m.player_id))
+      } catch { /* בלי התווית */ }
+      if (!alive) return
+      setData({ roster: rosterRes.data || [], checkins: ckRes.data || [], pending })
+    })()
+    return () => { alive = false }
+  }, [me, team, inPilot, today])
+
+  if (!inPilot || !data) return null
+  const { roster, checkins, pending } = data
+
+  // שיוך דיווח לשורת סגל — לפי חשבון או לפי שורת הסגל (רישום מאמן, אם יהיה)
+  const byAuth = new Map(checkins.filter((c) => c.player_id).map((c) => [c.player_id, c]))
+  const byRoster = new Map(checkins.filter((c) => c.roster_id).map((c) => [c.roster_id, c]))
+  const reportOf = (p) => byRoster.get(p.id) || (p.player_id ? byAuth.get(p.player_id) : null)
+
+  const eligible = roster.filter((p) => p.player_id && !p.wellness_off)
+  if (eligible.length === 0) return null
+
+  const flagOf = (c) => {
+    if (!c) return null
+    if (c.sick || c.pain_blocks === true) return 'red'
+    if (c.sleep_bucket != null && c.sleep_bucket <= 1) return 'yellow'
+    return 'ok'
+  }
+  const reported = eligible.filter((p) => reportOf(p))
+  const flagged = reported
+    .map((p) => ({ p, c: reportOf(p), flag: flagOf(reportOf(p)) }))
+    .filter((r) => r.flag === 'red' || r.flag === 'yellow')
+
+  // ---- הגיליון ----
+  const order = { red: 0, yellow: 1, ok: 2 }
+  const rows = [
+    ...reported
+      .map((p) => ({ kind: 'report', p, c: reportOf(p), flag: flagOf(reportOf(p)) }))
+      .sort((a, b) => order[a.flag] - order[b.flag] || String(a.p.name).localeCompare(String(b.p.name), 'he')),
+    ...eligible.filter((p) => !reportOf(p)).map((p) => ({
+      kind: 'grey', p,
+      label: pending.has(p.player_id) ? L('ממתין לאישור הורה', 'Awaiting parent approval') : L('לא דיווח', 'No report'),
+    })),
+    ...roster.filter((p) => p.player_id && p.wellness_off).map((p) => ({
+      kind: 'grey', p, label: L('בלי שאלות', 'Questions off'),
+    })),
+  ]
+
+  const ackOne = async (row) => {
+    const { error } = await supabase.rpc('ack_checkin', { p_id: row.c.id })
+    if (error) { toast.error(L('הסימון נכשל', 'Failed to mark')); return }
+    setAckedIds((cur) => new Set(cur).add(row.c.id))
+  }
+  const ackAll = async () => {
+    const { error } = await supabase.rpc('ack_checkins', { p_team: team, p_date: today })
+    if (error) { toast.error(L('הסימון נכשל', 'Failed to mark')); return }
+    // הפונקציה מסמנת רק את השורות התקינות — משקפים את זה גם כאן
+    setAckedIds((cur) => {
+      const next = new Set(cur)
+      for (const r of rows) if (r.kind === 'report' && r.flag === 'ok') next.add(r.c.id)
+      return next
+    })
+    toast.success(L('סומן — ראית את כולם', 'Marked — all seen'))
+  }
+  const remind = () => waShare(L(
+    `בוקר טוב חבר'ה! 🏀 אל תשכחו לענות על הצ'ק-אין של הבוקר — שלוש שאלות, פחות מחצי דקה:\n${SITE_URL}/#/checkin`,
+    `Good morning! 🏀 Don't forget this morning's check-in — three questions, under half a minute:\n${SITE_URL}/#/checkin`
+  ))
+
+  // 4.9 — טווח השעות עטוף <bdi dir="ltr"> — אותה מוסכמה כמו הצ'יפים אצל
+  // השחקן: בלי זה «10+» מתהפך בתוך שורה עברית (dir=ltr על מספרים)
+  const words = (c) => {
+    const parts = []
+    if (c.sleep_bucket != null) parts.push(
+      <span key="sleep"><bdi dir="ltr">{SLEEP_RANGES[c.sleep_bucket]}</bdi> {L('שעות', 'hours')}</span>
+    )
+    if (c.energy != null) parts.push(L(ENERGY_WORDS[c.energy - 1][0], ENERGY_WORDS[c.energy - 1][1]))
+    if (c.body != null) {
+      let b = L(BODY_WORDS[c.body - 1][0], BODY_WORDS[c.body - 1][1])
+      if (c.body === 3 && Array.isArray(c.pain_area) && c.pain_area.length) b += ` (${c.pain_area.map(painAreaLabel).join(', ')})`
+      parts.push(b)
+    }
+    return parts.flatMap((p, i) => (i ? [' · ', p] : [p]))
+  }
+
+  const names = flagged.map((r) => r.p.name).join(', ')
+  const sheet = open && createPortal(
+    <div className="sd-modal" onClick={() => setOpen(false)}>
+      {/* 4.9 — role/aria-modal + ref המלכודת: בלעדיהם Tab יוצא אל המסך שמאחור */}
+      <div className="sd-inner rd-sheet" ref={sheetRef} role="dialog" aria-modal="true"
+        aria-label={L('מוכנות היום', 'Readiness today')} onClick={(e) => e.stopPropagation()}>
+        <header className="sd-hero practice">
+          <button className="icon-btn sd-close" onClick={() => setOpen(false)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
+          <span className="sd-badge">{L('מוכנות היום', 'Readiness today')}</span>
+          <h2>{trTeam(team)}</h2>
+          <span className="sd-date">{L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</span>
+        </header>
+        <div className="sd-scroll">
+          <ul className="rd-rows">
+            {rows.map((r) => (
+              <li key={r.p.id} className={'rd-row' + (r.kind === 'report' ? ` rd-${r.flag}` : ' rd-grey')}>
+                {r.p.number ? <span className="pl-mate-num">{r.p.number}</span> : <span className="rd-dot" aria-hidden="true" />}
+                <span className="rd-tx">
+                  <b>{r.p.name}</b>
+                  {r.kind === 'report' ? (
+                    <span className="rd-detail">
+                      {r.c.sick && <span className="rd-badge red">{L('חולה היום', 'Sick today')}</span>}
+                      {r.c.pain_blocks === true && <span className="rd-badge red">{L('מפריע לשחק', 'Blocks play')}</span>}
+                      {words(r.c)}
+                    </span>
+                  ) : (
+                    <span className="rd-detail">{r.label}</span>
+                  )}
+                </span>
+                {r.kind === 'report' && (r.flag === 'red' || r.flag === 'yellow') && (
+                  (r.c.coach_ack_at || ackedIds.has(r.c.id))
+                    ? <span className="rd-ack-done"><CheckLine size={13} aria-hidden="true" /> {L('ראיתי', 'Seen')}</span>
+                    : <button type="button" className="rd-ack" onClick={() => ackOne(r)}>{L('ראיתי', 'Seen')}</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <footer className="sd-foot rd-foot">
+          <button type="button" className="btn-soft" onClick={ackAll}>
+            <CheckLine size={15} /> {L('ראיתי את כולם', 'Seen everyone')}
+          </button>
+          <button type="button" className="btn-soft" onClick={remind}>
+            <Share2 size={15} /> {L('תזכורת לקבוצה', 'Remind the team')}
+          </button>
+        </footer>
+      </div>
+    </div>,
+    document.body
+  )
+
+  return (
+    <>
+      <button type="button" className="np-report rd-strip" onClick={() => setOpen(true)}>
+        <span className="np-report-ic"><HeartPulse size={17} /></span>
+        <span className="np-report-body">
+          <strong>{L('מוכנות היום', 'Readiness today')} · {L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</strong>
+          <span className="np-report-meta">
+            {flagged.length > 0
+              ? <span className="rd-attn">{L(`${flagged.length} לשים לב: ${names}`, `${flagged.length} to watch: ${names}`)}</span>
+              : reported.length > 0
+                ? <span>{L('הכול תקין', 'All good')}</span>
+                : <span>{L('אין דיווחים עדיין הבוקר', 'No reports yet this morning')}</span>}
+          </span>
+        </span>
+        <span className="np-report-cta">{L('פתח', 'Open')}</span>
+      </button>
+      {sheet}
+    </>
   )
 }
