@@ -23,11 +23,13 @@ import { L } from './i18n'
 import { ArrowFwd } from './DirIcon'
 import { COACHING_QUOTES } from './constants'
 // 22.8 — השקת צד המאמן בלבד: הטקסטים של «מאמן ושחקן» נשארים כאן מאחורי
-// המתג, והדף מציג גרסה למאמנים (בלי טיזר — הוסר 30.8, החלטת הבעלים).
-// 2.9 — צד השחקן חזר לפיילוט: הגרסה עם המתג דלוק מתארת את הצד המקצועי
-// בלבד (לו״ז, משימות, יעדים, משוב) — בלי משחק, בלי נקודות, ובלי הבטחת
-// «תזכורת» שאין לנו (אין התראות דחיפה).
-import { PLAYER_SIDE } from './flags'
+// מתג, והדף מציג גרסה למאמנים (בלי טיזר — הוסר 30.8, החלטת הבעלים).
+// 2.9 — צד השחקן חזר לפיילוט, והדף קיבל גרסה שמתארת גם אותו.
+// 6.9 — החלטת הבעלים: **הדף חוזר לגרסת המאמן בלבד.** גם כשצד השחקן פתוח,
+// דף הנחיתה לא מוכר את «הקשר מאמן↔שחקן»: שחקן מגיע מקישור שהמאמן שולח לו,
+// לא מהדף הזה. הטקסטים של הגרסה עם השחקנים נשארו בקוד מאחורי המתג המקומי
+// שלמטה — הפיכתו ל-true מחזירה אותם. הוא **לא** מחובר ל-LANDING_PLAYER_COPY
+// בכוונה: צד השחקן פתוח, השיווק בדף לא.
 import Logo from './Logo'
 
 // reveal-on-scroll — סקשנים נחשפים בגלילה (מכבד prefers-reduced-motion דרך ה-CSS)
@@ -98,6 +100,8 @@ function CourtArt() {
 // onLogin  — ישר למסך ההתחברות (אין צורך בבחירת תפקיד כדי להתחבר)
 // onSignup — מסלול ההרשמה (בחירת תפקיד ← הרשמה)
 // onEnter  — תאימות לאחור: אם לא הועברו השניים, שניהם נופלים לכאן
+const LANDING_PLAYER_COPY = false
+
 export default function Landing({ onEnter, onLogin, onSignup }) {
   useReveal()
   const goLogin = onLogin || onEnter
@@ -114,12 +118,12 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   // 2.9 — צד השחקן בפיילוט: אותם שישה כרטיסים של המאמן, ועוד אחד על מה
   // שהשחקן רואה בטלפון. רק הצד המקצועי — בלי משחק, בלי נקודות, ובלי
   // הבטחת «תזכורת» (אין התראות דחיפה).
-  const FEATURES = !PLAYER_SIDE ? COACH_FEATURES : [
+  const FEATURES = !LANDING_PLAYER_COPY ? COACH_FEATURES : [
     ...COACH_FEATURES,
     { Icon: UserPlus, title: L('צד השחקן', 'The player side'), desc: L('שחקן שמצטרף בקוד מהמאמן רואה בטלפון שלו את האימון הבא, המשימות, היעדים והמשוב — ואחרי כל אימון מסמן בעצמו כמה היה קשה ומה ביצע. המאמן רואה, ומגיב.', 'A player who joins with the coach’s code sees the next practice, tasks, goals and feedback on their phone — and after every practice marks how hard it was and what they did. The coach sees it, and responds.') },
   ]
 
-  const STEPS = !PLAYER_SIDE ? [
+  const STEPS = !LANDING_PLAYER_COPY ? [
     { n: '1', title: L('מקימים פרופיל', 'Set up a profile'), desc: L('נרשמים עם אימייל, ממלאים שם, מועדון ושכבות הגיל שאתם מאמנים. דקה.', 'Sign up with an email, fill in your name, club and the age groups you coach. One minute.') },
     { n: '2', title: L('מזינים את הסגל', 'Add your roster'), desc: L('שם ומספר לכל שחקן — וכבר אפשר לסמן נוכחות, להציב יעדים ולכתוב משוב.', 'A name and a number for every player — and you can already mark attendance, set goals and write feedback.') },
     { n: '3', title: L('מנהלים את העונה', 'Run the season'), desc: L('בונים אימונים במחברת, וסוגרים כל אימון בסקירה קצרה של דקה.', 'Build practices in the notebook, and close every practice with a one-minute review.') },
@@ -131,14 +135,14 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
   ]
 
   const STATS = [
-    { num: L('הכל במקום אחד', 'All in one place'), label: PLAYER_SIDE ? L('כל מה ששחקן ומאמן צריכים', 'everything a player and a coach need') : L('כל מה שמאמן צריך', 'everything a coach needs') },
+    { num: L('הכל במקום אחד', 'All in one place'), label: LANDING_PLAYER_COPY ? L('כל מה ששחקן ומאמן צריכים', 'everything a player and a coach need') : L('כל מה שמאמן צריך', 'everything a coach needs') },
     { num: L('קהילה', 'Community'), label: L('של מאמנים שמשתפים ידע', 'of coaches sharing knowledge') },
     { num: L('בעברית', 'In Hebrew'), label: L('בנוי לכדורסל הישראלי', 'built for Israeli basketball') },
   ]
 
   // "למה CourtSide" — רצועת ערך בין ההירו לפיצ'רים (דפוס ההמרה מהסקיל: Hero → Value → Features → Social Proof → CTA)
   const WHY = [
-    { Icon: Zap, title: L('נוח לשימוש', 'Easy to use'), desc: PLAYER_SIDE
+    { Icon: Zap, title: L('נוח לשימוש', 'Easy to use'), desc: LANDING_PLAYER_COPY
       ? L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: לראות התקדמות, לשלוח יעדים מותאמים אישית ולעקוב אחריהם.', 'The easiest way to follow the team and every player personally: see progress, send personalized goals and track them.')
       : L('הדרך הקלה ביותר לעקוב אחרי הקבוצה ואחרי כל שחקן באופן אישי: נוכחות, עומס, יעדים ומשוב — בכמה נגיעות, מהטלפון.', 'The easiest way to follow the team and every player personally: attendance, load, goals and feedback — a few taps, from your phone.') },
     { Icon: ClipboardList, title: L('תוכניות אימון ותרגילים', 'Practice plans & drills'), desc: L('כל תרגיל ותוכנית שאתם רושמים נשמרים אצלכם: רואים על מה עבדתם, חוזרים לתרגיל שלא ישב טוב, ומשלבים תרגילים שמורים לתוכנית חדשה. אין דרך קלה יותר לשמור את הידע שלכם.', 'Every drill and plan you write is saved: see what you worked on, revisit a drill that didn’t sit right, and combine saved drills into a new plan. There is no easier way to keep your knowledge.') },
@@ -159,12 +163,12 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         </>
       ),
     },
-    { q: L('איך מצטרפים?', 'How do I join?'), a: PLAYER_SIDE
+    { q: L('איך מצטרפים?', 'How do I join?'), a: LANDING_PLAYER_COPY
       ? L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל — מאמן או שחקן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a profile — coach or player. That’s it, you’re in.')
       : L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל מאמן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a coach profile. That’s it, you’re in.') },
-    ...(!PLAYER_SIDE ? [{
+    ...(!LANDING_PLAYER_COPY ? [{
       q: L('ומה עם השחקנים שלי?', 'What about my players?'),
-      a: L('השחקנים לא צריכים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם בלבד.', 'Players don’t need an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you.'),
+      a: L('השחקנים לא חייבים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם.', 'Players don’t have to have an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you.'),
     }] : []),
     { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
   ]
@@ -191,17 +195,17 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         <span className="lhn-glow" aria-hidden="true" />
         <div className="land-hero-text">
           <span className="land-eyebrow">
-            <Star size={14} /> {PLAYER_SIDE ? L('בעברית · למאמנים ולשחקנים', 'In Hebrew · for coaches & players') : L('בעברית · למאמני כדורסל', 'In Hebrew · for basketball coaches')}
+            <Star size={14} /> {LANDING_PLAYER_COPY ? L('בעברית · למאמנים ולשחקנים', 'In Hebrew · for coaches & players') : L('בעברית · למאמני כדורסל', 'In Hebrew · for basketball coaches')}
           </span>
           <h1 className="land-title">
             <span className="land-title-accent">CourtSide</span><br />
-            {PLAYER_SIDE
+            {LANDING_PLAYER_COPY
               ? L('הבית של מאמני ושחקני הכדורסל הישראלי.', 'The home of Israeli basketball coaches and players.')
               : L('הבית של מאמני הכדורסל הישראלי.', 'The home of Israeli basketball coaches.')}
           </h1>
           <p className="land-sub">
-            <strong>{PLAYER_SIDE ? L('כל מה שמאמן ושחקן צריכים במקום אחד.', 'Everything a coach and a player need in one place.') : L('כל מה שמאמן צריך במקום אחד.', 'Everything a coach needs in one place.')}</strong><br />
-            {PLAYER_SIDE
+            <strong>{LANDING_PLAYER_COPY ? L('כל מה שמאמן ושחקן צריכים במקום אחד.', 'Everything a coach and a player need in one place.') : L('כל מה שמאמן צריך במקום אחד.', 'Everything a coach needs in one place.')}</strong><br />
+            {LANDING_PLAYER_COPY
               ? L("שיתוף תרגילים, יעדים, משוב על אימונים ומשחקים, לו\"ז שבועי — ועוד מגוון רחב של פיצ'רים.", 'Drill sharing, goals, feedback on practices and games, a weekly schedule — and a wide range of extra features.')
               : L("מחברת אימון, ספריית תרגילים, סגל ונוכחות, יעדים ומשוב לכל שחקן, לו\"ז שבועי — וקהילת מאמנים.", 'A practice notebook, a drill library, roster and attendance, goals and feedback per player, a weekly schedule — and a community of coaches.')}
           </p>
@@ -238,7 +242,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
 
       {/* הלולאה מאמן↔שחקן — מוצגת רק כשצד השחקן פתוח. בהשקת צד-המאמן
           אין טיזר בכוונה (החלטת הבעלים 30.8): לא מבטיחים פיצ׳ר שלא קיים. */}
-      {PLAYER_SIDE && (
+      {LANDING_PLAYER_COPY && (
       <section className="land-section land-loop reveal">
         <h2 className="land-h2">{L('הקשר בין מאמן לשחקן מעולם לא היה נוח יותר.', 'The coach–player connection has never been easier.')}</h2>
         <div className="land-loop-grid">
@@ -268,21 +272,21 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
           <div className="land-why-item">
             <span className="land-why-ic"><CalendarCheck size={22} /></span>
             <h3 className="land-feature-title">{L('לפני האימון', 'Before practice')}</h3>
-            <p className="land-feature-desc">{PLAYER_SIDE
+            <p className="land-feature-desc">{LANDING_PLAYER_COPY
               ? L('השחקן מאשר הגעה ורואה את היעדים שהמאמן הציב לו.', 'The player confirms attendance and sees the goals the coach set for them.')
               : L('פותחים את תוכנית האימון מהלו"ז, ורואים את היעדים שהצבתם לכל שחקן לאימון הזה.', 'Open the practice plan from the schedule, and see the goals you set each player for this practice.')}</p>
           </div>
           <div className="land-why-item">
             <span className="land-why-ic"><ListChecks size={22} /></span>
             <h3 className="land-feature-title">{L('אחרי האימון', 'After practice')}</h3>
-            <p className="land-feature-desc">{PLAYER_SIDE
+            <p className="land-feature-desc">{LANDING_PLAYER_COPY
               ? L('מסמן מה ביצע ומוסיף משוב אישי על האימון.', 'Marks what they did and adds personal feedback on the practice.')
               : L('סקירה קצרה: נוכחות, עומס לכל שחקן, מי עמד ביעד שלו, מילה אישית ו-MVP — דקה בסוף האימון.', 'A short review: attendance, load per player, who met their goal, a personal line and an MVP — one minute after practice.')}</p>
           </div>
           <div className="land-why-item">
             <span className="land-why-ic"><BarChart3 size={22} /></span>
-            <h3 className="land-feature-title">{PLAYER_SIDE ? L('המאמן', 'The coach') : L('לאורך העונה', 'Across the season')}</h3>
-            <p className="land-feature-desc">{PLAYER_SIDE
+            <h3 className="land-feature-title">{LANDING_PLAYER_COPY ? L('המאמן', 'The coach') : L('לאורך העונה', 'Across the season')}</h3>
+            <p className="land-feature-desc">{LANDING_PLAYER_COPY
               ? L('מקבל דוח קבוצתי: כמה האימון היה קשה, מי ביצע את המשימות, אחוז הנוכחות ומי מחסיר ברצף — ומגיב. והכול מצטבר בכרטיס השחקן ובתיק שעובר איתו משנה לשנה.', 'Gets a team report: how hard the practice felt, who completed the tasks, the attendance rate and who keeps missing — and responds. It all accumulates in the player card and in a dossier that follows the player year to year.')
               : L('כרטיס שחקן עם אחוז נוכחות, מגמה, ממוצע עומס, היעדים והמשובים — ותיק שחקן שעובר איתו משנה לשנה.', 'A player card with attendance rate, trend, average load, goals and feedback — and a dossier that follows the player year to year.')}</p>
           </div>
@@ -374,7 +378,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
 
       <section className="land-band reveal">
         <h2 className="land-band-title">{L('יאללה, מתחילים.', 'Let’s get started.')}</h2>
-        <p className="land-band-sub">{PLAYER_SIDE
+        <p className="land-band-sub">{LANDING_PLAYER_COPY
           ? L('בעברית, ישר מהדפדפן. נרשמים, מקימים קבוצה ומזמינים את השחקנים בקוד.', 'In Hebrew, straight from the browser. Sign up, create a team and invite your players with a code.')
           : L('בעברית, ישר מהדפדפן. נרשמים, מזינים את הסגל, ומתחילים לנהל את העונה.', 'In Hebrew, straight from the browser. Sign up, add your roster, and start running the season.')}</p>
         <button className="btn-hero btn-lg" onClick={goSignup}>

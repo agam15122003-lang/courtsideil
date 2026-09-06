@@ -325,7 +325,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onBlur={() => setEmailTouched(true)}
-          placeholder="coach@example.com"
+          placeholder="name@example.com"
           required
           autoComplete="email"
           dir="ltr"
