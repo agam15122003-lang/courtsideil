@@ -31663,3 +31663,355 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .rd-ack-done { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--ok); }
 .rd-foot { display: flex; gap: 10px; }
 .rd-foot .btn-soft { flex: 1; justify-content: center; }
+
+/* =====================================================================
+   6.9.2026 — «צד השחקן לא זז הצידה» (בקשת הבעלים, לפני הפיילוט עם הנערים)
+   ---------------------------------------------------------------------
+   הבעלים: «אפשר לגרור את מסך השחקן ימינה־שמאלה, ובצד המאמן אי אפשר».
+   החוזה של צד המאמן (17.8, index.css:27937) חי על html/body בלבד ורק
+   עד 768px. הבלוק הזה מעתיק אותו על מעטפת השחקן עצמה (‎.pl-layout),
+   בלי תלות ברוחב הפריסה שהדפדפן מדווח, ומחזיר pan-x רק לרצועות
+   שבאמת נגללות לרוחב.
+
+   ⚠ pan-y **pinch-zoom** ולא pan-y לבד ולא manipulation: שניהם מבטלים
+     צביטה להגדלה, והאפליקציה לא מבטלת זום (נגישות, DESIGN.md).
+   ⚠ pan-x על אלמנט שלא נגלל לרוחב **חוסם גלילה אנכית שמתחילה עליו** —
+     המלכודת שנפלנו בה פעמיים. לכן הרשימה למטה היא בדיוק הרצועות עם
+     ‎overflow-x:auto, וכל אחת מקבלת pan-x **וגם** pan-y **וגם** pinch-zoom.
+   ⚠ ‏overflow-x:clip אינו מכולת גלילה, ולכן overscroll-behavior עליו
+     הוא קוד מת — הוא יושב כאן על המעטפת, שהיא כן חלק משרשרת הגלילה.
+   ⚠ הגיליונות של השחקן (‎.ps-overlay, .pl-video-modal) יוצאים ב-portal
+     ל-body ולכן **אינם** מתחת ל-.pl-layout: הסרגל של יוטיוב ממשיך
+     להיגרר, וה-touch-action שלהם נשאר משלהם (‎.ps-overlay, 27102).
+   ===================================================================== */
+
+/* --- (1) החוזה: המעטפת של השחקן לא נגררת לרוחב, בשום רוחב מסך --- */
+/* ⚠ בלי @media: touch-action לא נוגע בעכבר בכלל, ולכן אין מה להגן
+   עליו ברוחב או ב-pointer — ותנאי מדיה הוא עוד דבר שיכול לא להתקיים
+   ב-WebView (וזאת בדיוק הסיבה שהחוזה של 17.8 לא תפס כאן). */
+.pl-layout {
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: none;
+}
+/* עטיפת הגלילה של השחקן — אותו overflow-x:clip של צד המאמן (12936),
+   כתוב כאן במפורש כדי שלא יהיה תלוי בסדר של בלוק אחר */
+.pl-layout .main-content {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+/* --- (2) הרצועות שבאמת נגללות לרוחב מקבלות את האצבע בחזרה ---
+   כולן עם overflow-x:auto בקוד הקיים; בלי השורה הזאת הן קופאות תחת
+   ה-pan-y של המעטפת, ובגלילה שלהן הדפדפן היה מגלגל את התנועה למעלה,
+   אל הדף — בדיוק מה שמרגיש כמו «המסך זז». overscroll-behavior-x:contain
+   עוצר את הגלגול הזה גם בקצה הרצועה. */
+.pl-layout .nh-vid-rail,      /* סרטונים בבית — HomeVideos.jsx:46 */
+.pl-layout .plhv-strip,
+.pl-layout .pwb,              /* רצועת השבוע — PlayerDashboard.jsx:2171 */
+.pl-layout .plh-o-week .wl,
+.pl-layout .plhg-tabs,
+.pl-layout .plg2-tabs,
+.pl-layout .pl-cat-chips,
+.pl-layout .md-screen .chips,
+.pl-layout .lt-scroll,        /* טבלת הליגה — PlayerTeamHub.jsx:157 */
+.pl-layout .sg-wrap,
+.pl-layout .cal-scroll,
+.pl-layout .runner-fs .runner-steps {
+  touch-action: pan-x pan-y pinch-zoom;
+  overscroll-behavior-x: contain;
+}
+/* לרצועות שכבר קיבלו pan-x (‎.ps-scrollrow / .ps-seg / .bw-scrollrow)
+   אין מה להוסיף — הן כבר עם contain, ראו 27103 ו-26253. */
+
+/* --- (3) שום דבר במסכי השחקן לא רחב מהעמודה שלו --- */
+/* רשת הביטחון של 1399 מכסה img/svg בלבד */
+.pl-layout iframe,
+.pl-layout video,
+.pl-layout canvas,
+.pl-layout embed,
+.pl-layout object {
+  max-inline-size: 100%;
+}
+/* מחרוזת אחת ארוכה בלי רווח (קישור שמאמן הדביק, שם תרגיל, שם קבוצה)
+   דוחפת את כל העמודה — כאן היא נשברת במקום */
+.pl-layout .nh-task-top b,
+.pl-layout .nh-task-sub,
+.pl-layout .nh-week-tx,
+.pl-layout .nh-pnext-meta,
+.pl-layout .nh-empty,
+.pl-layout .ps-h,
+.pl-layout .ps-t13,
+.pl-layout .ps-t13b,
+.pl-layout .ps-mut,
+.pl-layout .ps-hero-title,
+.pl-layout .ps-hero-sub,
+.pl-layout .ps-sheet-title,
+.pl-layout .pc4-sub {
+  overflow-wrap: anywhere;
+}
+/* הצ׳יפ והגלולה בבאנר הם היחידים עם nowrap שהטקסט שלהם מגיע מהמאמן
+   (שם קבוצה, שם ליגה) — עדיף שיישברו לשתי שורות מאשר שיגלשו החוצה */
+.pl-layout .ps-chip,
+.pl-layout .ps-hero-pill {
+  max-inline-size: 100%;
+  white-space: normal;
+}
+
+/* --- (4) הצ׳ק-אין של הבוקר ורצועת המוכנות (4.9) — שורות בלי עיטוף --- */
+/* שתי שורות הכרטיס ישבו על שורה אחת בלי flex-wrap. ב-360px הן עוד
+   נכנסות (נמדד), אבל שלושה קישורים באנגלית + הגדלת גופן של הנגישות
+   דוחפים אותן החוצה — והכרטיס הזה בן חמישה ימים ולא נראה על טלפון. */
+.pc4-foot { flex-wrap: wrap; row-gap: 4px; }
+.pc4-done-card { flex-wrap: wrap; row-gap: 6px; }
+.pc4-done { min-inline-size: 0; overflow-wrap: anywhere; }
+.pc4-head-tx strong,
+.pc4-q-lbl { overflow-wrap: anywhere; }
+/* רצועת «מוכנות היום» (צד המאמן): שם + סיבה + «אישרתי» על שורה אחת,
+   בלי עיטוף. שומר בלבד — נכנס לפעולה רק כשהשורה באמת לא נכנסת. */
+.rd-row { flex-wrap: wrap; row-gap: 6px; }
+.rd-tx b { overflow-wrap: anywhere; }
+.rd-foot { flex-wrap: wrap; }
+
+/* =====================================================================
+   6.9.2026 (ב) — «שצד השחקן ייראה כמו צד המאמן» (בקשת הבעלים,
+   לפני הפיילוט עם הנערים)
+   ---------------------------------------------------------------------
+   מה היה שונה, לפי הצילומים: ששת מסכי ps-* (17.8) הביאו איתם פלטה
+   משלהם ועשר ערכות צבע לפי data-page — משימות בכתום רווי, יעדים
+   בסגול, לו״ז בכחול, מדיה באדום, מאמן בטורקיז, קבוצה בוורוד. ארבעה
+   כרומים שונים בתוך מוצר אחד, ואף אחד מהם לא קיים בצד המאמן.
+   צד המאמן, לעומת זאת: hero נייבי עם סימן־מים של מגרש, כרטיסים לבנים,
+   וכתום כמבטא בלבד (DESIGN.md §2ב, חמשת הדפוסים).
+
+   הבלוק הזה **לא כותב שפה חדשה** — הוא ממפה את הטוקנים של ps-* אל
+   הטוקנים של DESIGN.md, ולכן כל 900 השורות של 17.8 ממשיכות לעבוד כמו
+   שהן, רק בצבעים של המוצר. מה שנשאר «שובב» לפי §0 (מספרי־ענק ב-Heebo
+   900, הכרטיס הכתום המלא) נשאר.
+
+   ⚠ ספֶּציפיוּת: ‎.ps[data-page='tasks'] הוא (0,2,0), ולכן ‎.ps לבד
+     (0,1,0) לא מנצח אותו. כל מיפוי כאן כתוב גם כ-‎.ps[data-page] —
+     אותה ספֶּציפיוּת, מאוחר יותר בקובץ = מנצח. אותו דבר במצב כהה, שם
+     ‎[data-theme='dark'] .ps[data-page='tasks'] הוא (0,3,0).
+   ⚠ אין כאן hex גולמי. היוצא היחיד הוא ‎--ps-a-rgb, שנצרך בתוך
+     ‎rgba(...) בעשרות כללים קיימים: ל-CSS אין דרך לפרק טוקן hex
+     לערוצים לפני color-mix, ולכן הוא נכתב כערוצים של ‎--brand
+     (‎#E8763A) — והוא מייצר גוונים רכים בלבד, לא טקסט.
+   ===================================================================== */
+
+/* --- (1) פלטה אחת לכל מסכי השחקן: מבנה נייבי, מבטא כתום --- */
+.ps,
+.ps[data-page]{
+  /* משטחים וטקסט — בדיוק אלה של כרטיס המאמן */
+  --ps-card:  var(--sf);
+  --ps-line:  var(--ln);
+  --ps-hair:  var(--ln);
+  --ps-soft:  var(--sf2);
+  --ps-txt:   var(--tx);
+  --ps-mut:   var(--mut);
+  --ps-dim:   var(--mut);       /* 4.9:1+ בשני המצבים; ‎--ps-dim הישן שימש גם לתוויות 10px */
+  --ps-glass: var(--sf);
+  --ps-sheet: var(--sf);
+  --ps-shadow: var(--shadow-sm);
+  /* מצבים — אותם זוגות «טקסט על גוון רך» שכבר נבדקו ל-AA בצד המאמן.
+     הקו תמיד ניטרלי: DESIGN.md §2ב.4 — לא גבול צבעוני + רקע + אייקון יחד. */
+  --ps-ok: var(--ok);         --ps-ok-tx: var(--ok);           --ps-ok-bg: var(--ok-soft);      --ps-ok-line: var(--ln);
+  --ps-warn-tx: var(--warn);  --ps-warn-bg: var(--warn-soft);  --ps-warn-line: var(--ln);
+  --ps-bad-tx: var(--danger); --ps-bad-bg: var(--danger-soft); --ps-bad-line: var(--ln);
+  /* המבנה נייבי (‎--ps-a משמש גם כטקסט על כפתור לבן, ולכן חייב להיות כהה),
+     המבטא כתום: ‎--brand-strong נושא טקסט לבן (5.2:1), ‎--brand-text הוא
+     הכתום לטקסט על משטח בהיר (5.78:1 בבהיר, ‎#F0A878 בכהה). */
+  --ps-a:  var(--navy-1);
+  --ps-a2: var(--navy-2);
+  --ps-a-rgb: 232, 118, 58;
+  --ps-acc:    var(--brand-strong);
+  --ps-acc-tx: var(--brand-text);
+}
+/* הטוקנים למעלה כבר מודעים־לתמה. כאן רק מה שהבלוק הכהה של 17.8 קבע
+   במפורש לפי data-page (ספֶּציפיוּת 0,3,0) וצריך ניצוח מפורש. */
+[data-theme='dark'] .ps,
+[data-theme='dark'] .ps[data-page]{ --ps-acc-tx: var(--brand-text); }
+
+/* --- (2) הבאנר: אותו hero נייבי עם סימן־מים של מגרש כמו בבית --- */
+/* המרקאפ ב-PlayerScreen.jsx החליף את טבעת הקישוט ב-<CourtArt/>, אותו
+   רכיב שיושב ב-‎.nh-hero של המאמן. הוא צובע לעצמו רקע נייבי, ולכן
+   הגרדיאנט כאן הוא אותו גרדיאנט שמתחתיו ולא נראה «שכבה על שכבה». */
+.ps-head{
+  background: linear-gradient(168deg, var(--navy-1), var(--navy-2) 84%);
+  box-shadow: var(--shadow-md);
+}
+[data-theme='dark'] .ps-head{ box-shadow: var(--shadow-md); }
+.ps-head-art{ position: absolute; inset: 0; opacity: .1; pointer-events: none; }
+/* ⚠ בלי z-index (הקשר ערימה כאן כולא את פאנל ההתראות מתחת לשורת
+   המספרים) — רק position, שמספיק כדי שהתוכן ייצבע מעל האיור שקדם לו. */
+.ps-head > *:not(.ps-head-art){ position: relative; }
+/* ‎.ps-head-ring (27118) כבר לא קיים במרקאפ. הוא היה עיגול 170px ב-
+   ‎inset-inline-start:-30px, כלומר 30px מחוץ למסך בחמישה מסכים, וחי רק
+   בזכות ה-overflow:hidden של הבאנר — בדיוק המוקש של «אלמנט קישוט רחב
+   מהמכולה» שכבר עלה לנו פעם. אין מה למחוק ואין מה לרשת. */
+
+/* --- (3) הכרטיס הבולט: כתום מלא אחד למסך, לא גרדיאנט בצבע המסך --- */
+/* DESIGN.md §2ב.2: «כרטיס עם פס כותרת כתום מלא, טקסט לבן — אחד למסך».
+   ‎--brand-strong הוא בדיוק הכתום שנושא לבן (5.2:1 בשני המצבים), ואותו
+   כתום כבר נמצא בכפתור הראשי של המאמן ובכפתור ניווט־הכיס. */
+.ps-hero{ background: var(--brand-strong); box-shadow: var(--shadow-md); }
+[data-theme='dark'] .ps-hero{ box-shadow: var(--shadow-md); }
+/* כרטיס המאמן הוא הדבר השני שמושך את העין במסך — נייבי אחיד, ולכן
+   בכל מסך יש לכל היותר שני מבטאים (נייבי + כתום), כמו אצל המאמן. */
+.ps-coach{ background: var(--navy-1); box-shadow: var(--shadow-md); }
+[data-theme='dark'] .ps-coach{ box-shadow: var(--shadow-md); }
+/* הכפתור הראשי — צבע אחיד, כמו ‎.btn-primary של המאמן. שני הגרדיאנטים
+   המותרים באפליקציה הם ה-hero הנייבי ומילוי פס ההתקדמות, וזה לא אחד מהם. */
+.ps-btn,
+.ps-quickreq .btn-primary{ background: var(--brand-strong); box-shadow: var(--shadow-sm); }
+
+/* --- (4) רדיוסים: חמשת הערכים של DESIGN.md — 10 / 14 / 20 / 28 / 999 --- */
+/* 17.8 פיזר 8/9/11/12/13/15/16/18/19/21/24. ההבדל בין 13 ל-14 לא נראה
+   לבד, אבל מסך שיש בו שישה רדיוסים שונים מרגיש «אחר» ליד מסך עם שניים. */
+.ps-band,
+.ps-seg,
+.ps-empty,
+.ps-vs,
+.ps-av-lg,
+.ps-prof-av,
+.ps-crest,
+.ps-chat .pl-coach-head{ border-radius: 20px; }
+.ps-sheet{ border-radius: 28px 28px 0 0; }
+@media (min-width: 769px){ .ps-sheet{ border-radius: 28px; } }
+.ps-btn,
+.ps-btn-ghost,
+.ps-quickreq .btn-primary,
+.ps-in,
+.ps-quickreq .finder-input,
+.ps-day,
+.ps-seg-btn,
+.ps-add,
+.ps-hbtn,
+.ps-head-coach,
+.ps-hero-chip,
+.ps-hero-btn,
+.ps-hero-in,
+.ps-hero-done,
+.ps-x,
+.ps-media,
+.ps-thumb,
+.ps-load,
+.ps-react,
+.ps-rsvp > button{ border-radius: 14px; }
+.ps-team-av,
+.ps-set-ic,
+.ps-day-num,
+.ps-media-tag,
+.ps-hero-cell{ border-radius: 10px; }
+
+/* --- (5) הגוונים שנשארו גולמיים בבלוק של 17.8 --- */
+.ps-dot--warn,
+.ps-bar-i--warn{ background: var(--warn); }
+/* תמונת סרטון לפני שהתמונה נטענת: היה גרדיאנט אפור־כחול משלה (גרדיאנט
+   שלישי באפליקציה). עכשיו הנייבי של המוצר, כמו קליפת סרטוני הבית. */
+.ps-thumb,
+.ps-media,
+[data-theme='dark'] .ps-thumb{ background: var(--navy-1); }
+.ps-play{ color: var(--brand-strong); }
+/* «היום» בלוח השבוע — היה סלייט/תכלת משלו */
+.ps-day-num.is-today,
+[data-theme='dark'] .ps-day-num.is-today,
+.ps-day.is-on .ps-day-num.is-today,
+[data-theme='dark'] .ps-day.is-on .ps-day-num.is-today{ background: var(--navy-1); color: var(--on-dark); }
+/* יום נבחר — היה זוהר צבעוני; אצל המאמן זה הצל הרגיל */
+.ps-day.is-on{ box-shadow: var(--shadow-sm); }
+
+/* --- (6) הקנבס מתחת למסכים: אותו רקע של כל שאר האפליקציה --- */
+/* היה ‎#F1F5FD בבהיר ורדיאל־גרדיאנט סגלגל בכהה — הבדל שרואים בדיוק
+   ברגע המעבר מהבית למשימות. ‎[data-view] מעלה את הספֶּציפיוּת ל-(0,4,0)
+   כדי לנצח את ה-‎:is(...) של 17.8 בלי לחזור על שש רשימות. */
+[data-view].layout.ps-host .main-content{ background: var(--bg); }
+[data-theme='dark'] [data-view].layout.ps-host .main-content{ background: var(--bg); }
+
+/* --- (7) הצ׳ק-אין של הבוקר (4.9) מתיישר לכרטיס של המאמן --- */
+/* האייקון היה על גוון אזהרה צהוב עם אייקון כתום — שני צבעי־מצב על
+   אלמנט אחד. עכשיו גוון המותג, כמו ריבועי האייקונים בצד המאמן. */
+.pc4-ic{ background: var(--accent-soft); color: var(--brand-text); }
+.pc4-q-lbl{ color: var(--tx); }
+/* שלוש שאלות ברצף בלי שום הפרדה נראו כמו רשימה אחת ארוכה. קו־שיער
+   בין שאלות, בדיוק כמו ‎.nh-card-foot ושורות הכרטיסים של המאמן. */
+.pc4-card > .pc4-q + .pc4-q{ padding-block-start: 12px; border-block-start: 1px solid var(--ln); }
+.pc4-card > .pc4-foot{ padding-block-start: 10px; border-block-start: 1px solid var(--ln); }
+.pc4-done-card > .pc4-foot{ padding-block-start: 0; border-block-start: 0; }
+
+/* --- (8) רצועת «מוכנות היום» (4.9) --- */
+.rd-row{ border-radius: 14px; }
+.rd-ack{ border-color: var(--ln); }
+/* ⚠ ניגודיות: התג האדום הוא ‎--danger עם טקסט לבן. בבהיר זה 6.0:1, אבל
+   במצב כהה ‎--danger הוא ‎#F08A7E ולבן עליו נמדד 2.4:1 — מתחת ל-AA.
+   ‎--on-color הוא הדיו הכהה של המערכת לרקעים בהירים (7.1:1). */
+[data-theme='dark'] .rd-badge.red{ color: var(--on-color); }
+
+/* --- (9) סבב שני — אחרי הצילומים ואחרי מדידת הניגודיות בהרנס --- */
+
+/* (9א) לשונית פעילה אחת בכל צד השחקן, וזאת של המאמן.
+   ‎.ps-filter.is-on (מסנני המשימות) כבר יורש ‎--ps-a2 ונצבע נייבי, אבל
+   ‎.ps-seg-btn.is-on (ארבע הלשוניות של «הקבוצה והלו״ז») נשאר בגוון כתום
+   רך — שני «מצבי נבחר» שונים בשני מסכים שכנים. הנייבי הוא מה שעושה
+   ‎.chip.selected ו-‎.tab.active בצד המאמן. */
+.ps-seg-btn.is-on{ background: var(--navy-2); color: var(--on-dark); }
+
+/* (9ב) פס ההתקדמות — הגרדיאנט המותר של DESIGN.md §2ב.5, אותו פס בדיוק
+   שכבר קיים בצד המאמן (index.css:7973). היה כתום אחיד. */
+.ps-track > span{ background: linear-gradient(90deg, var(--orange-500), var(--orange-300)); }
+
+/* (9ג) תווית הקבוצה («החודש», «לאימון הקרוב») הייתה 11px/600 אפורה — ליד
+   ‎.pl-section-label של המאמן (12.5px/800) היא נראתה כמו טקסט שנשכח.
+   וההודעה «אין יעדים לטווח הזה עדיין» ריחפה על הקנבס בלי קופסה, בעוד
+   DESIGN.md §6 דורש מצב ריק מעוצב ולא שורת טקסט אפורה. */
+.ps-group-lbl{ font-size: 12.5px; font-weight: 800; letter-spacing: .04em; color: var(--mut); }
+.ps-group-lbl + .ps-mut{
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--sf2);
+  border: 1px dashed var(--ln);
+  text-align: center;
+}
+
+/* (9ד) ניגודיות — שלושה זוגות שנפלו במדידה על המסכים האלה --- */
+/* תג ההתראות על הפעמון: לבן על ‎--accent (‎#E8763A) נמדד 2.96:1 בכל אחד
+   מששת המסכים ובשני המצבים. לפי DESIGN.md §1 ‎--accent הוא לגבולות
+   ול-tints; הכתום שנושא טקסט לבן הוא ‎--brand-strong (5.2:1). התג מופיע
+   גם בצד המאמן, ולכן התיקון גלובלי — אותו תג, אותו צבע, בשני העולמות. */
+.ntf-badge{ background: var(--brand-strong); }
+/* צ׳יפ ירוק בתוך שורה בגוון כתום (פרופיל → «מאושר»): שני הגוונים
+   מצטברים לזית ‎#424840 והירוק ירד ל-4.23:1. הצ׳יפ עובר למשטח הכרטיס —
+   7.2:1 בכהה, 5.4:1 בבהיר — וגם מפסיק להיראות ירוק־על־כתום. */
+.ps-row--acc .ps-chip--ok{ background: var(--sf); border-color: var(--ln); }
+/* «0 / 2» בכותרת כרטיס המשימות בבית, מצב כהה: לבן על לבן-22% מעל כתום
+   נמדד 3.19:1. ‎--on-color הוא הדיו הכהה של המערכת לרקעים בהירים (5.4:1). */
+[data-theme='dark'] .nh-tasks-head .nh-chip{ color: var(--on-color); }
+
+/* (9ה) שני הזוגות שהתיקון הקודם לא כיסה (נמדדו שוב בהרנס) */
+/* «0 / 2» בכותרת כרטיס המשימות בבית: הגלולה היא לבן-22% על הכתום של
+   הכותרת, כלומר ‎#CF7A50, ולבן עליה הוא 3.19:1 — בשני המצבים, לא רק
+   בכהה (‎--on-color הוא לבן במצב בהיר, ולכן התיקון הקודם לא עשה שם כלום).
+   גלולת נייבי על הכותרת הכתומה: 14.9:1, ואותה זוגיות נייבי־על־כתום
+   כבר קיימת בכרטיסי המאמן. */
+.nh-tasks-head .nh-chip,
+[data-theme='dark'] .nh-tasks-head .nh-chip{ background: var(--navy-1); color: var(--on-dark); }
+/* הסבר ההורה בכרטיס ההסכמה (פרופיל): ‎--mut על משטח המשנה הקרמי נמדד
+   4.33:1 — חצי נקודה מתחת ל-AA. ‎--tx-2 הוא טוקן «גוף טקסט ותוויות»
+   שכהה יותר בבהיר (6.2:1) וזהה ל-‎--mut בכהה, כך שהמצב הכהה לא זז. */
+.plc-guardian .muted{ color: var(--tx-2); }
+
+/* ===== 6.9.2026 (ג) — שורות הצ'יפים בצ'ק-אין נשברות אחיד =====
+   שש אפשרויות השינה נשברו 5+1 וחמש האנרגיה 4+1: הצ'יפ הבודד בשורה
+   השנייה נראה כמו תקלה, וזה הכרטיס הראשון שילד רואה בבוקר. רשת של
+   שלוש עמודות שוות נותנת 3+3 ו-3+2 — שורות מלאות, ויעד מגע רחב יותר.
+   הרשת חלה רק על שורות הצ'ק-אין (.pc4-chips), לא על .chips הכללי. */
+.pc4-chips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.pc4-chips .chip {
+  width: 100%;
+  justify-content: center;
+  padding-inline: 6px;   /* «מלא אנרגיה» הוא הארוך ביותר — בלי זה הוא נחתך */
+}
+/* «איפה כואב?» — שש אפשרויות קצרות, אותה רשת מתאימה גם להן */

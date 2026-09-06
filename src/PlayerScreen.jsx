@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Sun, Moon } from 'lucide-react'
 import { L } from './i18n'
+import CourtArt from './CourtArt'
 
 // PlayerScreen — המעטפת המשותפת לשישה מסכי השחקן, לפי מסמך העיצוב
 // PlayerScreens.dc.html: באנר בצבע המסך, ומעליו שורת שלושה מספרים
@@ -93,7 +94,12 @@ export default function PlayerScreen({
       {/* ⚠ בלי z-index על הבאנר: הקשר ערימה כאן כולא את פאנל ההתראות
           מתחת לשורת המספרים (‎.ps-band, z-index:2) */}
       <header className="ps-head">
-        <span className="ps-head-ring" aria-hidden="true" />
+        {/* 6.9 — סימן־המים של המגרש, בדיוק כמו בבאנר של צד המאמן
+            (‎.nh-hero > .nh-hero-art). מחליף את טבעת הקישוט שהייתה כאן:
+            היא הייתה עיגול 170px ב-inset-inline-start:-30px, כלומר 30px
+            מחוץ למסך בכל אחד מחמשת המסכים — בדיוק דפוס «אלמנט קישוט
+            רחב מהמכולה» שכבר גרם פעם לגרירה הצידה. */}
+        <span className="ps-head-art" aria-hidden="true"><CourtArt variant="ps" /></span>
         <div className="ps-head-row">
           <div className="ps-head-tx">
             <span className="ps-kicker">{kicker || L(meta.kicker[0], meta.kicker[1])}</span>
