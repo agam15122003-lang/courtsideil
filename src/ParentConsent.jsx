@@ -370,9 +370,12 @@ export default function ParentConsent({ token }) {
         {link && (
           <div className="pc-manage">
             <h2 className="pc-sub"><Link2 size={16} /> {L('קישור הפיקוח שלכם — כדאי לשמור', 'Your oversight link — worth saving')}</h2>
+            {/* 6.9 — המסך אמר «כדאי לשמור» בלי לומר שהקישור פג. הוא תקף
+                365 יום (supabase_parent_consent.sql), וכך גם כתוב במסמך
+                ההורה ובמדיניות הפרטיות — אז נאמר את זה גם כאן. */}
             <p className="muted small">
-              {L('דרך הקישור הזה תוכלו לראות בכל עת מה אישרתם, לבטל הרשאות ולהשעות את החשבון. הוא אישי — אל תשתפו אותו.',
-                 'This link lets you see what you approved, revoke permissions and suspend the account at any time. It is personal — do not share it.')}
+              {L('דרך הקישור הזה תוכלו לראות בכל עת מה אישרתם, לבטל הרשאות ולהשעות את החשבון. הוא אישי — אל תשתפו אותו. הקישור תקף לשנה (365 יום); אם פג או אבד, אפשר לבקש מהילד/ה לשלוח קישור חדש.',
+                 'This link lets you see what you approved, revoke permissions and suspend the account at any time. It is personal — do not share it. The link is valid for one year (365 days); if it expires or is lost, ask your child to send a new one.')}
             </p>
             <code className="pc-link" dir="ltr">{link}</code>
             <div className="pc-actions">

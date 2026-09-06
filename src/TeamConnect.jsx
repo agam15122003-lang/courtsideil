@@ -7,6 +7,8 @@ import { getOrCreateJoinCode, pendingRequests, decideMembership } from './player
 import { waShare } from './share'
 import { SITE_URL } from './constants'
 import Avatar from './Avatar'
+// 6.9 — דחיית בקשת הצטרפות מוציאה ילד מהרשימה: מאשרים אותה מפורשות
+import { confirmDialog } from './confirm'
 
 // פאנל "חיבור שחקנים" למאמן — לינק/קוד הצטרפות, QR לסריקה בסוף אימון,
 // מד "כמה מהסגל כבר מחוברים", ואישור בקשות ממתינות.
@@ -39,6 +41,22 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   const playerName = (p) => p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('שחקן', 'Player') : L('שחקן', 'Player')
 
   const decide = async (m, approve) => {
+    // 6.9 — ✓ ו-✗ יושבים צמודים ובגודל 34px, ולכן מאשרים דחייה במפורש.
+    // הדחייה **אינה** סוף פסוק: supabase_pilot_fixes_6_9.sql מחזיר בקשה
+    // שנדחתה למצב «ממתין» ברגע שהשחקן מקליד שוב את אותו קוד — ולכן הדיאלוג
+    // אומר בדיוק את זה, ולא «אין דרך חזרה».
+    if (!approve) {
+      const ok = await confirmDialog({
+        title: L('לדחות את בקשת ההצטרפות?', 'Decline this join request?'),
+        message: L(
+          `«${playerName(m.player)}» לא יצטרף לקבוצה, והבקשה תיעלם מהרשימה שלך. אם דחיתם בטעות — אפשר לתקן: השחקן מקליד שוב את אותו קוד הצטרפות, והבקשה חוזרת אליכם.`,
+          `“${playerName(m.player)}” will not join the team, and the request disappears from your list. If you declined by mistake it can be fixed: the player enters the same join code again, and the request comes back to you.`,
+        ),
+        confirmText: L('דחיית הבקשה', 'Decline request'),
+        danger: true,
+      })
+      if (!ok) return
+    }
     const res = await decideMembership({ ...m }, approve)
     if (!res.ok) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + res.reason); return }
     // 3.9 — «חובר לשורה הקיימת של …» / «נוצרה שורה חדשה …» כשיש רמז כזה

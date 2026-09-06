@@ -200,7 +200,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     setFbText(''); setFbRating(0)
     if (!fbOpen) { setFbHistory([]); return }
     ;(async () => {
-      const base = () => supabase.from('player_feedback').select('id, content, rating, created_at').eq('coach_id', me)
+      // 6.9 — שולפים גם player_id ו-session_id: הערת סקירה פרטית (session_id
+      // מלא, בלי חשבון שחקן) מסומנת ברשימה כ«פרטי — לא נשלח», אחרת הכותרת
+      // «משובים אחרונים ששלחת» מבטיחה על ההערות האלה משהו שלא קרה.
+      const base = () => supabase.from('player_feedback').select('id, content, rating, created_at, player_id, session_id').eq('coach_id', me)
         .order('created_at', { ascending: false }).limit(5)
       let { data, error } = await (fbByRoster
         ? (pEdit.player_id ? base().or(`roster_id.eq.${pEdit.id},player_id.eq.${pEdit.player_id}`) : base().eq('roster_id', pEdit.id))
@@ -1288,6 +1291,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                       {fbHistory.map((f) => (
                         <li key={f.id}>
                           <span className="tm-fb-when">{ilNum(f.created_at?.slice(0, 10))}</span>
+                          {/* 6.9 — הערת סקירה פרטית: נכתבה על שורת הסגל בלי חשבון השחקן, והשחקן לא רואה אותה */}
+                          {f.session_id && !f.player_id ? <span className="mini-tag">{L('פרטי — לא נשלח', 'Private — not sent')}</span> : null}
                           {f.rating ? <span className="tm-fb-stars-mini"><Star size={11} fill="currentColor" /> {f.rating}</span> : null}
                           <span className="tm-fb-text">{f.content}</span>
                         </li>

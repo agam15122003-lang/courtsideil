@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Send, Check, Flame } from 'lucide-react'
+import { X, Send, Check, Flame, WifiOff } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L } from './i18n'
 import { expandSlots } from './sessionId'
 import useFocusTrap from './useFocusTrap'
+// 6.9 — «אין אימון פתוח לסיכום» מול «לא הצלחנו לשאול»: שני מצבים שונים
+import { isNetErr } from './offline'
 
 // מצב הרוח בסוף האימון — כל אחד בצבע משלו.
 // כל הערכים טוקנים בלבד (בלי hex גולמי): הצבע משמש גם כטקסט על רקע בהיר
@@ -28,6 +30,9 @@ export const FOCUS_OPTS = ['הגנה', 'כדרור', 'קליעה', 'מסירות
 // ושומר ל-session_effort + session_goal_marks. נראה למאמן.
 export default function FeedbackSheet({ session, membership, open, onClose, onSent }) {
   const [pending, setPending] = useState(undefined) // undefined=טוען, null=אין
+  // 6.9 — מצב שלישי: השאילתות נכשלו ברשת. בלעדיו הגיליון הצהיר «אין אימון
+  // פתוח לסיכום» גם כשפשוט לא הייתה קליטה באולם, והנער סגר ולא חזר.
+  const [offline, setOffline] = useState(false)
   const [busy, setBusy] = useState(false)
   const [effort, setEffort] = useState(7)
   const [mood, setMood] = useState(null)
@@ -41,7 +46,8 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
     if (!membership) { setPending(null); return }
     const today = new Date().toISOString().slice(0, 10)
     const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)
-    const [{ data: slots }, { data: gm }, { data: gl }, { data: prevMarks }, { data: pr }] = await Promise.all([
+    setOffline(false)
+    const qs = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
       supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['session', 'week', 'month']),
@@ -49,6 +55,9 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
       // 1.8 — גם אימונים חד-פעמיים מהלו"ז הם מועמדים לסיכום, לא רק הקבועים
       supabase.from('schedule_entries').select('id, date').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
     ])
+    // ⚠ כשל רשת = לא יודעים. עוצרים כאן במקום להסיק «אין אימון» מ-data ריק.
+    if (qs.some((q) => q.error && isNetErr(q.error))) { setOffline(true); setPending(null); return }
+    const [{ data: slots }, { data: gm }, { data: gl }, { data: prevMarks }, { data: pr }] = qs
     const cands = [
       ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון קבוצתי', 'Team practice') })),
       ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, title: L('אימון קבוצתי', 'Team practice') })),
@@ -105,7 +114,16 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
       await supabase.from('session_goal_marks').upsert(rows, { onConflict: 'session_id,goal_id,player_id' })
     }
     setBusy(false)
-    if (error) { toast.error(L('השליחה נכשלה', 'Failed to send')); return }
+    if (error) {
+      // 6.9 — «נכשלה» סתמית שלחה את הנער לנסות שוב עכשיו, בדיוק כשאין רשת.
+      // ⚠ הסיכום עדיין אינו נכנס לתור היציאה (offline.enqueue) — נשאר פתוח.
+      console.error('FeedbackSheet.submit:', error.message || error)
+      toast.error(isNetErr(error)
+        ? L('אין חיבור — הסיכום לא נשלח. הגיליון נשאר פתוח, נסו שוב כשהרשת חוזרת.',
+            "No connection — the summary wasn't sent. The sheet stays open, try again when you're back online.")
+        : L('השליחה נכשלה', 'Failed to send'))
+      return
+    }
     toast.success(L('הסיכום נשלח למאמן 🔥', 'Sent to your coach 🔥'))
     onSent?.()
     onClose()
@@ -125,7 +143,14 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
             : L('המשוב נשלח ישירות למאמן', 'Your feedback goes straight to your coach')}
         </div>
 
-        {pending === null ? (
+        {pending === null && offline ? (
+          <div className="fbs-empty">
+            <span className="fbs-empty-ic"><WifiOff size={22} /></span>
+            <strong>{L('אין חיבור לאינטרנט', 'No internet connection')}</strong>
+            <p className="muted small">{L('לא הצלחנו לבדוק אם יש אימון לסיכום. נסו שוב כשהרשת חוזרת — הסיכום לא הלך לאיבוד.', "We couldn't check whether there's a session to summarize. Try again when you're back online.")}</p>
+            <button className="fbs-send" onClick={load}>{L('נסו שוב', 'Try again')}</button>
+          </div>
+        ) : pending === null ? (
           <div className="fbs-empty">
             <span className="fbs-empty-ic"><Flame size={22} /></span>
             <strong>{L('אין אימון פתוח לסיכום', 'No session to summarize yet')}</strong>

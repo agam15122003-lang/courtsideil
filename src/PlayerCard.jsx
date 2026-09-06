@@ -200,7 +200,8 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
   const loadFeedback = useCallback(async () => {
     if (!hasPerson) { setFeedback([]); return }
     const base = () => supabase.from('player_feedback')
-      .select('id, content, rating, created_at, session_date, session_type')
+      // 6.9 — גם player_id ו-session_id: כך אפשר לתייג הערת סקירה פרטית
+      .select('id, content, rating, created_at, session_date, session_type, player_id, session_id')
       .eq('coach_id', coachId).order('created_at', { ascending: false }).limit(50)
     // 3.9 — שתי אמיתות: לשחקן מקושר גם משובים שנשמרו על החשבון (לפני 22.8)
     let { data, error } = await (byRoster
@@ -431,9 +432,10 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
                   <li key={f.id} className="pc-fb">
                     <span className="muted small pc-fb-when">
                       {ilShort((f.created_at || '').slice(0, 10))}
-                      {/* session_id לא נשלף כאן, ולכן משוב מאימון מעולם לא תוייג.
-                          session_type כן נשלף — ולפיו מתייגים את שני הסוגים. */}
+                      {/* session_type — לפיו מתייגים משוב שנכתב באימון או במשחק */}
                       {f.session_type === 'game' ? ` · ${L('משחק', 'Game')}` : f.session_type === 'practice' ? ` · ${L('אימון', 'Practice')}` : ''}
+                      {/* 6.9 — הערת סקירה פרטית (session_id בלי חשבון שחקן): הילד לא קיבל אותה */}
+                      {f.session_id && !f.player_id ? ` · ${L('פרטי — רק אתה רואה', 'Private — only you')}` : ''}
                     </span>
                     <span className="pc-fb-tx">{f.content}</span>
                   </li>

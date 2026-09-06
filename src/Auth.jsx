@@ -356,6 +356,13 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     </label>
   )
 
+  // 6.9 — הדלת «שחקן» נפתחה היום (PLAYER_SIGNUP), ומסך ההרשמה נשאר בשפת
+  // המאמן: בורר מועדון וסעיף הסכמה על «שמירת פרטי השחקנים בקבוצות שלי».
+  // ילד בן 16 לא מנהל קבוצות ואין לו מועדון לבחור. שני הפריטים האלה
+  // מוצגים מעכשיו במסלול המאמן בלבד — מסלול המאמן לא השתנה בכלום.
+  // (המועדון של השחקן נשאל בהמשך, כשדה לא-חובה, ב-ProfileForm.)
+  const isPlayerRole = role === 'player'
+
   // מועדון (1c) — אופציונלי, מתוך רשימת המועדונים בישראל
   const clubField = (
     <label className="csa-lbl">
@@ -393,7 +400,9 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
         <a href="/privacy.html" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
           {L('מדיניות הפרטיות', 'Privacy Policy')}
         </a>
-        {L(', כולל שמירת פרטי שחקנים בקבוצות שלי.', ', including storing my players’ details in my teams.')}
+        {isPlayerRole
+          ? L('.', '.')
+          : L(', כולל שמירת פרטי שחקנים בקבוצות שלי.', ', including storing my players’ details in my teams.')}
       </span>
     </label>
   )
@@ -664,7 +673,7 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
               {isSignup && nameField}
               {emailField}
               {mode !== 'forgot' && passwordField}
-              {isSignup && clubField}
+              {isSignup && !isPlayerRole && clubField}
 
               {mode === 'signin' && (
                 <button type="button" className="link-button csa-forgot" onClick={() => goMode('forgot')}>

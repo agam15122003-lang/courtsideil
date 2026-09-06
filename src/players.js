@@ -2,6 +2,9 @@ import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { toast } from './toast'
 import { L } from './i18n'
+// 6.9 — טעינת החברויות של השחקן עוברת דרך מטמון הקריאה ומבחינה בין
+// «אין קבוצה» לבין «אין רשת» (ראו myMembershipsResult בתחתית הקובץ).
+import { cachedRead, isNetErr } from './offline'
 
 // כל שאילתה כאן מפרקת { data, error } ומדווחת — לא בולעת.
 // הבליעה הקודמת (`const { data } = ...`) הסתירה שגיאת הרשאה 42501 על
@@ -101,8 +104,11 @@ export async function requestJoinByCode(playerId, rawCode) {
     return res
   }
   if (!isMissingRpc(joinErr)) {
-    reportError('requestJoinByCode/rpc', joinErr, L('ההצטרפות לקבוצה נכשלה — נסו שוב.', 'Joining the team failed — please try again.'))
-    return { ok: false, reason: joinErr.message }
+    // 6.9 — הודעה אחת לכל כשל. עד היום הופיעו שני טוסטים אדומים על אותה
+    // תקלה: אחד מכאן ואחד מהמסך שקרא — והשני טען «אין חיבור» גם על שגיאת
+    // הרשאה. מכאן יורד רק היומן; הניסוח למשתמש שייך למסך.
+    reportError('requestJoinByCode/rpc', joinErr)
+    return { ok: false, reason: isNetErr(joinErr) ? 'offline' : 'failed', serverReason: joinErr.message }
   }
   console.warn('players.requestJoinByCode: join_with_code לא זמין — נופלים לנתיב הישן')
 
@@ -216,7 +222,13 @@ export async function decideMembership(membership, approve) {
       } else {
         notifyApproved()
         // רמז רק כשבאמת נוצרה שורה חדשה (ולא נמצאה שורה אחת מתאימה)
-        return { ok: true, created: true, hint: L('נוצרה שורה חדשה — אם השחקן כבר בסגל, חבר אותו לשורה בטאב סגל', 'A new roster row was created — if the player is already on the roster, link him to that row in the roster tab') }
+        // 6.9 — הרמז הקודם הפנה ל«חיבור לשורה בטאב סגל», פקד שלא קיים
+        // באפליקציה. הפעולה שכן אפשרית היום: למחוק את השורה הכפולה
+        // החדשה ולהשאיר את הישנה עם ההיסטוריה — מה שהשחקן ממלא בעצמו
+        // מגיע ממילא דרך החשבון שלו (COACH_LOGS: קוראים שתי אמיתות).
+        return { ok: true, created: true, hint: L(
+          `נוצרה שורה חדשה בסגל בשם «${nm || 'שחקן'}». אם הוא כבר רשום אצלכם בשם אחר — מחקו בטאב «סגל» את השורה החדשה והשאירו את הישנה עם כל ההיסטוריה.`,
+          `A new roster row was created for “${nm || 'Player'}”. If he is already on your roster under a different name, delete the new row in the Roster tab and keep the old one with all its history.`) }
       }
     }
     notifyApproved()
@@ -225,10 +237,15 @@ export async function decideMembership(membership, approve) {
 }
 
 // שם לצורך השוואה: רווחים מכווצים, בלי גרשיים/מקפים, בלי רישיות
+// 6.9 — נוספו: מקף עברי ־ (U+05BE), סימני כיווניות בלתי-נראים שנדבקים
+// בהעתקה מוואטסאפ (U+200E/U+200F/U+200B/U+FEFF) ורווח קשיח (U+00A0).
+// בלעדיהם «יוסי בן־דוד» ו«יוסי בן דוד» נחשבו שני אנשים, ונוצרה שורת
+// סגל כפולה שההיסטוריה נשארה על הישנה.
 const normName = (s) => String(s || '')
   .toLowerCase()
-  .replace(/[׳״'"`\-–—]/g, '')
-  .replace(/\s+/g, ' ')
+  .replace(/[\u200b\u200e\u200f\ufeff]/g, '')
+  .replace(/[׳״'"`\-–—־]/g, '')
+  .replace(/[\s\u00a0]+/g, ' ')
   .trim()
 
 // 3.9 — מחבר חשבון שחקן לשורת סגל קיימת (לא מקושרת) עם אותו שם.
@@ -445,12 +462,31 @@ export async function ageMismatchCount() {
 }
 
 // כל החברויות של שחקן (עם פרטי המאמן)
-export async function myMemberships(playerId) {
-  const { data, error } = await supabase
+//
+// 6.9 — עד היום כל שגיאה (כולל 'Failed to fetch' באולם בלי קליטה) חזרה
+// כמערך ריק, וצד השחקן הסיק «אתה לא בקבוצה» והציג מסך הצטרפות בקוד.
+// מעכשיו: (א) שליפה מוצלחת נשמרת במטמון הקריאה, וכשל רשת נופל לעותק
+// השמור — הילד ממשיך לראות את הקבוצה שלו; (ב) כשגם מטמון אין, מוחזר
+// offline:true כדי שהמסך יאמר «אין חיבור» ולא «אין קבוצה».
+export async function myMembershipsResult(playerId) {
+  const { data, error, fromCache } = await cachedRead(`memberships:${playerId}`, () => supabase
     .from('team_memberships')
     .select('*, coach:profiles!coach_id(first_name, last_name, club, avatar_url)')
     .eq('player_id', playerId)
-    .order('created_at', { ascending: false })
-  if (reportError('myMemberships', error, L('טעינת הקבוצות שלך נכשלה — נסו לרענן.', 'Loading your teams failed — try refreshing.'))) return []
-  return data || []
+    .order('created_at', { ascending: false }))
+  if (error) {
+    // כשל רשת אינו תקלה שצריך להאשים בה את המשתמש — בלי טוסט אדום,
+    // המסך עצמו יציג «אין חיבור» עם כפתור «נסו שוב».
+    if (isNetErr(error)) {
+      console.warn('players.myMemberships: אין רשת —', error.message || error)
+      return { rows: [], offline: true, fromCache: false }
+    }
+    reportError('myMemberships', error, L('טעינת הקבוצות שלך נכשלה — נסו לרענן.', 'Loading your teams failed — try refreshing.'))
+    return { rows: [], offline: false, fromCache: false }
+  }
+  return { rows: data || [], offline: false, fromCache: !!fromCache }
+}
+
+export async function myMemberships(playerId) {
+  return (await myMembershipsResult(playerId)).rows
 }

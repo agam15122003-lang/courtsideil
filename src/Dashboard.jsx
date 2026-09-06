@@ -418,6 +418,11 @@ export default function Dashboard({ session }) {
     } else {
       setProfile(data || null)
       if (data) cachePut(`profile:${session.user.id}`, data)
+      // 6.9 — חותמת תפקיד קטנה. App אינו טוען פרופיל בכלל, והוא צריך לדעת
+      // אם המחובר הוא מאמן כדי לא לחטוף קוד הצטרפות מקישור שהמאמן לחץ
+      // עליו בעצמו (ראו isCoachSession ב-App.jsx). המפתח נושא את מזהה
+      // החשבון, כדי ששני משתמשים על אותו מכשיר לא ידרסו זה את זה.
+      try { localStorage.setItem(`cs_role_${session.user.id}`, data?.role || '') } catch { /* ignore */ }
     }
     setLoading(false)
   }

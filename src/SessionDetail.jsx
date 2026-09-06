@@ -122,7 +122,9 @@ export default function SessionDetail({ session, entry, onClose }) {
     for (const r of gmRows || []) {
       const rid = ridOf(r); if (!rid) continue
       if (r.roster_id) { (cm[rid] = cm[rid] || {})[r.goal_id] = r.met === true; continue }
-      ;(gm[rid] = gm[rid] || []).push({ title: r.goal?.title || L('יעד', 'Goal'), met: r.met })
+      // 6.9 — שומרים גם את מזהה היעד: כך אפשר לא להציג פעמיים יעד שגם
+      // המאמן סימן וגם השחקן (אותו יעד, שני מקורות, לפעמים בצבעים הפוכים)
+      ;(gm[rid] = gm[rid] || []).push({ goalId: r.goal_id, title: r.goal?.title || L('יעד', 'Goal'), met: r.met })
     }
     setGoalMarks(gm); setCoachMarks(cm); loadedMarks.current = cm
     // מה המאמן יכול לסמן לכל שחקן: המיקוד הקבוצתי + היעדים האישיים שלו
@@ -414,6 +416,9 @@ export default function SessionDetail({ session, entry, onClose }) {
                 // ממלא רק למי שלא דיווח. רשם המאמן בכל זאת? שני התגים מוצגים.
                 // == null ולא falsy: מאמן שניקה עומס שרשם ('' ) עדיין רואה את שורת ה-1–10
                 const selfPrimary = COACH_MODE && linked && !!eff && coachEff[p.id] == null
+                // 6.9 — סימוני היעדים של השחקן שאין עליהם סימון של המאמן.
+                // יעד שהמאמן כבר סימן מוצג פעם אחת — בשורת הכפתורים שלו.
+                const selfGoalMarks = (goalMarks[p.id] || []).filter((g) => coachMarks[p.id]?.[g.goalId] === undefined)
                 return (
                   <li key={p.id} className="sd-row">
                     <div className="sd-row-top">
@@ -462,6 +467,15 @@ export default function SessionDetail({ session, entry, onClose }) {
                     {/* עומס 1–10 בטאפ אחד; לחיצה שנייה על אותו מספר מנקה.
                         4.9 — לא מוצג כשיש דיווח עצמי בלי רישום מאמן (selfPrimary):
                         הבעלים ממלא רק למי שלא דיווח. */}
+                    {/* 6.9 — עד היום הדירוג העצמי של הילד הוריד את שורת ה-1–10
+                        ולא הייתה שום דרך להחזיר אותה: מאמן שרצה לרשום את המספר
+                        שלו נשאר בלי כלום. טאפ אחד מחזיר את השורה — בלי לרשום ערך
+                        (עומס ריק = אין שורת מאמן במסד, בדיוק כמו קודם). */}
+                    {COACH_MODE && selfPrimary && (
+                      <button type="button" className="sd-ack" onClick={() => setCoachEff((c) => ({ ...c, [p.id]: '' }))}>
+                        <Flame size={13} /> {L('רשום גם עומס משלך', 'Log your own load too')}
+                      </button>
+                    )}
                     {COACH_MODE && !selfPrimary && (
                       <div className="sd-effort" role="group" aria-label={L(`עומס לשחקן ${p.name}`, `Load for ${p.name}`)}>
                         <span className="sd-effort-lbl">{L('עומס', 'Load')}</span>
@@ -521,9 +535,13 @@ export default function SessionDetail({ session, entry, onClose }) {
                         </button>
                       )
                     )}
-                    {connected && goalMarks[p.id] && goalMarks[p.id].length > 0 && (
+                    {/* 6.9 — «השחקן סימן:» — קודם הצ'יפים האלה נראו כמו סימון של
+                        המאמן, ואותו יעד הופיע פעמיים בשני צבעים בלי שאפשר לדעת
+                        מי כתב מה. */}
+                    {connected && selfGoalMarks.length > 0 && (
                       <div className="sd-goal-marks">
-                        {goalMarks[p.id].map((g, i) => (
+                        <span className="sd-player-note-lbl">{L('השחקן סימן:', 'Player marked:')}</span>
+                        {selfGoalMarks.map((g, i) => (
                           <span key={i} className={g.met ? 'sd-goal-mark met' : 'sd-goal-mark miss'}>
                             {g.met ? <Check size={12} /> : <Minus size={12} />} {g.title}
                           </span>

@@ -43,6 +43,15 @@ function captureJoinCode() {
   return true
 }
 
+// 6.9 — האם המשתמש המחובר הוא מאמן. App אינו טוען פרופיל, ולכן Dashboard
+// חותם את התפקיד ב-localStorage בכל טעינת פרופיל (Dashboard.loadProfile).
+// חסר / לא ידוע = «לא מאמן», כלומר ההתנהגות שהייתה כאן קודם.
+function isCoachSession(session) {
+  const uid = session?.user?.id
+  if (!uid) return false
+  try { return localStorage.getItem(`cs_role_${uid}`) === 'coach' } catch { return false }
+}
+
 // לינק המגרש: #/court (ו-#/r/<קוד> עם ייחוס) — זה הקישור שנשלח בקבוצת
 // הוואטסאפ ובאינסטגרם. מי שמגיע ממנו כבר הצהיר לאיזה עולם הוא שייך, ולכן
 // מדלגים על בחירת התפקיד **וגם** על מסך קוד-הקבוצה: שחקן שמגיע לאתגר לא
@@ -60,6 +69,9 @@ function captureCourtEntry() {
   if (!BASKETBALL_WORLD) { window.location.hash = ''; return false }
   try {
     localStorage.setItem('pending_view', 'boards')
+    // ⚠ 6.9 — ל-pending_ref אין קורא בשום מקום בקוד (grep). כשמדליקים חזרה
+    // את BASKETBALL_WORLD צריך קודם לכתוב את הצד שקורא אותו (זיכוי ההפניה),
+    // אחרת קישורי ההפניה ייראו עובדים ולא יזכו אף אחד.
     if (ref) localStorage.setItem('pending_ref', ref[1])
   } catch { /* ignore */ }
   window.location.hash = ''
@@ -117,6 +129,14 @@ export default function App() {
   // באיזה מצב ייפתח Auth: מי שבחר תפקיד או הזין קוד קבוצה מצהיר שהוא נרשם,
   // ולכן נוחת על ההרשמה. רק "כבר יש לך חשבון?" מוביל ל-signin.
   const [authMode, setAuthMode] = useState('signin')
+  // 6.9 — «מפתח העץ»: PlayerDashboard קורא את היעד השמור (pending_view)
+  // רק בעלייתו. קישור שמגיע כשהאפליקציה כבר פתוחה (#/checkin מהתזכורת,
+  // #/join מוואטסאפ) חייב להעלות אותו מחדש — העלאת המפתח עושה בדיוק את זה,
+  // בלי טעינה מחדש של כל הדף.
+  const [treeKey, setTreeKey] = useState(0)
+  // 6.9 — «נכנסנו מקישור צ'ק-אין ואין סשן» — מסך הכניסה נפתח רק אחרי
+  // שבדיקת הסשן הסתיימה (ראו האפקט למטה)
+  const checkinDoorRef = useRef(false)
 
   const goAuth = (next, mode) => {
     if (mode) setAuthMode(mode)
@@ -161,15 +181,31 @@ export default function App() {
     const fromCourt = captureCourtEntry()
     // 4.9 — קישור הצ'ק-אין מהתזכורת: רק שומר יעד ('home') ומנקה את ה-hash.
     // מי שכבר מחובר נוחת בבית; מי שלא — יתחבר כרגיל ואז ינחת בבית.
-    captureCheckinLink()
+    const fromCheckin = captureCheckinLink()
     if ((fromJoin || fromCourt) && !session) {
       saveRole('player')
       setRole('player')
       setAuthMode('signup')
       setAuthStep('auth')
+    } else if (fromCheckin) {
+      // 6.9 — תזכורת הבוקר נפתחת לרוב בדפדפן הפנימי של וואטסאפ, בלי הסשן.
+      // עד היום הילד נחת בדף השיווק של המאמנים ולא הבין שהוא בכלל מנותק —
+      // מעכשיו הוא נוחת ישר על מסך הכניסה (חשבון כבר יש לו). את הדלת
+      // פותחים רק אחרי שבדיקת הסשן הסתיימה, כדי לא לפתוח אותה למי שמחובר.
+      checkinDoorRef.current = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 6.9 — הגעה מקישור הצ'ק-אין בלי סשן: פותחים את מסך הכניסה ברגע
+  // שבדיקת הסשן הסתיימה ומתברר שבאמת אין משתמש מחובר.
+  useEffect(() => {
+    if (loading || !checkinDoorRef.current) return
+    checkinDoorRef.current = false
+    if (session) return // מחובר — נוחת בבית עם היעד השמור, בלי מסך כניסה
+    setAuthMode('signin')
+    setAuthStep((s) => (s === null ? 'auth' : s))
+  }, [loading, session])
 
   // מעקב אחרי שינויי hash (ניווט קדימה/אחורה)
   useEffect(() => {
@@ -178,14 +214,44 @@ export default function App() {
       if (!PLAYER_SIDE && /^#\/(join|court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
       // «עולם הכדורסל» מוסתר (2.9): קישור מגרש שהודבק אחרי הטעינה — מנקים גם כאן
       if (!BASKETBALL_WORLD && /^#\/(court|r)\b/.test(window.location.hash)) { window.location.hash = ''; return }
-      // 4.9 — קישור צ'ק-אין שהודבק אחרי הטעינה — נתפס גם כאן
-      if (captureCheckinLink()) return
+      // 6.9 — מאמן מחובר שלוחץ על קישור ההצטרפות של עצמו (מהלך צפוי מאוד —
+      // הוא בודק שהקישור עובד) אינו מצטרף לשום קבוצה: הקוד היה נשמר בלי
+      // שאיש יצרוך אותו, והעץ היה עולה מחדש לחינם. מנקים את ה-hash ונשארים
+      // בדיוק במקום שבו היינו.
+      if (PLAYER_SIDE && isCoachSession(session) && /^#\/join\//i.test(window.location.hash)) {
+        window.location.hash = ''
+        return
+      }
+      // 6.9 — קישור הצטרפות שהגיע אחרי הטעינה (טאפ שני על הקישור בוואטסאפ,
+      // או חזרה אליו עם כפתור ה-Back): עד היום פשוט לא קרה כלום.
+      if (PLAYER_SIDE && captureJoinCode()) {
+        if (session) setTreeKey((k) => k + 1) // מחובר — העץ עולה מחדש והקוד נשלח
+        else {
+          saveRole('player')
+          setRole('player')
+          setAuthMode('signup')
+          setAuthStep('auth')
+        }
+        return
+      }
+      // 4.9 — קישור צ'ק-אין שהודבק אחרי הטעינה — נתפס גם כאן.
+      // 6.9 — ולא רק נתפס: היעד ('home') נקרא רק בעליית מסך השחקן, ולכן
+      // מי שמחובר מקבל העלאה מחדש של העץ (נוחת בבית, שם הכרטיס), ומי
+      // שאינו מחובר מקבל את מסך הכניסה במקום דף הנחיתה.
+      if (captureCheckinLink()) {
+        if (session) setTreeKey((k) => k + 1)
+        else {
+          setAuthMode('signin')
+          setAuthStep((s) => (s === null ? 'auth' : s))
+        }
+        return
+      }
       setSharedDrill(publicDrillId())
       setConsentToken(consentTokenFromHash())
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  }, [session])
 
   // ===== שומר ה-Back של אנדרואיד =====
   // הניווט לפני ההתחברות מבוסס state בלבד, ולכן כפתור ה-Back החומרתי סגר את
@@ -383,7 +449,9 @@ export default function App() {
   if (session) {
     return (
       <div className="app">
-        <Dashboard session={session} />
+        {/* 6.9 — treeKey: קישור שהגיע כשהאפליקציה כבר פתוחה מעלה את העץ
+            מחדש, כדי שהיעד השמור (pending_view) ייקרא שוב */}
+        <Dashboard key={treeKey} session={session} />
         {/* דיאלוג אישור מעוצב — חייב להיות מרונדר פעם אחת בשורש */}
         <ConfirmHost />
       </div>

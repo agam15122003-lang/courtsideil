@@ -8,6 +8,7 @@ import {
   ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
   Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus, BookOpen,
+  WifiOff,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -37,7 +38,9 @@ import PlayerTimeline from './PlayerTimeline'
 import FeedbackSheet, { MOOD_BY_KEY } from './FeedbackSheet'
 import BasketballIcon from './BasketballIcon'
 import PlayerScreen, { initialsOf } from './PlayerScreen'
-import { requestJoinByCode, myMemberships } from './players'
+import { requestJoinByCode, myMemberships, myMembershipsResult } from './players'
+// 6.9 — «אין חיבור» מול «אין נתונים»: אותו זיהוי כמו במעטפת המאמן
+import { isNetErr } from './offline'
 import { waShare, copyText } from './share'
 import {
   myConsentState, requestManageLink, isAdultPlayer, consentRequestError,
@@ -155,31 +158,9 @@ function JoinTeam({ session, onJoined, compact }) {
   }, [session.user.id])
   useEffect(() => { load() }, [load])
 
-  // הגעה מלינק הצטרפות (#/join/CODE): הקוד כבר נשמר — שולחים את הבקשה לבד
-  useEffect(() => {
-    let pendingCode = null
-    try { pendingCode = localStorage.getItem('pending_join_code') } catch { /* ignore */ }
-    if (!pendingCode) return
-    try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
-    // 4.9 — ההרשמה מהקישור הושלמה: מנקים גם את תפקיד ההרשמה השמור, כדי
-    // ש«הרשמה» הבאה מהמכשיר הזה לא תיפתח בטעות בדלת «שחקן» (App.readRole)
-    try { localStorage.removeItem('signup_role') } catch { /* ignore */ }
-    setCode(pendingCode)
-    ;(async () => {
-      setBusy(true)
-      const res = await requestJoinByCode(session.user.id, pendingCode)
-      setBusy(false)
-      if (res.ok) {
-        setCode('')
-        toast.success(res.status === 'approved'
-          ? L('כבר אושרת לקבוצה!', "You're already approved!")
-          : L('הבקשה נשלחה למאמן לאישור', 'Request sent to your coach'))
-        if (res.status === 'approved') onJoined()
-        else load()
-      }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.user.id])
+  // 6.9 — צריכת הקוד מהקישור (#/join/CODE) עברה למעטפת השחקן (PlayerApp).
+  // כאן היא ישבה בתוך כרטיס שמרונדר רק לשחקן **בלי** קבוצה, ולכן ילד
+  // שכבר אושר בקבוצה אחת לחץ על קישור לקבוצה שנייה — ושום דבר לא קרה.
 
   const submit = async () => {
     if (busy) return
@@ -187,9 +168,24 @@ function JoinTeam({ session, onJoined, compact }) {
     const res = await requestJoinByCode(session.user.id, code)
     setBusy(false)
     if (!res.ok) {
+      // 6.9 — טוסט אחד לכל כשל, ואמיתי: 'offline' הוא באמת חוסר רשת
+      // (players.js), וכל השאר אומר «נכשל» במקום להאשים את הקליטה.
       toast.error(res.reason === 'not-found'
         ? L('קוד לא נמצא — בדקו את הקוד עם המאמן', 'Code not found — check it with your coach')
-        : L('הקוד קצר מדי', 'Code is too short'))
+        : res.reason === 'bad-code'
+          ? L('הקוד קצר מדי', 'Code is too short')
+          : res.reason === 'offline'
+            ? L('אין חיבור — נסו שוב כשהרשת חוזרת', 'No connection — try again when you are back online')
+            : L('לא הצלחנו לשלוח את הבקשה — נסו שוב', "We couldn't send the request — please try again"))
+      return
+    }
+    // 6.9 — בקשה שנדחתה בעבר חוזרת מהשרת כ-ok עם status:'rejected', ועד
+    // היום נאמר לילד «הבקשה נשלחה למאמן» — הודעת הצלחה על כלום. הקוד
+    // נשאר בתיבה כדי שיוכל לשלוח שוב אחרי שידבר עם המאמן.
+    if (res.status === 'rejected') {
+      toast.error(L('המאמן דחה את הבקשה שלך לקבוצה הזו. דברו איתו — ואפשר לשלוח לו אותה שוב עם אותו קוד.',
+                    'Your coach declined your request to this team. Talk to them — you can send it again with the same code.'))
+      load()
       return
     }
     setCode('')
@@ -2258,7 +2254,10 @@ function EffortScale({ session, sessionId, sessionDate, sessionType = 'practice'
     }, { onConflict: 'session_id,player_id' })
     setBusy(false)
     if (error) {
-      toast.error(L('לא הצלחנו לשמור: ', 'Could not save: ') + error.message)
+      // 6.9 — היה כאן error.message הגולמי, כלומר «TypeError: Failed to fetch»
+      // באנגלית בתוך משפט עברי. הנוסח מיושר לשאר נתיבי השמירה בצד השחקן.
+      console.error('EffortScale.send:', error.message || error)
+      toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again"))
       return
     }
     setVal(n)
@@ -2716,10 +2715,13 @@ function LastPracticeFeedback({ session, membership, setView }) {
     if (!membership) return
     ;(async () => {
       // select('*') בכוונה — coach_ack נוסף במיגרציה מאוחרת ואולי חסר בפרוד
-      const [{ data: effRows }, { data: fbRows }] = await Promise.all([
+      const [{ data: effRows, error: effErr }, { data: fbRows, error: fbErr }] = await Promise.all([
         supabase.from('session_effort').select('*').eq('player_id', me).order('session_date', { ascending: false }).limit(1),
         supabase.from('player_feedback').select('*').eq('player_id', me).order('created_at', { ascending: false }).limit(1),
       ])
+      // 6.9 — בלי רשת שתי השאילתות מחזירות null, וקודם הוצג «עוד אין משוב
+      // מהמאמן» — שקר שגורם לילד להפסיק לבדוק. מבדילים בין «אין» ל«לא נטען».
+      if ((effErr && isNetErr(effErr)) || (fbErr && isNetErr(fbErr))) { setData({ offline: true, eff: null, fb: null, marks: [] }); return }
       const eff = effRows?.[0] || null
       const fb = fbRows?.[0] || null
       let marks = []
@@ -2762,6 +2764,8 @@ function LastPracticeFeedback({ session, membership, setView }) {
           </span>
           <FbReact fb={fb} coachId={membership?.coach_id} me={me} />
         </div>
+      ) : data.offline ? (
+        <p className="plfb2-none">{L('אין חיבור — לא הצלחנו לטעון את המשוב. נסו שוב כשהרשת חוזרת.', "No connection — we couldn't load your feedback. Try again when you're back online.")}</p>
       ) : (
         <p className="plfb2-none">{L('עוד אין משוב מהמאמן — אחרי האימון הבא הוא יופיע כאן.', 'No coach feedback yet — after the next practice it shows up here.')}</p>
       )}
@@ -3327,6 +3331,10 @@ function MyDataCard() {
 // ---------- מסך: פרופיל (זהות, סטטיסטיקות, קבוצות, הגדרות) ----------
 function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView, bell, coachName: coachNameProp, onCoach }) {
   const [st, setSt] = useState(null)
+  // 6.9 — «הצטרפות לקבוצה נוספת» פותח כאן את תיבת הקוד. קודם הוא רק ניווט
+  // לבית, ושם כרטיס ההצטרפות מוצג רק לשחקן בלי קבוצה — כלומר הכפתור לא
+  // הוביל לשום מקום עבור מי שכבר בקבוצה אחת.
+  const [addTeam, setAddTeam] = useState(false)
   useEffect(() => {
     ;(async () => {
       const [compl, att, eff] = await Promise.all([
@@ -3403,9 +3411,12 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
                   </span>
                 </div>
               ))}
-              <button type="button" className="ps-add" onClick={() => setView('home')}>
-                {L('הצטרפות לקבוצה נוספת', 'Join another team')}
+              <button type="button" className="ps-add" onClick={() => setAddTeam((v) => !v)} aria-expanded={addTeam}>
+                {addTeam ? L('סגירה', 'Close') : L('הצטרפות לקבוצה נוספת', 'Join another team')}
               </button>
+              {addTeam && (
+                <div className="ps-slot"><JoinTeam session={session} onJoined={onJoined} compact /></div>
+              )}
             </>
           )}
         </div>
@@ -3567,10 +3578,64 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     [restricted, sendLink, sendingLink],
   )
 
+  // 6.9 — «אין רשת» ≠ «אין קבוצה». עד היום כל כשל טעינה החזיר מערך ריק,
+  // והשחקן קיבל באולם בלי קליטה מסך «הצטרפו לקבוצה עם קוד מהמאמן» — כאילו
+  // הוצא מהקבוצה. myMembershipsResult מחזיר את העותק השמור כשיש, ואת
+  // offline:true כשאין, והמסך אומר את האמת.
+  const [netDown, setNetDown] = useState(false)
   const loadMemberships = useCallback(async () => {
-    setMemberships(await myMemberships(session.user.id))
+    const res = await myMembershipsResult(session.user.id)
+    setNetDown(res.offline)
+    setMemberships(res.rows)
   }, [session.user.id])
   useEffect(() => { loadMemberships() }, [loadMemberships])
+
+  // 6.9 — הגעה מלינק הצטרפות (#/join/CODE). יושב כאן ולא בכרטיס JoinTeam
+  // כדי שקוד שמור ייצרך גם לשחקן שכבר יש לו קבוצה (הצטרפות לקבוצה שנייה).
+  // ⚠ הקוד נמחק מהאחסון רק **אחרי** תשובה של השרת: קודם הוא נמחק לפני
+  //   הקריאה, ורגע בלי רשת אבד אותו לתמיד — הילד נשאר בלי קבוצה ובלי קוד.
+  const tryPendingJoin = useCallback(async () => {
+    let pendingCode = null
+    try { pendingCode = localStorage.getItem('pending_join_code') } catch { /* ignore */ }
+    if (!pendingCode) return
+    const res = await requestJoinByCode(session.user.id, pendingCode)
+    const forget = () => {
+      try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
+      // 4.9 — מנקים גם את תפקיד ההרשמה השמור, כדי ש«הרשמה» הבאה מהמכשיר
+      // הזה לא תיפתח בטעות בדלת «שחקן» (App.readRole)
+      try { localStorage.removeItem('signup_role') } catch { /* ignore */ }
+    }
+    if (res.ok) {
+      forget()
+      if (res.status === 'approved') toast.success(L('כבר אושרת לקבוצה!', "You're already approved!"))
+      else if (res.status === 'rejected') {
+        // 6.9 — אותו נוסח כמו בכרטיס ההצטרפות: נדחה, דברו עם המאמן, ואפשר לשלוח שוב
+        toast.error(L('המאמן דחה את הבקשה שלך לקבוצה הזו. דברו איתו — ואפשר לשלוח לו אותה שוב עם אותו קוד.',
+                      'Your coach declined your request to this team. Talk to them — you can send it again with the same code.'))
+      } else toast.success(L('הבקשה נשלחה למאמן לאישור', 'Request sent to your coach'))
+      loadMemberships()
+      return
+    }
+    // 'not-found' = השרת ענה שהקוד מת (פג/הוחלף) — אין טעם לשמור אותו.
+    // כל שאר הכשלים (רשת, מגבלת קצב) הם זמניים: הקוד נשאר, וננסה שוב
+    // בכניסה הבאה או ברגע שהרשת חוזרת.
+    if (res.reason === 'not-found' && res.serverReason !== 'rate-limited') {
+      forget()
+      toast.error(L('הקוד שבקישור כבר לא תקף — בקשו מהמאמן קישור חדש.',
+                    'The code in the link is no longer valid — ask your coach for a new link.'))
+      return
+    }
+    toast.error(L('לא הצלחנו לשלוח את בקשת ההצטרפות — ננסה שוב כשהרשת תחזור.',
+                  "We couldn't send the join request — we'll try again when you're back online."))
+  }, [session.user.id, loadMemberships])
+  useEffect(() => { tryPendingJoin() }, [tryPendingJoin])
+
+  // הרשת חזרה — טוענים מחדש בלי שהילד יצטרך לסגור ולפתוח את האפליקציה
+  useEffect(() => {
+    const back = () => { loadMemberships(); tryPendingJoin() }
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [loadMemberships, tryPendingJoin])
 
   // ---- מי הם המאמנים האישיים שלי ----
   // בקשת הבעלים (17.8): מה שהמאמן האישי שולח נשאר בדף שלו ולא מתערבב
@@ -3606,6 +3671,14 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     return <div className="center-screen"><div className="app-loading"><div className="loader" /></div></div>
   }
 
+  // 6.9 — אין רשת וגם אין עותק שמור: אומרים «אין חיבור» עם כפתור «נסו שוב»,
+  // ולא מסך «הצטרפו לקבוצה» שמשקר לילד שהוא כבר לא בקבוצה.
+  // ⚠ המסך הזה מוצג **בתוך** המעטפת ולא במקומה (ראו renderView): החלפת כל
+  //   המעטפת השאירה את הילד בלי ניווט, בלי פרופיל ובלי התנתקות — רק כפתור
+  //   «נסו שוב» שממשיך להיכשל. מסך «הפרופיל שלי» נשאר נגיש כרגיל, כי שם
+  //   יושבות ההתנתקות והחלפת השפה/התצוגה.
+  const netBlocked = netDown && memberships.length === 0 && view !== 'profile'
+
   // יעד ההתראה נגזר במקום אחד — עד היום הפעמון בטופבר ובמגירה שלחו
   // לשני מקומות שונים לאותה התראה עצמה.
   // ⚠ יעד שאינו ברשימה נופל ל«המשימות שלי» — ולכן התראת «זכית באתגר»
@@ -3632,7 +3705,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   //    במובייל כי הבאנר הוא הכותרת. מסך שאין לו באנר יישאר בלי שום כותרת.
   //    (א) עריכת הפרופיל היא טופס רגיל.
   //    (ב) שחקן בלי קבוצה מקבל LockedFeature במקום חמשת מסכי הקבוצה.
-  const isPs = !editing && PS_VIEWS.includes(view) && (hasTeam || !PS_TEAM_VIEWS.includes(view))
+  const isPs = !editing && !netBlocked && PS_VIEWS.includes(view) && (hasTeam || !PS_TEAM_VIEWS.includes(view))
   // הפעמון יורד לתוך הבאנר של המסך (הסרגל העליון מוסתר שם במובייל).
   // אלמנט חדש בכל רינדור במכוון: ‎.main-inner ממילא ממותג ב-key לפי המסך.
   const psBell = <Notifications session={session} onNavigate={navFromBell} />
@@ -3662,6 +3735,23 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
             onCancel={() => setEditing(false)}
           />
         </>
+      )
+    }
+    // 6.9 — אין רשת ואין עותק שמור: «אין חיבור» במקום תוכן המסך, בתוך
+    // המעטפת (מחלקות קיימות בלבד — אין CSS חדש בחבילה הזו).
+    if (netBlocked) {
+      return (
+        <div className="pl-join">
+          <div className="pl-join-card">
+            <span className="pl-join-ic"><WifiOff size={30} /></span>
+            <h2>{L('אין חיבור לאינטרנט', 'No internet connection')}</h2>
+            <p className="muted">
+              {L('לא הצלחנו לטעון את הקבוצות שלך. זה לא אומר שיצאת מהקבוצה — ברגע שהרשת תחזור הכול יחזור.',
+                 "We couldn't load your teams. It doesn't mean you left the team — everything comes back the moment you're online.")}
+            </p>
+            <button className="btn-primary" onClick={loadMemberships}>{L('נסו שוב', 'Try again')}</button>
+          </div>
+        </div>
       )
     }
     // בלי קבוצה המסך ממילא מציג «הצטרפו עם קוד» (LockedFeature) — ודווקא

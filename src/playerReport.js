@@ -72,8 +72,12 @@ export async function printPlayerReport({ player, team, att }) {
   const byRoster = !!rid
   const whoFilter = (q) => (byRoster && pid ? q.or(`roster_id.eq.${rid},player_id.eq.${pid}`) : byRoster ? q.eq('roster_id', rid) : q.eq('player_id', pid))
   const [fb, goals, asg, cm, pc] = await Promise.all([
+    // 6.9 — הדוח הזה מודפס ונמסר לשחקן או להורה. הערת הסקירה שהמאמן כותב
+    // באימון היא פרטית («הערה פרטית — רק אתה רואה») ונשמרת עם session_id
+    // ובלי player_id — היא לא נכנסת לדוח. משוב מפורש שנשלח לשחקן נשמר בלי
+    // session_id, והוא כן מופיע כאן.
     byRoster || pid
-      ? whoFilter(supabase.from('player_feedback').select('content, rating, created_at')).order('created_at', { ascending: false }).limit(3)
+      ? whoFilter(supabase.from('player_feedback').select('content, rating, created_at')).is('session_id', null).order('created_at', { ascending: false }).limit(3)
       : Promise.resolve({ data: [] }),
     byRoster || pid
       ? whoFilter(supabase.from('player_goals').select('title, period, status, progress_value, target_value')).limit(10)
@@ -148,8 +152,12 @@ export async function printPlayerReport({ player, team, att }) {
 </div>
 <h2>${L('יעדים', 'Goals')}</h2>
 ${goalRows ? `<table>${goalRows}</table>` : `<p class="empty">${L('אין יעדים רשומים.', 'No goals on record.')}</p>`}
-<h2>${L('המשוב האחרון שנרשם', 'Latest recorded notes')}</h2>
-${fbRows || `<p class="empty">${L('אין עדיין משוב.', 'No feedback yet.')}</p>`}
+<!-- 6.9 — «נשלח לשחקן» היה שקר על שורת סגל בלי חשבון: שם המשוב נרשם על
+     roster_id ואין למי לשלוח אותו. הכותרת אומרת מה שהוא באמת — משוב שהמאמן רשם. -->
+<h2>${L('המשוב האחרון שרשם המאמן', 'Latest feedback from the coach')}</h2>
+${fbRows || `<p class="empty">${L('עוד לא נרשם משוב.', 'No feedback recorded yet.')}</p>`}
+<!-- 6.9 — הדוח אומר במפורש מה יש בו ומה אין בו -->
+<p class="empty">${L('הדוח כולל נוכחות, משימות, יעדים ומשוב שהמאמן רשם לשחקן. הערות פרטיות שהמאמן רושם לעצמו אינן נכללות בו.', 'This report covers attendance, tasks, goals and the feedback the coach recorded for the player. The coach\'s private notes are not included.')}</p>
 <p class="foot">CourtSide · ${esc(today)}</p>
 <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
 </body></html>`

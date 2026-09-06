@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react'
 import {
   CalendarDays, Users, MessagesSquare, MessageSquare, Target,
-  HeartPulse, CalendarX, Phone, Trophy, MapPin,
+  HeartPulse, CalendarX, Phone, Trophy, MapPin, Lock,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -163,7 +163,11 @@ function MyTeamTab({ membership, onSched, onChat }) {
 }
 
 // ---------- המאמן שלי: בקשות מהירות + צ'אט ----------
-function QuickRequests({ session, membership, coach }) {
+// 6.9 — restricted (חשבון קטין שההורה טרם אישר) הועבר לכאן מהדשבורד אבל
+// לא נקלט בחתימה, ולכן ארבעת הכפתורים נשארו פעילים לחשבון שהשרת חוסם
+// (messages / practice_rsvp נמצאות בשער ה-RESTRICTIVE של ההסכמה). התוצאה
+// הייתה «השליחה נכשלה» אדום, בלי שום קשר לאישור ההורה.
+function QuickRequests({ session, membership, coach, restricted = false }) {
   const me = session.user.id
   const [mode, setMode] = useState(null) // null | 'injury' | 'miss'
   const [note, setNote] = useState('')
@@ -237,19 +241,28 @@ function QuickRequests({ session, membership, coach }) {
   return (
     <div className="pth-quick">
       <p className="pl-section-label">{L('בקשות מהירות', 'Quick requests')}</p>
+      {restricted && (
+        <p className="rstr-note" role="note">
+          <Lock size={13} aria-hidden="true" />
+          <span className="rstr-txt">
+            {L('הבקשות האלה נשלחות למאמן כהודעה, ולכן הן נפתחות רק אחרי שההורה מאשר את החשבון.',
+               'These requests are sent to your coach as a message, so they open only after your parent approves the account.')}
+          </span>
+        </p>
+      )}
       <div className="pth-quick-grid">
-        <button type="button" className="pth-quick-btn" disabled={busy} onClick={askGoal}>
+        <button type="button" className="pth-quick-btn" disabled={busy || restricted} onClick={askGoal}>
           <Target size={16} /> {L('בקשת יעד חדש', 'New goal request')}
         </button>
-        <button type="button" className={'pth-quick-btn' + (mode === 'injury' ? ' on' : '')} disabled={busy}
+        <button type="button" className={'pth-quick-btn' + (mode === 'injury' ? ' on' : '')} disabled={busy || restricted}
           onClick={() => { setMode(mode === 'injury' ? null : 'injury'); setNote('') }}>
           <HeartPulse size={16} /> {L('עדכון פציעה/מחלה', 'Injury / illness')}
         </button>
-        <button type="button" className={'pth-quick-btn' + (mode === 'miss' ? ' on' : '')} disabled={busy}
+        <button type="button" className={'pth-quick-btn' + (mode === 'miss' ? ' on' : '')} disabled={busy || restricted}
           onClick={() => { setMode(mode === 'miss' ? null : 'miss'); setNote('') }}>
           <CalendarX size={16} /> {L('לא אגיע לאימון', "Can't make practice")}
         </button>
-        <button type="button" className="pth-quick-btn" disabled={busy} onClick={askTalk}>
+        <button type="button" className="pth-quick-btn" disabled={busy || restricted} onClick={askTalk}>
           <Phone size={16} /> {L('בקשת שיחה אישית', 'Personal chat request')}
         </button>
       </div>
@@ -288,7 +301,10 @@ const TAB_HEAD = {
   coach:    { kicker: ['מאמן', 'COACH'], title: ['המאמן שלי', 'My coach'] },
 }
 
-export default function PlayerTeamHub({ session, membership, coach, initialTab, ScheduleView, bell, coachName, onCoach }) {
+// 6.9 — restricted נוסף לחתימה: הדשבורד כבר העביר אותו בארבעת מקומות
+// הקריאה, אבל הוא נבלע כאן ולכן «בקשות מהירות» נשארו פעילות לחשבון קטין
+// שההורה טרם אישר.
+export default function PlayerTeamHub({ session, membership, coach, restricted = false, initialTab, ScheduleView, bell, coachName, onCoach }) {
   const [tab, setTab] = useState(initialTab || 'schedule')
   useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const head = TAB_HEAD[tab] || TAB_HEAD.schedule
@@ -337,7 +353,7 @@ export default function PlayerTeamHub({ session, membership, coach, initialTab, 
       {tab === 'coach' && (
         <div className="ps-chat ps-slot">
           <div className="ps-card ps-quickreq">
-            <QuickRequests session={session} membership={membership} coach={coach} />
+            <QuickRequests session={session} membership={membership} coach={coach} restricted={restricted} />
           </div>
           <CoachChat session={session} coach={coach} />
         </div>

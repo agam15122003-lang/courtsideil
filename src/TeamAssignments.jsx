@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Dumbbell, ChevronDown, Check, Clock, Inbox, BellRing, Archive } from 'lucide-react'
+import { Dumbbell, ChevronDown, Check, Clock, Inbox, BellRing, Archive, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { sendNotification } from './notify'
 import { toast } from './toast'
@@ -105,6 +105,13 @@ export default function TeamAssignments({ coachId, team }) {
     const doneBy = {}
     const progBy = {} // assignment_id -> { who: progress_value }
     const whoBy = {}  // assignment_id -> { who: Set('coach'|'player') } — מי סימן «ביצע» (3.9)
+    // 6.9 — assignment_id -> Set(who): שורת סימון של המאמן שאומרת «לא ביצע».
+    // זו הדרך היחידה של המאמן לחלוק על «ביצעתי» שהילד סימן בטלפון.
+    // ⚠ done_at ריק לבדו **אינו** שלילה: לפי הכלל שנקבע עם הטבלה
+    // (supabase_coach_only_22_8.sql) done_at ריק + progress_value > 0 = «בתהליך»,
+    // וזו בדיוק השורה ש-writeMark כותב כשהמאמן מקליד התקדמות חלקית ליעד
+    // מספרי. שלילה = done_at ריק **וגם** בלי התקדמות.
+    const deniedBy = {}
     for (const c of compl) {
       if (c.done_at) {
         ;(doneBy[c.assignment_id] = doneBy[c.assignment_id] || new Set()).add(c.who)
@@ -112,6 +119,8 @@ export default function TeamAssignments({ coachId, team }) {
           const w = (whoBy[c.assignment_id] = whoBy[c.assignment_id] || {})
           ;(w[c.who] = w[c.who] || new Set()).add(c.by)
         }
+      } else if (c.by === 'coach' && !(Number(c.progress_value) > 0)) {
+        ;(deniedBy[c.assignment_id] = deniedBy[c.assignment_id] || new Set()).add(c.who)
       }
       // התקדמות: כשיש שני ערכים לאותה שורה — הגבוה מביניהם
       if (Number(c.progress_value) > 0) {
@@ -130,8 +139,17 @@ export default function TeamAssignments({ coachId, team }) {
         : a.player_id
           ? players.filter((p) => p.player_id === a.player_id)
           : players
-      const doneSet = doneBy[a.id] || new Set()
-      return { ...a, title, targets, doneSet, who: whoBy[a.id] || {}, prog: progBy[a.id] || {}, done: targets.filter((p) => doneSet.has(keyOf(p))).length, total: targets.length }
+      const who = whoBy[a.id] || {}
+      const denied = deniedBy[a.id] || new Set()
+      // 6.9 — סימון «לא ביצע» של המאמן גובר על «ביצעתי» של הילד
+      const doneSet = new Set([...(doneBy[a.id] || [])].filter((k) => !denied.has(k)))
+      return {
+        ...a, title, targets, doneSet, denied, who, prog: progBy[a.id] || {},
+        done: targets.filter((p) => doneSet.has(keyOf(p))).length,
+        // כמה מהם **המאמן** סימן — זה מה שסוגר משימה (ראו הארכוב למטה)
+        doneCoach: targets.filter((p) => (who[keyOf(p)] || new Set()).has('coach')).length,
+        total: targets.length,
+      }
     })
 
     // 1.6 — ארכוב אוטומטי: כשכל המקבלים סומנו «ביצע».
@@ -142,9 +160,13 @@ export default function TeamAssignments({ coachId, team }) {
     // הכתיבה סובלנית — אם עמודת status (supabase_tasks_launch.sql) טרם
     // נוספה, הסינון פשוט לא ישרוד רענון, והמסך ממשיך לעבוד.
     const todayStr = taToday()
+    // 6.9 — בצד המאמן משימה נסגרת רק כשהמאמן עצמו סימן «ביצע» לכולם.
+    // קודם «ביצעתי» שילד סימן בטלפון ארכב את המשימה לבד — והיא נעלמה
+    // מ«פעילות» לפני שהמאמן בכלל הספיק לראות אותה.
     const toArchive = rows.filter((a) =>
       (a.status || 'active') === 'active' &&
-      ((!COACH_MODE && a.due_date && a.due_date < todayStr) || (a.total > 0 && a.done >= a.total)))
+      ((!COACH_MODE && a.due_date && a.due_date < todayStr) ||
+        (a.total > 0 && (COACH_MODE ? a.doneCoach >= a.total : a.done >= a.total))))
     if (toArchive.length > 0) {
       supabase.from('player_assignments').update({ status: 'archived' })
         .in('id', toArchive.map((a) => a.id)).then(() => {})
@@ -176,7 +198,10 @@ export default function TeamAssignments({ coachId, team }) {
   // צד המאמן בלבד — סימון «ביצע» / התקדמות לשחקן, בשם המאמן
   const writeMark = async (a, p, { done, progress }) => {
     const target = Number(a.target_value) || 0
-    const prog = progress != null ? Math.max(0, progress) : (done ? target : (a.prog[p.id] || 0))
+    // 6.9 — «לא ביצע» מפורש (done === false) מאפס גם את ההתקדמות. בלי זה
+    // שורת השלילה הייתה נושאת את ההתקדמות שהילד רשם, ואי אפשר היה להבדיל
+    // בינה לבין שורת «בתהליך» — שתיהן עם done_at ריק (ראו deniedBy למעלה).
+    const prog = progress != null ? Math.max(0, progress) : (done ? target : 0)
     const isDone = done != null ? done : (target > 0 && prog >= target)
     const { error } = await supabase.from('assignment_coach_marks').upsert({
       assignment_id: a.id, roster_id: p.id, coach_id: coachId,
@@ -305,6 +330,8 @@ export default function TeamAssignments({ coachId, team }) {
                       const done = a.doneSet.has(k)
                       // 3.9 — מי סימן: המאמן («סימנת»), השחקן («סימן בעצמו»), או שניהם
                       const who = a.who[k] || new Set()
+                      // 6.9 — המאמן סימן במפורש «לא ביצע» על מה שהילד סימן
+                      const denied = (a.denied || new Set()).has(k)
                       const prog = done && a.target_value ? Number(a.target_value) : (a.prog[k] || 0)
                       const ppct = a.target_value ? Math.min(100, Math.round((prog / Number(a.target_value)) * 100)) : (done ? 100 : 0)
                       const dk = `${a.id}:${p.id}`
@@ -312,9 +339,14 @@ export default function TeamAssignments({ coachId, team }) {
                         <li key={p.id} className="ta-player">
                           {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={28} />}
                           <span className="ta-player-name">{p.name}</span>
-                          {COACH_MODE && done && who.size > 0 && (
+                          {/* 6.9 — התג מוצג גם אחרי ביטול: הילד עדיין סימן «ביצעתי», וזה נאמר */}
+                          {COACH_MODE && who.size > 0 && (
                             <span className="mini-tag" title={L('מי סימן «ביצע»', 'Who marked done')}>
-                              {who.has('coach') && who.has('player') ? L('סימנת · סימן בעצמו', 'You · himself') : who.has('player') ? L('סימן בעצמו', 'Marked himself') : L('סימנת', 'You marked')}
+                              {denied && who.has('player')
+                                ? L('סימן בעצמו · ביטלת', 'He marked · you cleared')
+                                : who.has('coach') && who.has('player')
+                                  ? L('סימנת · סימן בעצמו', 'You · himself')
+                                  : who.has('player') ? L('סימן בעצמו', 'Marked himself') : L('סימנת', 'You marked')}
                             </span>
                           )}
                           {/* 1.6 — פס התקדמות ליעד מספרי, וי לסיום */}
@@ -342,12 +374,27 @@ export default function TeamAssignments({ coachId, team }) {
                           {COACH_MODE ? (
                             /* המאמן מסמן «ביצע» בעצמו — לחיצה נוספת מבטלת.
                                גם בארכיון: ביטול שם מחזיר את המשימה לפעילה. */
-                            /* 3.9 — הכפתור מפעיל/מבטל את סימון **המאמן**; «ביצעתי» של השחקן
-                               לא ניתן לביטול מכאן (זו האמת שלו) */
-                            <button type="button" className={done ? 'ta-status done ta-mark' : 'ta-status ta-mark'}
-                              aria-pressed={done} onClick={() => writeMark(a, p, { done: !who.has('coach') })}>
-                              {done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('סמן ביצע', 'Mark done')}</>}
-                            </button>
+                            /* 6.9 — הכפתור עושה בדיוק מה שכתוב עליו. כשהילד סימן
+                               «ביצעתי» והמאמן עוד לא — הכיתוב הוא «אשר ביצוע»,
+                               ולא «ביצע» שהטאפ עליו רשם בשקט אישור בשם המאמן. */
+                            <>
+                              <button type="button" className={done ? 'ta-status done ta-mark' : 'ta-status ta-mark'}
+                                aria-pressed={who.has('coach')} onClick={() => writeMark(a, p, { done: !who.has('coach') })}>
+                                {who.has('coach')
+                                  ? <><Check size={13} /> {L('ביצע', 'Done')}</>
+                                  : done
+                                    ? <><Check size={13} /> {L('אשר ביצוע', 'Confirm done')}</>
+                                    : <><Clock size={13} /> {L('סמן ביצע', 'Mark done')}</>}
+                              </button>
+                              {/* 6.9 — הילד סימן והמאמן יודע שזה לא קרה: ביטול מפורש */}
+                              {done && !who.has('coach') && (
+                                <button type="button" className="ta-status ta-mark"
+                                  title={L('לא ביצע בפועל — ביטול הסימון של השחקן', "Not actually done — clear the player's mark")}
+                                  onClick={() => writeMark(a, p, { done: false })}>
+                                  <X size={13} /> {L('לא ביצע', 'Not done')}
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <span className={done ? 'ta-status done' : 'ta-status'}>{done ? <><Check size={13} /> {L('ביצע', 'Done')}</> : <><Clock size={13} /> {L('ממתין', 'Pending')}</>}</span>
                           )}

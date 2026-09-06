@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy, Check as CheckLine, HeartPulse, X, Share2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -121,10 +121,25 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         // דיווח בעצמו (player_id). שחקן שיש לו גם וגם נספר פעם אחת.
         const rosterOfAuth = new Map((roster || []).filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
         const rows = eff || []
-        const who = new Set(rows.map((r) => (
+        const keyOfRow = (r) => (
           r.roster_id ? `r:${r.roster_id}` : rosterOfAuth.has(r.player_id) ? `r:${rosterOfAuth.get(r.player_id)}` : `p:${r.player_id}`
-        )))
-        const vals = rows.map((r) => Number(r.effort)).filter((n) => !Number.isNaN(n))
+        )
+        // 6.9 — ערך אחד לכל שחקן. כששחקן גם דורג על ידי המאמן וגם דיווח
+        // בעצמו, הערך של המאמן קובע — בדיוק כמו במסך הסקירה. קודם הממוצע
+        // חושב מכל השורות, כך שהשחקן הזה נספר פעמיים ושני המסכים הראו
+        // מספרים שונים לאותו אימון.
+        const byWho = new Map()
+        for (const r of rows) {
+          const k = keyOfRow(r)
+          const cur = byWho.get(k) || {}
+          if (r.source === 'coach' || (r.roster_id && !r.player_id)) cur.coach = Number(r.effort)
+          else cur.player = Number(r.effort)
+          byWho.set(k, cur)
+        }
+        const who = new Set(byWho.keys())
+        const vals = [...byWho.values()]
+          .map((e) => (e.coach != null && !Number.isNaN(e.coach) ? e.coach : e.player))
+          .filter((n) => n != null && !Number.isNaN(n))
         // שורות המאמן נשארות בלי player_id לתמיד (README) — כל שורה עם player_id היא דיווח עצמי
         const self = rows.filter((r) => r.player_id).length
         setRecent({
@@ -210,6 +225,8 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
               <CalendarPlus size={16} aria-hidden="true" /> {L('קביעת ימי אימון', 'Set practice days')}
             </button>
           </div>
+          {/* 6.9 — הצ'ק-אין נמלא כל בוקר, גם ביום בלי אימון בלו"ז */}
+          <ReadinessStrips session={session} />
           {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
           {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
         </div>
@@ -226,6 +243,8 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         <button className="btn-primary np-cta" onClick={() => onNavigate('teams')}>
           <CalendarPlus size={17} /> {L('קביעת ימי אימון', 'Set practice days')}
         </button>
+        {/* 6.9 — הצ'ק-אין נמלא כל בוקר, גם ביום בלי אימון בלו"ז */}
+        <ReadinessStrips session={session} />
         {reportStrip}
         {gameStrip}
         {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
@@ -322,7 +341,8 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
 
         {rsvp}
         {/* 4.9 — «מוכנות היום»: מי דיווח בצ'ק-אין הבוקר ומי צריך תשומת לב */}
-        {entry.team && !entry.is_personal && <ReadinessStrip session={session} team={entry.team} />}
+        {/* 6.9 — רצועה לכל קבוצה שדיווחו בה היום, לא רק לקבוצת האימון הקרוב */}
+        <ReadinessStrips session={session} team={entry.team && !entry.is_personal ? entry.team : null} />
         {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
         {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
       </div>
@@ -379,6 +399,8 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         </button>
       </div>
 
+      {/* 6.9 — «מוכנות היום» לכל קבוצה שדיווחו בה הבוקר */}
+      <ReadinessStrips session={session} team={entry.team && !entry.is_personal ? entry.team : null} />
       {reportStrip}
       {gameStrip}
       {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
@@ -396,48 +418,83 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
 //
 // הרצועה לא מרונדרת בכלל כשהטבלה חסרה (שגיאת שליפה), כשהסגל ריק, כשאין
 // אף שחקן מחובר — או אצל מאמן שאינו בפיילוט (PILOT_COACHES).
-function ReadinessStrip({ session, team }) {
+//
+// 6.9 — הצ'ק-אין נמלא **כל בוקר**, גם ביום שאין בו אימון בלו"ז, ולילד כתוב
+// «נשמר · המאמן רואה». לכן השליפה היא לפי המאמן והתאריך בלבד (כמו
+// CoachTodo), ומוצגת רצועה לכל קבוצה שיש בה דיווחים היום — לא רק לקבוצה
+// של האימון הקרוב. הקבוצה של האימון הקרוב מוצגת תמיד, גם בלי דיווחים.
+function ReadinessStrips({ session, team }) {
   const me = session?.user?.id
   const inPilot = PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session?.user?.email)
   const today = localDate()
   const [data, setData] = useState(null) // {roster, checkins, pending:Set}
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+
+  const load = useCallback(async () => {
+    if (!me || !inPilot) return
+    // select('*') — סובלני למסד בלי wellness_off; שגיאה כלשהי = אין רצועה
+    const [rosterRes, ckRes] = await Promise.all([
+      supabase.from('team_players').select('*').eq('coach_id', me),
+      supabase.from('player_checkins').select('*').eq('coach_id', me).eq('checkin_date', today),
+    ])
+    if (!alive.current) return
+    if (rosterRes.error || ckRes.error) return
+    // «ממתין לאישור הורה» — כשל כאן לא מפיל את הרצועה, רק את התווית
+    let pending = new Set()
+    try {
+      const { data: mem, error } = await supabase.from('team_memberships')
+        .select('player_id, status, player:profiles!player_id(approval_status)')
+        .eq('coach_id', me).eq('status', 'approved')
+      if (!error) pending = new Set((mem || []).filter((m) => m.player?.approval_status === 'pending_parent').map((m) => m.player_id))
+    } catch { /* בלי התווית */ }
+    if (!alive.current) return
+    setData({ roster: rosterRes.data || [], checkins: ckRes.data || [], pending })
+  }, [me, inPilot, today])
+
+  useEffect(() => { load() }, [load])
+  // 6.9 — מסך המאמן נשאר פתוח שעות: דיווח שנכתב אחרי הטעינה פשוט לא הופיע.
+  // רענון זול כשחוזרים אל הלשונית — בלי לולאת polling.
+  // ⚠ מנגנון אחד בלבד: בחזרה לאפליקציה בטלפון נורים גם 'focus' וגם
+  //   'visibilitychange', וכל רענון היה רץ פעמיים.
+  useEffect(() => {
+    const back = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', back)
+    return () => document.removeEventListener('visibilitychange', back)
+  }, [load])
+
+  if (!inPilot || !data) return null
+  // הקבוצות: כל קבוצה שיש בה דיווח היום, ובנוסף הקבוצה של האימון הקרוב
+  const teams = [...new Set([team, ...data.checkins.map((c) => c.team)].filter(Boolean))]
+  return teams.map((t) => (
+    <ReadinessStrip
+      key={t} team={t} today={today} pending={data.pending}
+      roster={data.roster.filter((p) => p.team === t)}
+      checkins={data.checkins.filter((c) => c.team === t)}
+      onRefresh={load}
+    />
+  ))
+}
+
+function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [ackedIds, setAckedIds] = useState(() => new Set())
   // 4.9 — כמו כל גיליון בפרויקט (FeedbackSheet): מלכודת פוקוס + Escape סוגר
   const sheetRef = useFocusTrap(open, () => setOpen(false))
 
-  useEffect(() => {
-    if (!me || !team || !inPilot) return
-    let alive = true
-    ;(async () => {
-      // select('*') — סובלני למסד בלי wellness_off; שגיאה כלשהי = אין רצועה
-      const [rosterRes, ckRes] = await Promise.all([
-        supabase.from('team_players').select('*').eq('coach_id', me).eq('team', team),
-        supabase.from('player_checkins').select('*').eq('coach_id', me).eq('team', team).eq('checkin_date', today),
-      ])
-      if (!alive) return
-      if (rosterRes.error || ckRes.error) return
-      // «ממתין לאישור הורה» — כשל כאן לא מפיל את הרצועה, רק את התווית
-      let pending = new Set()
-      try {
-        const { data: mem, error } = await supabase.from('team_memberships')
-          .select('player_id, status, player:profiles!player_id(approval_status)')
-          .eq('coach_id', me).eq('team', team).eq('status', 'approved')
-        if (!error) pending = new Set((mem || []).filter((m) => m.player?.approval_status === 'pending_parent').map((m) => m.player_id))
-      } catch { /* בלי התווית */ }
-      if (!alive) return
-      setData({ roster: rosterRes.data || [], checkins: ckRes.data || [], pending })
-    })()
-    return () => { alive = false }
-  }, [me, team, inPilot, today])
-
-  if (!inPilot || !data) return null
-  const { roster, checkins, pending } = data
-
   // שיוך דיווח לשורת סגל — לפי חשבון או לפי שורת הסגל (רישום מאמן, אם יהיה)
   const byAuth = new Map(checkins.filter((c) => c.player_id).map((c) => [c.player_id, c]))
   const byRoster = new Map(checkins.filter((c) => c.roster_id).map((c) => [c.roster_id, c]))
-  const reportOf = (p) => byRoster.get(p.id) || (p.player_id ? byAuth.get(p.player_id) : null)
+  // 6.9 — שורה בלי אף תשובה אינה «דיווח». ביטול «אני חולה היום» משאיר שורה
+  // ריקה (sick=false ותו לא), והיא נספרה כאן כדיווח והוצגה בגיליון כשורה
+  // ירוקה ריקה. שורה כזאת חוזרת להיות «לא דיווח», בספירה ובגיליון.
+  const hasAnswer = (c) => !!c && (c.sleep_bucket != null || c.energy != null || c.body != null || c.sick === true)
+  const reportOf = (p) => {
+    const r = byRoster.get(p.id)
+    if (hasAnswer(r)) return r
+    const a = p.player_id ? byAuth.get(p.player_id) : null
+    return hasAnswer(a) ? a : null
+  }
 
   const eligible = roster.filter((p) => p.player_id && !p.wellness_off)
   if (eligible.length === 0) return null
@@ -473,16 +530,34 @@ function ReadinessStrip({ session, team }) {
     if (error) { toast.error(L('הסימון נכשל', 'Failed to mark')); return }
     setAckedIds((cur) => new Set(cur).add(row.c.id))
   }
+  // 6.9 — ack_checkins מסמן **במכוון** רק דיווחים תקינים: ילד עם דגל צריך
+  // מבט אמיתי וטאפ «ראיתי» משלו. הכפתור אומר את זה בשמו, והטוסט מדווח כמה
+  // סומנו וכמה עוד מחכות — לפי מה שהשרת החזיר בפועל (setof uuid = player_id).
   const ackAll = async () => {
-    const { error } = await supabase.rpc('ack_checkins', { p_team: team, p_date: today })
+    const { data: acked, error } = await supabase.rpc('ack_checkins', { p_team: team, p_date: today })
     if (error) { toast.error(L('הסימון נכשל', 'Failed to mark')); return }
-    // הפונקציה מסמנת רק את השורות התקינות — משקפים את זה גם כאן
+    const ids = new Set((Array.isArray(acked) ? acked : [])
+      .map((x) => (x && typeof x === 'object' ? Object.values(x)[0] : x)).filter(Boolean))
+    const okRows = rows.filter((r) => r.kind === 'report' && (ids.size ? ids.has(r.c.player_id) : r.flag === 'ok'))
     setAckedIds((cur) => {
       const next = new Set(cur)
-      for (const r of rows) if (r.kind === 'report' && r.flag === 'ok') next.add(r.c.id)
+      for (const r of okRows) next.add(r.c.id)
       return next
     })
-    toast.success(L('סומן — ראית את כולם', 'Marked — all seen'))
+    // 6.9 — סופרים רק את מה שבאמת נסגר עכשיו. שורה שכבר הייתה מסומנת
+    // (coach_ack_at, או טאפ קודם היום) אינה עבודה שנעשתה, ו«סומן — ראית את
+    // כולם» דיווח עליה כאילו כן.
+    const newly = okRows.filter((r) => !r.c.coach_ack_at && !ackedIds.has(r.c.id))
+    const left = flagged.filter((r) => !r.c.coach_ack_at && !ackedIds.has(r.c.id)).length
+    if (left > 0) {
+      toast.info(newly.length > 0
+        ? L(`סומנו ${newly.length} דיווחים תקינים · ${left} מסומנים מחכים לך`, `${newly.length} OK reports marked · ${left} flagged still waiting`)
+        : L(`אין דיווח תקין לסמן · ${left} מסומנים מחכים לך`, `Nothing OK to mark · ${left} flagged still waiting`))
+    } else if (newly.length > 0) {
+      toast.success(L('סומן — ראית את כולם', 'Marked — all seen'))
+    } else {
+      toast.info(L('הכול כבר היה מסומן — לא היה מה לסמן', 'Everything was already marked'))
+    }
   }
   const remind = () => waShare(L(
     `בוקר טוב חבר'ה! 🏀 אל תשכחו לענות על הצ'ק-אין של הבוקר — שלוש שאלות, פחות מחצי דקה:\n${SITE_URL}/#/checkin`,
@@ -518,6 +593,13 @@ function ReadinessStrip({ session, team }) {
           <span className="sd-date">{L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</span>
         </header>
         <div className="sd-scroll">
+          {/* 6.9 — אומרים מראש: «ראיתי את התקינים» לא סוגר שורה מסומנת */}
+          {flagged.length > 0 && (
+            <p className="muted small">
+              {L('שורה בצבע נסגרת רק בטאפ «ראיתי» שלה — הכפתור למטה מסמן את הדיווחים התקינים בלבד.',
+                 'A flagged row closes only with its own “Seen” tap — the button below marks the OK reports only.')}
+            </p>
+          )}
           <ul className="rd-rows">
             {rows.map((r) => (
               <li key={r.p.id} className={'rd-row' + (r.kind === 'report' ? ` rd-${r.flag}` : ' rd-grey')}>
@@ -537,15 +619,19 @@ function ReadinessStrip({ session, team }) {
                 {r.kind === 'report' && (r.flag === 'red' || r.flag === 'yellow') && (
                   (r.c.coach_ack_at || ackedIds.has(r.c.id))
                     ? <span className="rd-ack-done"><CheckLine size={13} aria-hidden="true" /> {L('ראיתי', 'Seen')}</span>
-                    : <button type="button" className="rd-ack" onClick={() => ackOne(r)}>{L('ראיתי', 'Seen')}</button>
+                    /* 6.9 — כל דגל נסגר בטאפ משלו; «ראיתי את התקינים» לא נוגע בו */
+                    : <button type="button" className="rd-ack" title={L('ראיתי — כל דיווח מסומן נסגר בטאפ נפרד', 'Seen — each flagged report closes on its own tap')} onClick={() => ackOne(r)}>{L('ראיתי', 'Seen')}</button>
                 )}
               </li>
             ))}
           </ul>
         </div>
         <footer className="sd-foot rd-foot">
-          <button type="button" className="btn-soft" onClick={ackAll}>
-            <CheckLine size={15} /> {L('ראיתי את כולם', 'Seen everyone')}
+          {/* 6.9 — השם האמיתי: הפונקציה מסמנת רק את הדיווחים התקינים */}
+          <button type="button" className="btn-soft" onClick={ackAll}
+            title={L('מסמן את מי שדיווח שהכול תקין. שורה מסומנת נסגרת בטאפ «ראיתי» שלה.',
+                     'Marks everyone who reported all-good. A flagged row closes with its own “Seen” tap.')}>
+            <CheckLine size={15} /> {L('ראיתי את התקינים', 'Seen the OK ones')}
           </button>
           <button type="button" className="btn-soft" onClick={remind}>
             <Share2 size={15} /> {L('תזכורת לקבוצה', 'Remind the team')}
@@ -558,10 +644,12 @@ function ReadinessStrip({ session, team }) {
 
   return (
     <>
-      <button type="button" className="np-report rd-strip" onClick={() => setOpen(true)}>
+      {/* 6.9 — פתיחת הגיליון מרעננת: מה שנכתב מאז הטעינה יופיע */}
+      <button type="button" className="np-report rd-strip" onClick={() => { setOpen(true); onRefresh?.() }}>
         <span className="np-report-ic"><HeartPulse size={17} /></span>
         <span className="np-report-body">
-          <strong>{L('מוכנות היום', 'Readiness today')} · {L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</strong>
+          {/* 6.9 — שם הקבוצה על הרצועה: יש רצועה לכל קבוצה שדיווחו בה היום */}
+          <strong>{L('מוכנות היום', 'Readiness today')} · {trTeam(team)} · {L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</strong>
           <span className="np-report-meta">
             {flagged.length > 0
               ? <span className="rd-attn">{L(`${flagged.length} לשים לב: ${names}`, `${flagged.length} to watch: ${names}`)}</span>

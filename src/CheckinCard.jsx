@@ -3,8 +3,14 @@
 // ============================================================
 // כרטיס ראשון בבית השחקן, כל יום מ-06:00 עד חצות (גם בימים בלי אימון;
 // ביום אימון הכותרת מכוונת לאימון). כל טאפ נשמר מיד; אחרי שלוש תשובות
-// הכרטיס מתקפל ל«נשמר · המאמן רואה» — בלי להציג את התשובות. עריכה
+// הכרטיס מתקפל ל«נשמר» — בלי להציג את התשובות. עריכה
 // אפשרית עד חצות (טאפ פשוט מעדכן את אותה שורה).
+//
+// 6.9 — ארבעה תיקונים: (1) שעון יום — הכרטיס מבחין שהתאריך התחלף גם אם
+// נשאר פתוח מהלילה, והתאריך נקבע ברגע הכתיבה; (2) כשל רשת כבר לא מעלים
+// את הכרטיס — רק «אין טבלה» מכבה אותו, ותקלה מציגה «נסה שוב»; (3)
+// «אני חולה היום» ניתן לביטול מהמסך; (4) הניסוח «המאמן רואה» הוחלף
+// ב«רק המאמן שלך יכול לראות» — הבטחה נכונה גם אצל מאמן שלא בפיילוט.
 //
 // בלי טקסט חופשי. «כואב» פותח אזורי כאב (רשימה סגורה) + «מפריע לשחק?».
 // «אני חולה היום» — קישור קטן. «לא היום» — מסתיר את הכרטיס להיום דרך
@@ -15,7 +21,7 @@
 // (ההורה ביקש «בלי שאלות») — אותו דבר. קטין שממתין לאישור הורה מקבל
 // שורת הסבר + כפתור «שליחת הקישור להורה» במקום הכרטיס.
 import { useEffect, useRef, useState } from 'react'
-import { Sun, Check, Lock, Pencil } from 'lucide-react'
+import { Sun, Check, Lock, Pencil, RotateCw } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { confirmDialog } from './confirm' // 4.9 — אישור לפני «אני חולה היום»
@@ -42,7 +48,23 @@ function ilHour() {
   } catch { return new Date().getHours() }
 }
 
-const SKIP_KEY = 'checkin_not_today' // «לא היום» — ערך = התאריך שהוסתר
+// «לא היום» — הערך שנשמר הוא התאריך שהוסתר.
+// 6.9 — המפתח נושא את מזהה החשבון: localStorage הוא לפי דפדפן ולא לפי
+// משתמש, ושני אחים על אותו טלפון (או המאמן שנכנס לחשבון בדיקה) הסתירו
+// את הכרטיס זה לזה ליום שלם.
+const SKIP_KEY = 'checkin_not_today'
+const skipKeyFor = (uid) => `${SKIP_KEY}_${uid}`
+
+// 6.9 — «אין טבלה» מול «הבקשה נכשלה». רק הראשון מכבה את הכרטיס בשקט
+// (פרוד שטרם הריץ את supabase_checkins_4_9.sql); כשל רשת/5xx/טוקן משאיר
+// את הכרטיס עם «נסה שוב», אחרת תקלת רשת של שנייה מעלימה את הצ'ק-אין
+// ליום שלם בלי הודעה ובלי ניסיון חוזר.
+const SCHEMA_CODES = ['42P01', 'PGRST205', 'PGRST204', 'PGRST202', '42703']
+function schemaGone(err) {
+  if (!err) return false
+  if (SCHEMA_CODES.includes(err.code)) return true
+  return /does not exist|schema cache|could not find/i.test(err.message || '')
+}
 
 // אזורי הכאב — אותה רשימה סגורה בדיוק כמו ה-CHECK במסד
 export const PAIN_AREAS = [
@@ -69,17 +91,69 @@ const SLEEP_CHIPS = SLEEP_RANGES.map((label, v) => ({ v, label })) // 4.9 — מ
 
 export default function CheckinCard({ session, membership, restrictedCtx }) {
   const me = session.user.id
-  const today = localDate()
+  // 6.9 — שעון היום במצב, לא בחישוב חד-פעמי ברינדור: התאריך והשעה מתעדכנים
+  // בטיקר של דקה וגם בכל חזרה למסך. בלי זה כרטיס שנשאר פתוח מאתמול המשיך
+  // להציג «נשמר» ליום שכבר עבר, והשחקן פשוט לא ענה בבוקר.
+  const [clock, setClock] = useState(() => ({ day: localDate(), hour: ilHour() }))
+  const today = clock.day
   // מדד הפיילוט: מרינדור ראשון עד התשובה השלישית
   const mountTs = useRef(Date.now())
-  const [state, setState] = useState('loading') // loading | off | ready
+  const [state, setState] = useState('loading') // loading | off | error | ready
   const [row, setRow] = useState(null)          // השורה של היום (אם קיימת)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false) // «שינוי» אחרי שהכרטיס התקפל
   const [practiceToday, setPracticeToday] = useState(false)
-  const [skipped, setSkipped] = useState(() => {
-    try { return localStorage.getItem(SKIP_KEY) === today } catch { return false }
+  const [reload, setReload] = useState(0)       // «נסה שוב» אחרי כשל טעינה
+  // «לא היום»: שומרים את התאריך שהוסתר וגוזרים ממנו — ביום חדש הוא כבר
+  // לא שווה להיום, בלי צורך לאפס שום דבר.
+  const [skipMark, setSkipMark] = useState(() => {
+    try { return localStorage.getItem(skipKeyFor(me)) } catch { return null }
   })
+  const skipped = skipMark === today
+
+  // 6.9 — טיקר היום: דקה, פלוס חזרה למסך (טלפון שננעל בלילה ונפתח בבוקר
+  // לא מרנדר מעצמו). מעדכן רק כשבאמת התחלף יום או שעה.
+  // ⚠ מנגנון אחד בלבד: בחזרה לאפליקציה בטלפון נורים גם 'focus' וגם
+  //   'visibilitychange', וכל רענון היה רץ פעמיים.
+  useEffect(() => {
+    const tick = () => setClock((p) => {
+      const day = localDate()
+      const hour = ilHour()
+      return (p.day === day && p.hour === hour) ? p : { day, hour }
+    })
+    const onVis = () => { if (document.visibilityState === 'visible') tick() }
+    const t = setInterval(tick, 60000)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
+
+  // התאריך התחלף בזמן שהכרטיס פתוח — יום חדש מתחיל נקי (השליפה למטה
+  // רצה שוב ממילא, כי today נמצא בתלויות שלה)
+  const dayRef = useRef(today)
+  useEffect(() => {
+    if (dayRef.current === today) return
+    dayRef.current = today
+    setRow(null)
+    setEditing(false)
+    setState('loading')
+    mountTs.current = Date.now()
+  }, [today])
+
+  // הרשת חזרה או חזרנו למסך אחרי כשל — מנסים שוב לבד
+  useEffect(() => {
+    if (state !== 'error') return
+    const retry = () => setReload((k) => k + 1)
+    const onVis = () => { if (document.visibilityState === 'visible') retry() }
+    window.addEventListener('online', retry)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.removeEventListener('online', retry)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [state])
 
   useEffect(() => {
     if (!membership) { setState('off'); return }
@@ -91,14 +165,16 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
         .select('*').eq('player_id', me)
         .eq('coach_id', membership.coach_id).eq('team', membership.team).limit(1)
       if (!alive) return
+      // 6.9 — מבדילים: מסד בלי הטבלה/העמודה מכבה בשקט, כשל רשת מציג «נסה שוב»
+      if (tpErr) { setState(schemaGone(tpErr) ? 'off' : 'error'); return }
       const rosterRow = tp && tp[0]
-      if (tpErr || !rosterRow || rosterRow.wellness_off) { setState('off'); return }
-      // הדיווח של היום (אם כבר עניתי) — כל שגיאה כאן, כולל טבלה שטרם
-      // נוצרה (42P01/PGRST205), פשוט מכבה את הכרטיס בשקט
+      if (!rosterRow || rosterRow.wellness_off) { setState('off'); return }
+      // הדיווח של היום (אם כבר עניתי) — טבלה שטרם נוצרה (42P01/PGRST205)
+      // מכבה את הכרטיס בשקט; כל כשל אחר נשאר עם «נסה שוב»
       const { data: cr, error: crErr } = await supabase.from('player_checkins')
         .select('*').eq('player_id', me).eq('checkin_date', today).maybeSingle()
       if (!alive) return
-      if (crErr) { setState('off'); return }
+      if (crErr) { setState(schemaGone(crErr) ? 'off' : 'error'); return }
       setRow(cr || null)
       setState('ready')
       // יש אימון היום? רק לניסוח הכותרת — כשל שקט משאיר ניסוח כללי
@@ -111,7 +187,7 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
       } catch { /* ניסוח כללי */ }
     })()
     return () => { alive = false }
-  }, [me, membership, today])
+  }, [me, membership, today, reload])
 
   // שמירה מיידית בכל טאפ. אין upsert: הייחודיות במסד היא אינדקס חלקי
   // ש-PostgREST לא יודע לכוון אליו on_conflict — לכן insert, ואם השורה
@@ -119,18 +195,23 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
   const save = async (patch) => {
     if (busy) return
     setBusy(true)
-    const merged = { ...(row || {}), ...patch }
+    // 6.9 — התאריך נקבע ברגע הכתיבה ולא ברינדור: טאפ ב-00:03 בכרטיס שנפתח
+    // אתמול נכתב על אתמול (ודרס את הדיווח של אמש), ואז נמחק מהמסך.
+    const day = localDate()
+    // שורה מיום קודם שנשארה במצב אינה השורה של היום — פותחים שורה חדשה
+    const cur = row && row.checkin_date && row.checkin_date !== day ? null : row
+    const merged = { ...(cur || {}), ...patch }
     // התשובה השלישית סוגרת את המדידה — פעם אחת בלבד
     if (merged.sleep_bucket != null && merged.energy != null && merged.body != null && merged.fill_ms == null) {
       patch = { ...patch, fill_ms: Date.now() - mountTs.current }
     }
     let error = null
-    if (row?.id) {
-      ;({ error } = await supabase.from('player_checkins').update(patch).eq('id', row.id))
+    if (cur?.id) {
+      ;({ error } = await supabase.from('player_checkins').update(patch).eq('id', cur.id))
     } else {
       const base = {
         player_id: me, coach_id: membership.coach_id, team: membership.team,
-        checkin_date: today, source: 'player', ...patch,
+        checkin_date: day, source: 'player', ...patch,
       }
       let res = await supabase.from('player_checkins').insert(base).select('*').maybeSingle()
       if (res.error?.code === '23505') {
@@ -138,7 +219,7 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
         // את **כל** השורה וממזגים אותה למצב: בלי זה תשובות שנשמרו מהמכשיר
         // האחר לא הופיעו כאן (הצ'יפים נראו ריקים) עד רענון.
         const { data: ex } = await supabase.from('player_checkins')
-          .select('*').eq('player_id', me).eq('checkin_date', today).maybeSingle()
+          .select('*').eq('player_id', me).eq('checkin_date', day).maybeSingle()
         if (ex?.id) res = { ...(await supabase.from('player_checkins').update(patch).eq('id', ex.id)), data: ex }
       }
       error = res.error
@@ -146,16 +227,17 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
     }
     setBusy(false)
     if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
-    setRow({ ...merged, ...patch })
+    setRow({ ...merged, ...patch, checkin_date: day })
   }
 
   const notToday = () => {
-    try { localStorage.setItem(SKIP_KEY, today) } catch { /* ignore */ }
-    setSkipped(true)
+    const day = localDate()
+    try { localStorage.setItem(skipKeyFor(me), day) } catch { /* ignore */ }
+    setSkipMark(day)
   }
 
-  // חלון ההצגה: כל יום מ-06:00 עד חצות
-  if (ilHour() < 6) return null
+  // חלון ההצגה: כל יום מ-06:00 עד חצות (clock מתעדכן בטיקר — 6.9)
+  if (clock.hour < 6) return null
   if (skipped || state === 'loading' || state === 'off') return null
 
   // קטין שממתין לאישור הורה — שורה אחת עם המוצא הקבוע, בלי כרטיס
@@ -176,20 +258,45 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
     )
   }
 
+  // 6.9 — הטעינה נכשלה (רשת/שרת), לא «אין טבלה»: הכרטיס נשאר על המסך עם
+  // הסבר ו«נסה שוב», במקום להיעלם ליום שלם בלי שהשחקן ידע שהיה כאן משהו.
+  if (state === 'error') {
+    return (
+      <section className="nh-card pc4-card">
+        <div className="pc4-head">
+          <span className="pc4-ic" aria-hidden="true"><Sun size={17} /></span>
+          <div className="pc4-head-tx">
+            <strong>{L('הצ׳ק-אין של הבוקר', 'Morning check-in')}</strong>
+            <span className="pc4-sub">
+              {L('לא הצלחנו לטעון את הצ׳ק-אין — כנראה הרשת.', "Couldn't load the check-in — probably the network.")}
+            </span>
+          </div>
+        </div>
+        <div className="pc4-foot">
+          <button type="button" className="pc4-link" onClick={() => setReload((k) => k + 1)}>
+            <RotateCw size={12} aria-hidden="true" /> {L('נסה שוב', 'Try again')}
+          </button>
+        </div>
+      </section>
+    )
+  }
+
   const done = !!row && ((row.sleep_bucket != null && row.energy != null && row.body != null) || row.sick)
 
-  // «נשמר · המאמן רואה» — בלי להציג את התשובות. «שינוי» פותח חזרה (עד חצות)
+  // «נשמר» — בלי להציג את התשובות. «שינוי» פותח חזרה (עד חצות).
+  // 6.9 — הניסוח: «המאמן רואה» הבטיח שמישהו כבר הסתכל. רצועת המוכנות
+  // ודגלי הצ'ק-אין אצל המאמן פתוחים רק למאמני הפיילוט (PILOT_COACHES),
+  // ולכן ההבטחה הנכונה היא הרשאה — «רק המאמן שלך יכול לראות».
+  // 6.9 — «שינוי» מוצג גם כשסימנו «חולה»: זה היה המצב היחיד בלי דרך חזרה.
   if (done && !editing) {
     return (
       <section className="nh-card pc4-card pc4-done-card">
         <span className="pc4-done" role="status">
-          <Check size={15} aria-hidden="true" /> {L('נשמר · המאמן רואה', 'Saved · your coach sees it')}
+          <Check size={15} aria-hidden="true" /> {L('נשמר · רק המאמן שלך יכול לראות', 'Saved · only your coach can see it')}
         </span>
-        {!row.sick && (
-          <button type="button" className="pc4-link" onClick={() => setEditing(true)}>
-            <Pencil size={12} aria-hidden="true" /> {L('שינוי', 'Change')}
-          </button>
-        )}
+        <button type="button" className="pc4-link" onClick={() => setEditing(true)}>
+          <Pencil size={12} aria-hidden="true" /> {L('שינוי', 'Change')}
+        </button>
       </section>
     )
   }
@@ -262,18 +369,27 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
       )}
 
       <div className="pc4-foot">
-        {/* 4.9 — אישור לפני שמסמנים חולה: טאפ בטעות היה יוצר דגל אדום אצל
-            המאמן בלי דרך לבטל מהמסך (הכרטיס מתקפל בלי «שינוי» כשחולה) */}
-        <button type="button" className="pc4-link" disabled={busy} onClick={async () => {
-          const ok = await confirmDialog({
-            title: L('אתה חולה היום?', 'Are you sick today?'),
-            message: L('המאמן יראה את זה ויֵדע שאתה לא מגיע.', 'Your coach will see this and know you are out.'),
-            confirmText: L('כן, אני חולה', "Yes, I'm sick"), danger: false,
-          })
-          if (ok) save({ sick: true })
-        }}>
-          {L('אני חולה היום', "I'm sick today")}
-        </button>
+        {/* 4.9 — אישור לפני שמסמנים חולה: טאפ בטעות היה יוצר דגל אדום אצל המאמן.
+            6.9 — וגם אפשר לבטל: הסימון «חולה» היה הדבר היחיד באפליקציה שאי אפשר
+            היה לתקן מהמסך. ביטול כותב sick=false, והשורה יורדת מ«דברים לביצוע»
+            אצל המאמן ברענון הבא. האישור נשאר רק בכיוון הנכנס. */}
+        {row?.sick ? (
+          <button type="button" className="pc4-link" disabled={busy}
+            onClick={() => save({ sick: false })}>
+            {L('בעצם אני בסדר', "Actually I'm fine")}
+          </button>
+        ) : (
+          <button type="button" className="pc4-link" disabled={busy} onClick={async () => {
+            const ok = await confirmDialog({
+              title: L('אתה חולה היום?', 'Are you sick today?'),
+              message: L('המאמן יראה את זה ויֵדע שאתה לא מגיע. אפשר לבטל אחר כך.', 'Your coach will see this and know you are out. You can undo it later.'),
+              confirmText: L('כן, אני חולה', "Yes, I'm sick"), danger: false,
+            })
+            if (ok) save({ sick: true })
+          }}>
+            {L('אני חולה היום', "I'm sick today")}
+          </button>
+        )}
         {/* 4.9 — «סגירה» בזמן עריכה: אחרי «שינוי» הכרטיס נשאר פתוח בכוונה
             (אולי מתקנים כמה תשובות) — הקישור מקפל חזרה ל«נשמר» */}
         {editing && done && (

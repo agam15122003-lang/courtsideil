@@ -30,6 +30,17 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
   // כל שש הבדיקות לא מחזירות כלום, והמאמן שעוד לא עשה כלום קיבל
   // «הכול סגור, מאמן 🏀» — בדיוק ההפך ממה שהוא צריך לראות.
   const [fresh, setFresh] = useState(null) // null=טוען, אחרת {teams, roster, slots}
+  // 6.9 — המסך נטען פעם אחת ולא התעדכן: ילד שמעדכן בצהריים «כואב, מפריע
+  // לשחק» — הדגל האדום שלו לא הגיע לרשימה עד רענון מלא של הדף. רענון זול
+  // כשחוזרים אל הלשונית, בלי לולאת polling.
+  // ⚠ מנגנון אחד בלבד: בחזרה לאפליקציה בטלפון נורים גם 'focus' וגם
+  //   'visibilitychange', וכל רענון היה רץ פעמיים.
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const back = () => { if (document.visibilityState === 'visible') setTick((t) => t + 1) }
+    document.addEventListener('visibilitychange', back)
+    return () => document.removeEventListener('visibilitychange', back)
+  }, [])
 
   useEffect(() => {
     if (!me) return
@@ -262,7 +273,7 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       }
     })()
     return () => { alive = false }
-  }, [me, profile?.age_groups])
+  }, [me, profile?.age_groups, tick])
 
   if (rows === null) return null
 

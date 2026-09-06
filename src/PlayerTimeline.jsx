@@ -14,6 +14,8 @@ import FeedbackSheet from './FeedbackSheet'
 import { SkeletonCards } from './Skeleton'
 import BasketballIcon from './BasketballIcon'
 import PlayerScreen from './PlayerScreen'
+// 6.9 — «עוד אין היסטוריה» מול «לא הצלחנו לטעון»
+import { isNetErr } from './offline'
 
 const ARCHIVE_PEEK = 3 // כמה רשומות רואים לפני «הצג את ארכיון האימונים»
 const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
@@ -122,6 +124,7 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
   const [stats, setStats] = useState(null)
   const [fbOpen, setFbOpen] = useState(false)
   const [latestFb, setLatestFb] = useState(null) // 1.8 — המשוב המלא האחרון
+  const [offline, setOffline] = useState(false) // 6.9 — כשל רשת ≠ «עוד אין היסטוריה»
   const me = session.user.id
 
   const load = useCallback(async () => {
@@ -144,6 +147,12 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
       // 1.8 — «משימות שבוצעו» בסיכום הכללי
       supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', me),
     ])
+    // 6.9 — בלי רשת כל ה-data מוחזר null, וקודם המסך הציג את «ההיסטוריה
+    // שלך תתחיל כאן» — כאילו לא היה שום אימון. עוצרים ואומרים את האמת.
+    if ([slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ, complQ].some((q) => q.error && isNetErr(q.error))) {
+      setOffline(true); setLatestFb(null); setStats(null); setItems([]); return
+    }
+    setOffline(false)
     // 1.8 — המשוב המלא האחרון מהמאמן, מוצג למעלה
     setLatestFb((fbQ.data || []).find((r) => r.content) || null)
     const rosterId = rosterQ.data?.[0]?.id || null
@@ -295,7 +304,16 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
         </button>
       )}
 
-      {items.length === 0 ? (
+      {items.length === 0 && offline ? (
+        <div className="ps-card">
+          <div className="ps-empty">
+            <span className="ps-empty-ic"><History size={20} aria-hidden="true" /></span>
+            <b>{L('אין חיבור — ההיסטוריה לא נטענה', "No connection — your history didn't load")}</b>
+            <p>{L('האימונים שלך לא נמחקו. נסו שוב כשהרשת חוזרת.', 'Your sessions were not deleted. Try again when you are back online.')}</p>
+            <button type="button" className="ps-btn" onClick={load}>{L('נסו שוב', 'Try again')}</button>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
         <div className="ps-card">
           <div className="ps-empty">
             <span className="ps-empty-ic"><History size={20} aria-hidden="true" /></span>

@@ -28,6 +28,21 @@ const RELATIONS = [
   { value: 'other', label: () => L('אחר', 'Other') },
 ]
 
+// 6.9 — "אותה תיבת דואר?" עם קיפול כינוי-פלוס. dani@gmail.com ו-
+// dani+ima@gmail.com מגיעים לאותה תיבה, ולכן קטין שרשם את השני כמייל
+// ההורה היה מאשר לעצמו את החשבון. הקיפול הוא ברמת המחרוזת בלבד — הוא
+// לא מחליף בדיקה בשרת, רק סוגר את המעקף הכי קל.
+function sameMailbox(a, b) {
+  const norm = (s) => {
+    const v = String(s || '').trim().toLowerCase()
+    const at = v.lastIndexOf('@')
+    if (at < 1) return v
+    return `${v.slice(0, at).split('+')[0]}@${v.slice(at + 1)}`
+  }
+  const x = norm(a)
+  return !!x && x === norm(b)
+}
+
 // גיל מדויק מתאריך לידה מלא. עד היום החישוב היה הפרש שנים קלנדרי בלבד,
 // ולכן מי שימלאו לו 18 בדצמבר נחשב בגיר כבר ב-1 בינואר (ממצא בדוח).
 function exactAge(dateStr) {
@@ -172,7 +187,10 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // לעצמו — בדיוק מה שמסמך ההסכמה (סעיף 2) מצהיר שאינו אפשרי. חוסמים כאן
     // כדי לתת הודעה ברורה; החסימה האמיתית היא בשרת ('guardian_email_is_self'),
     // כי בדיקת לקוח לבדה אינה הגנה.
-    if (isMinor && guardianEmail.trim().toLowerCase() === (session?.user?.email || '').trim().toLowerCase()) {
+    // 6.9 — השוואת מחרוזות פשוטה נעקפת בשנייה עם כינוי-פלוס של ג'ימייל
+    // (dani+ima@gmail.com), ואז הקטין מאשר לעצמו. מקפלים את החלק שאחרי
+    // ה-'+' לפני ההשוואה. ⚠ זו עדיין בדיקת לקוח בלבד — ראו not_done.
+    if (isMinor && sameMailbox(guardianEmail, session?.user?.email)) {
       setError(L('מייל ההורה חייב להיות שונה מהמייל שלך — ההורה הוא זה שמאשר את פתיחת החשבון, לא אתה.',
         "The parent email must differ from your own — your parent approves the account, not you."))
       return
@@ -353,6 +371,21 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // לא בודקים approval_status לבדו: שורת פרופיל חדשה נולדת עם 'active'
     // כברירת מחדל, וזה היה מונע את הבקשה הראשונה מקטין חדש לגמרי.
     const alreadyConsented = profile?.approval_status === 'active' && !!profile?.guardian_consent_at
+    // 6.9 — create_consent_request מבטל (expires_at = now) כל בקשה פתוחה
+    // לפני שהוא מנפיק טוקן חדש. לכן כל עריכת פרופיל של קטין שממתין —
+    // תיקון שם משפחה, הוספת עמדה — הרגה בשקט את הקישור שההורה כבר
+    // מחזיק בוואטסאפ, וההורה קיבל «הקישור פג תוקף». מנפיקים מחדש רק
+    // כשפרטי ההורה באמת השתנו; אחרת הכפתור «שליחת הקישור להורה»
+    // (PendingBanner) הוא הדרך המפורשת לבקש קישור טרי.
+    const guardianUnchanged = profile?.approval_status === 'pending_parent'
+      && (profile?.guardian_email || '').trim().toLowerCase() === guardianEmail.trim().toLowerCase()
+      && (profile?.guardian_name || '').trim() === guardianName.trim()
+      && (profile?.guardian_phone || '').trim() === guardianPhone.trim()
+    if (isMinor && !legacyMode && !alreadyConsented && guardianUnchanged) {
+      setSaving(false)
+      onSaved()
+      return
+    }
     if (isMinor && !legacyMode && !alreadyConsented) {
       const res = await createConsentRequest({
         name: guardianName,
@@ -567,11 +600,15 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
         {/* מועדון */}
         <section className="form-section">
+          {/* 6.9 — לילד אין «מועדון שלי» במובן של מאמן; יש לו קבוצה. השדה
+              נשאר (הוא לא חובה) אבל בשפה שלו. */}
           <h3 className="form-section-title">
-            <Building2 size={16} /> {L('המועדון שלי', 'My club')}
+            <Building2 size={16} /> {isPlayer ? L('המועדון שאני משחק בו', 'The club I play for') : L('המועדון שלי', 'My club')}
           </h3>
           <label className="pf-label">
-            {L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')}
+            {isPlayer
+              ? L('בחרו מהרשימה או הקלידו את שם המועדון', 'Pick from the list or type your club name')
+              : L('בחר מהרשימה או הקלד שם מועדון', 'Pick from the list or type a club name')}
             {!isPlayer && <span className="req-star" aria-hidden="true"> *</span>}
             <input
               type="text"
@@ -606,24 +643,34 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               autoComplete="tel"
             />
           </label>
-          <label className="switch-row">
-            <span className="switch">
-              <input
-                type="checkbox"
-                checked={phonePublic}
-                onChange={(e) => setPhonePublic(e.target.checked)}
-              />
-              <span className="switch-track" />
-            </span>
-            <span className="switch-text">
-              {L('הצג את הטלפון בפרופיל הציבורי', 'Show phone on public profile')}
-              <span className="muted small">
-                {phonePublic
-                  ? L('מאמנים אחרים יוכלו לראות את המספר. אפשר לשנות בכל עת.', 'Other coaches will see your number. You can change this anytime.')
-                  : L('המספר יישאר פרטי. אפשר להפעיל הצגה בכל עת.', 'Your number stays private. You can turn this on anytime.')}
+          {/* 6.9 — «פרופיל ציבורי» הוא מושג של מאמן. אצל שחקן phone_public
+              נכפה ל-false בשמירה (ראו payload), ולכן המתג הזה היה הבטחה
+              ריקה: הילד היה מדליק אותו והוא היה חוזר כבוי. */}
+          {isPlayer ? (
+            <p className="muted small">
+              {L('הטלפון שלך לא מוצג לאף אחד — הוא שמור רק כדי שהמאמן יוכל ליצור קשר.',
+                 'Your phone is shown to nobody — it is stored only so your coach can reach you.')}
+            </p>
+          ) : (
+            <label className="switch-row">
+              <span className="switch">
+                <input
+                  type="checkbox"
+                  checked={phonePublic}
+                  onChange={(e) => setPhonePublic(e.target.checked)}
+                />
+                <span className="switch-track" />
               </span>
-            </span>
-          </label>
+              <span className="switch-text">
+                {L('הצג את הטלפון בפרופיל הציבורי', 'Show phone on public profile')}
+                <span className="muted small">
+                  {phonePublic
+                    ? L('מאמנים אחרים יוכלו לראות את המספר. אפשר לשנות בכל עת.', 'Other coaches will see your number. You can change this anytime.')
+                    : L('המספר יישאר פרטי. אפשר להפעיל הצגה בכל עת.', 'Your number stays private. You can turn this on anytime.')}
+                </span>
+              </span>
+            </label>
+          )}
         </section>
 
         {/* קבוצות / פרטי שחקן */}
@@ -694,9 +741,12 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                     </select>
                   </label>
                 </div>
+                {/* 6.9 — הנוסח הקודם («אי אפשר להצטרף לקבוצה») היה הפוך
+                    מהתכנון: חשבון ממתין נפתח במצב מוגבל דווקא כדי שהילד
+                    יצטרף עם הקוד מהמאמן. הוא קרא, האמין, ולא הזין את הקוד. */}
                 <p className="pf-guardian-note">
-                  {L('עד שההורה מאשר, החשבון ממתין: אי אפשר להצטרף לקבוצה או לתקשר עם המאמן.',
-                     'Until they approve, the account waits: you cannot join a team or talk to a coach.')}
+                  {L('עד שההורה מאשר אפשר להיכנס, לתקן פרטים ולהצטרף לקבוצה עם הקוד מהמאמן — מה שסגור זה תמונות, כתיבה בצ׳אטים ושאלות הבוקר.',
+                     'Until they approve you can sign in, fix your details and join a team with the code from your coach — what stays closed is photos, writing in chats and the morning check-in.')}
                 </p>
 
                 {/* legacy — נראה רק אם המסד עוד לא הריץ את מיגרציית ההסכמות
@@ -809,6 +859,16 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
         {/* השגיאה ישבה עד היום מתחת לכפתור, מחוץ למסך בטופס ארוך */}
         {error && <div className="alert alert-error" role="alert">{error}</div>}
+
+        {/* 6.9 — דרך מילוט אמיתית, ולא רק המשפט «חזרו אחורה ובחרו שחקן»:
+            קטין שנתקע במסך המאמן מקבל כאן כפתור שמעביר אותו לטופס השחקן.
+            בלעדיו (וכשמסך «מי אתם?» מדולג) הוא היה נעול על חשבון שהשרת
+            חוסם — בלי שום פקד שיחזיר אותו אחורה. */}
+        {PLAYER_SIDE && isNewCoach && playerAge !== null && playerAge < 18 && (
+          <button type="button" className="btn-soft" onClick={() => { setRole('player'); setError(null) }}>
+            <Dumbbell size={16} aria-hidden="true" /> {L('אני שחקן/ית — מעבר להרשמת שחקן', "I'm a player — switch to player signup")}
+          </button>
+        )}
 
         <div className="form-actions pf-actions">
           <button type="submit" className="btn-primary" disabled={saving} aria-busy={saving}>
