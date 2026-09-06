@@ -7,7 +7,7 @@ import SessionDetail from './SessionDetail'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 // 4.9 — רצועת «מוכנות היום» מוצגת רק למאמני הפיילוט (PILOT_COACHES)
-import { PLAYER_SIDE, PILOT_COACHES } from './flags'
+import { PLAYER_SIDE, isPilotCoach } from './flags'
 // 4.9 — המילים והתאריך של הצ'ק-אין חיים בקובץ אחד, לא משוכפלים
 import { localDate, SLEEP_RANGES, ENERGY_WORDS, BODY_WORDS, painAreaLabel } from './CheckinCard'
 import useFocusTrap from './useFocusTrap'
@@ -425,7 +425,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
 // של האימון הקרוב. הקבוצה של האימון הקרוב מוצגת תמיד, גם בלי דיווחים.
 function ReadinessStrips({ session, team }) {
   const me = session?.user?.id
-  const inPilot = PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session?.user?.email)
+  const inPilot = isPilotCoach(session?.user?.email)
   const today = localDate()
   const [data, setData] = useState(null) // {roster, checkins, pending:Set}
   const alive = useRef(true)

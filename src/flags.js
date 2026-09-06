@@ -58,6 +58,17 @@ export const COACH_LOGS = true
 // כדי לפתוח לכולם: לרוקן את הרשימה — [].
 export const PILOT_COACHES = ['coachadiriagam@gmail.com']
 
+// 6.9.2026 — הבעלים לא ראה את פאנל קוד-ההצטרפות במסך הסגל. הסיבה
+// האפשרית: ההשוואה הייתה `PILOT_COACHES.includes(session.user.email)` —
+// השוואת מחרוזות מדויקת, שנופלת בשקט על אות גדולה אחת או רווח נסתר
+// בכתובת שנשמרה ב-auth.users. מעכשיו הבדיקה עוברת דרך הפונקציה הזאת,
+// שמנרמלת את שני הצדדים (trim + אותיות קטנות), ומשמשת בכל שלושת
+// המקומות: Teams (פאנל הקוד), NextPractice (רצועת המוכנות) ו-CoachTodo
+// (דגלי הכאב/מחלה). רשימה ריקה = פתוח לכולם.
+const norm = (e) => String(e || '').trim().toLowerCase()
+export const isPilotCoach = (email) =>
+  PILOT_COACHES.length === 0 || PILOT_COACHES.map(norm).includes(norm(email))
+
 // PLAYER_SIGNUP — האם קיימת הרשמה עצמאית כ«שחקן» (מסך «מי אתם?»).
 //
 // 4.9.2026 — בפיילוט הדלת «שחקן» ירדה, ושחקן נכנס רק דרך קישור #/join.

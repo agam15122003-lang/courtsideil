@@ -21,7 +21,7 @@ import TeamFocus from './TeamFocus'
 import { PlayerGoalsEditor } from './PlayerGoals'
 import { L, trTeam, cnt } from './i18n'
 // 4.9 — PILOT_COACHES: פאנל קוד-ההצטרפות מוצג רק למאמני הפיילוט
-import { PLAYER_SIDE, COACH_LOGS, PILOT_COACHES } from './flags'
+import { PLAYER_SIDE, COACH_LOGS, isPilotCoach } from './flags'
 import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
@@ -1025,7 +1025,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
           {/* צד המאמן בלבד: אין קוד הצטרפות, QR ומד «מחוברים» — אין למי */}
           {/* 4.9 — פיילוט: הפאנל מוצג רק למאמן שברשימת PILOT_COACHES (ריקה = כולם).
               קישורי #/join שכבר יצאו ממשיכים לעבוד — רק הדלת ליצירת חדשים מוגבלת. */}
-          {PLAYER_SIDE && (PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session.user.email)) &&
+          {PLAYER_SIDE && isPilotCoach(session.user.email) &&
             <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />}
 
           {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת

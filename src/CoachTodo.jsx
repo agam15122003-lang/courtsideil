@@ -12,7 +12,7 @@ import {
 import { supabase } from './supabaseClient'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam, cnt } from './i18n'
-import { PLAYER_SIDE, COACH_LOGS, PILOT_COACHES } from './flags'
+import { PLAYER_SIDE, COACH_LOGS, isPilotCoach } from './flags'
 import { ChevronFwd } from './DirIcon'
 // 4.9 — דגלים אדומים מהצ'ק-אין (כאב שמפריע לשחק / חולה): «דיברתי איתו» בטאפ
 import { localDate } from './CheckinCard'
@@ -54,7 +54,7 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       // 4.9 — דגלי הצ'ק-אין רק למאמן בפיילוט (PILOT_COACHES, כמו ReadinessStrip):
       // אצל כל האחרים אין מה לשלוף — ולפני הרצת ה-SQL זו הייתה בקשה שנכשלת
       // בכל טעינת בית. תאריך לפי שעון ישראל (localDate) — כך הצ'ק-אין נכתב.
-      const inPilot = PILOT_COACHES.length === 0 || PILOT_COACHES.includes(session?.user?.email)
+      const inPilot = isPilotCoach(session?.user?.email)
       const [entriesRes, slotsRes, attRes, revRes, rosterRes, goalsRes, tgRes, asgRes, pendRes, ckRes] = await Promise.all([
         supabase.from('schedule_entries').select('id, team, date, start_time, end_time, is_personal')
           .gte('date', ymd(from7)).lte('date', todayStr),
