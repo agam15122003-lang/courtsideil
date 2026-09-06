@@ -19,6 +19,12 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   const [copied, setCopied] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
   const [meter, setMeter] = useState(null) // {connected, total}
+  // 6.9 — הבעלים דיווח «אין קוד קבוצה». הסיבה: הפאנל החזיר null בשקט
+  // כשיצירת הקוד נכשלה (רשת, מדיניות, טבלה חסרה) ואין בקשות ממתינות —
+  // כלומר בדיוק במצב של מאמן שעוד לא הנפיק קוד. מעכשיו הפאנל תמיד מוצג,
+  // ומצב הכשל אומר מה קרה ומאפשר לנסות שוב.
+  const [codeErr, setCodeErr] = useState(null)
+  const [rev, setRev] = useState(0)
 
   const loadReqs = useCallback(async () => {
     setReqs((await pendingRequests(coachId)).filter((r) => r.team === team))
@@ -28,15 +34,21 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      try { const c = await getOrCreateJoinCode(coachId, team); if (alive) setCode(c) }
-      catch { /* טבלת הקודים עוד לא קיימת — לא מציגים */ }
+      try {
+        const c = await getOrCreateJoinCode(coachId, team)
+        if (alive) { setCode(c); setCodeErr(null) }
+      } catch (e) {
+        // 6.9 — לא בולעים: בלי הקוד אי אפשר לצרף שחקן, וזו הפעולה
+        // הראשונה בפיילוט. שומרים את הסיבה כדי להציג אותה על המסך.
+        if (alive) setCodeErr(e?.message || 'unknown')
+      }
       // מד מחוברים: כמה משורות הסגל כבר מקושרות לחשבון שחקן
       const { data } = await supabase.from('team_players')
         .select('id, player_id').eq('coach_id', coachId).eq('team', team)
       if (alive && data) setMeter({ connected: data.filter((p) => p.player_id).length, total: data.length })
     })()
     return () => { alive = false }
-  }, [coachId, team])
+  }, [coachId, team, rev])
 
   const playerName = (p) => p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('שחקן', 'Player') : L('שחקן', 'Player')
 
@@ -83,8 +95,6 @@ export default function TeamConnect({ coachId, team, onApproved }) {
     `Join our team on CourtSide! Tap the link and sign up as a player — the code is already in:\n${joinUrl}`
   )
 
-  if (!code && reqs.length === 0) return null
-
   return (
     <div className="tc-panel tc-open">
       <div className="tc-head tc-head-static">
@@ -100,6 +110,21 @@ export default function TeamConnect({ coachId, team, onApproved }) {
       </div>
 
       <div className="tc-body">
+          {!code && (
+            <div className="tc-code-block">
+              <span className="tc-code-label"><KeyRound size={14} /> {L(`קוד ההצטרפות ל${trTeam(team)}`, `Join code for ${trTeam(team)}`)}</span>
+              <p className="muted small" style={{ margin: '4px 0 8px' }}>
+                {codeErr
+                  ? L('לא הצלחנו ליצור קוד הצטרפות לקבוצה הזו.', 'We could not create a join code for this team.')
+                  : L('מכינים קוד הצטרפות…', 'Preparing a join code…')}
+              </p>
+              {codeErr && (
+                <button className="btn-soft" style={{ marginTop: 0 }} onClick={() => { setCodeErr(null); setRev((v) => v + 1) }}>
+                  {L('נסו שוב', 'Try again')}
+                </button>
+              )}
+            </div>
+          )}
           {code && (
             <div className="tc-code-block">
               <span className="tc-code-label"><KeyRound size={14} /> {L(`קוד ההצטרפות ל${trTeam(team)}`, `Join code for ${trTeam(team)}`)}</span>
