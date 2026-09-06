@@ -311,8 +311,8 @@ export function consentHelp(type) {
       )
     case 'media_team':
       return L(
-        'המאמן והשחקנים בקבוצה בלבד יראו תמונות וסרטונים מהאימונים. לא נדרש להפעלת החשבון.',
-        'Only the coach and the players on the team see photos and videos from practice. Not required to activate the account.'
+        'תמונות וסרטונים מהאימונים יוצגו למשתמשים מחוברים של השירות. קובץ שהמאמן העלה נשמר בבעלותו וכל משתמש מחובר יכול לפתוח אותו; הסימון כאן חל על קבצים שהחשבון של הילד/ה הוא הבעלים שלהם. לגולש שאינו מחובר הקבצים חסומים. לא נדרש להפעלת החשבון.',
+        'Photos and videos from practice are shown to signed-in users of the service. A file the coach uploaded stays under the coach’s ownership and any signed-in user can open it; this box covers files owned by the child’s own account. Signed-out visitors are blocked. Not required to activate the account.'
       )
     case 'media_public':
       return L(
@@ -321,8 +321,8 @@ export function consentHelp(type) {
       )
     case 'marketing':
       return L(
-        'מיילים על תכונות חדשות ומבצעים. אפשר לסרב, וזה לא משפיע על השימוש.',
-        'Emails about new features and offers. You may refuse; it does not affect use.'
+        'הרשאה לעתיד. כרגע השירות אינו שולח דואר לאף אחד — אין לו מנגנון כזה. אפשר לסרב, וזה לא משפיע על שום דבר.',
+        'A permission for the future. The service sends no email at all today — it has no mechanism for it. You may refuse; nothing is affected.'
       )
     default:
       return ''

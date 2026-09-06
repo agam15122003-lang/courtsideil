@@ -21982,6 +21982,24 @@ html.a11y-motion .land-cta .land-cta-signup:hover { transform: none; }
 .pc-doc-body ul,
 .pc-doc-body ol { margin: 0 0 var(--space-2); padding-inline-start: var(--space-5); }
 .pc-doc-body li { margin-block-end: 4px; }
+/* בטלפון תיבת גלילה פנימית היא מלכודת: המסמך ארוך (עשרות מסכים פנימיים),
+   בכל רגע נראות עשר שורות, והגלילה בורחת לעמוד. שם הוא זורם בעמוד עצמו. */
+@media (max-width: 640px) {
+  .pc-doc-body { max-height: none; overflow-y: visible; }
+}
+
+/* תקציר «מה חשוב לדעת» — מחוץ לתיבת הגלילה, כדי שההורה יראה אותו תמיד */
+.pc-tldr {
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--accent-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-3);
+}
+.pc-tldr h3 { font-size: var(--text-sm); font-weight: 700; margin: 0 0 var(--space-2); }
+.pc-tldr ol { margin: 0; padding-inline-start: var(--space-5); font-size: var(--text-sm); line-height: 1.6; }
+.pc-tldr li { margin-block-end: 4px; }
 
 /* ארבעת סעיפי ההסכמה — כל אחד כרטיס לחיץ בפני עצמו */
 .pc-check {

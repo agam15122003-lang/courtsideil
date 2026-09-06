@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import Logo from './Logo'
 import { L } from './i18n'
+import { CONTACT_EMAIL } from './constants'
 import { toast } from './toast'
 import { waShare, copyText } from './share'
 import { confirmDialog } from './confirm'
@@ -426,6 +427,18 @@ export default function ParentConsent({ token }) {
       {(doc.body_html || doc.title) && (
         <section className="pc-doc" aria-label={L('המסמך המלא', 'The full document')}>
           <h2 className="pc-sub"><FileText size={16} /> {doc.title || L('טופס הסכמת הורה', 'Parental consent form')}</h2>
+          {/* התקציר יושב **מחוץ** ל-.pc-doc-body בכוונה: המסמך המלא ארוך,
+              והורה שלא יגלול עד הסוף חייב לראות לפחות את חמש השורות האלה. */}
+          <div className="pc-tldr">
+            <h3>{L('מה חשוב לדעת', 'What matters most')}</h3>
+            <ol>
+              <li>{L('כל בוקר נאסף מהילד/ה דיווח קצר על שינה, אנרגיה וכאב.', 'Every morning the child answers a short report on sleep, energy and pain.')}</li>
+              <li>{L('רואה אותו רק המאמן שאצלו הוא/היא רשום/ה בסגל.', 'Only the coach the child is on the roster with can see it.')}</li>
+              <li>{L('הוא נשמר 90 יום.', 'It is kept for 90 days.')}</li>
+              <li>{L('אפשר לכבות אותו לגמרי — בבקשה למאמן, גם עכשיו.', 'It can be switched off entirely — ask the coach, including right now.')}</li>
+              <li>{L('אם לא תאשרו — החשבון פשוט לא ייפתח, והילד/ה ממשיך/ה לשחק בקבוצה כרגיל.', 'If you do not approve, the account simply does not open, and the child keeps playing on the team as usual.')}</li>
+            </ol>
+          </div>
           <div className="pc-doc-body">
             <SafeDoc html={doc.body_html} />
           </div>
@@ -481,6 +494,13 @@ export default function ParentConsent({ token }) {
             </>
           ) : null}
           {L('.', '.')}
+        </p>
+        {/* המסמך עצמו מרונדר בלי תגיות <a> (ALLOWED_TAGS), ולכן הכתובת
+            שבסעיף «יצירת קשר» היא טקסט בלבד. כאן היא לחיצה אחת בטלפון. */}
+        <p className="muted small">
+          {L('לשאלות, לבקשת עותק של המידע, או לבקשה לכבות את שאלות הבוקר: ',
+             'For questions, to request a copy of the data, or to ask to switch off the morning questions: ')}
+          <a href={`mailto:${CONTACT_EMAIL}`}><bdi dir="ltr">{CONTACT_EMAIL}</bdi></a>
         </p>
       </section>
 
