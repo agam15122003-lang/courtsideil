@@ -376,7 +376,7 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
               c.att ? (c.att === 'present' ? L('נכחת', 'Present') : c.att === 'late' ? L('איחרת', 'Late') : L('נעדרת', 'Absent')) : null,
               c.marks.length ? L(`${c.marks.filter((m) => m.met).length}/${c.marks.length} יעדים`, `${c.marks.filter((m) => m.met).length}/${c.marks.length} goals`) : null,
               c.fb?.content ? L('משוב מהמאמן', 'Coach feedback') : null,
-            ].filter(Boolean).join(' · ')
+            ].filter(Boolean)
             return (
               <div key={c.session_id} className="ps-card ps-card--sub">
                 <button
@@ -400,10 +400,22 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
                           ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game'))
                           : L('אימון קבוצתי', 'Team practice')}
                       </b>
-                      {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
-                      {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
+                      {/* 8.9 — שני התגים בקבוצה אחת: ב-360 הם נשברו לשתי
+                          שורות נפרדות (MVP ליד הכותרת, 8/10 לבד מתחתיה). */}
+                      {(isMvp || c.eff) && (
+                        <span className="ps-row-tags">
+                          {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
+                          {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
+                        </span>
+                      )}
                     </span>
-                    <span className="ps-lbl">{summary}</span>
+                    {/* 8.9 — המטא כפריטים ולא כמחרוזת אחת. הפריד «·» מצויר
+                        ב-CSS על **סוף** הפריט הקודם, ולכן כששורה נשברת הוא
+                        נשאר בזנב השורה ולא פותח את הבאה. מדוד לפני ב-360:
+                        «· נכחת · 0/1 יעדים» פתח שורה. */}
+                    <span className="ps-lbl ps-meta">
+                      {summary.map((t, i) => <span key={i} className="ps-meta-it">{t}</span>)}
+                    </span>
                   </span>
                   <ChevronDown size={16} aria-hidden="true" className={isOpen ? 'ps-chev is-open' : 'ps-chev'} />
                 </button>
