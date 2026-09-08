@@ -523,7 +523,7 @@ function TaskHero({ a, compl, onToggleDone, onProgress }) {
           {reached && (
             <div className="ps-hero-done">
               <b className="ps-h">{L('הגעת ליעד — נשאר רק לסמן', 'Target reached — just mark it')}</b>
-              <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+              <button type="button" className="ps-btn ps-btn--row" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
                 <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
               </button>
             </div>
@@ -657,13 +657,13 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
           </div>
           {/* תרגיל שנפתח מחדש כשההתקדמות כבר על היעד — דרך מפורשת לסמן שוב בוצע */}
           {reached && (
-            <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+            <button type="button" className="ps-btn ps-btn--row" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
               <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
             </button>
           )}
         </>
       ) : (
-        <button type="button" className="ps-btn" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
+        <button type="button" className="ps-btn ps-btn--row" onClick={() => onToggleDone(a.id, false)} disabled={restricted}>
           <Check size={17} aria-hidden="true" /> {L('סמן כבוצע', 'Mark done')}
         </button>
       )}
@@ -1528,7 +1528,12 @@ function PlayerSchedule({ session, membership }) {
   const kindTx = (ev) => ev.kind === 'game'
     ? (ev.opponent ? L(`נגד ${ev.opponent}`, `vs ${ev.opponent}`) : L('משחק', 'Game'))
     : (ev.plan?.name || L('אימון קבוצה', 'Team practice'))
-  const evTone = (ev) => ev.kind === 'game' ? 'warn' : ev.recurring ? 'ok' : 'acc'
+  // 7.9 — שני גוונים, לא שלושה. עד היום הנקודה בלוח השבוע הייתה ירוקה
+  // (אימון קבוע), כתומה (אימון חד-פעמי) או ענבר (משחק) — שלושה גוונים
+  // בלי מקרא, ושניים מהם אומרים «אימון». ההבחנה קבוע/חד-פעמי אינה מידע
+  // שהשחקן צריך; אימון מול משחק — כן. שני הגוונים הם של המערכת (דיו
+  // ונייבי מול הכתום של המותג), ומתחת ללוח יש מקרא בשורה אחת.
+  const evTone = (ev) => (ev.kind === 'game' ? 'game' : 'practice')
 
   return (
     <>
@@ -1622,6 +1627,18 @@ function PlayerSchedule({ session, membership }) {
             )
           })}
         </div>
+        {/* 7.9 — מקרא בשורה אחת. נקודה צבועה בלי מקרא היא צבע בלי משמעות
+            (וגם WCAG 1.4.1: הצבע לא יכול להיות נושא המידע היחיד). */}
+        <p className="ps-day-legend">
+          <span className="ps-legend-it">
+            <span className="ps-dot ps-dot--practice" aria-hidden="true" />
+            {L('אימון', 'Practice')}
+          </span>
+          <span className="ps-legend-it">
+            <span className="ps-dot ps-dot--game" aria-hidden="true" />
+            {L('משחק', 'Game')}
+          </span>
+        </p>
       </div>
 
       {/* היום שנבחר — האירועים שלו, עם אישור ההגעה מתחת לכל אימון עתידי */}
@@ -1644,7 +1661,7 @@ function PlayerSchedule({ session, membership }) {
         ) : dayItems.map((ev) => (
           <div key={ev.key} className="ps-card ps-card--sub">
             <div className="ps-row ps-row--bare">
-              <span className={`ps-bar-i ps-bar-i--${evTone(ev) === 'acc' ? 'acc' : evTone(ev)}`} aria-hidden="true" />
+              <span className={`ps-bar-i ps-bar-i--${evTone(ev)}`} aria-hidden="true" />
               <span className="ps-row-main">
                 <b className="ps-t13b">{kindTx(ev)}</b>
                 <span className="ps-lbl">{ev.location || (ev.kind === 'game' ? L('משחק ליגה', 'League game') : L('אימון קבוצה', 'Team practice'))}</span>
@@ -2398,7 +2415,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
         <span className="nh-quote-mark" aria-hidden="true">״</span>
         <span className="nh-quote-tx">
           {L(quote.text, quote.text_en)}
-          <span className="nh-quote-by"> — {L(quote.author, quote.author_en)}</span>
+          <span className="nh-quote-by">{L(quote.author, quote.author_en)}</span>
         </span>
       </p>
 
@@ -2597,7 +2614,14 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
                   <button type="button" className="nh-task-body" onClick={() => setView(dest)}>
                     <span className="nh-task-top">
                       <b>{title}</b>
-                      {target > 0 && <span className="nh-task-num" dir="ltr">{prog}/{target}{a.unit ? ` ${a.unit}` : ''}</span>}
+                      {/* 6.9 — המספר בגופן התצוגה, יחידת המידה («קליעות») בגופן הגוף:
+                          Heebo 800 נועד לספרות, ומילה עברית בתוכו נראתה כמו טעות. */}
+                      {target > 0 && (
+                        <span className="nh-task-num" dir="ltr">
+                          {prog}/{target}
+                          {a.unit ? <span className="nh-task-unit"> {a.unit}</span> : null}
+                        </span>
+                      )}
                     </span>
                     {isDone
                       ? <span className="nh-task-sub done"><Check size={12} aria-hidden="true" /> {L('הושלם · המאמן רואה', 'Done · your coach sees it')}</span>
@@ -3560,6 +3584,15 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   const [drawer, setDrawer] = useState(false)
   const [editing, setEditing] = useState(false)
   const [memberships, setMemberships] = useState(null)
+
+  // 7.9 — סימן על ‎body שאנחנו בצד השחקן. כפתור הנגישות מרונדר ב-portal
+  // ישירות על ‎body (AccessibilityWidget), ולכן CSS לא יכול להגיע אליו
+  // דרך שורש הפריסה של השחקן. המחלקה הזאת היא הדרך היחידה לעגן אותו
+  // בשורת ניווט־הכיס במקום שירחף מעל «סמן כבוצע».
+  useEffect(() => {
+    document.body.classList.add('pl-app')
+    return () => document.body.classList.remove('pl-app')
+  }, [])
   const [sendingLink, setSendingLink] = useState(false)
   // editing במפתח: בעריכת פרופיל אף פריט אינו פעיל והפס צריך להיעלם
   const [navRef, navBox] = useNavMarker(`${view}:${editing}`)

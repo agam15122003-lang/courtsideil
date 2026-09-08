@@ -508,14 +508,17 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
 
   // 1.5 — סדר קבוע: לאימון הקרוב · חודשי · חצי-שנתי · שנתי (+שבועי ישן אם קיים)
   // הבאנר יוצא מהרשימה כדי שלא יופיע פעמיים, וההישגים יורדים לכרטיס משלהם.
-  // ⚠ בהטמעה בדף המאמן האישי מציגים רק טווחים שיש בהם יעד — ארבע שורות
-  //   «אין יעדים לטווח הזה» מתחת ליעד אחד הן רעש, לא מידע.
+  // ⚠ 7.9 — מציגים **רק** טווחים שיש בהם יעד, בכל ההקשרים. עד היום מסך
+  //   היעדים של השחקן הראה קופסה «אין יעדים לטווח הזה עדיין» לכל טווח
+  //   ריק, ומי שיש לו שני יעדים ראה שלוש קופסאות ריקות משורגות ביניהם —
+  //   מסך שנראה שבור. «אין כלום» נאמר פעם אחת, בכרטיס ‎total === 0 שלמטה,
+  //   ורק כשבאמת אין יעד אחד.
   const groups = PERIODS
     .map((p) => ({
       ...p,
       items: goals.filter((g) => g.period === p.id && g !== heroGoal && !isAchieved(g)),
     }))
-    .filter((p) => p.items.length > 0 || (!p.legacy && scope !== 'personal'))
+    .filter((p) => p.items.length > 0)
   const achieved = goals.filter(isAchieved)
 
   const band = [
@@ -619,9 +622,6 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
       {groups.map((grp) => (
         <section key={grp.id}>
           <p className="ps-group-lbl">{L(grp.label[0], grp.label[1])}</p>
-          {grp.items.length === 0 ? (
-            <p className="ps-mut">{L('אין יעדים לטווח הזה עדיין.', 'No goals for this horizon yet.')}</p>
-          ) : (
           <div className="ps-cols">
             {grp.items.map((g) => {
             const isCount = !!g.target_value
@@ -690,7 +690,6 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
               )
             })}
           </div>
-          )}
         </section>
       ))}
 

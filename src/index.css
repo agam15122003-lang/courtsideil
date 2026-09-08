@@ -32015,3 +32015,583 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
   padding-inline: 6px;   /* «מלא אנרגיה» הוא הארוך ביותר — בלי זה הוא נחתך */
 }
 /* «איפה כואב?» — שש אפשרויות קצרות, אותה רשת מתאימה גם להן */
+
+/* =====================================================================
+   6.9.2026 (ד) — «גימור» צד השחקן: סולם אחד, לא עשרים החלטות
+   ---------------------------------------------------------------------
+   הבעלים: «חייב גימור הרבה יותר מקצועי». הסבב הקודם (ג) התאים את
+   הצבעים לצד המאמן; הסבב הזה מתקן את מה שגורם לתחושה שכל כרטיס
+   נכתב על ידי מישהו אחר. נמדד בהרנס לפני הכתיבה (390x844, שני
+   המצבים, ששת המסכים):
+     20 גדלי גופן · 6 משקלים · 3 משפחות (רוביק, היבו ו-Arial)
+     11 רדיוסים · 14 ערכי gap · 16 ערכי ריפוד · 8 צללים · 8 גרדיאנטים
+   DESIGN.md מתיר: 5 רדיוסים, 2 צללים, 2 גרדיאנטים, 2 משפחות.
+
+   הבלוק כולו ממוקד ל-‎.nh-player (הבית) ול-‎.ps (חמשת המסכים) — צד המאמן
+   לא זז. כל הערכים דרך טוקנים; אין hex גולמי.
+   ===================================================================== */
+
+/* --- (1) שני הסולמות: שבעה גדלים, חמישה מרווחים --- */
+.nh-player, .ps{
+  --t1: 11px;   /* תוויות, צ׳יפים, הערות     */
+  --t2: 13px;   /* גוף משני, מטא             */
+  --t3: 14px;   /* גוף, כפתורים              */
+  --t4: 16px;   /* כותרת כרטיס               */
+  --t5: 20px;   /* כותרת בולטת בתוך כרטיס    */
+  --t6: 24px;   /* כותרת המסך                */
+  --t7: 34px;   /* מספר תצוגה                */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  font-family: var(--font);
+}
+/* Arial הסתננה דרך פקדים שלא ירשו גופן: תג ההתראות «2», הפעמון,
+   מתג המצב הכהה. שורה אחת סוגרת את כל המשפחה השלישית. */
+.nh-player button, .nh-player input, .nh-player select, .nh-player textarea,
+.ps button, .ps input, .ps select, .ps textarea{ font-family: inherit; }
+
+/* --- (2) טיפוגרפיה: כל מחלקה קיימת נכנסת לסולם --- */
+/* כותרת תצוגה: היבו 900 עם tracking שלילי — אחת למסך, ותמיד t6. */
+.nh-player .nh-hero-greet,
+.ps .ps-title{
+  font-family: var(--font-display); font-size: var(--t6); font-weight: 900;
+  line-height: 1.1; letter-spacing: -.02em; text-wrap: balance;
+}
+/* מספרי התצוגה: t7 בבאנר, t5 ברצועת המספרים — שניהם היבו 900 עם
+   ספרות ברוחב אחיד, אחרת השעה «רועדת» בכל דקה. */
+.nh-player .nh-pnext-time,
+.ps .ps-hero-num{
+  font-family: var(--font-display); font-size: var(--t7); font-weight: 900;
+  line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+/* ה-span הפנימי של «18:00» ירש גובה־שורה אחר וייצר קו בסיס שני */
+.nh-player .nh-pnext-time > span{
+  font-family: inherit; font-size: inherit; font-weight: inherit;
+  line-height: inherit; font-variant-numeric: tabular-nums; display: inline;
+}
+.ps .ps-band-num{
+  font-family: var(--font-display); font-size: var(--t5); font-weight: 900;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+/* כותרת כרטיס — היבו 800 ב-t4, בבית ובמסכי ה-ps גם יחד */
+.nh-player .nh-card-title,
+.ps .ps-h,
+.nh-player .pc4-head-tx > strong{
+  font-family: var(--font-display); font-size: var(--t4); font-weight: 800;
+  line-height: 1.35; letter-spacing: -.01em;
+}
+/* הכותרת בתוך הכרטיס הכתום הייתה היבו 900 ב-20px — משפט עברי שלם
+   בגופן שנועד למספרים, והכותרת השנייה בגופן התצוגה באותו מסך. */
+.ps .ps-hero-title{
+  font-family: var(--font); font-size: var(--t4); font-weight: 800; line-height: 1.35;
+}
+.nh-player .nh-quote-mark{ font-size: var(--t5); line-height: 1; }
+/* גוף: t3 ב-400/600 בלבד */
+.nh-player .plfb2-txt, .ps .plr-note, .ps .muted.small, .nh-player .muted.small,
+.ps .cpw-row-t, .ps .ps-hero-quote, .ps .btn-ghost.icon-toggle,
+.nh-player .nh-task-top b{ font-size: var(--t3); }
+.nh-player .nh-btn, .ps .ps-btn, .ps .ps-btn-ghost, .ps .btn-primary, .ps .btn-soft{
+  font-size: var(--t3); font-weight: 800;
+}
+.nh-player .nh-btn-ghost{ font-weight: 600; }
+.ps .plc-head-txt > strong, .ps .plc-row-body > strong{
+  font-size: var(--t3); font-weight: 600; line-height: 1.45;
+}
+/* גוף משני: t2 */
+.nh-player .nh-hero-date, .nh-player .nh-quote-tx, .nh-player .nh-pnext-meta, .nh-player .nh-vid-title,
+.nh-player .nh-card-note, .nh-player .nh-task-sub, .nh-player .nh-rsvp-note, .nh-player .pc4-sub,
+.nh-player .plfb2-meta, .nh-player .plfb2-mine, .nh-player .nh-link, .nh-player .nh-card-foot,
+.nh-player .nh-week-time, .nh-player .pc4-chips .chip, .nh-player .pc4-link,
+.ps .ps-mut, .ps .ps-hero-sub, .ps .ps-filter, .ps .ps-hero-chip,
+.ps .ps-hero-btn, .ps .ps-hero-in, .ps .ps-add, .ps .plc-note,
+.ps .ps-vid-tt, .ps .ps-hero-cell, .ps .ps-day-num,
+.ps .plc-row-body .muted.small, .ps .ps-t13b{ font-size: var(--t2); }
+.nh-player .nh-link, .nh-player .nh-card-foot, .nh-player .pc4-link, .nh-player .pc4-link-grey,
+.nh-player .nh-vid-title, .nh-player .plfb2-mine{ font-weight: 600; }
+.nh-player .nh-week-time, .ps .ps-filter, .ps .ps-hero-chip, .ps .ps-hero-btn,
+.ps .ps-hero-in, .ps .ps-add, .ps .ps-t13b{ font-weight: 800; }
+/* תוויות וצ׳יפים: t1 */
+.nh-player .nh-chip, .nh-player .nh-next-tag, .nh-player .plfb2-ack, .nh-player .plr-mvp,
+.ps .ps-kicker, .nh-player .ps-kicker, .ps .ps-hero-kick, .ps .ps-hero-pill,
+.ps .ps-hero-note, .ps .ps-band-lbl, .ps .ps-lbl, .ps .ps-chip,
+.ps .ps-head-coach-tx b, .ps .ps-head-coach-tx span, .ps .ps-head-coach-av,
+.ps .ps-vid-meta, .ps .plc-val, .ps .ps-day-nm, .ps .ps-mvp,
+.nh-player .ntf-badge, .ps .ntf-badge{ font-size: var(--t1); }
+.nh-player .nh-chip, .nh-player .nh-next-tag, .ps .ps-kicker, .nh-player .ps-kicker,
+.ps .ps-hero-kick, .ps .ps-hero-pill, .ps .ps-chip, .ps .plc-val,
+.ps .ps-head-coach-tx b, .ps .ps-head-coach-av, .ps .ps-day-nm,
+.ps .ps-mvp, .nh-player .plr-mvp{ font-weight: 800; }
+.nh-player .plfb2-ack, .ps .ps-hero-note, .ps .ps-band-lbl, .ps .ps-lbl,
+.ps .ps-head-coach-tx span, .ps .ps-vid-meta{ font-weight: 600; }
+/* התג על הפעמון: ספרה בגופן התצוגה, כמו כל מספר אחר במוצר */
+.nh-player .ntf-badge, .ps .ntf-badge{
+  font-family: var(--font-display); font-weight: 800; font-variant-numeric: tabular-nums;
+}
+/* «80/200 קליעות» היה גופן התצוגה במשקל 400 — הפנים הכבדות במשקל דק */
+.nh-player .nh-task-num{
+  font-family: var(--font-display); font-weight: 800; font-size: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
+/* «כמה ישנת הלילה?» היא תווית שאלה, לא דרגת כותרת חמישית בבית */
+.nh-player .pc4-q-lbl{ font-size: var(--t2); font-weight: 600; color: var(--tx-2); }
+/* שני המשקלים שנמחקו מהמערכת: 500 ו-700 */
+.nh-player .pc4-link-grey{ font-weight: 600; }
+.nh-player .nh-hero-top > .avatar{
+  font-family: var(--font-display); font-weight: 900; font-size: 17px;
+}
+/* שורות קצרות שנשברו על מילה בודדת */
+.nh-player .nh-vid-title, .ps .ps-lbl, .ps .plr-note, .nh-player .plfb2-mine > span{ text-wrap: balance; }
+.nh-player .plfb2-ack{ white-space: nowrap; min-inline-size: 0; }
+
+/* --- (3) מרווחים: 4 / 8 / 12 / 16 / 24 --- */
+.nh-player{ gap: var(--s4); }
+.nh-player .nh-hero{ padding: var(--s5) var(--s4); }
+.nh-player .nh-hero-top{ gap: var(--s3); }
+.nh-player .nh-quote{ gap: var(--s2); padding: var(--s3); margin-block-start: var(--s4); }
+.nh-player .nh-pnext{ margin-block-start: var(--s5); }
+.nh-player .nh-rsvp-ask{ margin-block-start: var(--s4); }
+.nh-player .nh-rsvp-btns, .nh-player .nh-next-acts{ gap: var(--s2); }
+.nh-player .nh-card{ padding: var(--s4); }
+.nh-player .nh-tasks-head, .nh-player .nh-task-rows, .nh-player .nh-tasks .nh-card-foot{ padding-inline: var(--s4); }
+.nh-player .nh-task{ gap: var(--s3); padding-block: var(--s3); }
+.nh-player .nh-task-body{ gap: var(--s2); }
+.nh-player .plfb2{ padding: var(--s4); gap: var(--s2); }
+.nh-player .plfb2-mine{ padding: var(--s3) var(--s4); margin-block-start: var(--s2); }
+.ps .ps-body, .ps .ps-cols{ gap: var(--s4); }
+.ps .ps-card{ gap: var(--s3); padding: var(--s4); }
+.ps .ps-card-head{ gap: var(--s2); }
+.ps .ps-hero{ gap: var(--s2); padding: var(--s4); }
+.ps .ps-hero-row, .ps .ps-hero-acts, .ps .ps-steps, .ps .ps-form,
+.ps .ps-rsvp, .ps .ps-band{ gap: var(--s2); }
+.ps .ps-hero-acts{ margin-block-start: var(--s1); }
+.ps .ps-hero-done{ gap: var(--s2); padding: var(--s3); }
+.ps .ps-band{ padding: var(--s3); }
+.ps .ps-head-tx{ gap: var(--s1); }
+@media (min-width: 769px){
+  .nh-player .nh-hero{ padding: var(--s5); }
+  .ps .ps-card, .ps .ps-hero{ padding: var(--s5); }
+}
+
+/* --- (4) רדיוס: 10 / 14 / 20 / 28 / 999 — ארבעה חריגים שנשארו --- */
+.nh-player .nh-hero{ border-radius: 0 0 28px 28px; }
+.nh-player .nh-card{ border-radius: 20px; }
+.nh-player .nh-quote, .nh-player .plfb2, .nh-player .plfb2-none, .nh-player .plfb2-mine,
+.nh-player .ntf-bell, .ps .ntf-bell{ border-radius: 14px; }
+@media (min-width: 769px){ .nh-player .nh-hero{ border-radius: 20px; } }
+
+/* --- (5) צל: שניים. במצב כהה לא היה אף אחד --- */
+/* ‎--shadow-sm/md נדרסו בבלוק הפלטה הבהירה (index.css:15875) ולא
+   הוגדרו מחדש בבלוק הכהה, ולכן בכהה הכרטיסים קיבלו צל נייבי ב-7%
+   שקיפות על רקע ‎#0F141E — בלתי נראה מתמטית, והמסך יצא שטוח. */
+[data-theme='dark'] .nh-player,
+[data-theme='dark'] .ps{
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-md: 0 12px 30px -8px rgba(0, 0, 0, .6);
+}
+.nh-player .nh-card{ box-shadow: var(--shadow-sm); }
+/* חמשת הצללים שהיו מעבר לשניים */
+.nh-player .nh-hero-top > .avatar{ box-shadow: none; }
+.nh-player .nh-btn-primary,
+.nh-player .plp-switch-knob, .ps .plp-switch-knob,
+.ps .btn-primary{ box-shadow: var(--shadow-sm); }
+
+/* --- (6) גרדיאנט: שניים — hero נייבי, מילוי התקדמות כתום --- */
+/* הבית רץ על נייבי משלו (‎#1B305E) ומסכי ה-ps על ‎--navy-1 (‎#17264A).
+   ההבדל קטן, ורואים אותו בדיוק ברגע המעבר בין לשוניות ניווט־הכיס. */
+.nh-player .nh-hero{ background: linear-gradient(168deg, var(--navy-1), var(--navy-2) 84%); }
+.nh-player .nh-task-bar i{ background: linear-gradient(90deg, var(--orange-500), var(--orange-300)); }
+.nh-player .nh-hero-top > .avatar{ background: var(--brand-strong); }
+.nh-player .plr-mvp.me, .ps .plr-mvp.me{ background: var(--brand-soft); color: var(--brand-text); }
+.ps .btn-primary{ background: var(--brand-strong); }
+
+/* --- (7) כותרת המסך נשברה ל«המשימות / שלי» בשלושה מסכים --- */
+/* ‎.ps-head-btns היה ‎flex:none והשאיר לכותרת 133px. עכשיו הכותרת
+   לוקחת את מה שנשאר וצ׳יפ המאמן מתכווץ (שם המאמן בשלוש נקודות). */
+.ps .ps-head-tx{ flex: 1 1 auto; }
+.ps .ps-head-btns{ flex: 0 1 auto; min-inline-size: 0; }
+.ps .ps-head-coach{ flex: 0 1 auto; min-inline-size: 0; overflow: hidden; }
+.ps .ps-head-coach-tx{ overflow: hidden; }
+.ps .ps-head-coach-tx b,
+.ps .ps-head-coach-tx span{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- (8) יעד מגע 44px: שורת הכפתורים בכרטיס הכתום הייתה מדורגת --- */
+/* ‎+10 / +25 / תיבת המספר / «הוסף» יצאו 39 / 39 / 44 / 38 — ארבעה
+   פקדים, שלושה גבהים, וכולם חוץ מאחד מתחת ליעד המגע. */
+.ps .ps-hero-chip,
+.ps .ps-hero-btn,
+.ps .ps-hero-in,
+.ps .ps-add,
+.ps .ps-filter{
+  box-sizing: border-box; min-block-size: 44px; padding-block: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ps .ps-react{ inline-size: 44px; block-size: 44px; }
+
+/* =====================================================================
+   6.9.2026 (ה) — גימור צד השחקן, סבב שני: היררכיה, כתום מדוד, מצבים
+   ---------------------------------------------------------------------
+   הסבב הקודם (ד) יישר את הסולמות. כאן מטפלים במה שנשאר גלוי לעין
+   בצילומים: כותרת מסך שנשברת, כפתור כבוי שזוהר, שני גושי כתום באותו
+   מסך, ושורות שיושבות בגוש צמוד לקצה אחד.
+   ===================================================================== */
+
+/* --- (1) כותרת המסך על שורה אחת בכל ששת המסכים --- */
+/* ‎«המשימות / שלי», «האימונים / שלי», «פרופיל / השחקן» — שלוש כותרות
+   שבורות כי צ׳יפ המאמן + שני כפתורי האייקון תפסו 213px קבועים. בטלפון
+   הצ׳יפ מתכווץ לעיגול ראשי־התיבות בלבד (יעד מגע 44px), והשם חוזר
+   ברגע שיש רוחב. */
+@media (max-width: 430px){
+  .ps .ps-head-coach-tx{ display: none; }
+  .ps .ps-head-coach{
+    inline-size: 44px; block-size: 44px; padding: 0;
+    justify-content: center; gap: 0;
+  }
+  .ps .ps-head-coach-av{ inline-size: 30px; block-size: 30px; }
+}
+
+/* --- (2) הכרטיס הכתום: הכפתור הכבוי היה הדבר הבהיר ביותר בשורה --- */
+/* «הוסף»/«רישום» הכבוי היה לבן מלא ב-60% שקיפות — בולט יותר מ-‎+10
+   ו-‎+25 שכן פועלים. מצב כבוי צריך לסגת, לא לזהור. */
+.ps .ps-hero-btn:disabled{
+  opacity: 1;
+  background: rgba(255, 255, 255, .16);
+  color: rgba(255, 255, 255, .7);
+}
+/* ‎+10 / +25 היו שחור ב-16% על הכתום — 1.3:1 מול הכרטיס, כלומר
+   כמעט בלתי נראים כמשטח. */
+.ps .ps-hero-chip{ background: rgba(0, 0, 0, .26); border-color: rgba(255, 255, 255, .45); }
+/* ערך כיבוי אחד לכל הפקדים בכרטיס (היו .6 ו-.55 באותו מסך) */
+.ps .ps-hero-chip:disabled,
+.ps .ps-rsvp > button:disabled,
+.ps .ps-btn:disabled,
+.ps .ps-add:disabled{ opacity: .5; }
+
+/* --- (3) גוש כתום אחד למסך --- */
+/* «סמן כבוצע» חוזר בכל כרטיס משימה — זו פעולת שורה, לא ה-CTA של
+   המסך. במסך המשימות הוא נמדד 37% כתום; הכרטיס הכתום לבדו הוא
+   הכרטיס הבולט, כמו בצד המאמן. */
+.ps .ps-btn--row{
+  background: transparent;
+  color: var(--brand-text);
+  border: 1.5px solid var(--brand);
+  box-shadow: none;
+}
+
+/* --- (4) «מגיע» הוא ה-CTA הראשי גם בלו״ז --- */
+/* בבית «מגיע» כתום מלא ליד «לא אגיע» מתאר; בלו״ז שני כפתורי מתאר
+   זהים ואף אחד מהם לא ראשי. עכשיו אותה זוגיות בשני המסכים. */
+.ps .ps-rsvp > button{ min-block-size: 46px; font-size: var(--t3); font-weight: 600; }
+.ps .ps-rsvp > button:first-child{
+  background: var(--on-dark); color: var(--navy-1);
+  border-color: var(--on-dark); font-weight: 800;
+}
+
+/* --- (5) שורת ‹ היום › בכרטיס השבוע --- */
+/* שלושת הכפתורים ישבו בגוש צמוד לימין והשאירו 170px ריקים משמאלם. */
+.ps .ps-card-head > .ps-steps{ inline-size: 100%; justify-content: space-between; }
+.ps .ps-hbtn, .ps .ps-btn, .ps .ps-btn-ghost{ box-sizing: border-box; }
+
+/* --- (6) שורת הפעולות בכרטיס הכתום נמתחת לרוחב הכרטיס --- */
+/* תיבת המספר הייתה 84px קבועים והשאירה חור בסוף השורה. */
+.ps .ps-hero-in{ flex: 1 1 96px; inline-size: auto; min-inline-size: 96px; }
+.ps .ps-hero-acts > .ps-hero-note.ps-end{ flex: 1 1 100%; margin-inline-start: 0; }
+
+/* --- (7) «אין יעדים לטווח הזה עדיין» --- */
+/* הקו המקווקו היה הקו המקווקו היחיד בכל צד השחקן, והטקסט היה ממורכז
+   בעוד כל המסך מיושר לימין. */
+.ps .ps-group-lbl + .ps-mut{
+  padding: var(--s3) var(--s4);
+  border-style: solid;
+  text-align: start;
+}
+
+/* --- (8) כרטיס «אישור ההורה» מדבר בשפה של שאר הפרופיל --- */
+/* היה רדיוס 28 מול 20 של הכרטיסים סביבו, ועמודת טקסט שהתחילה 12px
+   פנימה יותר מהשורות שמתחתיה (אייקון 38 מול 26). */
+.ps .plc-card{ border-radius: 20px; padding: var(--s4); margin-block-start: var(--s3); }
+.ps .plc-ic{ inline-size: 26px; block-size: 26px; }
+.ps .plc-list{ margin-block-start: var(--s4); }
+
+/* --- (9) שם המצטט יורד לשורה משלו --- */
+/* הפסקה קראה שני מקפים ברצף והשורה האחרונה נשארה רבע מלאה. */
+.nh-player .nh-quote-by{
+  display: block; margin-block-start: var(--s1);
+  font-size: var(--t1); font-weight: 600; opacity: .62;
+}
+
+/* --- (10) שורת התגובות: אייקוני lucide במקום אימוג׳י --- */
+.ps .ps-react{ color: var(--on-dark); }
+.ps .ps-react.is-on{ color: var(--brand-strong); }
+.nh-player .th-react button{
+  inline-size: 44px; block-size: 44px;
+  display: inline-grid; place-items: center; color: var(--brand-text);
+}
+.nh-player .th-react-done{
+  display: inline-flex; align-items: center; gap: var(--s1);
+  font-size: var(--t1); font-weight: 800;
+}
+
+/* --- (11) מצב כבוי אחד לכל הפקדים בכרטיס הכתום --- */
+/* הניסיון הראשון עשה את הכבוי לבן־שקוף, וזה יצר שתי משפחות באותה
+   שורה: צ׳יפים כהים על הכתום מול כפתור בהיר. עכשיו הכבוי נסוג לאותו
+   כהה של ‎+10/+25, והלבן נשאר סימן ההיכר של הפעולה שאפשר ללחוץ. */
+.ps .ps-hero-btn:disabled{
+  background: rgba(0, 0, 0, .26);
+  color: rgba(255, 255, 255, .62);
+}
+
+/* =====================================================================
+   6.9.2026 (ו) — הזנב של הסולם
+   ---------------------------------------------------------------------
+   אחרי (ד) ו-(ה) נמדדו שוב ששת המסכים ונשארו שתים־עשרה מחלקות מחוץ
+   לסולם: 22 / 17 / 15.5 / 15 / 13.5 / 12.5 / 12 / 11.5, ומשקל 700
+   שהיה אמור להימחק. כאן הן נכנסות — וזהו כל הזנב.
+   ===================================================================== */
+
+/* עיגולי ראשי־התיבות: אותו רכיב הופיע ב-17px רוביק בבית וב-22px היבו
+   בפרופיל — שתי משפחות, שני גדלים, לאותו דבר בדיוק. */
+.nh-player .nh-hero-top > .avatar{ font-size: var(--t4); }
+.ps .ps-prof-av{ font-family: var(--font-display); font-weight: 900; font-size: var(--t5); }
+
+/* תוויות המקטע — «החודש», «אישור ההורה», «בקשות מהירות» — היו 12.5 ו-15.5 */
+.ps .ps-group-lbl,
+.ps .pl-section-label,
+.nh-player .pl-section-label{ font-size: var(--t2); font-weight: 800; }
+.ps .ps-quickreq .pl-section-label{ font-size: var(--t4); }
+
+/* ארבע הלשוניות של «הקבוצה והלו״ז» ותוויות ההגדרות */
+.ps .ps-seg-btn{ font-size: var(--t1); font-weight: 800; }
+.ps .ps-set-val{ font-size: var(--t1); }
+
+/* כרטיס «מה שמור עליך אצלנו» — אותה כותרת־כרטיס ואותו רדיוס כמו
+   «אישור ההורה» שמעליו (היה 16/700 ורדיוס 28). */
+.ps .mdt-card{ border-radius: 20px; padding: var(--s4); margin-block-start: var(--s3); }
+.ps .mdt-ic{ inline-size: 26px; block-size: 26px; }
+.ps .mdt-head-txt > strong{ font-size: var(--t3); font-weight: 600; line-height: 1.45; }
+
+/* כרטיס «הלו״ז להמשך» (נראה מהטאבלט ומעלה) */
+.nh-player .nh-week-day b{ font-size: var(--t1); font-weight: 800; }
+.nh-player .nh-week-day span{ font-size: var(--t4); }
+.nh-player .nh-week-tx b{ font-size: var(--t2); font-weight: 600; }
+.nh-player .nh-week-tx span{ font-size: var(--t1); }
+
+/* רוביק לא נטען במשקל 900 — כל 900 שאינו על גופן התצוגה מסונתז
+   בדפדפן ויוצא «שמן» ולא כבד. */
+.nh-player .plfb2-mine b,
+.ps .ps-day-ev b{ font-weight: 800; }
+
+/* --- (12) עיגולי ראשי־התיבות --- */
+/* ⚠ ‎Avatar.jsx כותב את הגודל, גודל הגופן והגרדיאנט כ-style inline
+   (גרדיאנט דטרמיניסטי לפי השם, אותו רכיב בדיוק בצד המאמן) — CSS לא
+   יכול לנצח אותו בלי ‎!important, וזה שינוי לרכיב משותף ולא לצד
+   השחקן. מה שכן שייך לכאן: המשפחה (בתוך כפתור הוא ירש Arial),
+   המשקל, והצל השלישי שהיה מתחתיו. */
+.nh-player .avatar,
+.ps .avatar{ font-family: var(--font-display); font-weight: 900; box-shadow: none; }
+
+/* --- (13) «80/200 קליעות» — הספרות בגופן התצוגה, המילה בגופן הגוף --- */
+.nh-player .nh-task-unit{ font-family: var(--font); font-weight: 600; }
+
+/* =====================================================================
+   6.9.2026 (ז) — הזנב של סולם המרווחים
+   ---------------------------------------------------------------------
+   (ד) יישר את המרווחים בין הכרטיסים; כאן נכנסים המרווחים **בתוך**
+   הכרטיס ובתוך הפקדים, שהם מה שגורם לשורה להיראות «מודבקת». נמדד:
+   באותה שורה בכרטיס הכתום היו ארבעה ריפודים פנימיים שונים (10 / 13 /
+   14 / 15), ובראש כל מסך ps המרווח העליון היה 13 ולא 16.
+   ===================================================================== */
+
+/* --- המקצב הראשי של המסך: באנר · רצועת מספרים · גוף --- */
+.ps{ gap: var(--s4); }
+.ps .ps-slot{ gap: var(--s4); }
+.ps .ps-prof{ gap: var(--s3); }
+
+/* --- שורות וכותרות בתוך כרטיס --- */
+.nh-player .nh-card-head,
+.nh-player .nh-task-top,
+.nh-player .nh-vid-rail{ gap: var(--s2); }
+.nh-player .pc4-head,
+.ps .ps-linkrow,
+.ps .ps-row{ gap: var(--s3); }
+.nh-player .pc4-foot{ gap: var(--s4); padding-block-start: var(--s3); }
+.nh-player .nh-tasks .nh-card-foot{ gap: var(--s2); padding-block: var(--s3); }
+.ps .ps-set{ padding-block: var(--s2); }
+
+/* --- כפתורים: אותו מרווח אייקון־טקסט ואותו ריפוד פנימי --- */
+.nh-player .nh-btn,
+.ps .ps-btn,
+.ps .ps-btn-ghost,
+.ps .btn-primary,
+.ps .btn-soft{ gap: var(--s2); padding-inline: var(--s4); }
+
+/* --- הפקדים בשורה אחת בכרטיס הכתום: היו 10 / 13 / 14 / 15 --- */
+.ps .ps-hero-chip,
+.ps .ps-hero-in,
+.ps .ps-add,
+.ps .ps-filter,
+.ps .ps-in{ padding-inline: var(--s3); }
+.ps .ps-hero-btn{ padding-inline: var(--s4); }
+.ps .ps-in{ padding-block: var(--s3); }
+
+/* --- גלולות ותוויות: ריפוד אופקי אחד --- */
+.ps .ps-chip,
+.ps .ps-hero-pill,
+.nh-player .nh-chip{ padding-inline: var(--s3); }
+
+/* --- לוח השבוע ורצועת הלשוניות --- */
+.ps .ps-day{ padding-inline: var(--s2); }
+.ps .ps-seg{ padding: var(--s1); }
+
+/* =====================================================================
+   7.9.2026 — סגירת רשימת הגימור של צד השחקן
+   ---------------------------------------------------------------------
+   שמונה ממצאים שנמדדו בהרנס אחרי סבבי (ד)–(ז): שתי שפות גבולות באותו
+   מסך, מצב «נבחר» שנעלם במצב כהה, כפתור הנגישות שיושב על «סמן כבוצע»,
+   ושלושה זוגות ניגודיות מתחת לסף. הכול ממוקד ל-‎.nh-player, ‎.ps ול-
+   ‎body.pl-app — צד המאמן ומסכי המחברת לא זזים.
+   ===================================================================== */
+
+/* --- (1) שפת גבולות אחת בצד השחקן --- */
+/* ‎--border הוגדר ‎#E3EAF3 (DESIGN.md §1) בשורה 42, אבל בלוק «פרקט» של
+   המצב הבהיר (9093) דורס אותו ל-‎#E2D9C6 — בז' חם ששרד מהמראה של
+   «נייר מחברת». התוצאה בבית ובפרופיל: קופסאות עם גבול בז' לצד קופסאות
+   עם גבול כחול-אפור, ובכללן הקופסה סביב מייל ההורה — המשטח החם היחיד
+   בכל צד השחקן. ‎--ln הוא בדיוק אותו כחול-אפור, והוא כבר מוגדר לשני
+   המצבים (‎#E3EAF3 בהיר / ‎#2C374D כהה), ולכן זה טוקן ולא hex.
+   ⚠ ממוקד לשורשי צד השחקן בלבד: מסכי המחברת שרוצים את הבז' לא נוגעים. */
+.nh-player,
+.ps{ --border: var(--ln); }
+
+/* --- (2) מצב «נבחר» שרואים גם במצב כהה --- */
+/* נמדד: ‎.ps-filter.is-on נצבע ‎rgb(17,26,46) על עמוד ‎rgb(15,20,30) —
+   ‎1.06:1, ו-‎.ps-seg-btn.is-on אותו גוון על כרטיס ‎rgb(27,34,48) —
+   ‎1.09:1. כלומר בטלפון במצב כהה שחקן לא רואה על איזה סינון או איזו
+   לשונית הוא עומד. במצב בהיר אותה זוגיות מודדת 17:1, כי שם «נבחר» הוא
+   נייבי כהה על משטח בהיר — היפוך. במצב כהה ההיפוך הוא הכיוון ההפוך:
+   משטח בהיר (‎--tx, דיו הטקסט) עם טקסט בצבע העמוד. אותו רעיון, אותה
+   מערכת, ובלי גוון רביעי. הלא-נבחרים נשארים שקופים ושקטים. */
+[data-theme='dark'] .ps .ps-filter.is-on,
+[data-theme='dark'] .ps .ps-seg-btn.is-on{
+  background: var(--tx);
+  border-color: var(--tx);
+  color: var(--bg);
+}
+
+/* --- (3) כפתור הנגישות לא יושב יותר על כפתור אמיתי --- */
+/* נמדד: ה-FAB (‎52x52, ‎x 20–72, ‎y 698–750) חופף מלבנית את «סמן כבוצע»
+   ‎(.ps-btn--row), את «רישום» ‎(.ps-add), את «שינוי סיסמה» ואת מתג
+   השפה — בארבעה מסכים, בשני המצבים, ב-390 וב-360. ילד שמכוון ל«סמן
+   כבוצע» פותח את תפריט הנגישות.
+   ⚠ למה לא «להזיז אותו קצת»: עמודת התוכן מתחילה ב-x=32 (16 שוליים +
+   16 ריפוד כרטיס), והכפתור חייב 44px לפחות ליעד מגע. אין רצועה אנכית
+   שבה הוא לא מכסה תוכן, בשום מיקום ובכל גובה גלילה. הפתרון היחיד
+   שנשאר: להוציא אותו מהתוכן ולעגן אותו בכרום הקבוע — שורת ניווט־הכיס.
+   שלושה חלקים:
+     א. «רציף» אטום בגובה רצועת הניווט. התוכן כבר עוצר מעליו (ריפוד
+        התחתית של ‎.main-content הוא 100px מול 94px של הרציף), ולכן שום
+        דבר לא מוסתר בסוף הגלילה — הרציף רק מונע מכרטיסים לחלוף מתחת
+        לגלולה באמצע הגלילה, וסוגר את הרצועה לנגיעות.
+     ב. הגלולה מפנה 72px בקצה — שם מתיישב הכפתור.
+     ג. הכפתור יורד למרכז האנכי של הגלולה, ונשאר 52x52.
+   ‎body.pl-app נכתב ב-PlayerDashboard: הכפתור מרונדר ב-portal על body,
+   ואי אפשר להגיע אליו דרך שורש הפריסה של השחקן. */
+@media (max-width: 768px){
+  body.pl-app::after{
+    content: '';
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: calc(var(--bn-h) + 14px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    z-index: 45;                 /* מתחת לגלולה (46) ולכפתור (9000) */
+  }
+  body.pl-app .pkn{ inset-inline-end: 72px; padding-inline: 8px; }
+  body.pl-app .a11y-fab{
+    inset-inline-end: 12px;
+    inset-block-end: calc(21px + env(safe-area-inset-bottom));
+  }
+  /* הפאנל נפתח מעל הרציף כולו, ולא חצי מתחת לגלולה */
+  body.pl-app .a11y-panel{
+    inset-inline-end: 12px;
+    inset-block-end: calc(var(--bn-h) + 22px + env(safe-area-inset-bottom));
+  }
+}
+
+/* --- (4) הכפתור הכבוי בכרטיס הכתום עובר את AA --- */
+/* נמדד ‎4.14:1: לבן ב-62% מעל ‎rgba(0,0,0,.26) על ‎--accent-fill. ב-13px
+   במשקל 800 הסף הוא 4.5. ב-72% זה 5.0:1, והכבוי עדיין נסוג מול הלבן
+   המלא של ‎+10/+25 שכן פועלים. */
+.ps .ps-hero-btn:disabled{ color: rgba(255, 255, 255, .72); }
+
+/* --- (5) גבולות של פקדים: 3:1 --- */
+/* WCAG 1.4.11 — הגבול הוא מה שמסמן «זה כפתור». נמדד: ‎.ps-add הוא
+   ‎rgba(232,118,58,.22) על לבן = 1.25:1 (ובכהה 1.91:1), ו-‎.ps-btn--row
+   הוא ‎--brand ב-2.96:1 בבהיר. ‎--brand-text הוא הטוקן שכבר נושא את
+   הטקסט של אותם כפתורים בדיוק (‎#A8491A בהיר / ‎#F0A878 כהה), ולכן
+   המסגרת יוצאת באותו גוון של הכיתוב — כפתור-מתאר אחד, לא שניים. */
+.ps .ps-add,
+.ps .ps-btn--row,
+.ps .ps-day.is-on{ border-color: var(--brand-text); }
+
+/* --- (6) שורת המטא בארכיון האימונים נשברת כשורה מתוכננת --- */
+/* ‎.ps-row-line (מרקאפ חדש ב-PlayerTimeline) מחזיק את שם האימון ואת
+   התגים; המטא מתחתיו מקבל את כל רוחב העמודה. נמדד לפני: 3.6 שורות
+   ב-390 ו-6.5 ב-360. */
+.ps .ps-row-line{
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s2); min-inline-size: 0;
+}
+.ps .ps-row-line > .ps-t13b{ min-inline-size: 0; }
+
+/* --- (7) שתי נקודות בלוח השבוע, ומקרא --- */
+/* היו שלושה גוונים בלי מקרא — ירוק, כתום וענבר ‎(#F5B04D) — גוון רביעי
+   במערכת של נייבי וכתום, ושניים מהם אומרים «אימון». עכשיו: דיו הגוף
+   לאימון, הכתום של המותג למשחק, ושורת מקרא אחת. */
+.ps .ps-dot--practice{ background: var(--tx-2); }
+.ps .ps-dot--game{ background: var(--brand-strong); }
+.ps .ps-day-ev--practice{ color: var(--tx-2); background: var(--sf2); }
+.ps .ps-day-ev--game{ color: var(--brand-text); background: var(--brand-soft); }
+.ps .ps-day-legend{
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s3); margin: 0;
+  font-size: var(--t1); font-weight: 600; color: var(--mut);
+}
+.ps .ps-legend-it{ display: inline-flex; align-items: center; gap: var(--s1); }
+
+/* --- (8) המשך (1): ‎--line ו-‎--paper, לא רק ‎--border --- */
+/* אחרי המדידה נשארו 14 גבולות בז' בבית ואחד בפרופיל: ‎.chip ו-
+   ‎.btn-ghost לא קוראים ל-‎--border אלא ל-‎--line, שהוגדר ב-9096
+   כ-‎var(--border) **על ‎:root** — ההחלפה של משתנה מותאם מתבצעת על
+   האלמנט שבו הוא הוכרז, ולכן דריסת ‎--border על ‎.nh-player לא הגיעה
+   אליו. מכריזים גם עליו. */
+.nh-player,
+.ps{ --line: var(--ln); --border-hover: var(--mut); }
+
+/* --- (9) כפתור הנגישות נראה גם במצב כהה --- */
+/* הרקע שלו הוא ‎--navy-900 (‎#0A1428). כשהוא ריחף מעל כרטיס זה עבד;
+   מרגע שהוא יושב על רצועת הניווט, כלומר על ‎--bg (‎#0F141E), העיגול
+   נבלע והצילום מראה אייקון לבן מרחף בלי כפתור מתחתיו. טבעת בגובה
+   פיקסל בצבע הקו של המערכת מחזירה לו את הצורה, בלי לשנות את הגודל
+   (‎box-shadow ולא ‎border — יעד המגע נשאר 52x52). */
+[data-theme='dark'] body.pl-app .a11y-fab{
+  box-shadow: 0 0 0 1px var(--ln), var(--shadow-lg);
+}
+
+/* --- (10) הפס האנכי ברשימת היום נצבע באותם שני גוונים --- */
+/* ‎.ps-bar-i לוקח את המודיפייר מאותו ‎evTone. בלי השורות האלה הוא נופל
+   לברירת המחדל הכתומה, ואז אימון ומשחק נראים אותו דבר ברשימה — בזמן
+   שהנקודות בלוח כבר מבדילות ביניהם. */
+.ps .ps-bar-i--practice{ background: var(--tx-2); }
+.ps .ps-bar-i--game{ background: var(--brand-strong); }
+
+/* --- (11) הצ׳אט לא נבלע ברציף --- */
+/* ⚠ ‎.pl-chat-screen מקבל ‎height: calc(100vh - 140px) — מספר שנכון
+   למסך הצ׳אט העצמאי של המאמן, לא להטמעה שלו כלשונית רביעית בתוך
+   «הקבוצה והלו״ז». נמדד ב-390x844: הצ׳אט מתחיל ב-171 ונגמר ב-875,
+   כלומר שורת הכתיבה יושבת ב-817–861 — כבר היום היא חתוכה בתחתית
+   המסך ומה שנשאר ממנה הוא סדק של 13px בין הגלולה לקצה. עם הרציף
+   הסדק הזה נסגר לגמרי, ולכן זה חייב להיסגר כאן: הצ׳אט מתקצר כך
+   ששורת הכתיבה נוחתת מעל הרציף, שלמה. ‎vh ולא ‎dvh — ה-WebView של
+   ה-APK הישן לא מכיר ‎dvh. */
+.ps .ps-chat .pl-chat-screen{
+  block-size: calc(100vh - 300px);
+  min-block-size: 320px;
+}

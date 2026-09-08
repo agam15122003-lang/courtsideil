@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
-  Dumbbell, StickyNote, Send, TrendingUp, Share2, ChevronDown,
+  Dumbbell, StickyNote, Send, TrendingUp, Share2, ChevronDown, ThumbsUp, HeartHandshake,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -65,7 +65,15 @@ function LoadTrend({ series }) {
 // תגובת אמוג'י על משוב מהמאמן — טאפ אחד שסוגר את המעגל בחזרה אליו.
 // דורש את react_to_feedback() מ-supabase_engagement2.sql; אם ה-RPC חסר —
 // הכפתורים פשוט לא ישנו כלום והשגיאה תוצג בטוסט.
-const REACTIONS = ['👍', '🔥', '💪', '🙏']
+// 6.9.2026 — הציור עובר לאייקוני lucide (DESIGN.md §5: אין אימוג׳י כ-UI).
+// ⚠ ‎v הוא הערך שנשמר ב-react_to_feedback ובהתראה למאמן — הוא לא זז,
+//   אחרת תגובות שכבר נשמרו יפסיקו להתאים.
+const REACTIONS = [
+  { v: '👍', Ic: ThumbsUp, he: 'לייק', en: 'Like' },
+  { v: '🔥', Ic: Flame, he: 'אש', en: 'Fire' },
+  { v: '💪', Ic: Dumbbell, he: 'כוח', en: 'Strong' },
+  { v: '🙏', Ic: HeartHandshake, he: 'תודה', en: 'Thanks' },
+]
 export function FbReact({ fb, coachId, me, hero = false }) {
   const [chosen, setChosen] = useState(fb?.player_reaction || null)
   if (!fb?.id) return null
@@ -77,20 +85,20 @@ export function FbReact({ fb, coachId, me, hero = false }) {
     sendNotification({ to: coachId, actor: me, type: 'message', content: L(`השחקן הגיב ${r} על המשוב שלך`, `Player reacted ${r} to your feedback`), nav: 'teams' })
   }
 
-  // בבאנר של «האימונים שלי» — שורת האמוג׳י של המסמך, על הגרדיאנט
+  // בבאנר של «האימונים שלי» — שורת התגובות של המסמך, על הכרטיס הכתום
   if (hero) {
     return (
       <>
         <span className="ps-hero-note">{L('להגיב:', 'React:')}</span>
-        {REACTIONS.map((r) => (
+        {REACTIONS.map(({ v, Ic, he, en }) => (
           <button
-            key={r} type="button"
-            className={chosen === r ? 'ps-react is-on' : 'ps-react'}
-            aria-pressed={chosen === r}
+            key={v} type="button"
+            className={chosen === v ? 'ps-react is-on' : 'ps-react'}
+            aria-pressed={chosen === v}
             disabled={!!chosen}
-            onClick={() => react(r)}
-            aria-label={L(`הגב ${r}`, `React ${r}`)}
-          >{r}</button>
+            onClick={() => react(v)}
+            aria-label={L(`הגב ${he}`, `React ${en}`)}
+          ><Ic size={18} aria-hidden="true" /></button>
         ))}
         <span className="ps-hero-note ps-end">
           {chosen ? L('הגבת — המאמן רואה', 'Sent — your coach sees it') : L('טאפ אחד וזה מגיע אליו', 'One tap and it reaches them')}
@@ -99,11 +107,16 @@ export function FbReact({ fb, coachId, me, hero = false }) {
     )
   }
 
-  if (chosen) return <span className="th-react-done">{chosen} {L('הגבת', 'You reacted')}</span>
+  if (chosen) {
+    const Ic = (REACTIONS.find((r) => r.v === chosen) || REACTIONS[0]).Ic
+    return <span className="th-react-done"><Ic size={14} aria-hidden="true" /> {L('הגבת', 'You reacted')}</span>
+  }
   return (
     <span className="th-react">
-      {REACTIONS.map((r) => (
-        <button key={r} type="button" onClick={() => react(r)} aria-label={L(`הגב ${r}`, `React ${r}`)}>{r}</button>
+      {REACTIONS.map(({ v, Ic, he, en }) => (
+        <button key={v} type="button" onClick={() => react(v)} aria-label={L(`הגב ${he}`, `React ${en}`)}>
+          <Ic size={16} aria-hidden="true" />
+        </button>
       ))}
     </span>
   )
@@ -374,16 +387,24 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
                   <span className="ps-jersey" aria-hidden="true">
                     {c.type === 'game' ? <BasketballIcon size={15} /> : <Dumbbell size={15} />}
                   </span>
+                  {/* 7.9 — הכותרת והתגים חולקים שורה, והמטא («יום שלישי,
+                      1.9 · 18:00 · נכחת · 1/1 יעדים · משוב מהמאמן») מקבל
+                      את כל רוחב השורה מתחתיה. עד היום כל אלה ישבו כאחים
+                      באותו flex: המטא נדחס לעמודה של ~150px ונשבר לארבע
+                      שורות ב-390 ולשש ב-360, עם מפרידים יתומים בראשי
+                      שורות. אותו מרקאפ, שתי שורות מתוכננות. */}
                   <span className="ps-row-main">
-                    <b className="ps-t13b">
-                      {c.type === 'game'
-                        ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game'))
-                        : L('אימון קבוצתי', 'Team practice')}
-                    </b>
+                    <span className="ps-row-line">
+                      <b className="ps-t13b">
+                        {c.type === 'game'
+                          ? (c.opponent ? L(`משחק מול ${c.opponent}`, `Game vs ${c.opponent}`) : L('משחק', 'Game'))
+                          : L('אימון קבוצתי', 'Team practice')}
+                      </b>
+                      {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
+                      {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
+                    </span>
                     <span className="ps-lbl">{summary}</span>
                   </span>
-                  {isMvp && <span className="ps-mvp"><Crown size={12} aria-hidden="true" /> MVP</span>}
-                  {c.eff && <span className="ps-chip ps-chip--acc" dir="ltr">{c.eff.effort}/10</span>}
                   <ChevronDown size={16} aria-hidden="true" className={isOpen ? 'ps-chev is-open' : 'ps-chev'} />
                 </button>
 
