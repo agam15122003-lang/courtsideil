@@ -20,6 +20,14 @@
 // הכרטיס פשוט לא מרונדר (דפוס HomeRsvp). שורת סגל עם wellness_off
 // (ההורה ביקש «בלי שאלות») — אותו דבר. קטין שממתין לאישור הורה מקבל
 // שורת הסבר + כפתור «שליחת הקישור להורה» במקום הכרטיס.
+//
+// 8.9 — «אין שורת סגל» כבר לא מכבה את הכרטיס בשקט. הבעלים פתח לעצמו
+// חשבון שחקן, אושר לקבוצה, ולא מצא את הצ'ק-אין — פעמיים. הסיבה: החשבון
+// שלו לא היה מקושר לאף שורה בסגל (team_players.player_id ריק), השליפה
+// החזירה אפס שורות בלי שגיאה, והכרטיס פשוט לא היה קיים. בלי שורה
+// מקושרת גם ה-RLS (is_on_coach_roster) חוסם כתיבה — ולכן זה מצב אמיתי
+// שצריך להגיד, לא להסתיר: הכרטיס נשאר עם הסבר קצר ו«נסו שוב». רק שני
+// המצבים המכוונים נשארים שקטים: מסד בלי הטבלה/העמודה, ו-wellness_off.
 import { useEffect, useRef, useState } from 'react'
 import { Sun, Check, Lock, Pencil, RotateCw } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -98,7 +106,8 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
   const today = clock.day
   // מדד הפיילוט: מרינדור ראשון עד התשובה השלישית
   const mountTs = useRef(Date.now())
-  const [state, setState] = useState('loading') // loading | off | error | ready
+  // 8.9 — unlinked: החשבון לא מקושר לשורת סגל (אפס שורות, בלי שגיאה)
+  const [state, setState] = useState('loading') // loading | off | unlinked | error | ready
   const [row, setRow] = useState(null)          // השורה של היום (אם קיימת)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false) // «שינוי» אחרי שהכרטיס התקפל
@@ -168,7 +177,10 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
       // 6.9 — מבדילים: מסד בלי הטבלה/העמודה מכבה בשקט, כשל רשת מציג «נסה שוב»
       if (tpErr) { setState(schemaGone(tpErr) ? 'off' : 'error'); return }
       const rosterRow = tp && tp[0]
-      if (!rosterRow || rosterRow.wellness_off) { setState('off'); return }
+      // 8.9 — אפס שורות ≠ «כבוי»: החשבון פשוט לא חובר עדיין לשורה בסגל.
+      // מציגים את זה (ראו הכותרת), כי אחרת הצ'ק-אין נעלם בלי שום סימן.
+      if (!rosterRow) { setState('unlinked'); return }
+      if (rosterRow.wellness_off) { setState('off'); return }
       // הדיווח של היום (אם כבר עניתי) — טבלה שטרם נוצרה (42P01/PGRST205)
       // מכבה את הכרטיס בשקט; כל כשל אחר נשאר עם «נסה שוב»
       const { data: cr, error: crErr } = await supabase.from('player_checkins')
@@ -254,6 +266,31 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
             </button>
           </span>
         </p>
+      </section>
+    )
+  }
+
+  // 8.9 — החשבון עוד לא מחובר לשורה בסגל: אותה מסגרת, בלי השאלות, עם
+  // הסבר שקט — זו לא תקלה שהילד גרם לה, והמאמן הוא זה שמחבר מהסגל.
+  // «נסו שוב» מריץ את הטעינה מחדש (אחרי שהמאמן חיבר, בלי לצאת ולהיכנס).
+  if (state === 'unlinked') {
+    return (
+      <section className="nh-card pc4-card pc4-unlinked-card">
+        <div className="pc4-head">
+          <span className="pc4-ic" aria-hidden="true"><Sun size={17} /></span>
+          <div className="pc4-head-tx">
+            <strong>{L('הצ׳ק-אין של הבוקר', 'Morning check-in')}</strong>
+            <span className="pc4-sub">
+              {L('החשבון שלך עוד לא מחובר לרשימת השחקנים של הקבוצה, ולכן אי אפשר לשמור עדיין את שאלות הבוקר. המאמן מחבר אותו מהסגל — זה לוקח לו רגע.',
+                 'Your account is not connected to the team roster yet, so the morning questions cannot be saved for now. Your coach connects it from the roster — it takes a moment.')}
+            </span>
+          </div>
+        </div>
+        <div className="pc4-foot">
+          <button type="button" className="pc4-link" onClick={() => setReload((k) => k + 1)}>
+            <RotateCw size={12} aria-hidden="true" /> {L('נסו שוב', 'Try again')}
+          </button>
+        </div>
       </section>
     )
   }

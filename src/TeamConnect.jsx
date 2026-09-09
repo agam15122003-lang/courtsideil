@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { UserPlus, Copy, Check, X, Share2, KeyRound, QrCode } from 'lucide-react'
+import { UserPlus, Copy, Check, X, Share2, KeyRound, QrCode, Link2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
-import { getOrCreateJoinCode, pendingRequests, decideMembership } from './players'
+// 8.9 — approvedMembers/linkRosterRow: חיבור ידני של חשבון לשורת סגל
+import { getOrCreateJoinCode, pendingRequests, decideMembership, approvedMembers, linkRosterRow } from './players'
 import { waShare } from './share'
 import { SITE_URL } from './constants'
 import Avatar from './Avatar'
@@ -12,13 +13,25 @@ import { confirmDialog } from './confirm'
 
 // פאנל "חיבור שחקנים" למאמן — לינק/קוד הצטרפות, QR לסריקה בסוף אימון,
 // מד "כמה מהסגל כבר מחוברים", ואישור בקשות ממתינות.
-// props: coachId, team, onApproved() — לרענון הסגל אחרי אישור
+// props: coachId, team, onApproved() — לרענון הסגל אחרי אישור (וגם אחרי חיבור ידני)
+//
+// 8.9 — «חשבונות שעוד לא מחוברים לסגל»: שחקן שאושר לקבוצה אבל החשבון שלו
+// לא יושב על אף שורה בסגל (team_players.player_id) לא מקבל צ'ק-אין, יעדים
+// ומשימות — וה-RLS חוסם לו כתיבה. עד היום זה קרה בשקט (שם לא תואם, שתי
+// שורות דומות, או מסד בלי העמודה בזמן האישור) ולא היה שום פקד לתקן.
+// כאן: לכל חשבון כזה — בורר של השורות הפנויות בקבוצה + «חיבור» עם אישור
+// שמזכיר שהיעדים והמשימות של השורה עוברים לחשבון (טריגר roster_link_merge).
 export default function TeamConnect({ coachId, team, onApproved }) {
   const [code, setCode] = useState(null)
   const [reqs, setReqs] = useState([])
   const [copied, setCopied] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
   const [meter, setMeter] = useState(null) // {connected, total}
+  // 8.9 — שורות הסגל (id/name/number/player_id) והחברים המאושרים — לחיבור ידני
+  const [roster, setRoster] = useState([])
+  const [members, setMembers] = useState([])
+  const [pick, setPick] = useState({})       // membership.id → team_players.id שנבחר
+  const [linking, setLinking] = useState(null) // membership.id בטיפול
   // 6.9 — הבעלים דיווח «אין קוד קבוצה». הסיבה: הפאנל החזיר null בשקט
   // כשיצירת הקוד נכשלה (רשת, מדיניות, טבלה חסרה) ואין בקשות ממתינות —
   // כלומר בדיוק במצב של מאמן שעוד לא הנפיק קוד. מעכשיו הפאנל תמיד מוצג,
@@ -43,14 +56,62 @@ export default function TeamConnect({ coachId, team, onApproved }) {
         if (alive) setCodeErr(e?.message || 'unknown')
       }
       // מד מחוברים: כמה משורות הסגל כבר מקושרות לחשבון שחקן
+      // 8.9 — שולפים גם שם ומספר: אותן שורות משמשות את בורר החיבור הידני
       const { data } = await supabase.from('team_players')
-        .select('id, player_id').eq('coach_id', coachId).eq('team', team)
-      if (alive && data) setMeter({ connected: data.filter((p) => p.player_id).length, total: data.length })
+        .select('id, name, number, player_id').eq('coach_id', coachId).eq('team', team).order('created_at')
+      if (!alive) return
+      if (data) {
+        setRoster(data)
+        setMeter({ connected: data.filter((p) => p.player_id).length, total: data.length })
+      }
+      // 8.9 — החברים המאושרים של הקבוצה, כדי למצוא מי מהם בלי שורה מקושרת
+      const mem = await approvedMembers(coachId, team)
+      if (alive) setMembers(mem)
     })()
     return () => { alive = false }
   }, [coachId, team, rev])
 
   const playerName = (p) => p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || L('שחקן', 'Player') : L('שחקן', 'Player')
+
+  // 8.9 — חשבונות מאושרים שאף שורה בסגל לא מצביעה עליהם, והשורות הפנויות
+  const linkedIds = new Set(roster.map((r) => r.player_id).filter(Boolean))
+  const unattached = members.filter((m) => m.player_id && !linkedIds.has(m.player_id))
+  const freeRows = roster.filter((r) => !r.player_id)
+  const rowLabel = (r) => (r.number ? `${r.name} · ${r.number}` : r.name)
+
+  const link = async (m) => {
+    const rowId = pick[m.id] || (freeRows.length === 1 ? freeRows[0].id : '')
+    const row = freeRows.find((r) => r.id === rowId)
+    if (!row) { toast.error(L('בחרו קודם שורה בסגל', 'Pick a roster row first')); return }
+    const who = playerName(m.player)
+    // אישור שמזכיר את שני הצדדים — ושהיסטוריית השורה עוברת לחשבון (טריגר 3.9)
+    const ok = await confirmDialog({
+      title: L('לחבר את החשבון לשורה בסגל?', 'Connect this account to the roster row?'),
+      message: L(
+        `החשבון של «${who}» יחובר לשורה «${row.name}» בסגל. היעדים והמשימות האישיות שרשמתם על השורה הזו יעברו לחשבון שלו, והוא יראה אותם באפליקציה. אפשר לנתק אחר כך מכרטיס השחקן.`,
+        `The account of “${who}” will be connected to the roster row “${row.name}”. The goals and personal assignments you recorded on that row move to his account, and he will see them in the app. You can disconnect later from the player card.`,
+      ),
+      confirmText: L('חיבור', 'Connect'),
+      danger: false,
+    })
+    if (!ok) return
+    setLinking(m.id)
+    const res = await linkRosterRow(row.id, m.player_id)
+    setLinking(null)
+    if (!res.ok) {
+      toast.error(res.colMissing
+        ? L('כדי לחבר חשבון לשורה בסגל צריך להריץ את supabase_players.sql', 'Connecting an account to a roster row needs supabase_players.sql')
+        : res.taken
+          ? L('השורה הזו כבר חוברה לחשבון אחר בינתיים — בחרו שורה אחרת.', 'That row was just connected to another account — pick a different one.')
+          : L('החיבור נכשל — נסו שוב בעוד רגע.', 'Connecting failed — try again in a moment.'))
+      if (res.taken) setRev((v) => v + 1)
+      return
+    }
+    toast.success(L(`«${who}» חובר לשורה «${row.name}» — מעכשיו הצ׳ק-אין והיעדים מגיעים אליו`, `“${who}” connected to “${row.name}” — check-ins and goals now reach him`))
+    setPick((c) => { const n = { ...c }; delete n[m.id]; return n })
+    setRev((v) => v + 1)
+    onApproved?.()
+  }
 
   const decide = async (m, approve) => {
     // 6.9 — ✓ ו-✗ יושבים צמודים ובגודל 34px, ולכן מאשרים דחייה במפורש.
@@ -168,6 +229,44 @@ export default function TeamConnect({ coachId, team, onApproved }) {
               <p className="muted small" style={{ margin: '6px 0 0' }}>
                 {L('שולחים את הלינק (או סורקים את ה-QR) — השחקן נרשם, הקוד כבר בפנים, ואתם מאשרים כאן.', 'Send the link (or scan the QR) — the player signs up with the code pre-filled, and you approve here.')}
               </p>
+            </div>
+          )}
+
+          {/* 8.9 — חשבונות מאושרים בלי שורה מקושרת בסגל: בורר + «חיבור» */}
+          {unattached.length > 0 && (
+            <div className="tc-reqs tc-unlinked">
+              <span className="tc-code-label"><Link2 size={14} /> {L('חשבונות שעוד לא מחוברים לשורה בסגל', 'Accounts not yet connected to a roster row')}</span>
+              <p className="muted small tc-unlinked-why">
+                {L('השחקנים האלה אושרו לקבוצה, אבל החשבון שלהם לא יושב על אף שורה בסגל — ולכן הצ׳ק-אין, היעדים והמשימות לא מגיעים אליהם. בוחרים לכל אחד את השורה שלו ומחברים.',
+                   'These players were approved, but their account is not on any roster row — so check-ins, goals and assignments do not reach them. Pick each one a row and connect.')}
+              </p>
+              {unattached.map((m) => {
+                const sel = pick[m.id] || (freeRows.length === 1 ? freeRows[0].id : '')
+                return (
+                  <div key={m.id} className="tc-req tc-link-row">
+                    <Avatar name={playerName(m.player)} url={m.player?.avatar_url} size={34} />
+                    <span className="tc-req-name">{playerName(m.player)}</span>
+                    {freeRows.length === 0 ? (
+                      <span className="muted small tc-link-none">
+                        {L('אין שורה פנויה בסגל — הוסיפו אותו לסגל למעלה, ואז חברו כאן.', 'No free roster row — add him to the roster above, then connect here.')}
+                      </span>
+                    ) : (
+                      <>
+                        <select className="finder-input tc-link-pick" value={sel}
+                          onChange={(e) => setPick((c) => ({ ...c, [m.id]: e.target.value }))}
+                          aria-label={L(`השורה בסגל של ${playerName(m.player)}`, `Roster row for ${playerName(m.player)}`)}>
+                          <option value="">{L('בחרו שורה בסגל…', 'Pick a roster row…')}</option>
+                          {freeRows.map((r) => <option key={r.id} value={r.id}>{rowLabel(r)}</option>)}
+                        </select>
+                        <button type="button" className="btn-soft tc-link-btn" disabled={linking === m.id || !sel}
+                          onClick={() => link(m)} aria-busy={linking === m.id}>
+                          <Link2 size={15} /> {L('חיבור', 'Connect')}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 

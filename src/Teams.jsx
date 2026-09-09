@@ -5,6 +5,7 @@ import {
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
   Printer, Check, Share2, CalendarSearch, ClipboardPaste,
+  Link2, Link2Off,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -32,7 +33,8 @@ import Page from './Page'
 import { ChevronFwd } from './DirIcon'
 import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
-import { pendingRequests, decideMembership, ageMismatches } from './players'
+// 8.9 — unlinkRosterRow: ניתוק חשבון שחקן משורת סגל (מכרטיס השחקן)
+import { pendingRequests, decideMembership, ageMismatches, unlinkRosterRow } from './players'
 import { waShare } from './share'
 
 // פירוק רשימה מודבקת לשורות של { number, name }.
@@ -553,6 +555,34 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
       : L('שאלות הבוקר הודלקו חזרה', 'Morning questions turned back on'))
   }
 
+  // 8.9 — ניתוק חשבון שחקן מהשורה (חיבור בטעות לשורה הלא נכונה). החיבור
+  // עצמו נעשה בפאנל «חיבור שחקנים לקבוצה» למטה — שם רואים את החשבונות
+  // הפנויים. הטריגר roster_link_merge מחזיר את היעדים/המשימות לשורה.
+  const unlinkAccount = async (p) => {
+    const ok = await confirmDialog({
+      title: L('לנתק את החשבון מהשורה הזו?', 'Disconnect the account from this row?'),
+      message: L(
+        `החשבון של השחקן ינותק משורת הסגל «${p.name}». הצ׳ק-אין והיעדים יפסיקו להגיע אליו עד שתחברו אותו שוב (מפאנל «חיבור שחקנים לקבוצה» בסגל). שום דבר לא נמחק.`,
+        `The player's account will be disconnected from the roster row “${p.name}”. Check-ins and goals stop reaching him until you connect him again (from the “Connect players” panel in the roster). Nothing is deleted.`,
+      ),
+      confirmText: L('ניתוק', 'Disconnect'),
+      danger: true,
+    })
+    if (!ok) return
+    const res = await unlinkRosterRow(p.id)
+    if (!res.ok) {
+      toast.error(res.colMissing
+        ? L('כדי לנתק חשבון משורה בסגל צריך להריץ את supabase_players.sql', 'Disconnecting an account needs supabase_players.sql')
+        : L('הניתוק נכשל — נסו שוב בעוד רגע.', 'Disconnecting failed — try again in a moment.'))
+      return
+    }
+    setPEdit((c) => (c && c.id === p.id ? { ...c, player_id: null } : c))
+    setPlayers((cur) => cur.map((x) => (x.id === p.id ? { ...x, player_id: null } : x)))
+    // פאנל החיבור למטה צריך להציג את החשבון הזה כפנוי לחיבור מחדש
+    setReqsRev((v) => v + 1)
+    toast.success(L('החשבון נותק מהשורה', 'Account disconnected from the row'))
+  }
+
   const delPlayer = async (id) => {
     if (!(await confirmDialog({
       title: L('להסיר את השחקן מהסגל?', 'Remove this player from the roster?'),
@@ -920,7 +950,15 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 <li key={p.id} className="roster-row roster-clickable" onClick={() => setPlayerPage({ ...p })}>
                   {p.number ? <span className="roster-jersey">{p.number}</span> : <Avatar name={p.name} size={34} />}
                   <span className="roster-name">
-                    {p.name}
+                    <span className="roster-name-line">
+                      {p.name}
+                      {/* 8.9 — מי מהסגל כבר מחובר לחשבון שחקן (player_id) — רואים בלי לפתוח */}
+                      {PLAYER_SIDE && p.player_id ? (
+                        <span className="roster-acct" title={L('מחובר לחשבון שחקן באפליקציה', 'Connected to a player account')}>
+                          <Link2 size={11} aria-hidden="true" /> {L('מחובר', 'Linked')}
+                        </span>
+                      ) : null}
+                    </span>
                     {(p.position || p.injury_note) && (
                       <span className="roster-sub muted small">
                         {p.position || ''}{p.position && p.injury_note ? ' · ' : ''}
@@ -1257,6 +1295,29 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                   <span className="muted small">{L('— הצ׳ק-אין היומי לא יוצג לשחקן הזה (בקשת הורה)', '— the daily check-in is hidden for this player (parent request)')}</span>
                 </span>
               </label>
+            )}
+            {/* 8.9 — חשבון השחקן: מחובר לשורה או לא. החיבור נעשה מפאנל «חיבור
+                שחקנים לקבוצה» (שם רואים את החשבונות הפנויים); כאן רק ניתוק. */}
+            {PLAYER_SIDE && (
+              <div className="roster-acct-row" role="group" aria-label={L('חשבון שחקן', 'Player account')}>
+                {pEdit.player_id ? (
+                  <>
+                    <span className="roster-acct-txt">
+                      <Link2 size={14} aria-hidden="true" />
+                      <span><b>{L('מחובר לחשבון שחקן', 'Connected to a player account')}</b>{' '}
+                        <span className="muted small">{L('— הצ׳ק-אין, היעדים והמשימות מגיעים אליו', '— check-ins, goals and assignments reach him')}</span></span>
+                    </span>
+                    <button type="button" className="btn-ghost roster-acct-btn" onClick={() => unlinkAccount(pEdit)}>
+                      <Link2Off size={14} /> {L('ניתוק', 'Disconnect')}
+                    </button>
+                  </>
+                ) : (
+                  <span className="roster-acct-txt muted">
+                    <Link2Off size={14} aria-hidden="true" />
+                    <span>{L('לא מחובר לחשבון שחקן. אם הוא כבר נרשם לאפליקציה — מחברים אותו מפאנל «חיבור שחקנים לקבוצה» בתחתית הסגל.', 'Not connected to a player account. If he already signed up — connect him from the “Connect players” panel at the bottom of the roster.')}</span>
+                  </span>
+                )}
+              </div>
             )}
             <div className="tm-modal-actions">
               <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>

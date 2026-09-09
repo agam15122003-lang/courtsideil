@@ -32640,3 +32640,50 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
    נשאר ליד הכותרת ו-‎8/10 ירד לשורה משל עצמו. */
 .ps .ps-row-tags{ display: inline-flex; align-items: center; gap: var(--s1); }
 
+/* =====================================================================
+   8.9.2026 — חיבור חשבון שחקן לשורת סגל
+   ---------------------------------------------------------------------
+   הבעלים פתח לעצמו חשבון שחקן, אושר לקבוצה, ולא מצא את הצ'ק-אין של
+   הבוקר — החשבון לא היה מקושר לאף שורה בסגל, והכרטיס נעלם בשקט.
+   שלושה מקומות: (1) מצב «לא מחובר» של הצ'ק-אין בבית השחקן, (2) תג
+   «מחובר» בשורת הסגל + שורת החשבון בכרטיס השחקן (ניתוק), (3) הבורר
+   «חיבור» בפאנל «חיבור שחקנים לקבוצה». טוקנים בלבד, ‎≥44px למגע.
+   ===================================================================== */
+
+/* --- (1) הצ'ק-אין: «החשבון עוד לא מחובר» — שקט, לא שגיאה --- */
+/* אותה מסגרת של הכרטיס, האייקון על המשטח המשני ובדיו המשני — שלא
+   ייראה כמו תקלה אדומה או כמו הזמנה לענות. ‎line-height מעט גדול יותר:
+   זה משפט של שלוש שורות, לא כותרת-משנה של מילה. */
+.pc4-unlinked-card .pc4-ic{ background: var(--surface-alt); color: var(--text-muted); }
+.pc4-unlinked-card .pc4-sub{ line-height: 1.55; }
+
+/* --- (2) הסגל: מי כבר מחובר לחשבון --- */
+/* השם נשאר בשורה שלו; התג נכנס אחריו ונשבר איתו ב-360 בלי לדחוף את
+   פס הנוכחות. ירוק = «יש», כמו ‎.tc-meter.full של המד בפאנל. */
+.roster-name-line{ display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.roster-acct{
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 7px; border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 700; line-height: 1.5;
+  background: var(--c-green-bg); color: var(--c-green);
+}
+/* שורת החשבון בכרטיס השחקן: מחובר + «ניתוק», או «לא מחובר» + הסבר */
+.roster-acct-row{
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-top: 10px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-alt); font-size: 13px; color: var(--text);
+}
+.roster-acct-txt{ display: inline-flex; align-items: flex-start; gap: 8px; flex: 1 1 220px; min-width: 0; line-height: 1.45; }
+.roster-acct-txt > svg{ flex-shrink: 0; margin-block-start: 2px; color: var(--accent-strong); }
+.roster-acct-txt.muted > svg{ color: var(--text-muted); }
+.roster-acct-btn{ min-height: 44px; margin: 0; flex-shrink: 0; }
+
+/* --- (3) הפאנל: חשבונות שעוד לא מחוברים לשורה --- */
+.tc-unlinked-why{ margin: 4px 0 0; line-height: 1.5; }
+.tc-link-row{ flex-wrap: wrap; row-gap: 8px; }
+.tc-link-row .tc-req-name{ flex: 1 1 140px; }
+/* הבורר והכפתור יורדים יחד לשורה שנייה בטלפון; ‎44px למגע בשניהם */
+.tc-link-pick{ flex: 1 1 180px; min-height: 44px; margin: 0; }
+.tc-link-btn{ min-height: 44px; margin: 0; flex-shrink: 0; }
+.tc-link-none{ flex: 1 1 100%; line-height: 1.45; }

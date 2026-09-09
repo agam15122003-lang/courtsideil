@@ -217,6 +217,15 @@ export async function decideMembership(membership, approve) {
         const { player_id: _pid, ...basic } = row
         const { error: e3 } = await supabase.from('team_players').insert(basic)
         if (e3) reportError('decideMembership/roster-insert-basic', e3, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
+        else {
+          // 8.9 — הנסיגה הזו יצרה בשקט שחקן מאושר עם שורת סגל **לא מקושרת**:
+          // אין לו צ'ק-אין, אין לו יעדים, ואף אחד לא אמר למאמן. אומרים את
+          // האמת: נוסף לסגל, החשבון לא מחובר, ומחברים מהסגל (אחרי ה-SQL).
+          notifyApproved()
+          return { ok: true, created: true, unlinked: true, hint: L(
+            `«${nm || 'שחקן'}» אושר ונוסף לסגל, אבל החשבון שלו עדיין לא מחובר לשורה בסגל — ולכן הצ׳ק-אין והיעדים לא יגיעו אליו. מחברים אותו מטאב «סגל» (פאנל «חיבור שחקנים לקבוצה»), אחרי הרצת supabase_players.sql.`,
+            `“${nm || 'Player'}” was approved and added to the roster, but his account is not connected to a roster row yet — so check-ins and goals will not reach him. Connect it from the Roster tab (“Connect players” panel), after running supabase_players.sql.`) }
+        }
       } else if (e2) {
         reportError('decideMembership/roster-insert', e2, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
       } else {
@@ -281,11 +290,61 @@ async function linkToExistingRosterRow(membership, fullName) {
 // grant) · 42P01 = undefined_table · PGRST204 = העמודה לא ב-schema cache.
 // שים לב: ב-PostgREST עמודה חסרה בתוך embed מפילה את *כל* השאילתה — בדיוק
 // כך מסך אישור הבקשות היה ריק בפרודקשן. לכן נסיגה, ולא בליעה.
-function isMissingColumn(error) {
+export function isMissingColumn(error) {
   if (!error) return false
   if (['42703', '42501', '42P01', 'PGRST204'].includes(error.code)) return true
   return /column .* does not exist|permission denied for (column|table)|does not exist in the schema cache/i
     .test(String(error.message || ''))
+}
+
+// ---------- 8.9 — חיבור חשבון שחקן לשורת סגל, ביד ----------
+// עד היום החיבור קרה רק אוטומטית (לפי שם, באישור הבקשה). כשזה לא תפס —
+// שם שונה, שתי שורות דומות, מסד בלי העמודה — השחקן נשאר מאושר אבל בלי
+// שורה מקושרת, ולמאמן לא היה שום פקד לתקן את זה (ממצא ONB-4).
+// שלושת העוזרים כאן משרתים את פאנל «חיבור שחקנים לקבוצה» ואת כרטיס
+// השחקן. כולם סובלניים למסד בלי player_id: מחזירים colMissing כדי
+// שהמסך יציג «צריך להריץ את supabase_players.sql» ולא ייפול.
+
+// חברי הקבוצה המאושרים (עם שם ותמונה מהפרופיל). תמיד מערך; כשל = [].
+// ה-embed נופל אם עמודה בפרופיל חסרה — ואז נסיגה לשורות בלי שם.
+export async function approvedMembers(coachId, team) {
+  const base = () => supabase
+    .from('team_memberships')
+    .select(`id, player_id, team, status, player:profiles!player_id(${REQ_PLAYER_COLS})`)
+    .eq('coach_id', coachId).eq('team', team).eq('status', 'approved')
+  let { data, error } = await base()
+  if (error && isMissingColumn(error)) {
+    ;({ data, error } = await supabase
+      .from('team_memberships').select('id, player_id, team, status')
+      .eq('coach_id', coachId).eq('team', team).eq('status', 'approved'))
+  }
+  if (error) { reportError('approvedMembers', error); return [] }
+  return data || []
+}
+
+// חיבור: כותב team_players.player_id על שורה **פנויה** בלבד (is null) —
+// שורה שכבר מחוברת לחשבון אחר לא נדרסת בטעות. הטריגר roster_link_merge
+// (3.9) מעביר את היעדים והמשימות האישיות של השורה לחשבון — בכוונה.
+export async function linkRosterRow(rowId, playerId) {
+  const { data, error } = await supabase.from('team_players')
+    .update({ player_id: playerId }).eq('id', rowId).is('player_id', null).select('id')
+  if (error) {
+    reportError('linkRosterRow', error)
+    return { ok: false, colMissing: isMissingColumn(error), reason: error.message }
+  }
+  // אפס שורות עודכנו = מישהו חיבר את השורה בינתיים (מכשיר שני)
+  if (Array.isArray(data) && data.length === 0) return { ok: false, taken: true, reason: 'taken' }
+  return { ok: true }
+}
+
+// ניתוק: player_id חוזר להיות ריק; הטריגר מחזיר את היעדים/המשימות לשורה.
+export async function unlinkRosterRow(rowId) {
+  const { error } = await supabase.from('team_players').update({ player_id: null }).eq('id', rowId)
+  if (error) {
+    reportError('unlinkRosterRow', error)
+    return { ok: false, colMissing: isMissingColumn(error), reason: error.message }
+  }
+  return { ok: true }
 }
 
 const REQ_PLAYER_COLS = 'first_name, last_name, position, avatar_url'
