@@ -110,8 +110,17 @@ export default function PlayerScreen({
                 מ-769 ומעלה הוא מוסתר ב-CSS — בדסקטופ יש פעמון בסרגל הצד. */}
             {bell ? <span className="ps-head-bell">{bell}</span> : null}
             <HeadTheme />
+            {/* 12.9.2026 (player-visual-15) — מתחת ל-430px הטקסט
+                ‎.ps-head-coach-tx מוסתר ב-display:none (index.css:32243),
+                והאווטאר הוא ‎aria-hidden — כלומר בטלפון לכפתור לא נשאר
+                שום שם נגיש. שם מפורש, כדי שקורא מסך לא יקריא «לחצן». */}
             {coach && onCoach && (
-              <button type="button" className="ps-head-coach" onClick={onCoach}>
+              <button
+                type="button"
+                className="ps-head-coach"
+                aria-label={L(`המאמן שלי: ${coach}`, `My coach: ${coach}`)}
+                onClick={onCoach}
+              >
                 <span className="ps-head-coach-av" aria-hidden="true">{initialsOf(coach)}</span>
                 <span className="ps-head-coach-tx">
                   <b>{coach}</b>

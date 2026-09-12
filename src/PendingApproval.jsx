@@ -149,8 +149,13 @@ export default function PendingApproval({
             : showSelf
             ? L('פתחת את החשבון כשהיית קטין, ולכן הוא חיכה לאישור של הורה. לפי תאריך הלידה שבפרופיל כבר מלאו לך 18 — האישור הוא שלך עכשיו, ואפשר לפתוח את החשבון כאן ומיד. פרטי ההורה יימחקו מהחשבון.',
                 'You opened the account as a minor, so it waited for a parent to approve it. By the birth date on your profile you are already 18 — the approval is yours now, and you can open the account right here. Your parent’s details will be removed from the account.')
-            : L('פתחתם חשבון שחקן, ולפי החוק צריך אישור של הורה או אחראי לפני שהוא מופעל. שלחנו לכם קישור אישי לשלוח להורה — ברגע שההורה מאשר, החשבון נפתח אוטומטית.',
-                'You opened a player account, and by law a parent or guardian must approve it before it is activated. Send them the personal link below — the moment they approve, the account opens automatically.')}
+            // 12.9.2026 (copy-ux-1-13 · copy-ux-2-6) — שני תיקונים במשפט אחד:
+            // (א) «שלחנו לכם קישור אישי» נאמר לפני ששום קישור נוצר (link ו-sentTo
+            //     ריקים עד שלוחצים), וילד שקרא את זה חיפש קישור שלא קיים — או
+            //     הניח שהכול כבר קרה ולא לחץ על הכפתור, ונשאר תקוע בהמתנה.
+            // (ב) העמוד ערבב רבים («פתחתם», «שלחנו לכם») עם יחיד בכל שאר המסך.
+            : L('פתחת חשבון שחקן, ולפי החוק צריך אישור של הורה או אחראי לפני שהוא מופעל. לוחצים למטה על «שליחת הקישור להורה», ההורה מקבל קישור אישי — וברגע שהוא מאשר, החשבון נפתח לבד.',
+                'You opened a player account, and by law a parent or guardian must approve it before it is activated. Tap “Send the link to my parent” below, your parent gets a personal link — and the moment they approve, the account opens by itself.')}
         </p>
 
         {showSelf && (
@@ -376,6 +381,17 @@ export function AdminRequestPanel({ compact = false }) {
   )
 }
 
+// 12.9.2026 (copy-ux-1-14) — רשימה קנונית אחת של «מה סגור עד שההורה מאשר».
+// עד היום היו שתיים, והן סתרו זו את זו: טופס ההרשמה אמר «תמונות, כתיבה
+// בצ׳אטים ושאלות הבוקר», והבאנר אמר «תמונות, כתיבה בקהילה ובצ׳אטים והודעות»
+// — בלי הצ׳ק-אין. שתיהן החסירו אישור הגעה, רישום משימות ויעדים וסיכום אימון,
+// שכולם חסומים בפועל. הילד ראה כפתורים אפורים שאף רשימה לא הזכירה.
+// פונקציה ולא קבוע: L() נקראת לפי השפה בזמן הרינדור.
+export const restrictedListText = () => L(
+  'עד שההורה מאשר סגור כל מה שנשלח למאמן או לקבוצה — שאלות הבוקר, אישור הגעה, רישום משימות ויעדים, סיכום אימון, כתיבה בצ׳אטים ובקהילה, והעלאת תמונות.',
+  'Until your parent approves, everything that goes to your coach or the team is closed — the morning check-in, attendance replies, logging tasks and goals, session summaries, writing in chats and the community, and uploading photos.',
+)
+
 // ---------- הבאנר של המצב המוגבל ----------
 // הווריאנט המצומצם של המסך שלמעלה, לקטין שההורה שלו עוד לא ענה. החלטת
 // הבעלים: החשבון *לא* ננעל — השחקן מסתובב באפליקציה ובעיקר מצטרף לקבוצה
@@ -426,9 +442,14 @@ export function PendingBanner({ profile, canSelfConfirm = false, onEditProfile, 
       toast.error(L('המנגנון עדיין לא פעיל בשרת — פנו למאמן', 'This is not live on the server yet — contact your coach'))
       return
     }
+    // 12.9.2026 (copy-ux-1-16) — ההודעה הפנתה ל«עריכת פרטים», כפתור שלא קיים
+    // בשם הזה: בבאנר הוא נקרא «שינוי הפרטים של ההורה» והוא מוסתר מאחורי «עוד
+    // אפשרויות». אומרים את השם האמיתי, וגם פותחים את המגירה כדי שהכפתור יהיה
+    // על המסך ברגע שקוראים את המשפט.
+    if (res.reason === 'not_adult') setMore(true)
     toast.error(res.reason === 'not_adult'
-      ? L('לפי תאריך הלידה שבפרופיל עוד לא מלאו 18. אפשר לתקן אותו ב«עריכת פרטים».',
-          'By the birth date on your profile you are not 18 yet. You can fix it under “Edit details”.')
+      ? L('לפי תאריך הלידה שבפרופיל עוד לא מלאו 18. פתחנו למטה את «עוד אפשרויות» — שם אפשר לתקן ב«שינוי הפרטים של ההורה».',
+          'By the birth date on your profile you are not 18 yet. We opened “More options” below — fix it there under “Change my parent’s details”.')
       : L('העדכון נכשל — נסו שוב', 'Update failed — please try again'))
   }
 
@@ -441,8 +462,9 @@ export function PendingBanner({ profile, canSelfConfirm = false, onEditProfile, 
              'Your account is open — we are only waiting for your parent')}
         </strong>
         <p className="pbn-lead">
-          {L('אפשר להסתובב באפליקציה, לתקן את הפרטים ולהצטרף לקבוצה עם קוד מהמאמן. עד שההורה יאשר אי אפשר להעלות תמונות, לכתוב בקהילה ובצ׳אטים או לשלוח הודעות.',
-             'You can look around, fix your details and join a team with a code from your coach. Until your parent approves, you cannot upload photos, post in the community or the chats, or send messages.')}
+          {L('אפשר להסתובב באפליקציה, לתקן את הפרטים ולהצטרף לקבוצה עם קוד מהמאמן.',
+             'You can look around, fix your details and join a team with a code from your coach.')}
+          {' '}{restrictedListText()}
         </p>
 
         <span className="pbn-mail">

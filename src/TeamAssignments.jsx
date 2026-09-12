@@ -25,6 +25,8 @@ const taToday = () => { const d = new Date(); return `${d.getFullYear()}-${taPad
 const COACH_MODE = COACH_LOGS
 const keyOf = (p) => (COACH_MODE ? p.id : p.player_id)
 const notDeployed = (e) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || /relation .* does not exist|could not find the table/i.test(e.message || ''))
+// 12.9 — עמודה חסרה (מסד שטרם הריץ מיגרציה) — 42703 בפוסטגרס, PGRST204 ב-PostgREST
+const colMissing = (e) => !!e && (e.code === '42703' || e.code === 'PGRST204' || /column .* does not exist|could not find the .* column/i.test(e.message || ''))
 
 // «מה נשלח ומי ביצע» (מסמך ההשקה 1.6) — רק משימות פעילות; ארכוב אוטומטי
 // כשעבר התאריך או שכולם סיימו, סגירה ידנית של המאמן, ומסך «ארכיון משימות».
@@ -51,17 +53,38 @@ export default function TeamAssignments({ coachId, team }) {
     // חשבון → שורת סגל (3.9): «ביצעתי» של שחקן מחובר נספר על השורה שלו
     const rosterOfAuth = new Map(players.filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
 
-    const { data: asg, error: asgErr } = await supabase
-      .from('player_assignments')
-      .select('*, drill:drills(title), plan:training_plans(name)')
-      .eq('coach_id', coachId)
-      .order('created_at', { ascending: false })
-      .limit(80)
+    // 12.9 — עד היום נשלפו 80 השורות האחרונות של **כל** הקבוצות של המאמן, ורק
+    // אחר כך סוננה הקבוצה הפתוחה. מאמן עם שלוש קבוצות שרושם משימות יומיות ממצה
+    // את 80 השורות תוך שבועיים — והמשימות הישנות של הקבוצה הזו פשוט נעלמו:
+    // מהרשימה, מהארכיון, ומשורת «ביצוע כולל» (שספרה אחוז מתוך סך חלקי, כלומר
+    // מספר לא נכון). הסינון עובר לשאילתה עצמה, ורק אז מוגבל ל-80.
+    // שלוש שאילתות eq/in במקום .or עם שרשור מחרוזות — שם קבוצה עם פסיק או
+    // סוגריים («נערים א' (בנים)») שובר את תחביר PostgREST (הלקח מ-playerReport.js).
+    const asgSel = '*, drill:drills(title), plan:training_plans(name)'
+    const asgQ = () => supabase.from('player_assignments').select(asgSel)
+      .eq('coach_id', coachId).order('created_at', { ascending: false }).limit(80)
+    const authList = [...authIds]
+    const rosterList = [...rosterIds]
+    const [byTeam, byAuth, byRoster] = await Promise.all([
+      asgQ().eq('team', team),
+      authList.length ? asgQ().in('player_id', authList) : Promise.resolve({ data: [], error: null }),
+      rosterList.length ? asgQ().in('roster_id', rosterList) : Promise.resolve({ data: [], error: null }),
+    ])
+    // מסד שטרם הריץ את 22.8 — אין עמודת roster_id: ממשיכים עם שתי השאילתות האחרות
+    const rosterErr = byRoster.error && !colMissing(byRoster.error) ? byRoster.error : null
+    const asgErr = byTeam.error || byAuth.error || rosterErr
     // כשל שליפה אינו «אין מטלות»: בלי ההפרדה הזו תקלת רשת הציגה בדיוק
     // את מצב הריק «עדיין לא שלחת מטלות לקבוצה הזו».
     if (asgErr) { setFailed(true); setItems([]); return }
     setFailed(false)
-    const mine = (asg || []).filter((a) => a.team === team || authIds.has(a.player_id) || (a.roster_id && rosterIds.has(a.roster_id)))
+    const seenAsg = new Set()
+    const mine = []
+    for (const a of [...(byTeam.data || []), ...(byAuth.data || []), ...(byRoster.data || [])]) {
+      if (seenAsg.has(a.id)) continue
+      seenAsg.add(a.id)
+      mine.push(a)
+    }
+    mine.sort((x, y) => String(y.created_at || '').localeCompare(String(x.created_at || '')))
     if (mine.length === 0) { setItems([]); return }
 
     // בוצע = done_at מלא; שורה בלי done_at = התקדמות חלקית. fallback אם המיגרציה טרם רצה.
@@ -72,6 +95,8 @@ export default function TeamAssignments({ coachId, team }) {
         .from('assignment_coach_marks')
         .select('assignment_id, roster_id, done_at, progress_value')
         .in('assignment_id', ids)
+      // 12.9 — הפרט הטכני (שם המיגרציה) לקונסול; למסך נשאר נוסח בלי SQL
+      if (error && notDeployed(error)) console.error('TeamAssignments: סימוני «ביצע» דורשים את supabase_coach_only_22_8.sql')
       setMarksMissing(!!error && notDeployed(error))
       compl = (data || []).map((c) => ({ ...c, who: c.roster_id, by: 'coach' }))
       // 3.9 — שתי אמיתות: גם «ביצעתי» שסימן שחקן מחובר (player_id → שורת הסגל).
@@ -210,8 +235,15 @@ export default function TeamAssignments({ coachId, team }) {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'assignment_id,roster_id' })
     if (error) {
+      // 12.9 — שם קובץ המיגרציה הוא מידע לבעלים בלבד: PILOT_COACHES ריק, כלומר
+      // כל מאמן יכול להיכנס, ומאמן שאינו הבעלים לא יכול «להריץ SQL בסופאבייס» —
+      // בשבילו זו הודעה חסומה בלי מוצא. הפרט הטכני יורד לקונסול.
+      console.error(notDeployed(error)
+        ? 'TeamAssignments: סימון «ביצע» דורש את supabase_coach_only_22_8.sql'
+        : `TeamAssignments.writeMark: ${error.message || error}`)
       toast.error(notDeployed(error)
-        ? L('כדי לסמן ביצוע צריך להריץ את supabase_coach_only_22_8.sql', 'Marking done needs supabase_coach_only_22_8.sql')
+        ? L('סימון «ביצע» עדיין לא פעיל בשרת — המשימות עצמן נשמרות. נסו שוב מאוחר יותר.',
+            'Marking “done” is not active on the server yet — the tasks themselves are saved. Try again later.')
         : L('הסימון נכשל — נסה שוב', 'Failed to mark — try again'))
       return
     }
@@ -242,9 +274,11 @@ export default function TeamAssignments({ coachId, team }) {
     <div className="team-section">
       <h3 className="ta-title" style={{ marginTop: 18 }}><Dumbbell size={16} /> {COACH_MODE ? L('המשימות ומי ביצע', 'Tasks & done') : L('מה נשלח ומי ביצע', 'Sent & done')}</h3>
       {COACH_MODE && marksMissing && (
+        /* 12.9 — בלי שם קובץ SQL: מאמן שאינו הבעלים לא יכול להריץ מיגרציה,
+           והפרט הטכני נרשם לקונסול בזמן הזיהוי (ראו load). */
         <p className="alert alert-error" style={{ marginBlockEnd: 10 }}>
-          {L('כדי לסמן «ביצע» צריך להריץ את supabase_coach_only_22_8.sql בסופאבייס. המשימות עצמן נשמרות גם בלי זה.',
-             'Marking “done” needs supabase_coach_only_22_8.sql in Supabase. The tasks themselves are saved regardless.')}
+          {L('סימון «ביצע» לשחקן עדיין לא פעיל בשרת. המשימות עצמן נשמרות ונשלחות כרגיל.',
+             'Marking “done” per player is not active on the server yet. The tasks themselves are saved and sent as usual.')}
         </p>
       )}
       <div className="tabs ta-views">
@@ -414,7 +448,13 @@ export default function TeamAssignments({ coachId, team }) {
   // סגירה ידנית — המאמן מארכב משימה פעילה
   async function archiveNow(a) {
     const { error } = await supabase.from('player_assignments').update({ status: 'archived' }).eq('id', a.id)
-    if (error) { toast.error(L('הארכוב דורש את המיגרציה supabase_tasks_launch.sql', 'Archiving needs the supabase_tasks_launch.sql migration')); return }
+    if (error) {
+      // 12.9 — שם המיגרציה לקונסול (לבעלים), ולמאמן נוסח שאומר מה קרה ומה עכשיו
+      console.error(`TeamAssignments.archiveNow: ${error.message || error} (supabase_tasks_launch.sql)`)
+      toast.error(L('סגירת משימה לארכיון עדיין לא פעילה בשרת — נסו שוב מאוחר יותר.',
+        'Archiving a task is not active on the server yet — please try again later.'))
+      return
+    }
     setItems((cur) => cur.map((x) => (x.id === a.id ? { ...x, status: 'archived' } : x)))
     toast.success(L('המשימה נסגרה והועברה לארכיון', 'Task closed and archived'))
   }

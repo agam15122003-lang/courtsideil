@@ -222,6 +222,11 @@ function QuickRequests({ session, membership, coach, restricted = false }) {
       ...(entries || []).map((e) => ({ session_id: e.id, date: e.date })),
     ].sort((a, b) => a.date.localeCompare(b.date))
     const next = cands[0] || null
+    // 12.9.2026 (copy-ux-1-11) — הטוסט הכריז «ונרשם באישורי ההגעה» גם כשלא
+    // נמצא אימון קרוב (ואז לא נכתב RSVP בכלל) וגם כשה-upsert נכשל (שגיאת
+    // הנסיגה לא נבדקה בכלל). מודדים מה באמת נשמר ואומרים בדיוק את זה —
+    // בדיוק כמו sendInjury, שמנסח «המאמן עודכן בהודעה» כשה-RPC נכשל.
+    let rsvpOk = false
     if (next) {
       const row = {
         coach_id: membership.coach_id, team: membership.team,
@@ -230,12 +235,18 @@ function QuickRequests({ session, membership, coach, restricted = false }) {
       }
       let { error } = await supabase.from('practice_rsvp')
         .upsert({ ...row, reason: note.trim() || null }, { onConflict: 'session_id,player_id' })
-      if (error) await supabase.from('practice_rsvp').upsert(row, { onConflict: 'session_id,player_id' })
+      // נסיגה למסד בלי עמודת reason — ועכשיו גם *היא* נבדקת
+      if (error) ({ error } = await supabase.from('practice_rsvp').upsert(row, { onConflict: 'session_id,player_id' }))
+      if (error) console.error('PlayerTeamHub.sendMiss/rsvp:', error.message || error)
+      rsvpOk = !error
     }
     const ok = await sendChat(L(`🙋 עדכון מהאפליקציה: לא אגיע לאימון הקרוב${note.trim() ? ` — ${note.trim()}` : ''}.`, `🙋 App update: I can't make the next practice${note.trim() ? ` — ${note.trim()}` : ''}.`))
     setBusy(false)
-    if (ok) { toast.success(L('המאמן עודכן ונרשם באישורי ההגעה', 'Coach notified and RSVP saved')); setMode(null); setNote('') }
-    else toast.error(L('השליחה נכשלה', 'Failed to send'))
+    if (!ok) { toast.error(L('השליחה נכשלה', 'Failed to send')); return }
+    if (rsvpOk) toast.success(L('המאמן עודכן ונרשם באישורי ההגעה', 'Coach notified and RSVP saved'))
+    else if (!next) toast.info(L('המאמן עודכן בהודעה. אין אימון קרוב בלו״ז, ולכן אין לאן לרשום אישור הגעה.', 'Coach notified. There is no upcoming practice in the schedule, so there is nothing to RSVP to.'))
+    else toast.info(L('המאמן עודכן בהודעה, אבל הרישום באישורי ההגעה לא נשמר.', "Coach notified, but the RSVP wasn't saved."))
+    setMode(null); setNote('')
   }
 
   return (
@@ -313,10 +324,17 @@ export default function PlayerTeamHub({ session, membership, coach, restricted =
   //    אותה הכרעה כמו ב«עולם הכדורסל», ומהסיבה הזהה: המסך הזה הוא ארבעה
   //    מסכים, ובלי הגלולה הזאת שלושה מהם נעלמים.
   const tabs = (
+    // 12.9.2026 (a11y-18) — ‏aria-pressed הכריז «כפתור לחוץ», שאינו אומר לקורא
+    // המסך שזו הלשונית הפעילה מבין ארבע. aria-current="page" הוא הדיווח הנכון
+    // לקבוצת ניווט בתוך מסך, והוא לא דורש לשנות מבנה.
+    // ⚠ לא role="tablist": tablist תקין מחייב role="tabpanel" + aria-controls
+    //   על ארבעת הפאנלים (שניים מהם מרונדרים בלי מיכל משלהם, וה-ScheduleView
+    //   מגיע כ-prop) ו-roving tabindex עם ניווט בחצים. חצי-ARIA גרוע מ-ARIA
+    //   פשוט ונכון — המעבר המלא שייך לסבב שנוגע גם בפריסה של PlayerScreen.
     <nav className="ps-seg" aria-label={L('לשוניות הקבוצה', 'Team tabs')}>
       {TABS.map((t) => (
         <button key={t.id} type="button" className={tab === t.id ? 'ps-seg-btn is-on' : 'ps-seg-btn'}
-          aria-pressed={tab === t.id} onClick={() => setTab(t.id)}>
+          aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
           <t.Icon size={15} aria-hidden="true" /> {L(t.label[0], t.label[1])}
         </button>
       ))}

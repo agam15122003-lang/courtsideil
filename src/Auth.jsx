@@ -110,6 +110,20 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
     setOtpNoAccount(false)
   }
 
+  // 12.9.2026 — סנכרון initialMode. עד היום הוא נקרא רק כערך ההתחלתי של
+  // useState, ו-App אינו מפרק את Auth כשהיעד זהה למסך הפתוח (setAuthStep
+  // לאותו ערך אינו remount). התוצאה: מי שיושב על מסך הכניסה ומקיש שוב על
+  // קישור ה-#/join מוואטסאפ נשאר על טופס ההתחברות במקום לעבור להרשמה —
+  // נראה בדיוק כאילו הקישור שבור; ובכיוון ההפוך, קישור הצ'ק-אין לא הצליח
+  // להחזיר למסך הכניסה מי שכבר עמד על טופס ההרשמה.
+  // goMode ולא setMode: החלפת מצב חייבת גם לנקות התראות ושלב קוד חד-פעמי.
+  const firstMode = useRef(true)
+  useEffect(() => {
+    if (firstMode.current) { firstMode.current = false; return }
+    goMode(initialMode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMode])
+
   const emailBad = emailTouched && email.trim() !== '' && !emailLooksWhole(email)
   const isSignup = mode === 'signup'
   // מד החוזק הוא משוב בלבד. כללי הוואלידציה מגיעים מ-checkPassword
@@ -487,7 +501,23 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
           <>
             {/* תמונת המגרש היא הבאנר עצמו — ה-object-position משתנה לפי המסך
                 דרך .csa-banner--role / --signup, כמו בפרוטוטייפ (42% / 38% / 30%) */}
-            <img className="csa-banner-img" src="/auth-court.jpg" alt="" aria-hidden="true" />
+            {/* 12.9.2026 — 251KB של JPEG ירדו במסך ההתחברות, בשעה שהתמונה
+                יושבת מתחת לשכבת כהות של 60%–92% (ובמצב כהה גם ב-opacity 0.5).
+                עכשיו WebP בן 800px ו-50KB, עם נפילה ל-JPEG לדפדפן עתיק (אותו
+                WebView שבשבילו קיים מסלול התאימות). width/height מונעים קפיצת
+                פריסה, decoding=async מוציא את הפענוח מהמסלול הקריטי. */}
+            <picture>
+              <source srcSet="/auth-court.webp" type="image/webp" />
+              <img
+                className="csa-banner-img"
+                src="/auth-court.jpg"
+                width="800"
+                height="1120"
+                decoding="async"
+                alt=""
+                aria-hidden="true"
+              />
+            </picture>
             <div className="auth-hero-overlay csa-veil" aria-hidden="true" />
           </>
         )}
@@ -508,7 +538,10 @@ export default function Auth({ onBack, role = 'coach', initialMode = 'signin', o
               </div>
               <h1 className="csa-title csa-title--push">{L('ברוך שובך למגרש', 'Welcome back to the court')}</h1>
               <p className="csa-quote" key={qi}>
-                ״{L(quote.text, quote.text_en)}״ <cite>— {L(quote.author, quote.author_en)}</cite>
+                {/* 12.9.2026 — גם תווי הציטוט עוברים דרך L: הגרשיים העבריים
+                    ״ (U+05F4) היו קשיחים, ובמצב English הציטוט האנגלי הוצג
+                    עטוף בגרשיים עבריים. */}
+                {L('״', '“')}{L(quote.text, quote.text_en)}{L('״', '”')} <cite>— {L(quote.author, quote.author_en)}</cite>
               </p>
               <ul className="auth-hero-caps">
                 <li>{PLAYER_SIDE ? L('הבית של מאמנים ושחקנים', 'A home for coaches and players') : L('הבית של מאמני הכדורסל', 'A home for basketball coaches')}</li>

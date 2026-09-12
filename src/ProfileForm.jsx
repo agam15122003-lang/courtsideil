@@ -16,6 +16,11 @@ import { L, trTeam } from './i18n'
 import { PLAYER_SIDE, PLAYER_SIGNUP } from './flags'
 import { createConsentRequest, consentShareText, consentRequestError } from './consent'
 import { waShare, copyText } from './share'
+// 12.9.2026 — «אין חיבור» מול «לא הצלחנו לשמור»: שתי תקלות, שתי הודעות
+import { isNetErr } from './offline'
+import { ChevronBack } from './DirIcon'
+// 12.9.2026 — הרשימה הקנונית של «מה סגור עד אישור ההורה», מקור אמת אחד
+import { restrictedListText } from './PendingApproval'
 
 // כל צירופי הקבוצות (שכבה × מגדר) כרשימה שטוחה לבחירה מרובה
 const TEAM_OPTIONS = AGE_GROUPS.flatMap((age) => GENDERS.map((g) => teamLabel(age, g)))
@@ -43,6 +48,18 @@ function sameMailbox(a, b) {
   return !!x && x === norm(b)
 }
 
+// 12.9.2026 (copy-ux-1-6) — הודעת כישלון שמירה. המחרוזת הגולמית של פוסטגרס
+// («permission denied for table profiles») הודבקה עד היום לסוף משפט עברי,
+// בטופס שנער בן 13 ממלא. היא נרשמת ליומן, והמסך אומר מה עושים עכשיו.
+function saveErrorText(error) {
+  console.error('ProfileForm.save:', error?.message || error)
+  return isNetErr(error)
+    ? L('אין חיבור — הפרופיל לא נשמר. נסו שוב כשהרשת חוזרת.',
+        "No connection — your profile wasn't saved. Try again when you're back online.")
+    : L('לא הצלחנו לשמור את הפרופיל. בדקו את החיבור ונסו שוב.',
+        "We couldn't save your profile. Check your connection and try again.")
+}
+
 // גיל מדויק מתאריך לידה מלא. עד היום החישוב היה הפרש שנים קלנדרי בלבד,
 // ולכן מי שימלאו לו 18 בדצמבר נחשב בגיר כבר ב-1 בינואר (ממצא בדוח).
 function exactAge(dateStr) {
@@ -62,7 +79,12 @@ function exactAge(dateStr) {
 //   profile  - הפרטים הקיימים (יכול להיות חלקי/ריק)
 //   onSaved  - פונקציה שתופעל אחרי שמירה מוצלחת
 //   onCancel - פונקציה לכפתור "ביטול" (אופציונלי — מוצג רק אם קיים)
-export default function ProfileForm({ session, profile, onSaved, onCancel }) {
+//   restricted - קטין שההורה שלו טרם אישר (12.9.2026, player-flow-14)
+// ⚠ restricted הועבר מ-PlayerDashboard ותועד שם כחוזה («כדי שאפשר יהיה
+//   להשבית כאן את בורר התמונה»), אבל לא נקלט בחתימה ונבלע בשקט. או שקולטים
+//   אותו ומשתמשים בו, או שמוחקים את החוזה — כאן קולטים: בורר התמונה הוא
+//   בדיוק מה שהשרת חוסם (supabase_no_player_avatars + שער ההסכמה).
+export default function ProfileForm({ session, profile, restricted = false, onSaved, onCancel }) {
   // משתמש חדש (עדיין אין שם) — תמיד מתחילים ממסך בחירת התפקיד, גם אם
   // ברירת המחדל של העמודה במסד היא 'coach' (אחרת מסך הבחירה נדלג).
   // צד המאמן בלבד (22.8): אין מסך «מי אתם?» — כל משתמש חדש הוא מאמן.
@@ -70,7 +92,14 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   // הסתרת «שחקן» ב-App/RolePicker לבדה לא סוגרת כלום. הדלת «שחקן» נפתחת
   // כאן רק כשיש קוד הצטרפות שמור (הגעה מקישור #/join של מאמן) — או כשאין
   // פיילוט בכלל (PLAYER_SIGNUP). בלי הדלת: מסך הבחירה נדלג והתפקיד 'coach'.
-  const canPickPlayer = PLAYER_SIGNUP || (PLAYER_SIDE && (() => {
+  // 12.9.2026 (player-flow-18) — פרופיל קיים ששורת ה-role שלו ריקה. עד היום
+  // מסך «מי אתם?» דולג (isNew=false), והשמירה כתבה `role: role || 'coach'` —
+  // כלומר שחקן ותיק שאיבד את ה-role הפך למאמן בלחיצה אחת, בלי אזהרה ובלי
+  // דרך חזרה (Dashboard גוזר את כל שער השחקן מ-role). לא מנחשים: מציגים לו
+  // את מסך הבחירה. הדלת «שחקן» נפתחת כאן גם בלי קוד הצטרפות — שער הפיילוט
+  // נועד לחסום *הרשמות חדשות*, לא להסב חשבון קיים לתפקיד שהוא לא בחר.
+  const roleMissing = !!profile?.first_name && !profile?.role
+  const canPickPlayer = PLAYER_SIGNUP || roleMissing || (PLAYER_SIDE && (() => {
     try { return !!localStorage.getItem('pending_join_code') } catch { return false }
   })())
   const [role, setRole] = useState(
@@ -139,7 +168,14 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
       setAvatarUrl(url)
       toast.success(L('תמונת הפרופיל הועלתה', 'Profile photo uploaded'))
     } catch (err) {
-      toast.error(L('העלאת התמונה נכשלה: ', 'Photo upload failed: ') + err.message)
+      // 12.9.2026 (copy-ux-1-6) — err.message הוא טקסט טכני באנגלית («permission
+      // denied for table …»), והוא הודבק לסוף משפט עברי במסך שממלאים בו ילדים.
+      // מקומו ביומן; המסך מקבל משפט אחד שאפשר לפעול לפיו.
+      console.error('ProfileForm.avatar:', err?.message || err)
+      toast.error(isNetErr(err)
+        ? L('אין חיבור — התמונה לא הועלתה. נסו שוב כשהרשת חוזרת.',
+            "No connection — the photo wasn't uploaded. Try again when you're back online.")
+        : L('לא הצלחנו להעלות את התמונה — נסו שוב.', "We couldn't upload the photo — please try again."))
     } finally {
       setUploadingAvatar(false)
     }
@@ -219,7 +255,9 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
     // update על 0 שורות "מצליח" בלי לשמור — ויוצר לולאת שמירה אינסופית.
     const payload = {
       id: session.user.id,
-      role: role || 'coach',
+      // 12.9.2026 (player-flow-18) — profile?.role לפני ברירת המחדל: ברירת
+      // מחדל שקטה 'coach' על חשבון קיים היא שינוי תפקיד חד-כיווני.
+      role: role || profile?.role || 'coach',
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       club: club.trim(),
@@ -312,14 +350,14 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
           'The system is still on the previous version: tick the parental approval below and save again.'
         ))
       } else {
-        setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
+        setError(saveErrorText(error))
       }
       return
     }
 
     if (error) {
       setSaving(false)
-      setError(L('שמירה נכשלה: ', 'Save failed: ') + error.message)
+      setError(saveErrorText(error))
       return
     }
 
@@ -475,7 +513,8 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
 
   // שלב ראשון למשתמש חדש — בוחרים מי אתם (ברור ופשוט לילדים ולנוער)
   const isNew = !profile?.first_name
-  if (isNew && !role) {
+  // 12.9.2026 (player-flow-18) — גם פרופיל קיים בלי role עובר דרך מסך הבחירה
+  if ((isNew || roleMissing) && !role) {
     return (
       <div className="welcome-card profile-form">
         <div className="form-head" style={{ textAlign: 'center' }}>
@@ -505,9 +544,13 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
   return (
     <div className="welcome-card profile-form">
       {/* 4.9 — פיילוט: בלי דלת שחקן אין מסך בחירה, ולכן גם אין «שינוי סוג משתמש» */}
-      {isNew && canPickPlayer && (
+      {/* 12.9.2026 (rtl-i18n-5) — התו ← היה קשיח בתוך המחרוזת, ובדף RTL הוא
+          נודד לקצה השמאלי: בעברית זה נקרא כחץ «קדימה» בסוף השורה, על פעולת
+          חזרה. אייקון כיווני מ-DirIcon מתהפך לפי שפה (DESIGN.md §4), בדיוק
+          כמו במסך האחות JoinWithCode. */}
+      {(isNew || roleMissing) && canPickPlayer && (
         <button type="button" className="link-button" style={{ marginBottom: 8 }} onClick={() => setRole('')}>
-          {L('← שינוי סוג משתמש', '← Change who you are')}
+          <ChevronBack size={15} aria-hidden="true" /> {L('שינוי סוג משתמש', 'Change who you are')}
         </button>
       )}
       <div className="form-head">
@@ -536,12 +579,16 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
               ראשי התיבות של השם, בכל מקום שבו מוצג אווטאר.
               האכיפה אינה כאן בלבד — מדיניות ה-Storage חוסמת העלאה
               לתיקיית avatars/ מחשבון שחקן (supabase_no_player_avatars.sql). */}
-          {isPlayer ? (
+          {isPlayer || restricted ? (
             <div className="avatar-upload">
               <Avatar name={`${firstName} ${lastName}`} url={null} size={76} />
               <p className="muted small" style={{ margin: 0 }}>
-                {L('בפרופיל שחקן אין תמונה — מוצגות ראשי התיבות של השם.',
-                   'Player profiles have no photo — initials are shown instead.')}
+                {isPlayer
+                  ? L('בפרופיל שחקן אין תמונה — מוצגות ראשי התיבות של השם.',
+                       'Player profiles have no photo — initials are shown instead.')
+                  /* 12.9.2026 (player-flow-14) — לא מציעים פעולה שהשרת ידחה */
+                  : L('העלאת תמונה נפתחת אחרי שההורה מאשר את החשבון.',
+                       'Uploading a photo opens after your parent approves the account.')}
               </p>
             </div>
           ) : (
@@ -577,11 +624,14 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
           <div className="form-grid-2">
             <label className="pf-label">
               {L('שם פרטי', 'First name')} <span className="req-star" aria-hidden="true">*</span>
+              {/* 12.9.2026 (mobile-ergonomics-13) — הטופס הארוך ביותר באפליקציה
+                  היה היחיד בלי autoComplete, והוא נמלא בטלפון בידי ילד. */}
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder={L('לדוגמה: דני', 'e.g. Danny')}
+                autoComplete="given-name"
                 required
               />
             </label>
@@ -592,6 +642,7 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder={L('לדוגמה: כהן', 'e.g. Cohen')}
+                autoComplete="family-name"
                 required
               />
             </label>
@@ -718,17 +769,19 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                 <div className="form-grid-2">
                   <label className="pf-label">
                     {L('שם ההורה או האחראי', 'Parent or guardian name')} <span className="pf-req">*</span>
+                    {/* 12.9.2026 (mobile-ergonomics-13) — ההשלמה האוטומטית של
+                        המכשיר חוסכת לילד את רוב ההקלדה כאן */}
                     <input type="text" required value={guardianName} onChange={(e) => setGuardianName(e.target.value)}
-                      placeholder={L('שם מלא', 'Full name')} />
+                      autoComplete="name" placeholder={L('שם מלא', 'Full name')} />
                   </label>
                   <label className="pf-label">
                     {L('מייל של ההורה', 'Parent email')} <span className="pf-req">*</span>
-                    <input type="email" dir="ltr" required value={guardianEmail}
+                    <input type="email" dir="ltr" required value={guardianEmail} autoComplete="email"
                       onChange={(e) => setGuardianEmail(e.target.value)} placeholder="parent@example.com" />
                   </label>
                   <label className="pf-label">
                     {L('טלפון של ההורה', 'Parent phone')}
-                    <input type="tel" dir="ltr" value={guardianPhone}
+                    <input type="tel" dir="ltr" value={guardianPhone} autoComplete="tel"
                       onChange={(e) => setGuardianPhone(e.target.value)} placeholder="050-0000000" maxLength={20} />
                   </label>
                   <label className="pf-label">
@@ -744,9 +797,12 @@ export default function ProfileForm({ session, profile, onSaved, onCancel }) {
                 {/* 6.9 — הנוסח הקודם («אי אפשר להצטרף לקבוצה») היה הפוך
                     מהתכנון: חשבון ממתין נפתח במצב מוגבל דווקא כדי שהילד
                     יצטרף עם הקוד מהמאמן. הוא קרא, האמין, ולא הזין את הקוד. */}
+                {/* 12.9.2026 (copy-ux-1-14) — אותה רשימה בדיוק כמו בבאנר
+                    (restrictedListText), ולא גרסה שנייה שסותרת אותה. */}
                 <p className="pf-guardian-note">
-                  {L('עד שההורה מאשר אפשר להיכנס, לתקן פרטים ולהצטרף לקבוצה עם הקוד מהמאמן — מה שסגור זה תמונות, כתיבה בצ׳אטים ושאלות הבוקר.',
-                     'Until they approve you can sign in, fix your details and join a team with the code from your coach — what stays closed is photos, writing in chats and the morning check-in.')}
+                  {L('אפשר להיכנס, לתקן פרטים ולהצטרף לקבוצה עם הקוד מהמאמן.',
+                     'You can sign in, fix your details and join a team with the code from your coach.')}
+                  {' '}{restrictedListText()}
                 </p>
 
                 {/* legacy — נראה רק אם המסד עוד לא הריץ את מיגרציית ההסכמות

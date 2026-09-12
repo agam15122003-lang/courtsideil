@@ -23,7 +23,15 @@
 // מי שירצה תפר בצבע הרקע (המראה של «חתוך מהמשטח») יגדיר --logo-seam
 // על המיכל עצמו, לא גלובלית — יש באפליקציה כמה גווני נייבי שונים.
 
+import { L } from './i18n'
+
 const SEAM = 'M50 10V90M10 50h80M22 22Q50 50 22 78M78 22Q50 50 78 78'
+
+// 12.9.2026 — הטאגליין (מסלול withTagline) היה עברית קשיחה, ועם
+// textAlign:'right' פיזי — ה-inline style הפיזי היחיד בכל src/*.jsx.
+// הנתיב הזה עדיין לא מופעל בשום קורא, ולכן זו מלכודת ליום שידליקו אותו.
+const TAGLINE_A = () => L('הבית של מאמני הכדורסל', 'The home of Israeli')
+const TAGLINE_B = () => L('הישראלי', 'basketball coaches')
 
 function Ball({ px }) {
   return (
@@ -72,7 +80,7 @@ export default function Logo({ size = 30, withWordmark = false, withTagline = fa
   return (
     <span
       className={`cs-logo cs-logo-lockup ${className}`.trim()}
-      aria-label="CourtSide — הבית של מאמני הכדורסל הישראלי"
+      aria-label={`CourtSide — ${TAGLINE_A()} ${TAGLINE_B()}`}
       role="img"
       style={{ display: 'inline-block' }}
     >
@@ -94,11 +102,12 @@ export default function Logo({ size = 30, withWordmark = false, withTagline = fa
           marginTop: Math.round(fs * 0.23),
           font: `700 ${tagFs}px/1.25 var(--font-display)`,
           whiteSpace: 'nowrap',
-          direction: 'rtl',
-          textAlign: 'right',
+          // 12.9.2026 — 'start' לוגי במקום 'right' פיזי, והכיוון נגזר מהשפה
+          // ולא קבוע rtl; אחרת הטאגליין באנגלית היה נצמד לצד הלא נכון.
+          textAlign: 'start',
         }}
       >
-        הבית של מאמני הכדורסל <span style={{ color: 'var(--logo-tag-accent, var(--brand-text))' }}>הישראלי</span>
+        {TAGLINE_A()} <span style={{ color: 'var(--logo-tag-accent, var(--brand-text))' }}>{TAGLINE_B()}</span>
       </span>
     </span>
   )

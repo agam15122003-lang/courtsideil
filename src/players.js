@@ -165,6 +165,13 @@ export async function requestJoinByCode(playerId, rawCode) {
   return { ok: true, status: 'pending', ...row }
 }
 
+// 12.9.2026 (player-flow-10) — ההסבר שמוחזר לקורא כשההוספה לסגל נכשלה.
+// פונקציה ולא קבוע: L() נקראת לפי השפה בזמן הקריאה.
+const ROSTER_INSERT_FAIL = () => L(
+  'הסטטוס עודכן, אבל ההוספה לסגל נכשלה — השחקן עדיין לא בסגל. נסו שוב, או הוסיפו אותו ידנית בטאב «סגל».',
+  'The status was updated, but adding to the roster failed — the player is not on the roster yet. Try again, or add them manually in the Roster tab.',
+)
+
 // מאמן מאשר/דוחה בקשת הצטרפות. באישור — מוסיף את השחקן לסגל (עם player_id) ומתריע לו.
 export async function decideMembership(membership, approve) {
   const status = approve ? 'approved' : 'rejected'
@@ -216,8 +223,19 @@ export async function decideMembership(membership, approve) {
         // פרודקשן שעוד לא הריץ את המיגרציה של player_id — מוסיפים בלי העמודה
         const { player_id: _pid, ...basic } = row
         const { error: e3 } = await supabase.from('team_players').insert(basic)
-        if (e3) reportError('decideMembership/roster-insert-basic', e3, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
-        else {
+        if (e3) {
+          // 12.9.2026 (player-flow-10) — בלי ה-return הזה הזרימה נפלה החוצה
+          // מהבלוק ל-notifyApproved(): השחקן קיבל «המאמן אישר אותך לקבוצה! 🎉»
+          // בזמן שאין לו שום שורה ב-team_players — ובלי שורה מקושרת גם ה-RLS
+          // (is_on_coach_roster) חוסם כתיבה, והילד נוחת על «החשבון שלך עוד לא
+          // מחובר לרשימת השחקנים». שני הענפים המוצלחים כבר עושים return; רק
+          // ענפי הכישלון נפלו דרכו — ואז הוצג גם טוסט הצלחה סותר.
+          // ⚠ בלי טוסט מ-reportError: הקוראים (TeamConnect/Teams) כבר מציגים
+          //   «הפעולה נכשלה: » + reason, ולכן מחזירים משפט עברי ולא הודעת
+          //   פוסטגרס גולמית — היא נשארת ביומן.
+          reportError('decideMembership/roster-insert-basic', e3)
+          return { ok: false, rosterFailed: true, reason: ROSTER_INSERT_FAIL() }
+        } else {
           // 8.9 — הנסיגה הזו יצרה בשקט שחקן מאושר עם שורת סגל **לא מקושרת**:
           // אין לו צ'ק-אין, אין לו יעדים, ואף אחד לא אמר למאמן. אומרים את
           // האמת: נוסף לסגל, החשבון לא מחובר, ומחברים מהסגל (אחרי ה-SQL).
@@ -227,7 +245,10 @@ export async function decideMembership(membership, approve) {
             `“${nm || 'Player'}” was approved and added to the roster, but his account is not connected to a roster row yet — so check-ins and goals will not reach him. Connect it from the Roster tab (“Connect players” panel), after running supabase_players.sql.`) }
         }
       } else if (e2) {
-        reportError('decideMembership/roster-insert', e2, L('השחקן אושר אך ההוספה לסגל נכשלה — נסו להוסיף ידנית.', 'The player was approved but adding to the roster failed — try adding manually.'))
+        // 12.9.2026 (player-flow-10) — ראו ההערה בענף הנסיגה: בלי return
+        // נשלחה התראת «אושרת לקבוצה!» לשחקן שאין לו שורת סגל.
+        reportError('decideMembership/roster-insert', e2)
+        return { ok: false, rosterFailed: true, reason: ROSTER_INSERT_FAIL() }
       } else {
         notifyApproved()
         // רמז רק כשבאמת נוצרה שורה חדשה (ולא נמצאה שורה אחת מתאימה)

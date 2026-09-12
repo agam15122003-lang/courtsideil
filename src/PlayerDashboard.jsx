@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, createContext, useContext, Fragment } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, Users, User,
-  Menu, X, Check, Clock, Star, CalendarDays, Users2, MessageSquare, MessagesSquare, Send,
-  ShieldCheck, Hourglass, Trophy, Flame, Lock, Newspaper,
-  Sparkles, Zap, Crown, CalendarCheck, Timer, Target, Play, ClipboardList,
-  ArrowLeft, Eye, Moon, Globe, LogOut, Pencil, UserCheck,
+  // 12.9.2026 (player-flow-16) — האייקונים של ארבעת הרכיבים המתים ירדו יחד
+  // איתם; מה שנשאר כאן באמת מרונדר במסך.
+  Home as HomeIcon, Dumbbell, MessageSquareHeart, MonitorPlay, User,
+  Menu, X, Check, Clock, Star, CalendarDays, Send,
+  ShieldCheck, Hourglass, Trophy, Flame, Lock,
+  Target, Play,
+  Eye, Moon, Globe, LogOut, Pencil,
   MessageCircle, Copy, Link2, RefreshCw, AlertTriangle, Mail,
   Database, Download, FileJson, FileSpreadsheet, Info, ChevronDown, UserPlus, BookOpen,
   WifiOff,
@@ -51,6 +53,8 @@ import {
   siteUrl,
 } from './consent'
 import { burstConfetti } from './confetti'
+// 12.9.2026 — דיאלוג האישור של המוצר במקום window.confirm הדפדפני
+import { confirmDialog } from './confirm'
 import { expandSlots, expandSlotsRange } from './sessionId'
 import { safeUrl, COACHING_QUOTES, VIDEO_CATEGORIES, PODCASTS, CONTACT_EMAIL } from './constants'
 import { getYouTubeId, cleanVideoTitle } from './youtube'
@@ -63,6 +67,43 @@ import PlayerPlanSheet from './PlayerPlanSheet'
 import CheckinCard from './CheckinCard'
 
 const WEEKLY_TARGET = 4 // תרגילים ליעד השבועי
+
+// ============================================================
+//  12.9.2026 — «אין חיבור» ≠ «אין נתונים» (copy-ux-1-1, player-flow-5)
+// ============================================================
+// למה: player_assignments/practice_rsvp/drill_videos נשלפו בלי לבדוק error,
+// וכל כשל (רשת באולם, RLS) הפך ל-[] ולמצב ריק — «עוד לא קיבלת משימות».
+// הילד מאמין שהמאמן לא שלח כלום ומפסיק לבדוק. מפרידים לשלוש תשובות:
+// הצלחה · «הטבלה/העמודה עוד לא קיימת» (מסד שטרם הריץ מיגרציה — שקט, כי
+// אין שם באמת נתונים) · כל השאר, שחייב להיראות עם «נסו שוב».
+// אותה רשימת קודים בדיוק כמו ב-CheckinCard.jsx (SCHEMA_CODES) — הרכיב שם
+// לא מייצא אותה, ואסור לי לערוך את הקובץ שלו בסבב הזה.
+const SCHEMA_CODES = ['42P01', '42703', 'PGRST202', 'PGRST204', 'PGRST205']
+function schemaGone(err) {
+  if (!err) return false
+  if (SCHEMA_CODES.includes(err.code)) return true
+  return /does not exist|schema cache|could not find/i.test(err.message || '')
+}
+// true כשיש שגיאה שהמשתמש חייב לראות (רשת, הרשאה, 5xx)
+const loadFailed = (...errs) => errs.some((e) => e && !schemaGone(e))
+
+// כרטיס «לא הצלחנו לטעון» אחיד לצד השחקן — אותן מחלקות של PlayerTimeline
+// (ps-empty / ps-btn), כדי שלא ייווצר כאן ניב עיצובי שלישי.
+function LoadErrorCard({ title, hint, onRetry, Icon = WifiOff }) {
+  return (
+    <div className="ps-card">
+      <div className="ps-empty">
+        <span className="ps-empty-ic"><Icon size={20} aria-hidden="true" /></span>
+        <b>{title || L('לא הצלחנו לטעון', "We couldn't load this")}</b>
+        <p>{hint || L('זה לא אומר שאין כאן כלום — נסו שוב כשהרשת חוזרת.',
+                      "It doesn't mean there's nothing here — try again when you're back online.")}</p>
+        <button type="button" className="ps-btn" onClick={onRetry}>
+          <RefreshCw size={15} aria-hidden="true" /> {L('נסו שוב', 'Try again')}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ============================================================
 //  מצב מוגבל — קטין שההורה שלו עוד לא אישר
@@ -115,6 +156,11 @@ const RESTRICTED_SCREEN = {
     'You can see your goals, but adding one and logging progress open only after your parent approves.'),
   schedule: () => L('אפשר לראות את הקבוצה והלו״ז, אבל אישור הגעה וכתיבה בצ׳אט נפתחים רק אחרי אישור ההורה.',
     'You can see your team and schedule, but confirming attendance and chatting open only after your parent approves.'),
+  // 12.9.2026 (copy-ux-2-18) — דף המאמן האישי מרנדר את MyGoals עם restricted,
+  // וכל הפקדים שם אפורים בלי מילה אחת שמסבירה למה. בלי השורה הזאת זה המסך
+  // היחיד בצד השחקן שחוסם בלי להסביר ובלי לתת את הדרך החוצה.
+  pcoach: () => L('אפשר לראות כאן הכול, אבל הוספת יעדים ורישום התקדמות נפתחים רק אחרי אישור ההורה.',
+    'You can see everything here, but adding goals and logging progress open only after your parent approves.'),
 }
 RESTRICTED_SCREEN.team = RESTRICTED_SCREEN.schedule
 
@@ -131,21 +177,6 @@ function timeAgo(ts) {
 function withinDays(ts, days) {
   return (Date.now() - new Date(ts).getTime()) <= days * 86400000
 }
-
-// כותרת מסך אחידה ומעוצבת לשחקן — אייקון צבעוני + כותרת + תת-כותרת (+ סיכום אופציונלי מימין)
-function PlHead({ Icon, tone = 'accent', title, subtitle, children }) {
-  return (
-    <header className={`pl-head tone-${tone}`}>
-      <span className="pl-head-ic"><Icon size={22} /></span>
-      <div className="pl-head-txt">
-        <h2>{title}</h2>
-        {subtitle && <p>{subtitle}</p>}
-      </div>
-      {children}
-    </header>
-  )
-}
-
 
 // ---------- מסך/כרטיס הצטרפות לקבוצה (קוד מהמאמן) ----------
 function JoinTeam({ session, onJoined, compact }) {
@@ -182,9 +213,14 @@ function JoinTeam({ session, onJoined, compact }) {
     // 6.9 — בקשה שנדחתה בעבר חוזרת מהשרת כ-ok עם status:'rejected', ועד
     // היום נאמר לילד «הבקשה נשלחה למאמן» — הודעת הצלחה על כלום. הקוד
     // נשאר בתיבה כדי שיוכל לשלוח שוב אחרי שידבר עם המאמן.
+    // ⚠ 12.9.2026 (player-flow-1) — הנוסח הקודם הבטיח «אפשר לשלוח שוב עם
+    //   אותו קוד», וזה פשוט לא עובד: join_with_code מחזיר שורה קיימת כמות
+    //   שהיא בלי לאפס ל-'pending' ובלי התראה למאמן, ולמאמן אין באפליקציה
+    //   שום פקד להחזיר בקשה שנדחתה. עד שהשרת/מסך המאמן ייפתחו, אומרים
+    //   לילד את האמת ומפנים אותו לאדם היחיד שיכול לפתוח את זה.
     if (res.status === 'rejected') {
-      toast.error(L('המאמן דחה את הבקשה שלך לקבוצה הזו. דברו איתו — ואפשר לשלוח לו אותה שוב עם אותו קוד.',
-                    'Your coach declined your request to this team. Talk to them — you can send it again with the same code.'))
+      toast.error(L('המאמן דחה את הבקשה. פנו אליו — רק הוא יכול לפתוח אותה מחדש.',
+                    'Your coach declined the request. Talk to them — only they can reopen it.'))
       load()
       return
     }
@@ -250,8 +286,10 @@ function PersonalCoachJoin({ compact = false, onSent }) {
     if (error) {
       // הפונקציה נוספת ב-supabase_personal_code_4_8.sql. עד שהיא תרוץ,
       // אין להאשים את המשתמש בקוד שגוי.
+      // 12.9.2026 (copy-ux-2-14) — «פיצ׳ר» היא מילה שלנו ולא של נער בן 12,
+      // ו«פנה» פונה לזכר יחיד. אותו נוסח שכבר קיים בכרטיס «המידע שלי».
       toast.error(/function .* does not exist|PGRST202/i.test(error.message || '')
-        ? L('הפיצ׳ר עוד לא הופעל. פנה למאמן.', 'Not enabled yet. Ask your coach.')
+        ? L('האפשרות הזו עדיין לא פעילה — פנו למאמן/ת.', 'Not enabled yet. Ask your coach.')
         : L('הבקשה נכשלה: ', 'Request failed: ') + error.message)
       return
     }
@@ -323,96 +361,6 @@ function LockedFeature({ session, title, desc, onJoined }) {
         <p className="muted">{desc}</p>
       </div>
       <JoinTeam session={session} onJoined={onJoined} compact />
-    </div>
-  )
-}
-
-// ---------- טיימר ספירה לאחור לאימון הבא ----------
-function Countdown({ membership, onNavigate }) {
-  const [next, setNext] = useState(undefined)
-  const [now, setNow] = useState(Date.now())
-
-  useEffect(() => {
-    if (!membership) { setNext(null); return }
-    ;(async () => {
-      const today = new Date().toISOString().slice(0, 10)
-      const [{ data }, { data: slots }] = await Promise.all([
-        supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(10),
-        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-      ])
-      const nowTs = Date.now()
-      const cands = [
-        ...(data || []),
-        ...expandSlots(slots || [], 0, 30).map((o) => ({ date: o.date, start_time: o.start_time, end_time: o.end_time })),
-      ]
-      const pick = cands
-        .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
-        .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))[0]
-      setNext(pick || null)
-    })()
-  }, [membership])
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  if (next === undefined) return null
-  if (!next) {
-    return (
-      <div className="pl-count pl-count-empty">
-        <span className="pl-count-label"><Timer size={16} /> {L('האימון הבא', 'Next practice')}</span>
-        <strong>{membership ? L('אין אימון קרוב בלו״ז', 'No upcoming practice') : L('הצטרפו לקבוצה', 'Join a team')}</strong>
-        <span className="muted small">{membership ? L('המאמן יוסיף אימונים ללו״ז', 'Your coach will add practices') : L('כדי לראות את האימון הבא', 'to see your next practice')}</span>
-      </div>
-    )
-  }
-
-  const start = new Date(`${next.date}T${next.start_time || '00:00'}`)
-  const diff = Math.max(0, start.getTime() - now)
-  const d = Math.floor(diff / 86400000)
-  const h = Math.floor((diff % 86400000) / 3600000)
-  const m = Math.floor((diff % 3600000) / 60000)
-  const s = Math.floor((diff % 60000) / 1000)
-  const started = diff <= 0
-  const when = start.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
-
-  const Unit = ({ v, lbl }) => (
-    <span className="pl-count-unit"><b>{String(v).padStart(2, '0')}</b><i>{lbl}</i></span>
-  )
-
-  return (
-    <button className="pl-count" onClick={() => onNavigate?.('team')}>
-      <span className="pl-count-label"><Timer size={16} /> {started ? L('האימון עכשיו', 'Practice now') : L('האימון הבא', 'Next practice')}</span>
-      {!started ? (
-        <div className="pl-count-clock">
-          {d > 0 && <Unit v={d} lbl={L('ימים', 'days')} />}
-          <Unit v={h} lbl={L('שע׳', 'hrs')} />
-          <Unit v={m} lbl={L('דק׳', 'min')} />
-          <Unit v={s} lbl={L('שנ׳', 'sec')} />
-        </div>
-      ) : (
-        <strong className="pl-count-live">{L('בהצלחה באימון!', 'Have a great practice!')}</strong>
-      )}
-      <span className="muted small">{next.plan?.name || trTeam(membership.team)} · {when}{next.start_time ? ` · ${next.start_time.slice(0, 5)}` : ''}</span>
-    </button>
-  )
-}
-
-// ---------- טבעת נוכחות ----------
-function AttendanceRing({ pct, size = 62 }) {
-  const has = pct != null
-  const val = has ? pct : 0
-  const r = 26, c = 2 * Math.PI * r
-  const off = c * (1 - val / 100)
-  const tone = val >= 80 ? 'var(--c-green)' : val >= 50 ? 'var(--c-orange)' : 'var(--c-red)'
-  return (
-    <div className="pl-ring" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
-        <circle cx="32" cy="32" r={r} className="pl-ring-bg" />
-        <circle cx="32" cy="32" r={r} className="pl-ring-fg" style={{ stroke: has ? tone : 'var(--border)', strokeDasharray: c, strokeDashoffset: has ? off : c }} />
-      </svg>
-      <span className="pl-ring-val">{has ? `${val}%` : '—'}</span>
     </div>
   )
 }
@@ -505,8 +453,11 @@ function TaskHero({ a, compl, onToggleDone, onProgress }) {
           </div>
           {!reached && (
             <div className="ps-hero-acts">
-              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
-              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
+              {/* 12.9.2026 (rtl-i18n-1) — הסימן + הוא תו ניטרלי ב-BiDi, ולכן
+                  בפסקה עברית הוא נסחף לקצה השני: «10+» במקום «+10». bdi
+                  נועל את הכיוון על המספר בלבד, בלי להשפיע על שאר השורה. */}
+              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 10)} disabled={restricted}><bdi dir="ltr">+10</bdi></button>
+              <button type="button" className="ps-hero-chip" onClick={() => onProgress(a, 25)} disabled={restricted}><bdi dir="ltr">+25</bdi></button>
               <input
                 className="ps-hero-in" type="number" dir="ltr" min="1" value={custom}
                 onChange={(e) => setCustom(e.target.value)}
@@ -567,8 +518,8 @@ function TaskHero({ a, compl, onToggleDone, onProgress }) {
       {restricted && (
         <div className="ps-hero-done">
           <RestrictedNote>
-            {L('אפשר לבצע את התרגיל — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
-               'You can do the drill — logging it in the app opens once your parent approves.')}
+            {L('אפשר לבצע את המשימה — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
+               'You can do the task — logging it in the app opens once your parent approves.')}
           </RestrictedNote>
         </div>
       )}
@@ -635,8 +586,11 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
           </div>
           <div className="ps-track"><span style={{ inlineSize: `${pct}%` }} /></div>
           <div className="ps-steps">
-            <button type="button" className="ps-add" onClick={() => onProgress(a, 10)} disabled={restricted}>+10</button>
-            <button type="button" className="ps-add" onClick={() => onProgress(a, 25)} disabled={restricted}>+25</button>
+            {/* 12.9.2026 (rtl-i18n-1 · פיוס האצווה) — אותו תיקון bdi שכבר נעשה
+                ב-TaskHero וב-plht-quick, ונשמט דווקא מהכרטיס הרגיל: בלי bdi
+                הסימן + נסחף לצד השני של המספר ונקרא «10+». */}
+            <button type="button" className="ps-add" onClick={() => onProgress(a, 10)} disabled={restricted}><bdi dir="ltr">+10</bdi></button>
+            <button type="button" className="ps-add" onClick={() => onProgress(a, 25)} disabled={restricted}><bdi dir="ltr">+25</bdi></button>
             {customOpen ? (
               <>
                 <input
@@ -669,8 +623,8 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
       )}
       {restricted && (
         <RestrictedNote>
-          {L('אפשר לקרוא את התרגיל ולבצע אותו — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
-             'You can read the drill and do it — logging it in the app opens once your parent approves.')}
+          {L('אפשר לקרוא את המשימה ולבצע אותה — רישום הביצוע באפליקציה נפתח אחרי שההורה יאשר.',
+             'You can read the task and do it — logging it in the app opens once your parent approves.')}
         </RestrictedNote>
       )}
     </article>
@@ -679,6 +633,9 @@ function AssignmentCard({ a, compl, onToggleDone, onProgress }) {
 
 // שורת משימה שבוצעה — במסמך אלה שורות ההיסטוריה בתחתית המסך.
 // לחיצה פותחת אותה מחדש, בדיוק כמו הכרטיס הירוק שהיה כאן קודם.
+// 12.9.2026 (copy-ux-2-19) — כל שטח השורה מבטל את הסימון, וזה לא היה כתוב
+// בשום מקום: נער שגלל בהיסטוריה ונגע בשורה החזיר משימה לפתוחות בלי לדעת.
+// הצ'יפ אומר עכשיו «בוצע · לביטול», כמו ביעדים שהושגו (PlayerGoals).
 function DoneRow({ a, compl, onToggleDone }) {
   const { restricted } = useRestricted()
   const { hasTarget, target, prog, title, unitStr } = assignmentBits(a, compl)
@@ -686,6 +643,8 @@ function DoneRow({ a, compl, onToggleDone }) {
     <button
       type="button" className="ps-linkrow" onClick={() => onToggleDone(a.id, true)}
       aria-pressed="true" disabled={restricted}
+      aria-label={L(`${title} — בוצע. לחיצה מחזירה את המשימה לפתוחות`,
+                    `${title} — done. Tap to reopen this task`)}
     >
       <span className="ps-okdot" aria-hidden="true"><Check size={14} /></span>
       <span className="ps-row-main">
@@ -696,7 +655,7 @@ function DoneRow({ a, compl, onToggleDone }) {
             : L('בוצע · כל הכבוד', 'Done · nice work')}
         </span>
       </span>
-      <span className="ps-chip ps-chip--ok">{L('בוצע', 'Done')}</span>
+      <span className="ps-chip ps-chip--ok">{L('בוצע · לביטול', 'Done · undo')}</span>
     </button>
   )
 }
@@ -723,7 +682,8 @@ function ParentLinkButton({ coachId, coachName }) {
       const rpcMissing = error?.code === 'PGRST202'
       toast.error(
         rpcMissing
-          ? L('הפיצ׳ר עוד לא הופעל. פנה למאמן.', 'Not enabled yet. Ask your coach.')
+          // 12.9.2026 (copy-ux-2-14) — ראו ההסבר ב-PersonalCoachJoin
+          ? L('האפשרות הזו עדיין לא פעילה — פנו למאמן/ת.', 'Not enabled yet. Ask your coach.')
           : reason === 'need_guardian'
             ? L('אין הורה רשום בחשבון שלך. השלם קודם את אישור ההורה בהגדרות.',
                 'No guardian on file. Complete the parent approval in settings first.')
@@ -802,6 +762,9 @@ function MyPersonalCoaches({ session, personalIds = [], bell }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [tick, setTick] = useState(0) // טעינה מחדש אחרי בקשה שנשלחה
+  // 12.9.2026 (player-flow-5) — «אין לך עדיין מאמן אישי» הוצג גם כשהשליפה
+  // נכשלה ברשת. עכשיו רק «אין טבלה» שותק; כשל אמיתי מקבל «נסו שוב».
+  const [loadErr, setLoadErr] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -816,7 +779,8 @@ function MyPersonalCoaches({ session, personalIds = [], bell }) {
       if (!alive) return
       // טבלה חסרה = המיגרציה טרם רצה. לא מציגים כלום, לא מקפיצים שגיאה.
       setRows(error ? [] : data || [])
-    })().catch(() => { if (alive) setRows([]) })
+      setLoadErr(loadFailed(error))
+    })().catch(() => { if (alive) { setRows([]); setLoadErr(true) } })
     // ה-catch אינו קישוט: rows===null הוא המצב היחיד שבו הכרטיס אינו
     // מרונדר בכלל, ובקשה שלא נפתרת הייתה משאירה אותו שם לנצח — בדיוק
     // סוג התקיעה השקטה שהפילה את מסך הטעינה הראשי (App.jsx).
@@ -872,7 +836,17 @@ function MyPersonalCoaches({ session, personalIds = [], bell }) {
         </div>
       ))}
 
-      {rows.length === 0 && (
+      {/* 12.9.2026 (player-flow-5) — שגיאה ≠ «אין מאמן אישי» */}
+      {rows.length === 0 && loadErr && (
+        <LoadErrorCard
+          title={L('לא הצלחנו לטעון את המאמנים האישיים', "We couldn't load your personal coaches")}
+          hint={L('אם יש לך מאמן אישי הוא עדיין שם — נסו שוב כשהרשת חוזרת.',
+                  "If you have a personal coach they're still there — try again when you're back online.")}
+          onRetry={() => setTick((n) => n + 1)}
+        />
+      )}
+
+      {rows.length === 0 && !loadErr && (
         <div className="ps-card">
           <div className="ps-empty">
             <span className="ps-empty-ic"><UserPlus size={20} aria-hidden="true" /></span>
@@ -998,9 +972,13 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
   const [allItems, setItems] = useState(null)
   const [complBy, setComplBy] = useState({}) // assignment_id -> { progress_value, done_at }
   const [filter, setFilter] = useState('open') // open | all | done
+  // 12.9.2026 (copy-ux-1-1, player-flow-5) — עד היום ה-error לא נבדק בכלל,
+  // וכשל רשת הפך ל-[] ולמצב «עוד לא קיבלת משימות». זה שקר שגורם לילד
+  // להפסיק לבדוק; מפרידים בין «אין» לבין «לא נטען».
+  const [loadErr, setLoadErr] = useState(false)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error: asgErr } = await supabase
       .from('player_assignments')
       .select('*, drill:drills(id, title, category, description, duration_minutes), plan:training_plans(id, name)')
       .order('created_at', { ascending: false })
@@ -1016,7 +994,10 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
       const legacy = await supabase.from('assignment_completions')
         .select('assignment_id, done_at').eq('player_id', session.user.id)
       compl = (legacy.data || []).map((c) => ({ ...c, progress_value: 0 }))
+      // רק כשל הנפילה־לאחור נחשב — הראשון היה «אין עמודת progress_value»
+      error = legacy.error
     }
+    setLoadErr(loadFailed(asgErr, error))
     const by = {}
     for (const c of compl || []) by[c.assignment_id] = { progress_value: Number(c.progress_value) || 0, done_at: c.done_at }
     setComplBy(by)
@@ -1030,22 +1011,32 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
     : 0)
 
   // תרגיל בוצע/לא-בוצע (בלי יעד), או פתיחה מחדש של תרגיל עם יעד (שומרת את ההתקדמות)
+  // ⚠ 12.9.2026 (copy-ux-1-2, player-flow-3) — תוצאת הכתיבה לא נבדקה, ולכן
+  //   בלי רשת (או בדחיית RLS) הילד קיבל «כל הכבוד» + קונפטי, הסימון נראה
+  //   שמור — ונעלם ברענון, בלי שאף אחד אמר לו. עכשיו: שמירה ← בדיקה ←
+  //   רק אז החגיגה; בכשל מחזירים את ה-state הקודם, כמו ב-addProgress.
   const toggleDone = async (id, wasDone) => {
     // ⚠ allItems ולא items: items נגזר למטה, אחרי ההצהרה הזאת — קריאה
     //   אליו מכאן היא TDZ (ReferenceError בלחיצה). ומכל מקום החיפוש צריך
     //   להיות במלאי המלא, לא ברשימה המסוננת.
     const a = (allItems || []).find((x) => x.id === id)
     const keepProgress = Number(a?.target_value) > 0
+    const prev = complBy[id] || null
+    const rollback = () => {
+      setComplBy((m) => { const next = { ...m }; if (prev) next[id] = prev; else delete next[id]; return next })
+      toast.error(L('לא הצלחנו לשמור — נסו שוב', "Couldn't save — try again"))
+    }
     if (wasDone) {
       setComplBy((m) => ({ ...m, [id]: { progress_value: keepProgress ? (m[id]?.progress_value || 0) : 0, done_at: null } }))
-      if (keepProgress) {
-        await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: null })
-      } else {
-        await supabase.from('assignment_completions').delete().eq('assignment_id', id).eq('player_id', session.user.id)
-      }
+      const { error } = keepProgress
+        ? await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: null })
+        : await supabase.from('assignment_completions').delete().eq('assignment_id', id).eq('player_id', session.user.id)
+      if (error) { rollback(); return }
     } else {
       setComplBy((m) => ({ ...m, [id]: { progress_value: m[id]?.progress_value || 0, done_at: 'x' } }))
-      await supabase.from('assignment_completions').upsert({ assignment_id: id, player_id: session.user.id, done_at: new Date().toISOString() })
+      const { error } = await supabase.from('assignment_completions')
+        .upsert({ assignment_id: id, player_id: session.user.id, done_at: new Date().toISOString() })
+      if (error) { rollback(); return }
       toast.success(L('כל הכבוד! 💪', 'Nice work! 💪'))
       burstConfetti()
     }
@@ -1063,7 +1054,7 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
     const { error } = await supabase.from('assignment_completions')
       .upsert({ assignment_id: a.id, player_id: session.user.id, progress_value: next, done_at })
     if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); load(); return }
-    if (reached) { toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉')); burstConfetti() }
+    if (reached) { toast.success(L('סיימת את המשימה! 🎉', 'Task complete! 🎉')); burstConfetti() }
     else toast.success(L(`נרשם! ${next}/${a.target_value}`, `Logged! ${next}/${a.target_value}`))
   }
 
@@ -1102,7 +1093,8 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
   const band = [
     { value: openCount, label: L('פתוחות', 'Open') },
     { value: `${pct}%`, label: L('התקדמות', 'Progress') },
-    { value: doneCount, label: L('הושלמו', 'Completed') },
+    // 12.9.2026 (copy-ux-2-9) — «בוצעו» גם כאן וגם במסנן שמתחת, מילה אחת למצב אחד
+    { value: doneCount, label: L('בוצעו', 'Done') },
   ]
 
   // בהטמעה בדף המאמן האישי אין באנר משלנו — הדף כבר הביא אחד
@@ -1111,14 +1103,24 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
 
   return (
     <Shell {...shellProps}>
-      {items.length === 0 ? (
+      {items.length === 0 && loadErr ? (
+        // 12.9.2026 (copy-ux-1-1) — שגיאת טעינה מקבלת מסך משלה, לא «אין משימות»
+        <LoadErrorCard
+          title={L('לא הצלחנו לטעון את המשימות', "We couldn't load your tasks")}
+          hint={L('אם המאמן שלח לך משימות הן עדיין שם — נסו שוב כשהרשת חוזרת.',
+                  "If your coach sent you tasks they're still there — try again when you're back online.")}
+          onRetry={load}
+        />
+      ) : items.length === 0 ? (
         <div className="ps-card">
           <div className="ps-empty">
             <span className="ps-empty-ic"><Dumbbell size={20} aria-hidden="true" /></span>
-            <b>{L('עוד לא קיבלת תרגילים', 'No drills yet')}</b>
+            {/* 12.9.2026 (copy-ux-1-8, copy-ux-2-9) — «משימה» היא המילה היחידה
+                למה שנשלח לביצוע; «תרגיל» נשמר לשם התרגיל מספריית המאמן. */}
+            <b>{L('עוד לא קיבלת משימות', 'No tasks yet')}</b>
             <p>{scope === 'personal'
               ? L('כשהמאמן האישי ישלח לך משימה, היא תופיע כאן — ורק כאן.', 'When your personal coach sends a task, it shows up here — and only here.')
-              : L('כשהמאמן ישלח לך תרגיל, הוא יופיע כאן.', 'When your coach sends you a drill, it shows up here.')}</p>
+              : L('כשהמאמן ישלח לך משימה, היא תופיע כאן.', 'When your coach sends you a task, it shows up here.')}</p>
           </div>
         </div>
       ) : (
@@ -1164,126 +1166,12 @@ function MyAssignments({ session, personalIds = [], scope = 'team', bell, coachN
 
           {filter === 'done' && doneCount === 0 && (
             <div className="ps-card">
-              <p className="ps-mut">{L('עוד לא סימנת תרגילים כבוצעו.', 'No drills marked done yet.')}</p>
+              <p className="ps-mut">{L('עוד לא סימנת משימות כבוצעו.', 'No tasks marked done yet.')}</p>
             </div>
           )}
         </>
       )}
     </Shell>
-  )
-}
-
-// ---------- מסך: הקבוצה שלי ----------
-const MOOD_LABEL = { tough: ['קשה', 'Tough'], good: ['טוב', 'Good'], great: ['מצוין', 'Great'] }
-
-function MyTeam({ membership, onNavigate }) {
-  const [teammates, setTeammates] = useState([])
-  const [next, setNext] = useState(null)
-  const [reviews, setReviews] = useState([])
-
-  useEffect(() => {
-    if (!membership) return
-    ;(async () => {
-      const { data: mates } = await supabase
-        .from('team_players')
-        .select('id, name, number, position')
-        .eq('coach_id', membership.coach_id)
-        .eq('team', membership.team)
-        .order('number')
-      setTeammates(mates || [])
-      const today = new Date().toISOString().slice(0, 10)
-      const [{ data: sched }, { data: slots }] = await Promise.all([
-        supabase.from('schedule_entries').select('*').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(5),
-        supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-      ])
-      const merged = [
-        ...(sched || []),
-        ...expandSlots(slots || [], 0, 30).map((o) => ({ id: o.session_id, date: o.date, start_time: o.start_time, title: null })),
-      ].sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))
-      setNext(merged[0] || null)
-      const { data: revs } = await supabase
-        .from('session_reviews')
-        .select('*')
-        .eq('coach_id', membership.coach_id)
-        .eq('team', membership.team)
-        .order('session_date', { ascending: false })
-        .limit(8)
-      setReviews(revs || [])
-    })()
-  }, [membership])
-
-  if (!membership) return null
-  return (
-    <div className="pl-screen pl-narrow">
-      <PlHead Icon={Users} tone="accent"
-        title={L('הקבוצה שלי', 'My team')}
-        subtitle={L('הסגל, האימון הבא והסיכומים של הקבוצה', 'Your squad, next practice and recaps')} />
-      <div className="plt-hero">
-        
-        <div className="plt-hero-top">
-          <span className="plt-badge"><Trophy size={20} /></span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <strong>{trTeam(membership.team)}</strong>
-            <span className="plt-hero-sub">{coachName(membership.coach)}{membership.coach?.club ? ` · ${membership.coach.club}` : ''} · {teammates.length} {L('שחקנים', 'players')}</span>
-          </div>
-        </div>
-        <div className="plt-hero-actions">
-          <button className="plt-hero-btn" onClick={() => onNavigate?.('teamchat')}><MessagesSquare size={15} /> {L('צ׳אט הקבוצה', 'Team chat')}</button>
-          <button className="plt-hero-btn" onClick={() => onNavigate?.('coach')}><MessageSquare size={15} /> {L('הודעה למאמן', 'Message coach')}</button>
-        </div>
-      </div>
-
-      {next && (
-        <div className="pl-next">
-          <span className="pl-next-label"><CalendarDays size={15} /> {L('האימון הבא', 'Next practice')}</span>
-          <strong>{next.title || trTeam(membership.team)}</strong>
-          <span className="muted small">
-            {new Date(next.date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })}
-            {next.start_time ? ` · ${next.start_time.slice(0, 5)}` : ''}{next.location ? ` · ${next.location}` : ''}
-          </span>
-        </div>
-      )}
-
-      {reviews.length > 0 && (
-        <>
-          <p className="pl-section-label" style={{ marginTop: 18 }}><ClipboardList size={15} /> {L('סיכומי אימונים', 'Session recaps')}</p>
-          <ul className="pl-recaps">
-            {reviews.map((r) => {
-              const isMvp = r.mvp_player_id && r.mvp_player_id === membership.player_id
-              return (
-                <li key={r.id} className={isMvp ? 'pl-recap mvp' : 'pl-recap'}>
-                  <div className="pl-recap-head">
-                    <span className="pl-recap-date">
-                      {r.mood && MOOD_LABEL[r.mood] ? `${L(MOOD_LABEL[r.mood][0], MOOD_LABEL[r.mood][1])} · ` : ''}
-                      {r.session_type === 'game' ? L('משחק', 'Game') : L('אימון', 'Practice')}
-                      {r.session_date ? ` · ${new Date(r.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'short', day: 'numeric', month: 'numeric' })}` : ''}
-                    </span>
-                    {isMvp ? <span className="pl-recap-mvp"><Trophy size={14} /> {L('היית ה-MVP!', "You were MVP!")}</span>
-                      : r.mvp_name ? <span className="muted small">{L('MVP: ', 'MVP: ')}{r.mvp_name}</span> : null}
-                  </div>
-                  {r.overall_note && <p className="pl-recap-note">{r.overall_note}</p>}
-                </li>
-              )
-            })}
-          </ul>
-        </>
-      )}
-
-      <p className="pl-section-label">{L('חברי הקבוצה', 'Teammates')} · {teammates.length}</p>
-      {teammates.length === 0 ? (
-        <p className="muted small">{L('הסגל יופיע כאן ברגע שהמאמן יוסיף שחקנים.', 'The roster shows up once your coach adds players.')}</p>
-      ) : (
-        <ul className="pl-mates">
-          {teammates.map((p) => (
-            <li key={p.id} className="pl-mate">
-              {p.number ? <span className="pl-mate-num">{p.number}</span> : <Avatar name={p.name} size={32} />}
-              <span className="pl-mate-name">{p.name}</span>
-              {p.position && <span className="muted small">{p.position}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   )
 }
 
@@ -1303,28 +1191,70 @@ const wkYmd = (d) => `${d.getFullYear()}-${wkPad(d.getMonth() + 1)}-${wkPad(d.ge
 const wkSunday = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x }
 const wkAdd = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 
-// 1.3 — אישור הגעה על כרטיס אימון ברשימה השבועית. אותה טבלה (practice_rsvp)
-// כמו הרצועה בבית — היעדר שורה = טרם ענה; 'לא אגיע' פותח שדה סיבה.
-function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false }) {
+// ============================================================
+//  12.9.2026 (player-flow-6) — טעינת שורת ה-RSVP, פעם אחת לשני המופעים
+// ============================================================
+// עד היום **כל** שגיאה החזירה mine=undefined, ו-undefined מוריד את השאלה
+// «מגיע לאימון?» מהמסך לגמרי. ההצדקה בהערה הייתה «הטבלה טרם נוצרה», אבל
+// אותו ענף בלע גם 'Failed to fetch' של אולם בלי קליטה: הילד לא ראה את
+// השאלה, לא ענה, והמאמן ספר אותו כמי שלא ענה. מפרידים: רק «אין טבלה»
+// מכבה את הכרטיס; תקלה אמיתית משאירה את הכפתורים ומציגה «לנסות שוב»,
+// בדיוק כמו ב-CheckinCard.
+function useRsvpRow(sessionId, playerId) {
   const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
+  const [loadErr, setLoadErr] = useState(false)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (!sessionId) { setMine(undefined); setLoadErr(false); return }
+    let alive = true
+    ;(async () => {
+      const { data, error } = await supabase.from('practice_rsvp')
+        .select('response').eq('session_id', sessionId).eq('player_id', playerId).maybeSingle()
+      if (!alive) return
+      if (error && schemaGone(error)) { setMine(undefined); setLoadErr(false); return }
+      if (error) { setMine(null); setLoadErr(true); return }
+      setMine(data?.response || null)
+      setLoadErr(false)
+    })()
+    return () => { alive = false }
+  }, [sessionId, playerId, tick])
+  // הרשת חזרה — בודקים שוב לבד, בלי שהילד יסגור ויפתח את האפליקציה
+  useEffect(() => {
+    const back = () => setTick((n) => n + 1)
+    window.addEventListener('online', back)
+    return () => window.removeEventListener('online', back)
+  }, [])
+  return { mine, setMine, loadErr, retry: () => setTick((n) => n + 1) }
+}
+
+// שורת ההסבר שמלווה כפתורי RSVP שלא הצליחו להיטען
+// 12.9.2026 (rsvp-loaderr-contrast) — נוספה מחלקה rsvp-loaderr כדי שאפשר יהיה
+// לצבוע את השורה בלבן כשהיא יושבת בתוך באנר כהה (‎.ps-hero / .nh-rsvp-ask).
+// למה: ‎.muted ו-.rstr-cta הם צבעי טקסט לרקע בהיר, וכשההודעה נחתה על הבאנר
+// הכחול היא הגיעה ליחס ניגודיות ~2.1:1 — כלומר דווקא ההסבר ו«נסו שוב»
+// היו כמעט בלתי נראים. המופע על כרטיס בהיר (‎.wl-rsvp / .plh-rsvp) לא משתנה.
+function RsvpLoadErr({ onRetry }) {
+  return (
+    <p className="muted small rsvp-loaderr" role="status">
+      {L('לא הצלחנו לבדוק אם כבר ענית. ', "We couldn't check your answer yet. ")}
+      <button type="button" className="rstr-cta" onClick={onRetry}>{L('נסו שוב', 'Try again')}</button>
+    </p>
+  )
+}
+
+// 1.3 — אישור הגעה על כרטיס אימון ברשימה השבועית. אותה טבלה (practice_rsvp)
+// כמו הרצועה בבית — היעדר שורה = טרם ענה.
+// 12.9.2026 (copy-ux-2-3) — «לא אגיע» נרשם מיד בטאפ אחד, כמו «מגיע». קודם
+// הוא רק פתח שדה סיבה, ומי שלא רצה לפרט יצא מהמסך בלי ששום דבר נשמר —
+// בטוח שעדכן את המאמן, בזמן שאצל המאמן הוא «טרם ענה». שדה הסיבה נשאר,
+// כתוספת אופציונלית שמעדכנת את אותה שורה.
+function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false }) {
+  const { mine, setMine, loadErr, retry } = useRsvpRow(sessionId, session.user.id)
   const [busy, setBusy] = useState(false)
   const [askReason, setAskReason] = useState(false)
   const [reason, setReason] = useState('')
   // practice_rsvp ברשימת השערים בשרת — תשובת הגעה של חשבון מוגבל תידחה
   const { restricted } = useRestricted()
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const { data, error } = await supabase.from('practice_rsvp')
-        .select('response').eq('session_id', sessionId).eq('player_id', session.user.id).maybeSingle()
-      if (!alive) return
-      // הטבלה טרם נוצרה — הכפתורים לא מוצגים, כמו שאר הפיצ'רים התלויים ב-SQL
-      if (error) { setMine(undefined); return }
-      setMine(data?.response || null)
-    })()
-    return () => { alive = false }
-  }, [sessionId, session.user.id])
 
   const answer = async (response, withReason) => {
     if (busy) return
@@ -1340,11 +1270,17 @@ function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false
     setBusy(false)
     if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
     setMine(response)
-    setAskReason(false)
     toast.success(response === 'yes'
       ? L('רשמנו שאתה מגיע', "You're marked as coming")
-      : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
+      : withReason
+        ? L('רשמנו שלא תגיע, עם הסיבה — המאמן יראה', "You're marked as not coming, with the reason — your coach will see")
+        : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
   }
+
+  // התשובה נשמרת בטאפ הראשון; שדה הסיבה רק נפתח לצידה
+  const sayYes = () => { setAskReason(false); answer('yes') }
+  const sayNo = () => { setAskReason(true); answer('no', reason.trim() || null) }
+  const sendReason = () => { setAskReason(false); answer('no', reason.trim() || null) }
 
   if (!membership || mine === undefined) return null
 
@@ -1359,13 +1295,14 @@ function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false
             : mine === 'no' ? L('הודעת שלא תגיע', "You're not coming")
             : L('מגיע לאימון?', 'Coming to practice?')}
         </span>
+        {loadErr && <RsvpLoadErr onRetry={retry} />}
         <div className="ps-rsvp">
           <button type="button" className={mine === 'yes' ? 'is-on' : undefined}
-            onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
+            onClick={sayYes} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
             {L('מגיע', 'Coming')}
           </button>
           <button type="button" className={mine === 'no' ? 'is-on' : undefined}
-            onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
+            onClick={sayNo} disabled={busy || restricted} aria-pressed={mine === 'no'}>
             {L('לא אגיע', "Can't make it")}
           </button>
         </div>
@@ -1374,11 +1311,11 @@ function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false
             <input
               className="ps-hero-in ps-hero-in--wide" type="text" value={reason} maxLength={200}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={L('למה? (לא חובה)', 'Why? (optional)')}
+              placeholder={L('רוצה לפרט למה? (לא חובה)', 'Want to say why? (optional)')}
               aria-label={L('סיבה', 'Reason')}
-              onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendReason() }}
             />
-            <button type="button" className="ps-hero-btn" disabled={busy} onClick={() => answer('no', reason.trim())}>
+            <button type="button" className="ps-hero-btn" disabled={busy} onClick={sendReason}>
               {L('שליחה', 'Send')}
             </button>
           </div>
@@ -1402,13 +1339,14 @@ function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false
           : mine === 'no' ? L('הודעת שלא תגיע', "You're not coming")
           : L('מגיע לאימון?', 'Coming to practice?')}
       </span>
+      {loadErr && <RsvpLoadErr onRetry={retry} />}
       <div className="plh-rsvp-btns">
         <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
-          onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
+          onClick={sayYes} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
           {L('מגיע', 'Coming')}
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
-          onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
+          onClick={sayNo} disabled={busy || restricted} aria-pressed={mine === 'no'}>
           {L('לא אגיע', "Can't make it")}
         </button>
       </div>
@@ -1425,10 +1363,10 @@ function RsvpButtons({ session, membership, sessionId, sessionDate, hero = false
             value={reason}
             maxLength={200}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
-            onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+            placeholder={L('רוצה לפרט למה? (לא חובה) — למשל: שיעור, פציעה...', 'Want to say why? (optional) — e.g. class, injury...')}
+            onKeyDown={(e) => { if (e.key === 'Enter') sendReason() }}
           />
-          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={() => answer('no', reason.trim())}>
+          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={sendReason}>
             {L('שליחה', 'Send')}
           </button>
         </div>
@@ -1443,11 +1381,16 @@ function PlayerSchedule({ session, membership }) {
   const [weekStart, setWeekStart] = useState(() => wkSunday(new Date()))
   const [weekData, setWeekData] = useState({ entries: [], games: [] })
   const [pickedDay, setPickedDay] = useState(null) // null = «היום», או היום הראשון עם אירוע
+  // 12.9.2026 (player-flow-5) — «אין אירועים קרובים» הוצג גם על כשל שליפה
+  const [loadErr, setLoadErr] = useState(false)
   const me = session.user.id
 
   // אירועי השבוע המוצג — נטענים מחדש בניווט בין שבועות
+  // 12.9.2026 (player-flow-13) — דגל alive: שתי לחיצות מהירות על «שבוע הבא»
+  // יכלו להשאיר על המסך את תשובת השבוע הקודם, אם היא חזרה אחרונה.
   useEffect(() => {
     if (!membership) return
+    let alive = true
     ;(async () => {
       const from = wkYmd(weekStart)
       const to = wkYmd(wkAdd(weekStart, 6))
@@ -1455,18 +1398,27 @@ function PlayerSchedule({ session, membership }) {
         supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', to),
         supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', to),
       ])
+      if (!alive) return
       setWeekData({ entries: pr || [], games: gm || [] })
     })()
+    return () => { alive = false }
   }, [membership, weekStart])
 
+  // 12.9.2026 (player-flow-13) — מונה בקשות: התשובה שמצוירת היא תמיד של
+  // הקריאה האחרונה. בלעדיו החלפת קבוצה או «נסו שוב» מהירים יכלו לצייר
+  // תשובה איטית ישנה מעל החדשה.
+  const reqRef = useRef(0)
   const load = useCallback(async () => {
     if (!membership) return
+    const myReq = ++reqRef.current
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: slots }, { data: pr }, { data: gm }] = await Promise.all([
+    const [{ data: slots, error: slotErr }, { data: pr, error: prErr }, { data: gm, error: gmErr }] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       supabase.from('schedule_entries').select('*, plan:training_plans(id, name)').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', today).order('date').order('start_time').limit(40),
       supabase.from('team_games').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', today).order('game_date').limit(40),
     ])
+    if (myReq !== reqRef.current) return
+    setLoadErr(loadFailed(slotErr, prErr, gmErr))
     // session_id נשמר בנפרד מ-id: ל-id יש קידומת (s/p/g) שמונעת התנגשות
     // מפתחות, ואישור ההגעה בבאנר צריך את המזהה הנקי. חיתוך התו הראשון
     // מ-id היה עובד היום ונשבר בשקט ברגע שמישהו ישנה את הקידומת.
@@ -1537,7 +1489,15 @@ function PlayerSchedule({ session, membership }) {
 
   return (
     <>
-      {items.length === 0 ? (
+      {items.length === 0 && loadErr ? (
+        // 12.9.2026 (player-flow-5) — שגיאת שליפה אינה «אין אימונים»
+        <LoadErrorCard
+          title={L('לא הצלחנו לטעון את הלו״ז', "We couldn't load the schedule")}
+          hint={L('האימונים והמשחקים עדיין שם — נסו שוב כשהרשת חוזרת.',
+                  'Your practices and games are still there — try again when you are back online.')}
+          onRetry={load}
+        />
+      ) : items.length === 0 ? (
         <div className="ps-card">
           <div className="ps-empty">
             <span className="ps-empty-ic"><CalendarDays size={20} aria-hidden="true" /></span>
@@ -1700,8 +1660,12 @@ function PlayerVideos({ bell, coachName, onCoach }) {
   const [limit, setLimit] = useState(PAGE) // הצגה מדורגת — 40 סרטונים בבת אחת זה קיר
   const [allOpen, setAllOpen] = useState(false) // false = מדף המומלצים (אם יש)
   const [mediaMode, setMediaMode] = useState('videos') // 1.11 — מתג סרטונים/פודקאסטים
+  // 12.9.2026 (copy-ux-1-1) — כשגם הנפילה־לאחור נכשלה הוצג «אין סרטונים כרגע»
+  const [loadErr, setLoadErr] = useState(false)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    let alive = true
     ;(async () => {
       let { data, error } = await supabase
         .from('drill_videos')
@@ -1714,10 +1678,14 @@ function PlayerVideos({ bell, coachName, onCoach }) {
           .select('id, title, category, url, note')
           .order('created_at', { ascending: false }).limit(120)
         data = legacy.data
+        error = legacy.error
       }
+      if (!alive) return
+      setLoadErr(loadFailed(error))
       setVideos(data || [])
     })()
-  }, [])
+    return () => { alive = false }
+  }, [tick])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setPlaying(null) }
@@ -1812,6 +1780,14 @@ function PlayerVideos({ bell, coachName, onCoach }) {
             </a>
           ))}
         </div>
+      ) : videos.length === 0 && loadErr ? (
+        // 12.9.2026 (copy-ux-1-1) — כשל טעינה אינו «אין סרטונים»
+        <LoadErrorCard
+          title={L('לא הצלחנו לטעון את הסרטונים', "We couldn't load the videos")}
+          hint={L('מה שהמאמן שיתף עדיין שם — נסו שוב כשהרשת חוזרת.',
+                  "What your coach shared is still there — try again when you're back online.")}
+          onRetry={() => setTick((n) => n + 1)}
+        />
       ) : videos.length === 0 ? (
         <div className="ps-card">
           <div className="ps-empty">
@@ -1894,64 +1870,20 @@ function PlayerVideos({ bell, coachName, onCoach }) {
   )
 }
 
-// ---------- היעדים לאימון הקרוב — מופיעות בבית לפני האימון ----------
-function PrePracticeGoals({ session, membership }) {
-  const [goals, setGoals] = useState([])
-  useEffect(() => {
-    if (!membership) return
-    ;(async () => {
-      const [{ data: gl }, { data: marks }] = await Promise.all([
-        supabase.from('player_goals').select('id, title, period, status, player_id').eq('period', 'session').eq('status', 'active'),
-        supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
-      ])
-      const marked = new Set((marks || []).map((m) => m.goal_id))
-      setGoals((gl || []).filter((g) => !marked.has(g.id)))
-    })()
-  }, [membership, session.user.id])
-
-  if (!membership || goals.length === 0) return null
-  return (
-    <section className="pl-block">
-      <div className="pl-pregoals">
-        <span className="pl-pregoals-ic"><Target size={18} /></span>
-        <div className="pl-pregoals-body">
-          <strong>{L('היעדים שלך לאימון הקרוב', 'Your goals for the next practice')}</strong>
-          <span className="muted small">{L('תגיע לאימון כשאתה יודע על מה אתה עובד. בסוף האימון תסמן אם עמדת בהן.', 'Arrive knowing what you’re working on. Mark them at wrap-up.')}</span>
-          <div className="pl-pregoals-chips">
-            {goals.map((g) => <span key={g.id} className="pl-pregoal">{g.title}</span>)}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ---------- בית: כרטיס-הירו עם ספירה לאחור לאימון הבא + CTA לסיכום ----------
 // ---------- בית: אישור הגעה לאימון הבא (מסך 3b) ----------
 // כותב ל-practice_rsvp: היעדר שורה = «טרם ענה», ולכן אין מה ליצור מראש.
 function HomeRsvp({ session, membership, next, variant }) {
-  const [mine, setMine] = useState(undefined) // undefined=טוען/לא זמין, null=טרם ענה
+  const sessionId = next?.session_id
+  // 12.9.2026 (player-flow-6) — אותו הוק כמו ב-RsvpButtons: רק «אין טבלה»
+  // מוריד את השאלה מהבאנר; כשל רשת משאיר אותה עם «נסו שוב».
+  const { mine, setMine, loadErr, retry } = useRsvpRow(sessionId, session.user.id)
   const [busy, setBusy] = useState(false)
   // §6 — «לא אוכל» פותח שדה סיבה במלל חופשי שהמאמן רואה
   const [askReason, setAskReason] = useState(false)
   const [reason, setReason] = useState('')
   // אותו שער כמו ב-RsvpButtons — practice_rsvp חסומה לחשבון מוגבל
   const { restricted } = useRestricted()
-  const sessionId = next?.session_id
-
-  useEffect(() => {
-    if (!sessionId) { setMine(undefined); return }
-    let alive = true
-    ;(async () => {
-      const { data, error } = await supabase.from('practice_rsvp')
-        .select('response').eq('session_id', sessionId).eq('player_id', session.user.id).maybeSingle()
-      if (!alive) return
-      // הטבלה טרם נוצרה — הבלוק פשוט לא מוצג, כמו שאר הפיצ'רים התלויים ב-SQL
-      if (error) { setMine(undefined); return }
-      setMine(data?.response || null)
-    })()
-    return () => { alive = false }
-  }, [sessionId, session.user.id])
 
   const answer = async (response, withReason) => {
     if (!sessionId || busy) return
@@ -1969,11 +1901,18 @@ function HomeRsvp({ session, membership, next, variant }) {
     setBusy(false)
     if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
     setMine(response)
-    setAskReason(false)
     toast.success(response === 'yes'
       ? L('רשמנו שאתה מגיע', "You're marked as coming")
-      : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
+      : withReason
+        ? L('רשמנו שלא תגיע, עם הסיבה — המאמן יראה', "You're marked as not coming, with the reason — your coach will see")
+        : L('רשמנו שלא תגיע — המאמן יראה', "You're marked as not coming — your coach will see"))
   }
+
+  // 12.9.2026 (copy-ux-2-3) — «לא אגיע» נרשם בטאפ הראשון, כמו «מגיע»;
+  // שדה הסיבה נפתח לצידו כתוספת, ולא כתנאי לשמירה.
+  const sayYes = () => { setAskReason(false); answer('yes') }
+  const sayNo = () => { setAskReason(true); answer('no', reason.trim() || null) }
+  const sendReason = () => { setAskReason(false); answer('no', reason.trim() || null) }
 
   if (!membership || !sessionId || mine === undefined) return null
 
@@ -1987,7 +1926,7 @@ function HomeRsvp({ session, membership, next, variant }) {
           <button
             type="button"
             className={mine === 'yes' ? 'nh-btn nh-btn-primary on' : 'nh-btn nh-btn-primary'}
-            onClick={() => answer('yes')}
+            onClick={sayYes}
             disabled={busy || restricted}
             aria-pressed={mine === 'yes'}
           >
@@ -1996,13 +1935,14 @@ function HomeRsvp({ session, membership, next, variant }) {
           <button
             type="button"
             className={mine === 'no' ? 'nh-btn nh-btn-ghost on' : 'nh-btn nh-btn-ghost'}
-            onClick={() => setAskReason((v) => !v)}
+            onClick={sayNo}
             disabled={busy || restricted}
             aria-pressed={mine === 'no'}
           >
             {L('לא אגיע', "Can't make it")}
           </button>
         </div>
+        {loadErr && <RsvpLoadErr onRetry={retry} />}
         <p className="nh-rsvp-note">
           {mine === 'yes'
             ? L('רשמנו שאתה מגיע — המאמן רואה', "You're marked as coming — your coach sees it")
@@ -2023,10 +1963,10 @@ function HomeRsvp({ session, membership, next, variant }) {
               value={reason}
               maxLength={200}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
-              onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+              placeholder={L('רוצה לפרט למה? (לא חובה) — למשל: שיעור, פציעה...', 'Want to say why? (optional) — e.g. class, injury...')}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendReason() }}
             />
-            <button type="button" className="nh-btn nh-btn-ghost" disabled={busy} onClick={() => answer('no', reason.trim())}>
+            <button type="button" className="nh-btn nh-btn-ghost" disabled={busy} onClick={sendReason}>
               {L('שליחה', 'Send')}
             </button>
           </div>
@@ -2043,13 +1983,14 @@ function HomeRsvp({ session, membership, next, variant }) {
         <strong>{L(`מגיע ${dayLabel(next.date)}?`, `Coming ${dayLabel(next.date)}?`)}</strong>
         <span>{L('המאמן רואה את התשובה מיד', 'Your coach sees the answer right away')}</span>
       </div>
+      {loadErr && <RsvpLoadErr onRetry={retry} />}
       <div className="plh-rsvp-btns">
         <button type="button" className={mine === 'yes' ? 'plh-rsvp-btn yes on' : 'plh-rsvp-btn yes'}
-          onClick={() => answer('yes')} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
+          onClick={sayYes} disabled={busy || restricted} aria-pressed={mine === 'yes'}>
           {L('מגיע', 'Coming')}
         </button>
         <button type="button" className={mine === 'no' ? 'plh-rsvp-btn no on' : 'plh-rsvp-btn no'}
-          onClick={() => setAskReason((v) => !v)} disabled={busy || restricted} aria-pressed={mine === 'no'}>
+          onClick={sayNo} disabled={busy || restricted} aria-pressed={mine === 'no'}>
           {L('לא אגיע', "Can't make it")}
         </button>
       </div>
@@ -2066,10 +2007,10 @@ function HomeRsvp({ session, membership, next, variant }) {
             value={reason}
             maxLength={200}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={L('למה? (לא חובה) — למשל: שיעור, פציעה...', 'Why? (optional) — e.g. class, injury...')}
-            onKeyDown={(e) => { if (e.key === 'Enter') answer('no', reason.trim()) }}
+            placeholder={L('רוצה לפרט למה? (לא חובה) — למשל: שיעור, פציעה...', 'Want to say why? (optional) — e.g. class, injury...')}
+            onKeyDown={(e) => { if (e.key === 'Enter') sendReason() }}
           />
-          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={() => answer('no', reason.trim())}>
+          <button type="button" className="plh-rsvp-btn no" disabled={busy} onClick={sendReason}>
             {L('שליחה', 'Send')}
           </button>
         </div>
@@ -2219,16 +2160,30 @@ function HomeWeek({ session, membership, setView, variant }) {
 // 1.12 — יעד האימון הקרוב, בתוך כרטיס האימון הבא (שאר היעדים במסך היעדים)
 function NextPracticeGoal({ session, membership }) {
   const [goals, setGoals] = useState([])
+  // ⚠ 12.9.2026 (player-flow-15) — השאילתה נשענה על RLS בלבד, ו-pg_player_read
+  //   מתיר גם את יעדי המיקוד הקבוצתיים של **כל** קבוצה שהשחקן חבר בה. ילד
+  //   בשתי קבוצות ראה בבאנר «היעד שלך לאימון» יעד של הקבוצה השנייה. הסינון
+  //   נעשה בלקוח ולא ב-eq: יעד אישי (player_id שלי) יכול להגיע בלי team,
+  //   ו-eq על team היה מוחק דווקא אותו.
+  // 12.9.2026 (player-flow-13) — דגל alive: החלפת קבוצה או מעבר מסך בזמן
+  //   השליפה כתבו state על רכיב שכבר ירד מהמסך.
   useEffect(() => {
     if (!membership) return
+    let alive = true
     ;(async () => {
       const [{ data: gl }, { data: marks }] = await Promise.all([
-        supabase.from('player_goals').select('id, title, player_id').eq('period', 'session').neq('status', 'done'),
+        // select('*') — עמודת team נוספה במיגרציה מאוחרת (coach_only 22.8),
+        // ורשימת עמודות מפורשת הייתה מפילה את כל השאילתה במסד ישן.
+        supabase.from('player_goals').select('*').eq('period', 'session').neq('status', 'done'),
         supabase.from('session_goal_marks').select('goal_id').eq('player_id', session.user.id),
       ])
+      if (!alive) return
       const marked = new Set((marks || []).map((m) => m.goal_id))
-      setGoals((gl || []).filter((g) => !marked.has(g.id)).slice(0, 3))
+      const mine = (g) => g.player_id === session.user.id
+        || (g.coach_id === membership.coach_id && (g.team == null || g.team === membership.team))
+      setGoals((gl || []).filter((g) => mine(g) && !marked.has(g.id)).slice(0, 3))
     })()
+    return () => { alive = false }
   }, [membership, session.user.id])
   if (goals.length === 0) return null
   return (
@@ -2321,8 +2276,12 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
   // 'done' = הסיכום של היום כבר נשלח → שורת אישור קטנה
   const [summary, setSummary] = useState(null)
 
+  // 12.9.2026 (player-flow-13) — דגל alive: שתי קריאות רצופות שכותבות
+  // setNext/setSummary, והן תלויות ב-membership. החלפת קבוצה או ניווט מהבית
+  // באמצע הטעינה כתבו את התשובה הישנה על החדשה (או על רכיב שכבר ירד).
   useEffect(() => {
     if (!membership) { setNext(null); return }
+    let alive = true
     ;(async () => {
       const today = new Date().toISOString().slice(0, 10)
       const [{ data }, { data: slots }, { data: games }] = await Promise.all([
@@ -2349,6 +2308,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
       const pick = cands
         .filter((e) => { const end = new Date(`${e.date}T${e.end_time || e.start_time || '23:59'}`); return !isNaN(end) && end.getTime() >= nowTs })
         .sort((a, b) => (a.date + (a.start_time || '')).localeCompare(b.date + (b.start_time || '')))[0]
+      if (!alive) return
       setNext(pick || null)
 
       // הבית מתחלף אחרי אימון: אם אימון של היום כבר הסתיים — בודקים אם נשלח סיכום
@@ -2360,6 +2320,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
       if (!endedToday) { setSummary(null); return }
       const { data: eff } = await supabase.from('session_effort')
         .select('id').eq('player_id', profile.id).eq('session_date', today).limit(1)
+      if (!alive) return
       // sessionId/date נשמרים כדי שהסולם המהיר יוכל לכתוב ישירות
       // ל-session_effort בלי לפתוח את הגיליון המלא.
       setSummary(eff && eff.length
@@ -2368,6 +2329,7 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
         // ולכן הסולם המהיר מעולם לא עבר את התנאי שלו (סקירה 11.8)
         : { state: 'ask', kind: endedToday.kind, sessionId: endedToday.session_id, date: endedToday.date })
     })()
+    return () => { alive = false }
   }, [membership, profile.id, refreshKey])
 
   // הבוליאני «האימון עכשיו» מתחלף פעמיים ביום — טיקר של שנייה רינדר את
@@ -2476,15 +2438,20 @@ function HomeHero({ profile, membership, onFeedback, refreshKey, session, onNoti
 // הסיכום הקבוצתי האחרון מהמאמן — מוצג בבית במקום החדשות (sr_member_read קיימת)
 function LastTeamReview({ membership, me }) {
   const [rev, setRev] = useState(null)
+  // 12.9.2026 (player-flow-13) — דגל alive: הסיכום תלוי ב-membership, והחלפת
+  // קבוצה יכלה להשאיר על המסך את הסיכום של הקבוצה הקודמת.
   useEffect(() => {
+    let alive = true
     ;(async () => {
       const { data } = await supabase.from('session_reviews')
         .select('overall_note, mvp_name, mvp_player_id, session_date, session_type')
         .eq('coach_id', membership.coach_id).eq('team', membership.team)
         .not('overall_note', 'is', null)
         .order('session_date', { ascending: false }).limit(1)
+      if (!alive) return
       setRev((data && data[0]) || null)
     })()
+    return () => { alive = false }
   }, [membership])
   // מצב ריק עם כיוון (7.8) — הכרטיס הקר נשאר, מסביר מה יגיע אליו
   if (!rev) {
@@ -2523,11 +2490,16 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
   // אותה טבלה כמו במסך המשימות (assignment_completions) — ולכן אותו שער
   const { restricted } = useRestricted()
 
+  // 12.9.2026 (copy-ux-1-1, player-flow-5) — שתי השאילתות נבלעו בלי error,
+  // וכשל רשת הפך ל«אין משימות פתוחות כרגע» בבית.
+  const [loadErr, setLoadErr] = useState(false)
+
   const load = useCallback(async () => {
-    const [{ data: asg }, { data: compl }] = await Promise.all([
+    const [{ data: asg, error: asgErr }, { data: compl, error: complErr }] = await Promise.all([
       supabase.from('player_assignments').select('*, drill:drills(title)').order('created_at', { ascending: false }),
       supabase.from('assignment_completions').select('assignment_id, progress_value, done_at').eq('player_id', me),
     ])
+    setLoadErr(loadFailed(asgErr, complErr))
     const by = new Map((compl || []).map((c) => [c.assignment_id, c]))
     // משימות שנסגרו היום נשארות ברשימה (מסמך העיצוב מראה שורה מסומנת
     // עם קו חוצה, והמונה «1/3» סופר אותן) — מה שנסגר לפני היום יורד.
@@ -2551,7 +2523,7 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
     const { error } = await supabase.from('assignment_completions')
       .upsert({ assignment_id: a.id, player_id: me, progress_value: next, done_at })
     if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); return }
-    if (done_at) { toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉')); burstConfetti() }
+    if (done_at) { toast.success(L('סיימת את המשימה! 🎉', 'Task complete! 🎉')); burstConfetti() }
     load()
   }
 
@@ -2562,7 +2534,7 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
     const { error } = await supabase.from('assignment_completions')
       .upsert({ assignment_id: a.id, player_id: me, progress_value: target, done_at: new Date().toISOString() })
     if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); return }
-    toast.success(L('סיימת את התרגיל! 🎉', 'Drill complete! 🎉'))
+    toast.success(L('סיימת את המשימה! 🎉', 'Task complete! 🎉'))
     burstConfetti()
     load()
   }
@@ -2582,11 +2554,21 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
           <h2 className="nh-card-title">{L('המשימות שלי', 'My tasks')}</h2>
           {rows.length > 0 && <span className="nh-chip" dir="ltr">{done}/{rows.length}</span>}
         </div>
-        {rows.length === 0 ? (
-          <p className="nh-empty">
-            {L('אין משימות פתוחות כרגע — כל תרגיל שהמאמן ישלח ינחת כאן.', "No open tasks right now — every drill your coach sends lands here.")}
+        {rows.length === 0 && loadErr ? (
+          // 12.9.2026 (copy-ux-1-1) — «לא נטען» ≠ «אין משימות»
+          <p className="nh-empty" role="status">
+            {L('לא הצלחנו לטעון את המשימות. אם המאמן שלח לך משהו — זה עדיין שם.',
+               "We couldn't load your tasks. If your coach sent you something, it's still there.")}
             {' '}
-            <button type="button" className="nh-empty-cta" onClick={() => setView('drills')}>{L('לספריית התרגילים ←', 'Browse the drill library')}</button>
+            <button type="button" className="nh-empty-cta" onClick={load}>{L('נסו שוב', 'Try again')}</button>
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="nh-empty">
+            {/* 12.9.2026 (copy-ux-1-10, copy-ux-2-7) — «לספריית התרגילים» הוביל
+                חזרה למסך «המשימות שלי» הריק: לשחקן אין בכלל מסך ספרייה. */}
+            {L('אין משימות פתוחות כרגע — כל משימה שהמאמן ישלח תנחת כאן.', "No open tasks right now — every task your coach sends lands here.")}
+            {' '}
+            <button type="button" className="nh-empty-cta" onClick={() => setView('videos')}>{L('לסרטונים מהמאמן', 'Videos from your coach')} <ChevronFwd size={13} aria-hidden="true" /></button>
           </p>
         ) : (
           <div className="nh-task-rows">
@@ -2681,11 +2663,22 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
           <p className="pl-section-label"><Dumbbell size={15} /> {L('משימות לתרגול', 'Tasks to practice')}</p>
           <button className="plhg-all" onClick={() => setView('drills')}>{L('הכל', 'All')} <ArrowFwd size={14} /></button>
         </div>
-        <p className="plh-empty">
-          {L('אין משימות פתוחות כרגע — כל תרגיל שהמאמן ישלח ינחת כאן.', "No open tasks right now — every drill your coach sends lands here.")}
-          {' '}
-          <button type="button" className="plh-empty-cta" onClick={() => setView('drills')}>{L('לספריית התרגילים ←', 'Browse the drill library')}</button>
-        </p>
+        {loadErr ? (
+          // 12.9.2026 (copy-ux-1-1) — «לא נטען» ≠ «אין משימות»
+          <p className="plh-empty" role="status">
+            {L('לא הצלחנו לטעון את המשימות. אם המאמן שלח לך משהו — זה עדיין שם.',
+               "We couldn't load your tasks. If your coach sent you something, it's still there.")}
+            {' '}
+            <button type="button" className="plh-empty-cta" onClick={load}>{L('נסו שוב', 'Try again')}</button>
+          </p>
+        ) : (
+          <p className="plh-empty">
+            {/* 12.9.2026 (copy-ux-1-10, copy-ux-2-7) — ראו ההסבר בגרסת הכרטיס */}
+            {L('אין משימות פתוחות כרגע — כל משימה שהמאמן ישלח תנחת כאן.', "No open tasks right now — every task your coach sends lands here.")}
+            {' '}
+            <button type="button" className="plh-empty-cta" onClick={() => setView('videos')}>{L('לסרטונים מהמאמן', 'Videos from your coach')} <ArrowFwd size={13} /></button>
+          </p>
+        )}
       </section>
     )
   }
@@ -2714,7 +2707,9 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
               </button>
               {target > 0 && (
                 <button type="button" className="plht-quick" onClick={() => quick(a, prog)} disabled={restricted}>
-                  +{Math.max(1, Math.round(target / 20))}
+                  {/* 12.9.2026 (rtl-i18n-1) — ראו ההסבר ב-TaskHero: בלי bdi
+                      הסימן + עובר לצד השני של המספר */}
+                  <bdi dir="ltr">+{Math.max(1, Math.round(target / 20))}</bdi>
                 </button>
               )}
             </div>
@@ -2735,8 +2730,11 @@ function HomeTasks({ session, setView, variant, personalIds = [] }) {
 function LastPracticeFeedback({ session, membership, setView }) {
   const [data, setData] = useState(null) // { eff, fb, marks }
   const me = session.user.id
+  // 12.9.2026 (player-flow-13) — דגל alive: שלוש שליפות רצופות שתלויות
+  // ב-membership; בלעדיו החלפת קבוצה או ניווט באמצע כתבו state אחרי unmount.
   useEffect(() => {
     if (!membership) return
+    let alive = true
     ;(async () => {
       // select('*') בכוונה — coach_ack נוסף במיגרציה מאוחרת ואולי חסר בפרוד
       const [{ data: effRows, error: effErr }, { data: fbRows, error: fbErr }] = await Promise.all([
@@ -2745,6 +2743,7 @@ function LastPracticeFeedback({ session, membership, setView }) {
       ])
       // 6.9 — בלי רשת שתי השאילתות מחזירות null, וקודם הוצג «עוד אין משוב
       // מהמאמן» — שקר שגורם לילד להפסיק לבדוק. מבדילים בין «אין» ל«לא נטען».
+      if (!alive) return
       if ((effErr && isNetErr(effErr)) || (fbErr && isNetErr(fbErr))) { setData({ offline: true, eff: null, fb: null, marks: [] }); return }
       const eff = effRows?.[0] || null
       const fb = fbRows?.[0] || null
@@ -2754,8 +2753,10 @@ function LastPracticeFeedback({ session, membership, setView }) {
           .select('met, goal:player_goals(title)').eq('player_id', me).eq('session_id', eff.session_id)
         marks = (mk || []).filter((m) => m.goal?.title)
       }
+      if (!alive) return
       setData({ eff, fb, marks })
     })()
+    return () => { alive = false }
   }, [membership, me])
 
   // (7.8) המקטע נשאר גם בלי נתונים — plfb2-none נותן את הכיוון
@@ -2774,7 +2775,8 @@ function LastPracticeFeedback({ session, membership, setView }) {
     <section className="pl-block plfb">
       <div className="plhg-head">
         <p className="pl-section-label"><MessageSquareHeart size={15} /> {L('משוב אחרון', 'Latest feedback')}</p>
-        <button className="plhg-all" onClick={() => setView('feedback')}>{L('כל המשובים', 'All feedback')} <ArrowFwd size={14} /></button>
+        {/* 12.9.2026 (copy-ux-2-16) — שם הקישור מיושר לשם היעד */}
+        <button className="plhg-all" onClick={() => setView('feedback')}>{L('האימונים שלי', 'My sessions')} <ArrowFwd size={14} /></button>
       </div>
 
       {fb ? (
@@ -2849,8 +2851,11 @@ function PlayerHome({ session, profile, membership, setView, onJoined, onNotific
               <section className="nh-card nh-fb">
                 <div className="nh-card-head">
                   <h2 className="nh-card-title">{L('המשוב האחרון', 'Latest feedback')}</h2>
+                  {/* 12.9.2026 (copy-ux-2-16) — היעד נקרא «האימונים שלי», ושם
+                      המשובים יושבים בתוך ציר האימונים. «לכל המשובים» הבטיח
+                      רשימת משובים והנחית את הילד על מסך בשם אחר. */}
                   <button type="button" className="nh-link" onClick={() => setView('feedback')}>
-                    {L('לכל המשובים', 'All feedback')} <ChevronFwd size={14} aria-hidden="true" />
+                    {L('לאימונים שלי', 'My sessions')} <ChevronFwd size={14} aria-hidden="true" />
                   </button>
                 </div>
                 <LastPracticeFeedback session={session} membership={membership} setView={setView} key={`f${fbRefresh}`} />
@@ -3040,7 +3045,10 @@ function ParentConsentCard({ profile }) {
           <Mail size={15} aria-hidden="true" />
           <span className="plc-row-body">
             <span className="muted small">{L('ההורה או האחראי הרשום בחשבון', 'The parent or guardian on record')}</span>
-            <strong dir="ltr">{guardianEmail || L('לא הוזן', 'Not provided')}</strong>
+            {/* 12.9.2026 (player-visual-12) — dir="ltr" על אלמנט בלוקי גורר
+                גם text-align:left, והמייל נצמד לשמאל בתוך כרטיס שכולו ימני
+                (זיגזג). bdi מחיל את הכיוון על הטקסט בלבד, בלי היישור. */}
+            <strong><bdi dir="ltr">{guardianEmail || L('לא הוזן', 'Not provided')}</bdi></strong>
             {guardianName && <span className="muted small">{guardianName}</span>}
           </span>
         </div>
@@ -3251,7 +3259,10 @@ function MyDataCard() {
 
         {phase === 'idle' && (
           <div className="mdt-actions">
-            <button type="button" className="btn-primary" onClick={load}>
+            {/* 12.9.2026 (player-visual-7) — CTA ראשי אחד למסך (CLAUDE.md):
+                הכפתור הכתום המלא בפרופיל שמור ל«שליחת קישור ניהול להורה»,
+                וזה יורד לכתום-מתאר כמו כפתור «נסו שוב» שמתחתיו. */}
+            <button type="button" className="btn-soft" onClick={load}>
               <Eye size={16} /> {L('הצגת המידע שלי', 'Show my data')}
             </button>
           </div>
@@ -3353,13 +3364,15 @@ function MyDataCard() {
 }
 
 // ---------- מסך: פרופיל (זהות, סטטיסטיקות, קבוצות, הגדרות) ----------
-function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView, bell, coachName: coachNameProp, onCoach }) {
+function PlayerProfile({ session, profile, membership, memberships, onEdit, onJoined, onSignOut, setView, bell, coachName: coachNameProp, onCoach, onPickTeam }) {
   const [st, setSt] = useState(null)
   // 6.9 — «הצטרפות לקבוצה נוספת» פותח כאן את תיבת הקוד. קודם הוא רק ניווט
   // לבית, ושם כרטיס ההצטרפות מוצג רק לשחקן בלי קבוצה — כלומר הכפתור לא
   // הוביל לשום מקום עבור מי שכבר בקבוצה אחת.
   const [addTeam, setAddTeam] = useState(false)
+  // 12.9.2026 (player-flow-13) — דגל alive: שלוש שליפות שכותבות setSt
   useEffect(() => {
+    let alive = true
     ;(async () => {
       const [compl, att, eff] = await Promise.all([
         supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', session.user.id),
@@ -3375,8 +3388,10 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
       const effs = (eff.data || []).map((r) => r.effort).filter((v) => v != null)
       const avgLoad = effs.length ? (effs.reduce((s, v) => s + v, 0) / effs.length).toFixed(1) : null
       // בוצע = done_at מלא (שורה בלי done_at = התקדמות חלקית בלבד)
+      if (!alive) return
       setSt({ done: doneRows.filter((c) => c.done_at).length, avgLoad, attendancePct })
     })()
+    return () => { alive = false }
   }, [session.user.id])
 
   const role = [L('שחקן', 'Player'), profile.position, profile.birth_year ? `${L('שנתון', 'b.')} ${profile.birth_year}` : null].filter(Boolean).join(' · ')
@@ -3385,7 +3400,9 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
 
   const band = st ? [
     { value: st.attendancePct != null ? `${st.attendancePct}%` : '—', label: L('נוכחות', 'Attendance') },
-    { value: st.done, label: L('תרגילים בוצעו', 'Drills done') },
+    { /* 12.9 — «משימות» היא המילה האחידה למה שהמאמן שולח; «תרגיל» נשמר לשם
+         התרגיל מהספרייה. כאן נספרות assignment_completions — כלומר משימות. */
+      value: st.done, label: L('משימות בוצעו', 'Tasks done') },
     { value: st.avgLoad ?? '—', label: L('עומס ממוצע', 'Avg load') },
   ] : null
 
@@ -3421,20 +3438,51 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
             <div className="ps-slot"><JoinTeam session={session} onJoined={onJoined} compact /></div>
           ) : (
             <>
-              {memberships.map((m) => (
-                <div key={m.id} className={m.status === 'approved' ? 'ps-row ps-row--acc' : 'ps-row'}>
-                  <span className={m.status === 'approved' ? 'ps-team-av' : 'ps-team-av ps-team-av--mut'} aria-hidden="true">
-                    {(trTeam(m.team) || '?').slice(0, 2)}
-                  </span>
-                  <span className="ps-row-main">
-                    <b className="ps-t13b">{trTeam(m.team)}</b>
-                    <span className="ps-lbl">{coachName(m.coach)}</span>
-                  </span>
-                  <span className={m.status === 'approved' ? 'ps-chip ps-chip--ok' : 'ps-chip ps-chip--mut'}>
-                    {m.status === 'approved' ? L('מאושר', 'Approved') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
-                  </span>
-                </div>
-              ))}
+              {/* 12.9.2026 (player-flow-7) — שחקן בשתי קבוצות ראה רק את
+                  האחרונה שהצטרף אליה, ולא הייתה שום דרך לחזור לראשונה: כל
+                  המסכים (צ'ק-אין, לו״ז, משוב, יעדים) נגזרים מ-membership
+                  יחיד. כאן, ברשימה שכבר מציגה את שתי הקבוצות, כל שורה
+                  מאושרת הופכת לבורר — בלי להמציא פקד חדש במקום אחר. */}
+              {memberships.map((m) => {
+                const isActive = m.id === membership?.id
+                const canPick = m.status === 'approved' && approved.length > 1 && !!onPickTeam
+                const inner = (
+                  <>
+                    <span className={m.status === 'approved' ? 'ps-team-av' : 'ps-team-av ps-team-av--mut'} aria-hidden="true">
+                      {(trTeam(m.team) || '?').slice(0, 2)}
+                    </span>
+                    <span className="ps-row-main">
+                      <b className="ps-t13b">{trTeam(m.team)}</b>
+                      <span className="ps-lbl">{coachName(m.coach)}</span>
+                    </span>
+                    {canPick && isActive && <span className="ps-chip ps-chip--acc">{L('מוצגת עכשיו', 'Showing now')}</span>}
+                    {canPick && !isActive && <span className="ps-chip ps-chip--mut">{L('מעבר לקבוצה', 'Switch')}</span>}
+                    <span className={m.status === 'approved' ? 'ps-chip ps-chip--ok' : 'ps-chip ps-chip--mut'}>
+                      {m.status === 'approved' ? L('מאושר', 'Approved') : m.status === 'pending' ? L('ממתין', 'Pending') : L('נדחה', 'Declined')}
+                    </span>
+                  </>
+                )
+                if (!canPick) {
+                  return <div key={m.id} className={m.status === 'approved' ? 'ps-row ps-row--acc' : 'ps-row'}>{inner}</div>
+                }
+                return (
+                  <button
+                    key={m.id} type="button"
+                    className={isActive ? 'ps-row ps-row--acc' : 'ps-row'}
+                    onClick={() => onPickTeam(m.id)}
+                    aria-pressed={isActive}
+                    aria-label={L(`הצגת ${trTeam(m.team)} בכל המסכים`, `Show ${trTeam(m.team)} across the app`)}
+                  >
+                    {inner}
+                  </button>
+                )
+              })}
+              {approved.length > 1 && (
+                <p className="ps-mut">
+                  {L('אתה רשום בכמה קבוצות. הבית, הלו״ז והמשוב מציגים את הקבוצה שסומנה כאן.',
+                     "You're in more than one team. Home, schedule and feedback show the team selected here.")}
+                </p>
+              )}
               <button type="button" className="ps-add" onClick={() => setAddTeam((v) => !v)} aria-expanded={addTeam}>
                 {addTeam ? L('סגירה', 'Close') : L('הצטרפות לקבוצה נוספת', 'Join another team')}
               </button>
@@ -3469,9 +3517,18 @@ function PlayerProfile({ session, profile, membership, memberships, onEdit, onJo
             type="button"
             className="ps-set"
             onClick={async () => {
-            const ok = window.confirm(L(
-              'לבקש מחיקת חשבון? נטפל בבקשה בתוך 30 יום, וניצור קשר במייל של החשבון.',
-              'Request account deletion? We handle requests within 30 days and reply to your account email.'))
+            // 12.9.2026 (copy-ux-1-12, copy-ux-2-8, player-visual-10) —
+            // window.confirm הקפיץ תיבה אפורה של הדפדפן עם «courtsideil…says»
+            // וכפתורי OK/Cancel באנגלית, דווקא בפעולה הכבדה ביותר במסך של
+            // ילד שכל האפליקציה שלו בעברית. confirmDialog הוא הדיאלוג של
+            // המוצר, ובו גם כתוב מה הכפתור עושה.
+            const ok = await confirmDialog({
+              title: L('לבקש מחיקת חשבון?', 'Request account deletion?'),
+              message: L('נטפל בבקשה בתוך 30 יום, וניצור קשר במייל של החשבון.',
+                         'We handle requests within 30 days and reply to your account email.'),
+              confirmText: L('שליחת הבקשה', 'Send the request'),
+              danger: true,
+            })
             if (!ok) return
             const { error } = await supabase.from('account_deletion_requests').insert({ user_id: session.user.id })
             if (error) {
@@ -3631,33 +3688,59 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
     let pendingCode = null
     try { pendingCode = localStorage.getItem('pending_join_code') } catch { /* ignore */ }
     if (!pendingCode) return
-    const res = await requestJoinByCode(session.user.id, pendingCode)
     const forget = () => {
       try { localStorage.removeItem('pending_join_code') } catch { /* ignore */ }
       // 4.9 — מנקים גם את תפקיד ההרשמה השמור, כדי ש«הרשמה» הבאה מהמכשיר
       // הזה לא תיפתח בטעות בדלת «שחקן» (App.readRole)
       try { localStorage.removeItem('signup_role') } catch { /* ignore */ }
     }
+    // ⚠ 12.9.2026 (shell-5) — הקוד נשמר ב-App.captureJoinCode ברגע שנפתח
+    //   ‎#/join/CODE, **לפני** שיש סשן, והוא אינו קשור למי ששמר אותו: ילד
+    //   שפתח קישור הצטרפות בטלפון של חבר ונטש באמצע ההרשמה גרם לכך שבעל
+    //   הטלפון, ברגע שהתחבר, שלח בשמו בקשה לקבוצה שלא ביקש. אי אפשר לתקן
+    //   את זה בצד הכתיבה מכאן (App.jsx/JoinWithCode.jsx אינם בחבילה הזו),
+    //   ולכן שואלים לפני ששולחים — טאפ אחד, והוא גם מסביר מה עומד לקרות.
+    const ok = await confirmDialog({
+      title: L('לשלוח בקשת הצטרפות לקבוצה?', 'Send a join request?'),
+      message: L(`נשלח למאמן בקשה להצטרף עם הקוד ${pendingCode}. אפשר גם לוותר — הקוד פשוט יימחק מהמכשיר.`,
+                 `We'll ask the coach to add you with code ${pendingCode}. You can skip — the code is simply removed from this device.`),
+      confirmText: L('שליחת הבקשה', 'Send the request'),
+      cancelText: L('לא עכשיו', 'Not now'),
+      danger: false,
+    })
+    if (!ok) { forget(); return }
+    const res = await requestJoinByCode(session.user.id, pendingCode)
     if (res.ok) {
       forget()
       if (res.status === 'approved') toast.success(L('כבר אושרת לקבוצה!', "You're already approved!"))
       else if (res.status === 'rejected') {
-        // 6.9 — אותו נוסח כמו בכרטיס ההצטרפות: נדחה, דברו עם המאמן, ואפשר לשלוח שוב
-        toast.error(L('המאמן דחה את הבקשה שלך לקבוצה הזו. דברו איתו — ואפשר לשלוח לו אותה שוב עם אותו קוד.',
-                      'Your coach declined your request to this team. Talk to them — you can send it again with the same code.'))
+        // 12.9.2026 (player-flow-1) — אותו נוסח כמו בכרטיס ההצטרפות: השרת
+        // מחזיר שורה שנדחתה כמות שהיא, בלי לאפס ל-pending, ולמאמן אין
+        // באפליקציה פקד להחזיר אותה. אסור להבטיח לילד «שלחו שוב».
+        toast.error(L('המאמן דחה את הבקשה. פנו אליו — רק הוא יכול לפתוח אותה מחדש.',
+                      'Your coach declined the request. Talk to them — only they can reopen it.'))
       } else toast.success(L('הבקשה נשלחה למאמן לאישור', 'Request sent to your coach'))
       loadMemberships()
       return
     }
     // 'not-found' = השרת ענה שהקוד מת (פג/הוחלף) — אין טעם לשמור אותו.
-    // כל שאר הכשלים (רשת, מגבלת קצב) הם זמניים: הקוד נשאר, וננסה שוב
-    // בכניסה הבאה או ברגע שהרשת חוזרת.
     if (res.reason === 'not-found' && res.serverReason !== 'rate-limited') {
       forget()
       toast.error(L('הקוד שבקישור כבר לא תקף — בקשו מהמאמן קישור חדש.',
                     'The code in the link is no longer valid — ask your coach for a new link.'))
       return
     }
+    // 12.9.2026 (player-flow-11) — 'bad-code' (קוד שנדרס באחסון) ו-'failed'
+    // (שגיאת שרת שאינה רשת — players.js מחזיר 'offline' לכשל רשת) אינם
+    // זמניים. עד היום הם נשארו לנצח, וכל פתיחה של האפליקציה נפתחה בטוסט
+    // אדום שגם שיקר: «ננסה שוב כשהרשת תחזור», כשהרשת בסדר גמור.
+    if (res.reason === 'bad-code' || res.reason === 'failed') {
+      forget()
+      toast.error(L('הקוד לא התקבל — בקשו מהמאמן קישור חדש.',
+                    "The code didn't go through — ask your coach for a new link."))
+      return
+    }
+    // נשאר רק 'offline' (ו-rate-limited): הקוד נשאר, וננסה שוב כשהרשת חוזרת
     toast.error(L('לא הצלחנו לשלוח את בקשת ההצטרפות — ננסה שוב כשהרשת תחזור.',
                   "We couldn't send the join request — we'll try again when you're back online."))
   }, [session.user.id, loadMemberships])
@@ -3694,8 +3777,21 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
 
   useEffect(() => { window.scrollTo({ top: 0 }); setDrawer(false) }, [view])
 
+  // 12.9.2026 (player-flow-7) — קודם כאן ישב `approved[0]`, והשליפה ממוינת
+  // לפי created_at יורד: כלומר **הקבוצה האחרונה שהצטרף אליה**, בלי שום דרך
+  // לחזור לראשונה. ילד שעבר קבוצה בתחילת עונה (או משחק גם בבית ספר וגם
+  // במועדון) איבד מהמסך את כל מה שקשור לקבוצה השנייה. הבחירה נשמרת לפי
+  // מזהה החשבון, כדי שמכשיר משותף לא יגרור בחירה של משתמש אחר.
   const approved = (memberships || []).filter((m) => m.status === 'approved')
-  const membership = approved[0] || null
+  const teamKey = `cs_team_${session.user.id}`
+  const [activeTeamId, setActiveTeamId] = useState(() => {
+    try { return localStorage.getItem(teamKey) } catch { return null }
+  })
+  const pickTeam = useCallback((id) => {
+    setActiveTeamId(id)
+    try { localStorage.setItem(teamKey, id) } catch { /* ignore */ }
+  }, [teamKey])
+  const membership = approved.find((m) => m.id === activeTeamId) || approved[0] || null
   const hasTeam = approved.length > 0
   const coach = membership ? { ...membership.coach, id: membership.coach_id } : null
   const signOut = () => supabase.auth.signOut()
@@ -3824,7 +3920,12 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
               desc={L('כדי לכתוב למאמן צריך קודם להצטרף לקבוצה שלו.', 'To message your coach, join their team first.')} />
       case 'feedback':
         return hasTeam
-          ? <PlayerTimeline session={session} membership={membership} {...ps} />
+          // 12.9.2026 (player-flow-2 · פיוס האצווה) — PlayerTimeline קיבל
+          // באותה אצווה prop בשם restricted, וההערה שם ציינה שהבית עדיין אינו
+          // מעביר אותו ולכן הרכיב נופל לשליפת approval_status משלו. מעבירים
+          // אותו כאן: הבית כבר מחזיק את הערך, וה-prop מנצח — כלומר נחסכת
+          // שליפה כפולה, והחסימה זהה לזו של PlayerTeamHub/MyGoals שלצידה.
+          ? <PlayerTimeline session={session} membership={membership} restricted={restricted} {...ps} />
           : <LockedFeature session={session} onJoined={loadMemberships}
               title={L('האימונים שלי', 'My sessions')}
               desc={L('ההיסטוריה שלך — משוב, עומס ויעדים לכל אימון — נפתחת ברגע שתצטרף לקבוצה.', 'Your history — feedback, effort and goals per session — opens once you join a team.')} />
@@ -3863,7 +3964,7 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
         // הפעמון עובר פנימה: במסך הזה הסרגל העליון יורד במובייל
         return <BasketballWorld bell={<Notifications session={session} onNavigate={navFromBell} />} />
       case 'profile':
-        return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} />
+        return <PlayerProfile session={session} profile={profile} membership={membership} memberships={memberships} onEdit={() => setEditing(true)} onJoined={loadMemberships} onSignOut={signOut} setView={setView} bell={psBell} coachName={psCoachName} onCoach={psOnCoach} onPickTeam={pickTeam} />
       default: return home
     }
   }
@@ -3871,6 +3972,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
   return (
     <RestrictedCtx.Provider value={restrictedCtx}>
     <div className={isPs ? 'layout pl-layout ps-host' : 'layout pl-layout'} data-view={editing ? 'edit' : view}>
+      {/* 12.9.2026 (a11y-10) — בדסקטופ יש 13 פקדי ניווט לפני התוכן, בכל מסך
+          מחדש. הקישור קיים בצד המאמן (Dashboard.jsx) ופשוט לא הגיע לכאן;
+          ‎.skip-link כבר מעוצב ב-index.css. */}
+      <a href="#main" className="skip-link">{L('דלג לתוכן', 'Skip to content')}</a>
       <header className="mobile-topbar">
         <button className="drawer-toggle" onClick={() => setDrawer(true)} aria-label={L('תפריט', 'Menu')}><Menu size={22} /></button>
         <div className="sidebar-brand">
@@ -3892,7 +3997,10 @@ export default function PlayerDashboard({ session, profile, onProfileReload, res
           <button className="drawer-close" onClick={() => setDrawer(false)} aria-label={L('סגור', 'Close')}><X size={20} /></button>
         </div>
         <span className="pl-role-chip"><Dumbbell size={13} /> {L('שחקן', 'Player')}</span>
-        <nav className="sidebar-nav" ref={navRef}>
+        {/* 12.9.2026 (a11y-19) — שני landmark-ים מסוג nav על אותו מסך (המגירה
+            וגלולת הכיס) נקראו שניהם «ניווט» ברשימת הקורא. PocketNav כבר
+            מסומן; זה החסר. */}
+        <nav className="sidebar-nav" ref={navRef} aria-label={L('תפריט ראשי', 'Main menu')}>
           {navBox && (
             <span
               className="nav-marker"

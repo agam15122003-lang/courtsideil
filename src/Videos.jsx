@@ -29,6 +29,7 @@ export default function Videos({ session, profile }) {
   const isAdmin = !!profile?.is_admin
   const [videos, setVideos] = useState([])
   const [ratings, setRatings] = useState({}) // id -> { avg, count, mine }
+  const [ratingsFailed, setRatingsFailed] = useState(false) // שליפת הדירוגים נכשלה — המיון אינו לפי דירוג
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState(null)
@@ -50,24 +51,38 @@ export default function Videos({ session, profile }) {
   // ⚠ מוגבל לסרטונים שעל המסך. עד 25.8 זו הייתה שליפה של **כל** שורות
   //   הדירוג במערכת — וגם רצה מחדש אחרי כל לחיצת כוכב. מעבר ל-1000 שורות
   //   PostgREST חותך בשקט, כלומר הממוצע פשוט היה נעשה שגוי.
+  // 12.9.2026: המזהים נשלחים בקבוצות של 100. `.in()` נכנס ל-query-string,
+  // וספרייה של כמה מאות סרטונים בנתה URL שנשבר (414) — הדירוגים התרוקנו
+  // בשקט והמיון «לפי דירוג» הפך לסדר שרירותי בלי שום חיווי.
+  // ⚠ לא מסתפקים בדירוגים של המוצגים בלבד: המיון עצמו מסדר את כל הספרייה,
+  //   ולכן הוא זקוק לדירוג של כולם. כשל מוצג למסך במקום להיבלע.
+  const RATE_CHUNK = 100
   async function loadRatings(ids) {
-    if (!ids || !ids.length) { setRatings({}); return }
-    const { data, error } = await supabase.from('video_ratings').select('video_id, user_id, rating').in('video_id', ids)
-    if (error) return // טבלה אולי לא קיימת עדיין — לא קריטי
+    if (!ids || !ids.length) { setRatings({}); setRatingsFailed(false); return }
     const agg = {}
-    for (const r of data || []) {
-      const a = (agg[r.video_id] = agg[r.video_id] || { sum: 0, count: 0, mine: 0 })
-      a.sum += r.rating; a.count += 1
-      if (r.user_id === me) a.mine = r.rating
+    let failed = false
+    for (let i = 0; i < ids.length; i += RATE_CHUNK) {
+      const { data, error } = await supabase
+        .from('video_ratings').select('video_id, user_id, rating').in('video_id', ids.slice(i, i + RATE_CHUNK))
+      if (error) { failed = true; break }
+      for (const r of data || []) {
+        const a = (agg[r.video_id] = agg[r.video_id] || { sum: 0, count: 0, mine: 0 })
+        a.sum += r.rating; a.count += 1
+        if (r.user_id === me) a.mine = r.rating
+      }
     }
     const out = {}
     for (const id in agg) out[id] = { avg: agg[id].sum / agg[id].count, count: agg[id].count, mine: agg[id].mine }
     setRatings(out)
+    setRatingsFailed(failed)
   }
 
   async function load() {
     setLoading(true)
-    const { data, error } = await supabase.from('drill_videos').select('*')
+    // 12.9.2026: סדר מהשרת — בלעדיו, כשהדירוגים לא נטענים, הרשימה מגיעה
+    // בסדר שרירותי של המסד. הסינון והמיון לפי דירוג נשארים בלקוח, ולכן
+    // עדיין שולפים את כל הספרייה (PostgREST חוסם ב-1000 שורות ממילא).
+    const { data, error } = await supabase.from('drill_videos').select('*').order('created_at', { ascending: false })
     if (error) setError(L('שגיאה בטעינת הסרטונים: ', 'Error loading videos: ') + error.message)
     else { setVideos(data || []); setError(null) }
     await loadRatings((data || []).map((v) => v.id))
@@ -260,6 +275,20 @@ export default function Videos({ session, profile }) {
 
       <input className="finder-input" type="search" value={search} onChange={(e) => { setSearch(e.target.value); setLimit(PAGE) }}
         aria-label={L('חיפוש סרטונים', 'Search videos')} placeholder={L('חיפוש חופשי בסרטונים...', 'Search videos...')} style={{ marginTop: 12 }} />
+
+      {/* 12.9.2026: כשל בשליפת הדירוגים אינו «אין דירוגים» — בלי החיווי הזה
+          הרשימה נראתה ממוינת לפי דירוג בזמן שהיא ממוינת לפי תאריך. */}
+      {/* 12.9.2026 (פיוס): אין ב-index.css מחלקה alert-info — רק
+          alert-error/alert-success. המראה הכחול מגיע מ-.alert.vco-rate-fail. */}
+      {!loading && !error && ratingsFailed && (
+        <p className="alert vco-rate-fail" role="status">
+          {L('הדירוגים לא נטענו כרגע — הרשימה מסודרת לפי תאריך ההוספה.',
+             'Ratings did not load right now — the list is ordered by date added.')}
+          <button type="button" className="link-button" onClick={() => loadRatings(videos.map((v) => v.id))}>
+            {L('נסה שוב', 'Try again')}
+          </button>
+        </p>
+      )}
 
       {loading ? (
         <SkeletonMedia count={6} />

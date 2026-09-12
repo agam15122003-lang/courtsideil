@@ -6,8 +6,6 @@ import JoinWithCode from './JoinWithCode'
 import Dashboard from './Dashboard'
 import ResetPassword from './ResetPassword'
 import Landing from './Landing'
-import PublicDrill from './PublicDrill'
-import { ConfirmHost } from './confirm'
 import { useLang, L } from './i18n'
 // 22.8 — השקת צד המאמן בלבד: בלי בחירת תפקיד, בלי קוד קבוצה, בלי קישורי
 // הצטרפות/מגרש. הכול נשאר בקוד ומאחורי המתג הזה.
@@ -19,6 +17,9 @@ import Logo from './Logo'
 
 // מסך ההורה נטען רק כשמגיעים אליו — הוא לא חלק מהאפליקציה של המשתמשים
 const ParentConsent = lazy(() => import('./ParentConsent'))
+// 12.9.2026 — גם שער התרגיל הציבורי: הוא נפתח רק מקישור #/drill/<id>, ועד
+// היום הוא נגרר לצ'אנק הפתיחה של כל מבקר בדף הנחיתה (נמדד ~2KB gzip).
+const PublicDrill = lazy(() => import('./PublicDrill'))
 
 // קישור ציבורי לתרגיל: #/drill/<id> — נפתח גם בלי חשבון
 function publicDrillId() {
@@ -151,8 +152,12 @@ export default function App() {
   }
 
   // תאימות לשער התרגיל הציבורי, שנשאר כפי שהיה: "פתיחת הדלת" = מסך בחירת התפקיד
+  // 12.9.2026 — 'signup' מפורש. בלעדיו authMode נשאר בברירת המחדל 'signin',
+  // ו«הצטרפות חינם ל-CourtSide» מדף התרגיל הציבורי (הצינור השיווקי של תרגיל
+  // שמשותף בוואטסאפ) נחת על טופס **התחברות**: סיסמה בלבד, בלי שם, בלי מועדון
+  // ובלי סעיף ההסכמה.
   const setShowAuth = (open) => {
-    if (open) goAuth(PLAYER_SIGNUP ? 'role' : 'auth')
+    if (open) goAuth(PLAYER_SIGNUP ? 'role' : 'auth', 'signup')
     else {
       setAuthStep(null)
       setAuthTrail([])
@@ -161,9 +166,11 @@ export default function App() {
 
   // בחירת תפקיד שייכת למסלול ההרשמה בלבד (מי שמתחבר לא צריך לבחור תפקיד —
   // הוא כבר קיים במסד). המצב נקבע בכניסה למסלול ולכן לא נדרס כאן.
+  // 12.9.2026 — גם כאן mode מפורש: מי שבחר תפקיד מצהיר שהוא נרשם. בלי
+  // הארגומנט המסלול שהגיע מ-setShowAuth היה ממשיך לשאת 'signin'.
   const pickRole = (id) => {
     setRole(id)
-    goAuth(id === 'player' ? 'join' : 'auth')
+    goAuth(id === 'player' ? 'join' : 'auth', 'signup')
   }
 
   // הגעה מלינק הצטרפות: הקוד כבר נשמר, והמשתמש כבר הוכיח לאיזה צינור הוא שייך —
@@ -219,6 +226,16 @@ export default function App() {
       // שאיש יצרוך אותו, והעץ היה עולה מחדש לחינם. מנקים את ה-hash ונשארים
       // בדיוק במקום שבו היינו.
       if (PLAYER_SIDE && isCoachSession(session) && /^#\/join\//i.test(window.location.hash)) {
+        window.location.hash = ''
+        return
+      }
+      // 12.9.2026 — אותו שומר בדיוק לקישור הצ'ק-אין. מאמן שבודק בעצמו את
+      // קישור התזכורת ששלח לשחקנים (מהלך צפוי — זו הסיבה שהשומר של #/join
+      // נוסף) קיבל setTreeKey, שהוא ה-key של <Dashboard>: כל עץ המאמן נהרס
+      // ונבנה מחדש, בלי confirmLeave ובלי אזהרה — והמחברת הפתוחה איבדה את
+      // כל מה שנכתב מאז השמירה האחרונה. ליעד ('home' בבית השחקן) ממילא אין
+      // שום משמעות בצד המאמן.
+      if (isCoachSession(session) && /^#\/checkin\b/i.test(window.location.hash)) {
         window.location.hash = ''
         return
       }
@@ -391,7 +408,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="center-screen" role="status" aria-label="טוען / Loading">
+      <div className="center-screen" role="status" aria-label={L('טוען', 'Loading')}>
         <div className="app-loading">
           <Logo size={40} />
           <span className="app-loading-name">CourtSide</span>
@@ -417,15 +434,17 @@ export default function App() {
       <div className="app">
         <Suspense
           fallback={
-            <div className="center-screen" role="status" aria-label="טוען / Loading">
+            <div className="center-screen" role="status" aria-label={L('טוען', 'Loading')}>
               <div className="app-loading"><div className="loader" /></div>
             </div>
           }
         >
           <ParentConsent token={consentToken} />
         </Suspense>
-        {/* דיאלוג האישור נדרש כאן: ביטול הסכמה במצב פיקוח עובר דרכו */}
-        <ConfirmHost />
+        {/* 12.9.2026 — ה-<ConfirmHost/> הוסר מכאן (וכן משני הענפים האחרים):
+            הוא מרונדר פעם אחת בלבד ב-main.jsx. ארבעה מופעים חלקו משתנה
+            מודול אחד (_open), וכל פירוק של אחד מהם אִפֵּס אותו — מרגע זה כל
+            «לצאת בלי לשמור?» ירד חזרה ל-window.confirm באנגלית ו-LTR. */}
       </div>
     )
   }
@@ -434,14 +453,22 @@ export default function App() {
   if (sharedDrill) {
     return (
       <div className="app">
-        <PublicDrill
-          drillId={sharedDrill}
-          onJoin={() => {
-            window.location.hash = ''
-            setSharedDrill(null)
-            if (!session) setShowAuth(true)
-          }}
-        />
+        <Suspense
+          fallback={
+            <div className="center-screen" role="status" aria-label={L('טוען', 'Loading')}>
+              <div className="app-loading"><div className="loader" /></div>
+            </div>
+          }
+        >
+          <PublicDrill
+            drillId={sharedDrill}
+            onJoin={() => {
+              window.location.hash = ''
+              setSharedDrill(null)
+              if (!session) setShowAuth(true)
+            }}
+          />
+        </Suspense>
       </div>
     )
   }
@@ -452,8 +479,6 @@ export default function App() {
         {/* 6.9 — treeKey: קישור שהגיע כשהאפליקציה כבר פתוחה מעלה את העץ
             מחדש, כדי שהיעד השמור (pending_view) ייקרא שוב */}
         <Dashboard key={treeKey} session={session} />
-        {/* דיאלוג אישור מעוצב — חייב להיות מרונדר פעם אחת בשורש */}
-        <ConfirmHost />
       </div>
     )
   }
@@ -500,9 +525,6 @@ export default function App() {
           onSignupFlow={PLAYER_SIGNUP ? () => goAuth('role', 'signup') : undefined}
         />
       )}
-
-      {/* דיאלוג אישור מעוצב — מרונדר פעם אחת בענף הזה, כמו קודם */}
-      <ConfirmHost />
     </div>
   )
 }

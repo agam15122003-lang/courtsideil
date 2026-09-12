@@ -96,9 +96,15 @@ export async function printPlayerReport({ player, team, att }) {
   // דוח עם אפסים מזויפים גרוע מאין דוח: כשל שליפה נאמר, לא מודפס
   const errs = [fb.error, goals.error, asg.error, compl.error].filter(Boolean)
   if (errs.length) {
+    // 12.9 — עד היום הודבק כאן error.message הגולמי («Report failed: TypeError:
+    // Failed to fetch») ושם קובץ מיגרציה — שני דברים שמאמן שאינו הבעלים לא יכול
+    // לעשות איתם כלום. הפרט הטכני יורד לקונסול (שם הבעלים מאתר תקלות), ולמסך
+    // נשאר משפט עברי עם הצעד הבא.
+    console.error('playerReport:', errs.map((e) => e.message || e).join(' | '))
     toast.error(byRoster && errs.some(missing22_8)
-      ? L('כדי להפיק דוח התקדמות צריך להריץ את supabase_coach_only_22_8.sql', 'The progress report needs supabase_coach_only_22_8.sql')
-      : L('הפקת הדוח נכשלה: ', 'Report failed: ') + errs[0].message)
+      ? L('דוח ההתקדמות עדיין לא פעיל בשרת — נסו שוב מאוחר יותר.',
+          'The progress report is not active on the server yet — please try again later.')
+      : L('הפקת הדוח נכשלה — בדקו את החיבור ונסו שוב.', 'Creating the report failed — check your connection and try again.'))
     return
   }
 
@@ -164,5 +170,13 @@ ${fbRows || `<p class="empty">${L('עוד לא נרשם משוב.', 'No feedback
 
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
   const w = window.open(url, '_blank')
-  if (!w) URL.revokeObjectURL(url)
+  // 12.9 — בדפדפן נייד (וב-WebView של האפליקציה) פתיחת חלון מ-blob: נחסמת
+  // לעתים קרובות, ואז window.open מחזיר null. עד היום זה היה כישלון אילם:
+  // הלחיצה על «דוח התקדמות» לא עשתה כלום, והמאמן לא יכול היה לדעת אם הדוח
+  // נכשל או שפספס טאב שנפתח. אומרים מה קרה ומה לעשות כדי שזה יעבוד.
+  if (!w) {
+    URL.revokeObjectURL(url)
+    toast.error(L('הדפדפן חסם את פתיחת הדוח — אפשרו חלונות קופצים לאתר ונסו שוב.',
+      'The browser blocked the report window — allow pop-ups for this site and try again.'))
+  }
 }

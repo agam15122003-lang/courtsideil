@@ -29,6 +29,14 @@ export default function RolePicker({ onPick, onBack, onSignIn }) {
         'מתחרה במגרש, מקבל משימות ועוקב אחרי היעדים שלו',
         'Competes on the court, gets assignments and tracks their own goals',
       ),
+      // 12.9.2026 (landing-legal-pwa-14) — בשער הכניסה היחיד לצד השחקן לא היה
+      // שום אזכור לגיל או להורה, בעוד terms §2-3 ו-privacy §6 מבטיחים ששחקן
+      // מתחת ל-18 נשאר «ממתין להורה» ואינו יכול לכתוב תוכן. הילד גילה את זה
+      // רק אחרי שפתח חשבון, מסר מייל ואישר תנאים. אותו מנגנון tag שכבר קיים
+      // ומעוצב בכרטיס «מאמן».
+      // ⚠ קצר בכוונה: ‎.csa-role-tag היא גלולה ב-11px בתוך עמודת טקסט צרה,
+      //   ומשפט ארוך נשבר בתוכה לשתי שורות.
+      tag: L('מתחת ל-18? נדרש אישור הורה', 'Under 18? Parent approval needed'),
     },
     {
       id: 'coach',

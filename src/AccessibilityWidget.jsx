@@ -140,7 +140,15 @@ export default function AccessibilityWidget() {
 
   useEffect(() => {
     apply(settings)
-    localStorage.setItem(KEY, JSON.stringify(settings))
+    // 12.9.2026 — try/catch חובה: בספארי פרטי או בדפדפן שחוסם עוגיות
+    // setItem זורק QuotaExceededError. האפקט הזה רץ כבר בעלייה, וכשהרכיב
+    // עוד היה מרונדר מחוץ ל-ErrorBoundary הזריקה פירקה את **כל** השורש
+    // והמשתמש קיבל מסך לבן ריק. באותו סבב (12.9) הרכיב הוכנס לתוך הגדר
+    // ב-main.jsx, ולכן היום הזריקה הייתה מחליפה את כל האפליקציה במסך
+    // «CourtSide נתקעה» — עדיין כשל חמור על כלום. אחסון חסום = אין שמירה, ותו לא.
+    try {
+      localStorage.setItem(KEY, JSON.stringify(settings))
+    } catch { /* אחסון חסום — ההגדרות פעילות לסשן הזה בלבד */ }
   }, [settings])
 
   // סיבוב המכשיר / שינוי גודל החלון — מחזירים את הכפתור פנימה ומעדכנים

@@ -354,7 +354,14 @@ function Board({
           `לוח טקטיקה — ${full ? 'מגרש שלם' : 'חצי מגרש'}${portrait ? ' לאורך' : ''}, שלב ${stepIndex + 1}`,
           `Tactics board — ${full ? 'full court' : 'half court'}, step ${stepIndex + 1}`
         )}
-        style={{ touchAction: 'none', cursor: tool === 'select' ? 'default' : 'crosshair' }}
+        style={{
+          // 12.9.2026: במצב קריאה־בלבד אין בכלל טיפול במגע (onDown/onMove
+          // יוצאים מיד), אבל touch-action:none חסם את גלילת האצבע — אצבע
+          // שנחתה על המגרש «הקפיאה» את הפאנל. בעריכה נשאר none: הגרירה
+          // מתחילה על האובייקט, ו-pan-y היה גונב ממנו את התנועה האנכית.
+          touchAction: readOnly ? 'pan-y pinch-zoom' : 'none',
+          cursor: tool === 'select' ? 'default' : 'crosshair',
+        }}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}

@@ -32687,3 +32687,1108 @@ html.a11y-motion .pd-v2 .pd-dot-btn:hover { transform: none; }
 .tc-link-pick{ flex: 1 1 180px; min-height: 44px; margin: 0; }
 .tc-link-btn{ min-height: 44px; margin: 0; flex-shrink: 0; }
 .tc-link-none{ flex: 1 1 100%; line-height: 1.45; }
+
+/* ===== 12.9.2026 — סקירה מקיפה: תיקוני נראות, נגישות ומובייל ===== */
+
+/* --- חבילת css-shared --- */
+/* ==========================================================================
+   CourtSide — חבילת css-shared, סבב 12.9.2026
+   נספח לסוף src/index.css. טוקנים בלבד, מרווחים לוגיים, בלי עריכת כללים
+   ישנים — כל כלל כאן מנצח בזכות המיקום בסוף הקובץ (ספציפיות זהה = המאוחר).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   [shell-1] הפס «אין אינטרנט» הפך לעמודה אדומה על כל גובה המסך.
+   ‏‎.offline-bar‎ הוא הילד הראשון של ‎.layout‎ (Dashboard.jsx:713), ו-‎.layout‎
+   הוא ‎display:flex‎ מעל 768px — כלומר הפס נכנס כפריט בשורה ליד הסרגל
+   והתוכן, קיבל ~330px רוחב ו-3071px גובה. במקום להוציא אותו מהזרימה
+   (position:fixed, שהיה דורס גם את אייפד עומד שבו ‎.layout‎ כבר ‎display:block‎),
+   פשוט נותנים לשורה להישבר: ‎flex-wrap‎ + פריט שתופס שורה שלמה.
+   ⚠ ‎align-content:flex-start‎ חובה — בלעדיו ברירת המחדל ‎stretch‎ הייתה
+   מותחת את שורת הפס לחצי המסך ומחזירה בדיוק את הבאג.
+   שתי השורות האלה אינרטיות כשהפריסה ‎display:block‎ (טלפון/אייפד עומד). */
+.layout {
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.layout > .offline-bar {
+  flex: 0 0 100%;
+  max-inline-size: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   [a11y-4] צ׳יפ נבחר: לבן על ‎--accent‎ (#E8763A) = 2.96:1, מתחת ל-AA.
+   ‏DESIGN.md מייעד את ‎--accent-fill‎ (#B34E1C) בדיוק לזה — «כפתור ראשי,
+   פס כותרת — לבן עליו» — והוא 5.22:1 מול לבן. הטוקן זהה בשני המצבים,
+   ולכן אין צורך להפוך את צבע הטקסט במצב כהה. שלושת המקומות: בורר הטווח
+   ביעדים, סולם העומס 1–10 והפילים «על מה עבדת» בסיכום האימון.
+   ⚠ פיוס 12.9.2026 — ‎.fbs-eff.on‎ (סולם העומס) הוסר מכאן: חבילת css-player
+   כותבת לאותו סלקטור בדיוק כלל שלם יותר (‎--brand-strong‎ + ‎--on-dark‎ +
+   ‎--shadow-md‎, ממצא dark-mode-6). ‎--brand-strong‎ ו-‎--accent-fill‎ שניהם
+   ‎#B34E1C‎ בשני המצבים (index.css:15833 ו-15837 — ההגדרה האחרונה בקובץ),
+   כלומר אותו צבע; השארת שתי הצהרות הייתה מותירה את התוצאה תלויה בסדר
+   שבו שני הקבצים מצורפים. בעלים אחד לסלקטור. */
+.pg-period.on {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+}
+.fbs-pill.on { background: var(--accent-fill); }
+
+/* --------------------------------------------------------------------------
+   [a11y-3] טבעת פוקוס לבנה על כרטיס לבן. ‎.ps-hbtn‎ נכתב לכפתורים שעל
+   הבאנר הכהה, אבל הווריאנט ‎--quiet‎ יושב על ‎.ps-card‎ בהיר — «שבוע קודם/
+   הבא» בלו״ז נמדדו 1.07:1 ונעלמו לגמרי מהמקלדת. אותה טבעת כמו ‎.ps-add‎
+   ו-‎.ps-day‎ באותו כרטיס. (‎.ps-rsvp button‎ ו-‎.ps-react‎ נשארים לבנים —
+   שם הרקע אכן כתום/כהה והם תקינים.) */
+.ps-hbtn--quiet:focus-visible { outline-color: var(--ps-acc); }
+
+/* --------------------------------------------------------------------------
+   [a11y-17] ‎.ms-search input:focus{outline:none}‎ ביטל את טבעת הפוקוס
+   הגלובלית ולשדה אין גבול משלו — הגעה בטאב לחיפוש שבתוך MultiSelect לא
+   הראתה כלום. הטבעת פנימה (offset שלילי) כדי שלא תיחתך ע״י הגלילה הדביקה. */
+.ms-search input:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   [a11y-9] ‎--mut‎ על המשטח החם #ECE5D6 = 4.33:1 (נדרש 4.5) בצד המאמן.
+   הבלוק של 8.9 כבר סגר את המלכודת לצד השחקן (‎.nh-player, .ps{ --surface-alt:
+   var(--sf2) }‎); כאן אותה החלפה בדיוק לשלושת המקומות שנמדדו בצד המאמן:
+   פאנל «חיבור שחקנים», שורת החשבון בכרטיס השחקן, והיסטוריית המשוב.
+   ‏‎--sf2‎ (#EDF2F8) מחזיר את אותו טקסט ל-4.82:1; במצב כהה השניים זהים. */
+.tc-panel,
+.roster-acct-row,
+.tm-fb-history li { --surface-alt: var(--sf2); }
+
+/* --------------------------------------------------------------------------
+   [mobile-ergonomics-2] מסך ההתחברות/הרשמה: ‎.csa .csa-field input‎ ב-15px
+   דרס את ההגנה הגלובלית «כל שדה קלט ≥16px» (index.css:4694) — ספארי מזנק
+   זום בכל פוקוס על המייל ועל השם המלא. שדה הסיסמה (17px) ספציפי יותר
+   וממשיך לנצח, ולכן הוא לא זז. */
+.csa .csa-field input,
+.csa .csa-field select { font-size: 16px; }
+
+/* --------------------------------------------------------------------------
+   [mobile-ergonomics-8] גיליון סיכום האימון נדבק לתחתית הפיזית של המסך,
+   ומתחת לכפתור «שליחה» היו 30px בלבד — באייפון עם פס הבית הכפתור יושב
+   בתוך רצועת המחוות. שני הגיליונות האחים (‎.pkn-sheet‎, ‎.ps-sheet‎) כבר
+   עושים את זה; רק ‎fbs‎ נשכח. longhand כדי לא לגעת בריפוד הצדדי. */
+.fbs-sheet { padding-block-end: calc(30px + env(safe-area-inset-bottom)); }
+
+/* --------------------------------------------------------------------------
+   [mobile-ergonomics-7] שלושה גיללים שנולדו אחרי הכלל של 15205 ולא נכנסו
+   לרשימה — גלילה שמגיעה לסופם ממשיכה לגרור את הדף שמאחור (ובספארי גם
+   מפעילה pull-to-refresh). */
+.pkn-sheet,
+.ps-sheet,
+.a11y-panel { overscroll-behavior: contain; }
+
+/* --------------------------------------------------------------------------
+   [mobile-ergonomics-16] גיליון «כל הפיצ׳רים» ב-88vh: ב-740×360 (טלפון
+   לרוחב) שורת הכלים ירדה מתחת לקפל, ובספארי ‎vh‎ הוא ה-viewport הגדול —
+   כלומר 88vh גדול מהשטח הנראה כשסרגל הכתובת מוצג. ‎dvh‎ הוא מה שהפרויקט
+   כבר עשה לצ׳אטים (index.css:29606). מנוע שלא מכיר ‎dvh‎ מתעלם מהשורה
+   ונשאר עם 88vh — נפילה רכה. */
+.pkn-sheet { max-block-size: 88dvh; }
+
+/* --------------------------------------------------------------------------
+   [mobile-ergonomics-9] דיאלוג האישור לא גלל: ‎.cf-overlay‎ הוא flex ממורכז
+   בלי ‎overflow‎, ולכן בהודעה ארוכה או במסך נמוך (844×390, או מקלדת פתוחה)
+   «ביטול» ו«כן» יצאו מהמסך בלי שום דרך להגיע אליהם.
+   ‏‎align-items:flex-start‎ + ‎margin-block:auto‎ על המודאל הוא המרכוז־הבטוח
+   הקלאסי: כשיש מקום המודאל ממורכז, וכשאין — הוא מתחיל למעלה והשכבה
+   גוללת. (‎align-items:safe center‎ היה עושה את זה בשורה אחת אבל נופל
+   בשקט במנועים ישנים — ושם בדיוק המסכים הנמוכים.) */
+.cf-overlay {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cf-modal { margin-block: auto; }
+
+/* --------------------------------------------------------------------------
+   [rtl-i18n-13] המגירה עוגנה ב-‎right:0‎ + ‎translateX(100%)‎ — שניהם פיזיים
+   ולא מתהפכים לפי ‎dir‎. במצב English ההמבורגר וכל הפריסה כבר שמאליים,
+   והמגירה עדיין יוצאת מהקצה הימני. הצל כבר הופך ל-LTR (index.css:6359),
+   רק המיקום לא. המסגרת עוברת לקצה הפונה לתוכן (בשני הכיוונים זהו
+   ‎inline-end‎), ומצב עברית לא זז בכלל — הכלל כולו מותנה ב-‎[dir='ltr']‎.
+   שני הבלוקים מכסים את חמש ההעתקות של המגירה בקובץ: טלפון, טלפון־לרוחב,
+   אייפד עומד, ומצב המיקוד של המחברת/טופס התרגיל מעל 841px. */
+@media (max-width: 768px),
+       (max-height: 540px) and (orientation: landscape) and (pointer: coarse),
+       (min-width: 769px) and (max-width: 840px) and (pointer: coarse) {
+  [dir='ltr'] .sidebar {
+    inset-inline-end: auto;
+    inset-inline-start: 0;
+    border-inline-start: none;
+    border-inline-end: 1px solid var(--border);
+    transform: translateX(-100%);
+  }
+  [dir='ltr'] .sidebar.open { transform: translateX(0); }
+}
+@media (min-width: 841px) {
+  [dir='ltr'] .layout:has(.nbk-focus) .sidebar,
+  [dir='ltr'] .layout:has(.drillform-head) .sidebar,
+  [dir='ltr'] body.is-focus .sidebar {
+    inset-inline-end: auto;
+    inset-inline-start: 0;
+    border-inline-start: none;
+    border-inline-end: 1px solid var(--border);
+    transform: translateX(-100%);
+  }
+  [dir='ltr'] .layout:has(.nbk-focus) .sidebar.open,
+  [dir='ltr'] .layout:has(.drillform-head) .sidebar.open,
+  [dir='ltr'] body.is-focus .sidebar.open { transform: translateX(0); }
+}
+
+/* ==========================================================================
+   יעדי מגע ≥44px (DESIGN.md §7) — הכול תחת pointer: coarse בלבד,
+   כדי שהפריסה בעכבר לא תשתנה.
+   ========================================================================== */
+@media (pointer: coarse) {
+
+  /* [a11y-2 · mobile-ergonomics-1] הטיק «סימון כבוצע» במשימות הבית נמדד
+     24×24 — הפעולה היומית היחידה של ילד בן 11–17, וחצי מיעד המגע.
+     הריפוד של ‎.nh-task‎ יושב על השורה ולא על הכפתור. פורסים שטח לחיץ
+     בדיוק כמו ‎.sg-del‎ (index.css:30325): העיגול נשאר 24px ויזואלית,
+     שטח הלחיצה נעשה 44×44. ה-‎::after‎ אבסולוטי ולכן אינו פריט בגריד. */
+  .nh-task-tick { position: relative; }
+  .nh-task-tick::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+  /* שורת הטקסט שלידו נמדדה 256×37 — פותחת את פרטי המשימה */
+  .nh-task-body {
+    min-block-size: 44px;
+    justify-content: center;
+  }
+
+  /* [mobile-ergonomics-3] ‎.ps .ps-hero-in‎ נבלע בקבוצת «גוף משני t2»
+     (‎--t2: 13px‎) ודרס את ‎.ps-in, .ps-hero-in{ font-size:16px }‎ של 27723 —
+     כלומר השדה הראשי בבאנר («כמה ביצעת», «למה לא אגיע», «כמה היום»)
+     מזניק זום בספארי, בעוד השדה הזהה בכרטיס שמתחתיו לא. הזום הוא בעיית
+     מגע בלבד, ולכן הסולם הטיפוגרפי בעכבר נשאר כפי שתוכנן. */
+  .ps .ps-hero-in { font-size: 16px; }
+
+  /* [mobile-ergonomics-4] ווידג׳ט הנגישות עצמו — כל שבעת הפקדים שלו היו
+     26–33px. זה הפקד שנועד לאנשים עם מוגבלות, והוא היה הכי קשה ללחיצה
+     באפליקציה. הפאנל רחב 300px ונמדד 505px מתוך 734 — יש מקום לגדול. */
+  .a11y-close {
+    inline-size: 44px;
+    block-size: 44px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+  }
+  .a11y-font-ctrl button {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+  .a11y-lang-ctrl button { min-block-size: 44px; }
+  .a11y-reset { min-block-size: 44px; }
+  .a11y-statement-link {
+    min-block-size: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* [mobile-ergonomics-5] קישורי «לכל…» בבית נמדדו 27.5px גובה. הם יושבים
+     בכותרת הכרטיס, ולכן הגדלת הגובה הייתה מרווחת את הכותרת — פורסים שטח
+     לחיץ במקום (אותו דפוס של ‎.sg-del‎/הטיק למעלה). */
+  .nh-link { position: relative; }
+  .nh-link::after {
+    content: '';
+    position: absolute;
+    inset: -9px -4px;
+  }
+  /* שורות הקישור במסכי השחקן: 41.5px, ובווריאנט ‎--bare‎ 38px */
+  .ps-linkrow { min-block-size: 44px; }
+  /* ‎.pc4-link‎ כבר קיבל גובה 44 ב-4.9 — כאן רק הרוחב (41.5px) */
+  .pc4-link,
+  .pc4-link-grey { min-inline-size: 44px; }
+  /* הגובה של אלה תוקן ב-32220; הרוחב (40px ו-42px) נשאר */
+  .ps .ps-hero-chip,
+  .ps .ps-add { min-inline-size: 44px; }
+
+  /* [a11y-16 · mobile-ergonomics-14] משפחת ה-40px: הכלל הישן של 4710 עצר
+     ב-40 («בהתאם לתקדים 40px»), ו-DESIGN.md §7 אומר 44. אלה בדיוק הכפתורים
+     של מסך הסגל שהמאמן פותח בצד המגרש — «העתקת לינק», «שיתוף», «QR»,
+     «הדבקת רשימת שחקנים», פיל הסטטוס — והם גם יוצאים מיושרים בשורה אחת
+     במקום 40/43/40 מדורג. ‎.icon-btn‎ כבר קיבל 44 ב-29628. */
+  .btn-ghost,
+  .btn-soft,
+  .status-pill,
+  .link-button,
+  .finder-input { min-block-size: 44px; }
+  /* ‎.icon-btn‎ כבר קיבל 44 ב-29628 — אבל ‎.tm-modal .icon-btn{min-width:40px;
+     min-height:40px}‎ ספציפי יותר וניצח אותו. מדידה חיה במודאל «פרטי שחקן»
+     החזירה 14 כפתורים ב-40px (מחק/הוספת צעד/הפחתת צעד/גרף התקדמות). */
+  .tm-modal .icon-btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+
+  /* [mobile-ergonomics-6] שורת הכלים בתחתית גיליון «כל הפיצ׳רים» — 34px.
+     הבלוק של 24949 נתן לכולם ‎block-size:34px‎; ‎min-block-size‎ מנצח אותו
+     בלי לערוך אותו. (‎.sidebar-footer‎ מטופל בחבילת shell באותו סבב.) */
+  .pkn-tools > *,
+  .pkn-tools .icon-btn,
+  .pkn-tools .btn-ghost { min-block-size: 44px; }
+
+  /* [a11y-15] מתג «מצב כהה» בפרופיל השחקן נמדד 46×27 והוא ‎role="switch"‎.
+     המתג נשאר 46×27 ויזואלית — רק שטח הלחיצה גדל ל-46×45, אחרת הגלולה
+     והכפתור היו משנים צורה. (הכוכבים ‎.tm-star‎ מטופלים בחבילת roster
+     באותו סבב; הצ׳יפ ‎.pg-period‎ כאן למטה.) */
+  .plp-switch { position: relative; }
+  .plp-switch::after {
+    content: '';
+    position: absolute;
+    inset: -9px 0;
+  }
+  .pg-period { min-block-size: 44px; }
+
+  /* [a11y-11] אישור/דחייה של בקשת הצטרפות — שני עיגולים של 34px צמודים,
+     ואחד מהם דוחה בקשת הצטרפות של ילד. דיאלוג האישור הוא רשת ביטחון,
+     לא תחליף ליעד מגע. (‎.tc-req‎ כבר נותן ‎gap:10px‎ ביניהם.) */
+  .tc-approve,
+  .tc-reject {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+
+  /* [perf-16] ‎backdrop-filter‎ מחייב צילום-רקע בכל ציור מחדש של האזור —
+     הבלוק של 29645 כבר מכבה אותו במגע ל-‎.mobile-topbar‎, ‎.cs-hero-bar‎
+     ו-‎.pkn‎, ושתי השכבות האלה פוספסו. הרקע נשאר כפי שהוא: ‎--ps-glass‎
+     כבר אטום לגמרי (‎var(--sf)‎, index.css:31812) ולכן אין שינוי כלל,
+     ו-‎--bw-glass‎ ב-‎.93/.88‎ אטימות מטשטש כמעט כלום ממילא. */
+  .ps-band,
+  .bw-tabs {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* --- חבילת css-player --- */
+/* =====================================================================
+   12.9.2026 — חבילת css-player (סקירת «צד השחקן»: עדשת ויזואל + עדשת מצב כהה)
+   ---------------------------------------------------------------------
+   כל כלל כאן נכתב **בסוף** index.css ולכן מנצח בזכות הסדר, בלי לגעת
+   בבלוקים ישנים. טוקנים בלבד; ערכי ‎rgba(255,255,255,…) / ‎rgba(0,0,0,…)
+   הם שקיפויות (לא צבע מותג) — אין להם טוקן, וכך הם נכתבים גם בכל
+   הבלוקים של הכרטיס הכתום מ-27240 והלאה.
+   בראש כל כלל: מזהה הממצא.
+   ===================================================================== */
+
+
+/* --- [dark-mode-3] שלושת הצללים חוזרים למצב כהה --- */
+/* ‎--shadow-sm/md/lg הוגדרו כראוי בבלוק הכהה (9623-9625), אבל בלוק
+   הפלטה הבהירה (15875-15877) מאוחר יותר ובעל אותה ספציפיות — ולכן
+   דרס אותם גם במצב כהה. התוצאה: כל צל בכהה הוא נייבי ב-10% שקיפות מעל
+   ‎#0F141E, כלומר אפס. הבלוק של 29.8 תיקן sm/md אבל רק על ‎.nh-player
+   ו-‎.ps, ו-‎--shadow-lg (מודאלים, גיליונות, כפתור הנגישות) נשאר שבור.
+   מכריזים פעם אחת על השורש הכהה — אחרי הפלטה הבהירה, ולכן מנצח. */
+[data-theme='dark']{
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-md: 0 12px 30px -8px rgba(0, 0, 0, .6);
+  --shadow-lg: 0 30px 70px -30px rgba(0, 0, 0, .7);
+}
+
+/* --- [dark-mode-1] «נבחר» שרואים גם במצב כהה --- */
+/* ‎.chip.selected ו-‎.tab.active נצבעו ‎var(--surface) — בדיוק הגוון של
+   הכרטיס שמתחתיהם (1.00:1), בעוד צ׳יפ **לא** נבחר הוא לבן ב-6% מעליו,
+   כלומר בהיר יותר. הסימון התהפך. אותו היפוך שכבר הוכרע ל-‎.ps-filter.is-on
+   ב-32471: משטח בהיר (דיו הטקסט) עם טקסט בצבע העמוד — בלי גוון חדש. */
+[data-theme='dark'] .chip.selected,
+[data-theme='dark'] .tab.active{
+  background: var(--tx);
+  border-color: var(--tx);
+  color: var(--bg);
+  box-shadow: none;
+}
+
+/* --- [dark-mode-7] גבול שדה קלט שאומר «זה שדה» --- */
+/* ‎rgba(255,255,255,.16) מודד 1.14–1.67:1 מול משטח השדה; WCAG 1.4.11
+   דורש 3:1 לגבול של פקד. ‎.34 מודד ≈3.1:1 ומשאיר את השדה שקט. */
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select{ border-color: rgba(255, 255, 255, .34); }
+
+/* --- [dark-mode-2] תיבת המספר בכרטיס הכתום לא מתהפכת בין המצבים --- */
+/* הכרטיס הכתום הוא ‎--accent-fill בשני המצבים, ולכן הפקד שבתוכו אמור
+   להיות כהה בשניהם. הכלל הגלובלי של שדות הקלט בכהה (9720, ספציפיות
+   (0,1,1)) דרס את ‎.ps-hero-in (0,1,0) והבהיר אותו מעל הכתום: טקסט
+   4.25:1 ו-placeholder 3.26:1. מחזירים את הטיפול המכהה מעל הגלובלי. */
+[data-theme='dark'] .ps .ps-hero-in{
+  background: rgba(0, 0, 0, .28);
+  border-color: rgba(255, 255, 255, .45);
+  color: var(--on-dark);
+}
+[data-theme='dark'] .ps .ps-hero-in::placeholder{ color: rgba(255, 255, 255, .85); }
+
+/* --- [dark-mode-5] צ׳יפ הסטטוס בסגל לא נופל לכפתור של הדפדפן --- */
+/* ‎.status-pill מגדיר צורה בלבד; הצבע מגיע רק מארבעת המודיפיירים
+   ‎.status-active/injured/sick/absent. ערך סטטוס שאינו אחד מהארבעה
+   (שורה ישנה בסגל) נשאר בלי רקע — ‎ButtonFace של המערכת, כלומר גלולה
+   לבנה עם טקסט שחור על רשימה כהה. ‎:where() נותן בסיס בספציפיוּת אפס,
+   ולכן ארבעת המודיפיירים ממשיכים לנצח אותו למרות שהם קודמים בקובץ. */
+:where(.status-pill){ background: var(--surface-alt); color: var(--text); }
+
+/* --- [dark-mode-6] מספר העומס הנבחר בגיליון סיכום האימון --- */
+/* ‎#FFFFFF על ‎--accent מודד 2.96:1. לפי DESIGN.md §1 ‎--accent הוא
+   לגבולות ול-tints; הכתום שנושא טקסט לבן הוא ‎--brand-strong (5.2:1).
+   אותה הכרעה בדיוק שנעשתה ל-‎.ntf-badge ב-31982, ובדרך גם מנקה שני
+   ערכים גולמיים (‎#fff ו-‎rgba(196,89,43,.35)) לטובת טוקנים. */
+.fbs-eff.on{
+  background: var(--brand-strong);
+  color: var(--on-dark);
+  box-shadow: var(--shadow-md);
+}
+
+/* --- [player-visual-1] הרציף התחתון מדהה במקום לחתוך --- */
+/* ‎body.pl-app::after הוא פס אטום של ‎--bg בגובה 94px מעל תחתית החלון.
+   הכרטיס האחרון בלו״ז נגמר 16px בתוכו, ומה שהילד רואה הוא קו ישר בלי
+   פינות — «כרטיס חתוך», לא «יש עוד».
+   ⚠ התיקון שהוצע בממצא (הגדלת הריפוד התחתון) אינו פותר: הריפוד כבר
+   100px (‎--bn-h=80 + 20, index.css:19011+25650), גדול מהרציף, והוא
+   משפיע רק על **סוף** הגלילה ולא על מה שנראה במנוחה. מה שחותך הוא
+   הקצה האטום עצמו. דהייה בקצה העליון של הרציף משאירה אותו אטום מתחת
+   לגלולה (הגלולה מתחילה 14px מתחת לקצה) ומחזירה את הרמז «יש עוד תוכן». */
+@media (max-width: 768px){
+  body.pl-app::after{ background: linear-gradient(to bottom, transparent, var(--bg) 20%); }
+}
+
+/* --- [dark-mode-4] גלולת ניווט־הכיס מקבלת צורה גם בכהה --- */
+/* רקע הגלולה קשיח (‎rgba(10,20,40,.97)) וזהה בשני המצבים; בכהה הרציף
+   שמתחתיה הוא ‎#0F141E — 1.06:1, כלומר האייקונים מרחפים על פס שטוח.
+   אותה טבעת בגובה פיקסל שכבר ניתנה לכפתור הנגישות ב-32575. */
+[data-theme='dark'] body.pl-app .pkn{
+  box-shadow: 0 0 0 1px var(--ln), var(--shadow-md);
+}
+
+/* --- [player-visual-2 + dark-mode-8] קצה הבאנר הנייבי בכהה --- */
+/* ‎--navy-2 בכהה הוא ‎#111A2E ו---bg הוא ‎#0F141E: הגרדיאנט נגמר בדיוק
+   בגוון העמוד (1.06:1), ולכן פינת ה-28px של הבאנר והמעבר לגוף המסך לא
+   נראים כלל. לא נוגעים ב---navy-2 הגלובלי (הוא משרת גם את צד המאמן) —
+   קו הפרדה בצבע הקו של המערכת, ממוקד לצד השחקן. */
+[data-theme='dark'] .nh-player .nh-hero{
+  border-block-end: 1px solid var(--ln);
+  box-shadow: var(--shadow-md);
+}
+[data-theme='dark'] .ps .ps-head{ border-block-end: 1px solid var(--ln); }
+
+/* --- [dark-mode-10] עיגול «היום» בלוח השבוע --- */
+/* ‎31917 נתן לו ‎--navy-1 בשני המצבים; בכהה ‎#1E2A47 כמעט זהה למשטח
+   הכרטיס ‎#1B2230, ודווקא הסימן «היום» נעלם. אותו היפוך של 32471. */
+[data-theme='dark'] .ps-day-num.is-today,
+[data-theme='dark'] .ps-day.is-on .ps-day-num.is-today{
+  background: var(--tx);
+  color: var(--bg);
+}
+
+/* --- [dark-mode-11] קופסת ההורה בטופס הפרופיל --- */
+/* ‎.pf-guardian צבועה ‎--accent-soft (tint כתום), וארבעת השדות שבתוכה
+   יוצאים בכהה ‎#3E373B — המשטח היחיד בצד השחקן שיוצא מהמשפחה הנייבי.
+   הטבעת הכתומה נשארת ואומרת «שים לב»; המשטח חוזר למשטח המשני. */
+[data-theme='dark'] .pf-guardian{
+  background: var(--sf2);
+  border-color: var(--brand-text);
+}
+
+/* --- [player-visual-3] פס הכותרת הכתום חוזר ל-full-bleed --- */
+/* ‎.nh-tasks נכתב ב-25439 כ-‎padding:0 + ‎overflow:hidden בדיוק בשביל
+   דפוס «כרטיס עם פס כותרת כתום מלא» (DESIGN.md §2ב), אבל
+   ‎.nh-player .nh-card (32152) מאוחר וספציפי יותר והחזיר 16px ריפוד —
+   הפס ריחף 17px מכל צד עם ארבע פינות ישרות בתוך כרטיס ברדיוס 20px.
+   הריפוד הפנימי כבר מטופל ב-32153 (padding-inline לראש/לשורות/לרגל). */
+.nh-player .nh-tasks{ padding: 0; }
+
+/* --- [player-visual-4] שלושה מצבים נפרדים בכרטיס הכתום --- */
+/* הכבוי («הוסף»/«רישום») נצבע ‎rgba(0,0,0,.26) — אותו מילוי בדיוק של
+   הצ׳יפים הפעילים ‎+10/+25, ובלי המסגרת הלבנה שלהם, ולכן דווקא הוא
+   נראה ה«מלא» ביותר בשורה. עכשיו: פעיל-ראשי = לבן מלא (27256),
+   פעיל-משני = צ׳יפ כהה עם מסגרת לבנה (32261), כבוי = מילוי חלש בלי
+   מסגרת. הטקסט נשאר כשהיה. */
+.ps .ps-hero-btn:disabled{ background: rgba(0, 0, 0, .10); }
+
+/* --- [player-visual-5] שורת המשימה בבית במסך צר (גלקסי 360) --- */
+/* ‎.nh-task-top הוא ‎space-between, וב-360 גם הכותרת וגם «80/200 קליעות»
+   נשברים לשתי שורות — שני גושי טקסט זה לצד זה. הכותרת מקבלת שורה
+   מלאה, והמספר יושב מתחתיה בשורה אחת. */
+@media (max-width: 380px){
+  .nh-player .nh-task-top{ flex-wrap: wrap; row-gap: var(--s1); }
+  .nh-player .nh-task-top b{ flex: 1 1 100%; }
+  .nh-player .nh-task-num{ flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* --- [player-visual-8] «המאמן ראה» חוזר לשורה אחת --- */
+/* ⚠ מלכודת שהוסתרה: ‎index.css:32142 כבר כותב ‎.nh-player .plfb2-ack{
+   white-space: nowrap } — ונמדד בדפדפן ‎white-space: normal. הסיבה היא
+   שהשורה שלפניה, ‎.nh-player .plfb2-mine > span{ text-wrap: balance }
+   (32141), תופסת את **אותו** תג-פרופר: ‎white-space הוא קיצור של
+   ‎white-space-collapse + text-wrap-mode, ו-‎text-wrap הוא קיצור של
+   ‎text-wrap-mode + text-wrap-style. ‎.plfb2-ack הוא ‎> span של
+   ‎.plfb2-mine, ולסלקטור ההוא ספציפיות (0,2,1) מול (0,2,0) — ולכן
+   ‎text-wrap-mode: wrap ניצח את ה-nowrap. סלקטור שמנצח את שניהם. */
+.nh-player .plfb2-mine > .plfb2-ack{
+  white-space: nowrap;
+  text-wrap-mode: nowrap;
+  flex: 0 0 auto;
+}
+
+/* --- [player-visual-6] צורת האווטאר במסך הפרופיל --- */
+/* ארבעה אווטארים ושלושה רדיוסים באותו מסך (999 / 50% / 20px / 10px).
+   ‎.ps-prof-av הוא ראשי התיבות של השחקן עצמו — כל ייצוג של **אדם** עגול,
+   כמו ‎.avatar. ‎.ps-team-av הוא ראשי התיבות של ה**קבוצה** (‎trTeam), ולכן
+   הוא נשאר ריבוע מעוגל — אבל על הסולם (10px) ולא ב-9px שמחוץ לו. */
+.ps .ps-prof-av{ border-radius: var(--radius-full); }
+.ps .ps-team-av{ border-radius: var(--radius-sm); }
+
+/* --- [player-visual-9] גבול המערכת מגיע גם לגיליון ולפורטלים --- */
+/* ‎32461 ו-32566 החליפו ‎--border/--line לשורשי ‎.nh-player ו-‎.ps בלבד,
+   ו-ConfirmHost/Toaster מרונדרים בשורש האפליקציה — מחוץ לשניהם. לכן
+   דיאלוג «אני חולה היום» נשאר עם הבז׳ ‎#E2D9C6 של בלוק «COURT EDITION».
+   ‎.pl-layout מכסה גם את ‎.pkn-sheet, שיושב בפריסה ולא בשורשי המסכים. */
+.pl-layout,
+.pl-app .cf-overlay,
+.pl-app .toaster{ --border: var(--ln); --line: var(--ln); }
+
+/* --- [player-visual-13] «מגיע / לא אגיע» — אותה זוגיות בשני המסכים --- */
+/* בבית «מגיע» מילוי מלא ו«לא אגיע» מתאר; בלו״ז «לא אגיע» היה גוש מלא
+   ‎rgba(0,0,0,.16) ליד «מגיע» הלבן — אותה שאלה, שני עיצובים הפוכים.
+   ‎:not(.is-on) חשוב: ברגע שנבחר «לא אגיע» הוא עדיין מקבל את המילוי
+   הלבן של ‎.is-on (27498), אחרת מצב הבחירה היה נעלם. */
+.ps .ps-rsvp > button:not(:first-child):not(.is-on){
+  background: transparent;
+  border-color: rgba(255, 255, 255, .45);
+}
+
+/* --- [player-visual-15] כפתור המאמן בכותרת: צורה אחת, לא עיגול בריבוע --- */
+/* בטלפון הטקסט מוסתר (32243) ונשאר ריבוע ברדיוס 13px ובתוכו עיגול 30px
+   באותה משפחת צבע. עכשיו הכפתור עצמו הוא העיגול. השם הנגיש נוסף
+   ב-PlayerScreen.jsx (aria-label) — בלעדיו לכפתור לא היה שם כלל בטלפון. */
+@media (max-width: 430px){
+  .ps .ps-head-coach{ border-radius: var(--radius-full); }
+  .ps .ps-head-coach-av{
+    inline-size: 100%; block-size: 100%;
+    background: transparent;
+    border-radius: var(--radius-full);
+  }
+}
+
+/* --- [player-visual-16] יעדי מגע ≥44px בפקדים שנשארו מחוץ ל-32222 --- */
+/* ‎.nh-task-tick (24x24) הוא הפקד החשוב בכרטיס הבוקר — הציור גדל ל-28
+   ושטח הנגיעה מורחב ל-44 דרך ‎::after אבסולוטי, בלי להגדיל את העיגול.
+   ⚠ פיוס 12.9.2026 — ההגבהה של ‎.plp-switch‎ ל-32px הוסרה מכאן: css-shared
+   מרחיבה אותו ל-46×45 דרך ‎::after{ inset:-9px 0 }‎ ומשאירה את הגלולה
+   46×27 כפי שתוכננה (14212) — הגבהה לצד ידית של 21px הייתה משנה את
+   צורת המתג. הרדיוס שלו מטופל למטה, ב-player-visual-19. */
+/* ‎inset:-10px ולא ‎-8px: התיבה היא ‎border-box עם מסגרת 2px, ולכן
+   האלמנט האבסולוטי נמדד מתיבת הריפוד (24px) — ‎24+20=44. */
+/* ⚠ פיוס 12.9.2026 — חבילת css-shared כותבת באותו סבב, בתוך
+   ‎@media (pointer: coarse)‎, את ‎.nh-task-tick::after{ inset:-10px }‎,
+   ‎.nh-link::after‎, ‎.ps-linkrow{min-block-size:44px}‎, ‎.plp-switch::after‎
+   ו-‎.pkn-tools{min-block-size:44px}‎. כדי שלא יהיו שני בעלים לאותו
+   סלקטור, נשארת כאן רק ההגדלה הוויזואלית שאין לה מקבילה שם — קוטר
+   הטיק. בלעדיה שטח הנגיעה היה 24−4+20=40 בלבד, ולכן שתי החבילות
+   משלימות זו את זו ולא דורסות. */
+.nh-player .nh-task-tick{ inline-size: 28px; block-size: 28px; position: relative; }
+/* ‎.nh-link‎: הוסר (‎min-block-size:44px‎). css-shared פורסת שם שטח לחיץ
+   דרך ‎::after{ inset:-9px -4px }‎ **בלי** להגביה את הפקד, מפני שהקישור
+   «לכל…» יושב בתוך כותרת הכרטיס והגבהתו הייתה מרווחת את הכותרת כולה.
+   שתי הגישות באותו כיוון אבל מנוגדות בפריסה — הגישה שאינה מזיזה כלום
+   מנצחת, וההרחבה שם מגיעה ל-45.5px. */
+/* ‎.ps-linkrow‎ ו-‎.pkn-tools‎: הוסרו — כפילות מדויקת של css-shared
+   (שם הן תחת ‎pointer: coarse‎, כלומר הפריסה בעכבר לא זזה).
+   נשאר כאן רק הרוחב של שורת הכלים, שאין לו מקבילה שם. */
+.pkn-tools > *,
+.pkn-tools .icon-btn,
+.pkn-tools .btn-ghost{ min-inline-size: 44px; }
+
+/* --- [player-visual-17] הגרדיאנט הכתום השני בניווט־הכיס --- */
+/* DESIGN.md §2ב: שני גרדיאנטים בלבד — hero נייבי ומילוי התקדמות כתום.
+   ‎.pkn-all הוסיף שלישי (‎150deg) כמעט־זהה לשני. צבע אחיד, טוקן אחד.
+   (האווטאר ‎.avatar מביא גרדיאנט ‎135deg רביעי, אבל הוא נכתב ב-style
+   inline מתוך ‎Avatar.jsx — רכיב משותף עם צד המאמן שבו הצבע הוא זהות
+   דטרמיניסטית לפי שם. ראה skipped.) */
+.pkn-all{ background-image: none; background-color: var(--brand-strong); }
+
+/* --- [player-visual-18] רצועת הסרטונים מדהה במקום להיחתך באמצע מילה --- */
+/* ‎scrollWidth 624 מול ‎clientWidth 326: הפריט השלישי נחתך לשבריר של
+   ~20px ונראה כמו טקסט שבור. מסכת דהייה בקצה (בעברית — הקצה השמאלי)
+   הופכת את החיתוך לרמז «יש עוד», ו-snap רך מיישר את הפריט אחרי גרירה.
+   ⚠ רק מתחת ל-1000px: מ-1000 ומעלה הרצועה הופכת לרשת בלי גלילה (25409)
+   ואז מסכה הייתה מדהה עמודה שלמה בלי סיבה. */
+@media (max-width: 999px){
+  .nh-player .nh-vid-rail{
+    -webkit-mask-image: linear-gradient(to left, black 88%, transparent);
+    mask-image: linear-gradient(to left, black 88%, transparent);
+    scroll-snap-type: x proximity;
+  }
+  .nh-player .nh-vid{ scroll-snap-align: start; }
+}
+
+/* --- [player-visual-19] רדיוס 99px — ערך שישי מחוץ לסולם --- */
+/* הסולם הוא 10 / 14 / 20 / 28 / 999, ויש ‎--radius-full. בגובה 8-10px
+   ההבדל לא נראה, אבל זה בדיוק סוג הסטייה שהצטברה ל-11 רדיוסים. */
+.nh-player .nh-task-bar,
+.nh-player .nh-task-bar i,
+.ps .ps-hero-track,
+.ps .ps-hero-bar,
+.ps .ps-track,
+.ps .ps-track > span,
+.pl-layout .plp-switch{ border-radius: var(--radius-full); }
+
+/* --- [player-visual-20] מסילת ההתקדמות ב-0% נראית כמו מכל ריק --- */
+/* ‎.ps-hero-track היה ‎rgba(0,0,0,.22) — ביעד שהתקדמותו 0 המילוי הלבן
+   לא מצויר בכלל, ומה שנשאר הוא פס כהה־אחיד לרוחב מלא, שקשה להבחין
+   בינו לבין פס **מלא**. המסילה נחלשת, וטבעת פנימית אומרת «כאן נמדד». */
+.ps .ps-hero-track{
+  background: rgba(0, 0, 0, .12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+}
+
+/* --- חבילת css-landing --- */
+/* ============================================================
+   סבב 12.9.2026 · חבילת css-landing
+   כל הכללים כאן נכתבים בסוף index.css (append-only). לא נגענו
+   בכללים הישנים — רק סלקטורים ספציפיים יותר שדורסים אותם.
+   ============================================================ */
+
+/* landing-legal-pwa-4 — הכלל הישן ‎[data-theme='dark'] .land > *‎ (index.css:9373)
+   נכתב כדי להרים את התוכן מעל שכבת ההילה ‎.land::before‎, אבל הוא חל גם על
+   ‎.land-nav‎ שהוא ילד ישיר של ‎.land‎ — ולכן במצב כהה ‎position: sticky‎ הוחלף
+   ב-‎relative‎ והסרגל (כולל «התחברות») נעלם ברגע שגוללים. למה כאן ולא תיקון
+   הכלל הישן: הקובץ append-only. מחזירים לסרגל את ההצמדה ונותנים לו שכבה
+   אחת מעל ‎z-index: 20‎ המקורי כדי שיישאר מעל שאר הילדים שקיבלו ‎z-index: 1‎. */
+[data-theme='dark'] .land > .land-nav {
+  position: sticky;
+  top: 0;
+  z-index: 21;
+}
+
+/* landing-legal-pwa-5 — בטלפון ‎.land-hero-art { order: -1 }‎ (index.css:2372)
+   העלה 268px של אילוסטרציית מגרש לראש ההירו, ודחף את «הרשמה» לתחתית 852px
+   במסך של 844 — כלומר ה-CTA הראשי נחתך. למה סדר ולא הקטנת הציור: כדי
+   להחזיר את הכפתורים אל מעל הקפל צריך לחסוך ~150px, וזה היה מקטין את
+   הציור לצעצוע. בטלפון בלבד (≤560px) הטקסט וה-CTA קודמים, והציור נשאר
+   בגודלו מתחת לנתונים. בטאבלט (561–860) שום דבר לא משתנה — שם יש גובה. */
+@media (max-width: 560px) {
+  .land .land-hero-art {
+    order: 0;
+    /* פיוס 12.9.2026 — ‎margin-block-start‎ ולא ‎margin-top‎: המוסכמה בפרויקט
+       היא מרווחים לוגיים בלבד, גם בציר הבלוק. הערך זהה. */
+    margin-block-start: var(--space-6);
+  }
+}
+
+/* landing-legal-pwa-6 — הענף ‎html.a11y-motion‎ (index.css:4421) רק מקצר
+   אנימציות, ולכן רצועת הציטוטים נעצרה באמצע התנועה: הרצועה עדיין ‎overflow:
+   hidden‎, העותק הכפול עדיין מוצג, ו-20 מתוך 22 הציטוטים היו בלתי נגישים.
+   משכפלים כאן את שלוש השורות שכבר קיימות בענף ‎prefers-reduced-motion‎
+   (index.css:8446-8453) גם למתג הידני של ווידג'ט הנגישות. */
+html.a11y-motion .land-quotes-track { animation: none; }
+html.a11y-motion .land-quotes-row {
+  overflow-x: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+html.a11y-motion .land-quotes-list[aria-hidden='true'] { display: none; }
+
+/* landing-legal-pwa-8 — ‎.land-feature-desc‎ ב-‎--text-muted‎ על משטח הפרקט
+   החם ‎--surface-alt (#ECE5D6)‎ נותן 4.32:1 ב-14px, מתחת ל-AA (4.5). למה
+   רק בתוך ‎.land-step‎: אותו טקסט על כרטיס ‎.land-feature‎ הלבן נותן 5.42:1
+   ועובר, ושינוי ‎--text-muted‎ הגלובלי היה פוגע בכל האפליקציה. מכהים את
+   הדיו ב-22% לכיוון ‎--text‎ — טוקנים בלבד, בלי hex גולמי, ובמצב כהה הכלל
+   לא נכנס כי ‎[data-theme='dark'] .land .land-feature-desc‎ ספציפי ממנו. */
+.land-step .land-feature-desc {
+  color: var(--text); /* נפילה-אחורה לדפדפן בלי color-mix */
+  color: color-mix(in srgb, var(--text-muted) 78%, var(--text));
+}
+
+/* dark-mode-9 — ‎--bl-ink-45‎ (0.46) נותן 4.34–4.38:1 בשלושת הצרכנים שלו
+   בדף הנחיתה הכהה (‎.land-stat-label‎, ‎.land-footer-bottom‎, ‎.land-quote-author‎)
+   — חצי נקודה מתחת ל-AA. מעלים את השקיפות בטוקן עצמו (‎0.54‎ → ‎5.5–5.7:1‎)
+   במקום שלוש דריסות נקודתיות; ‎--bl-ink-55‎ נשאר מעליו כדי שסולם הדיו
+   (70 / 55 / 45) לא יתמוטט לשתי דרגות. אותו סלקטור כמו המקור, מאוחר יותר
+   בקובץ, ולכן הוא גובר בלי לגעת בבלוק הישן. */
+[data-theme='dark'] .land {
+  --bl-ink-45: rgba(243, 245, 250, 0.54);
+}
+
+/* perf-12 — שתי רצועות הציטוטים הן ‎10,946px‎ ו-‎10,518px‎ רוחב, מונפשות
+   ‎infinite‎ עם ‎will-change: transform‎: ב-DPR 3 זו שכבת GPU של כ-32,800
+   פיקסלי מכשיר לכל רצועה, שמוחזקת בזיכרון כל עוד הדף פתוח. בטלפון (מגע)
+   מכבים את הלולאה והרצועה הופכת לגלילה אופקית ידנית — בדיוק כמו הענף של
+   ‎prefers-reduced-motion‎, כך שכל 22 הציטוטים נשארים נגישים. ממשיך את
+   המדיניות שכבר קיימת באותו בלוק ‎@media (pointer: coarse)‎ (index.css:29651)
+   ל-‎.auth-hero-court‎ ול-‎.land-eyebrow::before‎. */
+@media (pointer: coarse) {
+  .land-quotes-track {
+    animation: none;
+    will-change: auto;
+  }
+  /* תיקון סקירה 12.9.2026 — במצב אנגלית ‎index.css:8440‎ מחיל
+     ‎[dir='ltr'] .land-quotes-track { animation-name: land-marquee-ltr }‎
+     בספציפיות ‎(0,2,0)‎, גבוהה מהכלל שמעל ‎(0,1,0)‎ — וסדר הקובץ לא מכריע
+     כשהספציפיות נמוכה. בלי השורה הזו הלולאה המשיכה לרוץ בטלפון באנגלית,
+     ובמקביל הרצועה כבר ‎overflow-x: auto‎ — כלומר הטרנספורם נאבק באצבע. */
+  [dir='ltr'] .land-quotes-track {
+    animation-name: none;
+  }
+  .land-quotes-row {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .land-quotes-list[aria-hidden='true'] { display: none; }
+}
+
+/* perf-17 — ‎blPulse‎ מנפיש ‎box-shadow‎, תכונת ציור שאינה ניתנת להרכבה
+   ב-GPU: כל פריים מחייב ציור מחדש של האזור, ו-‎.np-dot‎ יושב בכרטיס «האימון
+   הבא» — המסך הכי נצפה. למה לא פשוט לכבות במגע: הנקודה היא הסימן ש«יש
+   אימון», והיא נחוצה דווקא בטלפון. מחליפים בטבעת פסאודו עם ‎transform:
+   scale()‎ + ‎opacity‎ — שתיהן מורכבות ב-GPU, אפס ציור מחדש. */
+.np-dot,
+.np-live-dot {
+  position: relative;
+  box-shadow: none;
+  animation: npDotFade 2.2s ease-in-out infinite;
+}
+.np-dot::after,
+.np-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--orange-500);
+  pointer-events: none;
+  animation: npDotRing 2.2s ease-in-out infinite;
+}
+@keyframes npDotFade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+@keyframes npDotRing {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(3); opacity: 0; }
+}
+/* אנימציה חדשה — כבויה בשני הערוצים (העדפת מערכת + המתג בווידג'ט) */
+@media (prefers-reduced-motion: reduce) {
+  .np-dot,
+  .np-live-dot { animation: none; }
+  .np-dot::after,
+  .np-live-dot::after { animation: none; opacity: 0; }
+}
+html.a11y-motion .np-dot,
+html.a11y-motion .np-live-dot { animation: none; }
+html.a11y-motion .np-dot::after,
+html.a11y-motion .np-live-dot::after { animation: none; opacity: 0; }
+
+/* --- חבילת landing --- */
+/* ============================================================
+   סבב 12.9.2026 · חבילת landing
+   ============================================================ */
+
+/* landing-legal-pwa-15 — קישור הדילוג מצביע על <main> חדש שעוטף את סקשני
+   הדף. הסרגל העליון דביק (‎.land-nav, top:0), ולכן היעד חייב מרווח גלילה
+   כמו שיש כבר ל-‎.land-section[id]; בלעדיו הכותרת הראשונה נחתכת מתחתיו. */
+.land #land-main {
+  scroll-margin-top: 84px;
+}
+/* landing-legal-pwa-7+15 — קישור הדילוג עצמו הוא יעד מגע (הוא מקבל פוקוס
+   ונלחץ), ו-‎.skip-link הבסיסי נמדד 97x39. העלאה ל-44 בלי לגעת בכלל הישן. */
+.land .skip-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+/* landing-legal-pwa-7 — «או גלו קודם את הכלים» נמדד 154x25 בטלפון, פחות
+   ממחצית מ-44px שהצהרת הנגישות מבטיחה. אסור להגדיל את הקופסה עצמה: יש לה
+   border-bottom שהוא הקו מתחת לטקסט, וכל min-height היה מרחיק את הקו
+   מהמילים. לכן שכבת מגע שקופה שממורכזת על הטקסט — הנראות לא משתנה. */
+.land .land-cta-explore {
+  position: relative;
+}
+.land .land-cta-explore::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  block-size: 44px;
+}
+
+/* landing-legal-pwa-7 — שני כפתורי הסרגל העליון: «התחברות» נמדד 85x42
+   ומחליף מצב התצוגה 52x40. ‎.btn-primary הבסיסי עוצר ב-42px, ולכן צריך
+   סלקטור ספציפי יותר כדי להעלות ל-44 בלי לגעת בכלל הישן. */
+.land .land-nav .land-login.btn-primary {
+  min-block-size: 44px;
+}
+.land .land-nav .btn-ghost.icon-toggle {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+}
+
+/* --- חבילת pl-home --- */
+/* ==========================================================================
+   12.9.2026 — חבילת pl-home (צד השחקן): תיקוני סקירה
+   ========================================================================== */
+
+/* player-visual-11 — שורת «שינוי סיסמה» בכרטיס ההגדרות של הפרופיל.
+   למה: ארבע השורות בכרטיס נכתבות ב-JSX עם ‎.ps-set + ‎.ps-set-ic, וכל אחת
+   מקבלת עיגול כתום־רך סביב האייקון. ChangePassword מוזרק כרכיב זר בתוך
+   ‎.ps-slot עם המרקאפ שלו (‎.cpw-row > .cpw-row-t), ולכן אייקון המפתח נשאר
+   חשוף באוויר ושבר את השורה. הקובץ ChangePassword.jsx אינו בחבילה הזו,
+   ולכן ההתיישרות נעשית מכאן — אותם מידות וטוקנים בדיוק כמו ‎.ps-set-ic. */
+.ps .ps-slot > .cpw > .cpw-row .cpw-row-t > svg {
+  inline-size: 30px;
+  block-size: 30px;
+  padding: 7px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  flex: none;
+  background: rgba(var(--ps-a-rgb), var(--ps-tint));
+  color: var(--ps-acc-tx);
+}
+
+/* player-flow-7 — שורת קבוצה שהיא בורר הקבוצה הפעילה.
+   למה: כשיש יותר מקבוצה מאושרת אחת, שורת ‎.ps-row בכרטיס «הקבוצות שלי»
+   הופכת ל-<button> (לחיצה מחליפה את הקבוצה שכל המסכים מציגים). כפתור
+   מאפס את הגופן ומרכז את הטקסט, ולכן צריך להחזיר אותו לצורת השורה —
+   ולתת לו יעד מגע ומיקוד נראה, כמו לכל פקד אחר בצד השחקן. */
+button.ps-row {
+  inline-size: 100%;
+  min-block-size: 44px;
+  font: inherit;
+  color: var(--ps-txt);
+  text-align: start;
+  cursor: pointer;
+}
+button.ps-row:focus-visible {
+  outline: 2px solid var(--ps-acc);
+  outline-offset: 2px;
+}
+
+/* rsvp-loaderr-contrast — «לא הצלחנו לבדוק אם כבר ענית» על באנר כהה.
+   למה: השורה נכתבת עם ‎.muted (var(--text-muted)) והכפתור עם ‎.rstr-cta
+   (var(--accent-strong)) — שני צבעים שנועדו לרקע בהיר. בשני מקומות היא
+   יושבת על באנר כחול עם טקסט לבן (‎.ps-hero, ו-.nh-rsvp-ask שבתוך .nh-hero),
+   ושם היחס יורד ל‎-2.1:1: דווקא ההודעה על התקלה וה«נסו שוב» שמתקן אותה הם
+   מה שלא נראה. כאן מחזירים אותם ללבן, כמו ‎.nh-rsvp-note ו-.ps-hero-note
+   שלצידם. במצב כהה הבאנר נשאר כהה — ולכן אותו כלל נכון לשני המצבים,
+   ואין צורך בגרסת [data-theme="dark"] נפרדת. המופע השלישי, על כרטיס בהיר
+   (‎.wl-rsvp / .plh-rsvp), נשאר עם צבעי ברירת המחדל. */
+.ps-hero .rsvp-loaderr,
+.nh-rsvp-ask .rsvp-loaderr {
+  color: rgba(255, 255, 255, 0.92);
+}
+.ps-hero .rsvp-loaderr .rstr-cta,
+.nh-rsvp-ask .rsvp-loaderr .rstr-cta {
+  color: rgba(255, 255, 255, 1);
+}
+.ps-hero .rsvp-loaderr .rstr-cta:hover,
+.nh-rsvp-ask .rsvp-loaderr .rstr-cta:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+/* --- חבילת roster --- */
+/* ==========================================================================
+   חבילת «סגל» — 12.9.2026
+   תיקוני CSS לממצאי הסקירה בטאב הסגל (Teams / TeamConnect / PlayerCard).
+   טוקנים בלבד, מרווחים לוגיים, בלי עריכה של כללים ישנים.
+   ========================================================================== */
+
+/* [a11y-1] שורת הסגל נפתחה רק בעכבר. עכשיו ה-li הוא role="button" עם
+   tabIndex — צריך סימון פוקוס גלוי, אחרת מי שמנווט במקלדת לא יודע איפה הוא.
+   :focus-visible בלבד: קליק בעכבר לא משאיר טבעת. */
+.roster-list .roster-row[role='button']:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* [a11y-1] כפתור «פרטים» חוזר בטלפון. הוא הוסתר מתחת ל-560px כי «כל השורה
+   כבר roster-clickable» — אבל השורה פותחת את *כרטיס השחקן*, ואילו הכפתור
+   פותח את מודאל «פרטי שחקן» שהוא המקום היחיד שממנו מסירים שחקן, מדפיסים
+   דוח התקדמות, מנתקים חשבון ומכבים את שאלות הבוקר. בטלפון — איך שהבעלים
+   עובד — כל אלה לא היו נגישים בכלל.
+   «יעדים» (.roster-goals) נשאר מוסתר במסך צר: אותו עורך יעדים קיים גם
+   בתוך כרטיס השחקן שהשורה פותחת, ושני כפתורים נוספים מעכו את השם. */
+@media (max-width: 560px) {
+  .roster-list .roster-row > .icon-btn:not(.roster-goals) {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  /* יעד מגע: האייקון עצמו 15px, המכל חייב להישאר נוח לאגודל */
+  .roster-list .roster-row > .icon-btn:not(.roster-goals),
+  .roster-list .roster-row > a.icon-btn {
+    min-inline-size: 40px;
+    min-block-size: 40px;
+  }
+}
+
+/* [a11y-6] דירוג הכוכבים במודאל «פרטי שחקן» נמדד 24x27 — מתחת ליעד המגע.
+   הכוכב עצמו נשאר 20px; רק שטח הלחיצה גדל. */
+.tm-fb-stars .tm-star {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* [coach-flow-2 · data-rls-3] «בקשות שנדחו» בפאנל החיבור — דחייה בטעות
+   חייבת להיות הפיכה בלי תלות במיגרציה. פתיח מקופל כדי שלא יתחרה בבקשות
+   הממתינות שמעליו. */
+.tc-rejected {
+  margin-block-start: 14px;
+}
+/* summary עם display:flex מאבד את משולש הפתיחה — אותו פתרון בדיוק
+   כמו ב-.tg-collapse בפרויקט: ▾ ב-::after שמסתובב כשפתוח. בלי transition,
+   כדי שלא תיווצר אנימציה חדשה שצריך לכבות תחת prefers-reduced-motion. */
+.tc-rejected > summary.tc-rejected-sum {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.tc-rejected > summary.tc-rejected-sum::-webkit-details-marker {
+  display: none;
+}
+.tc-rejected > summary.tc-rejected-sum::after {
+  content: '▾';
+  margin-inline-start: auto;
+  color: var(--text-muted);
+}
+.tc-rejected[open] > summary.tc-rejected-sum::after {
+  transform: rotate(180deg);
+}
+.tc-rejected .tc-rejected-why {
+  margin-block: 0 8px;
+  line-height: 1.5;
+}
+.tc-rejected .tc-req {
+  margin-block-start: 8px;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.tc-rejected .tc-req-name {
+  flex: 1 1 120px;
+}
+.tc-restore-btn {
+  min-block-size: 44px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* --- חבילת planner --- */
+/* ============================================================
+   חבילת planner — סבב תיקונים 12.9.2026
+   ============================================================ */
+
+/* schedule-notebook-2 — «פתח כתוכנית»: שורת התאריך מוצגת תמיד, ועליה
+   אזהרה רכה כשהנוכחות נרשמת לתאריך שאינו היום. */
+.plan-run-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+/* השדה מוצג עכשיו בכל מסך (לא רק לתוכנית בלי תאריך), ולכן יעד מגע מלא
+   גם ברוחב גדול — הכלל הקיים ב-index.css חל רק במדיה של הטלפון. */
+.plan-run-date input[type="date"] { min-block-size: 44px; }
+.plan-run-date .plan-run-date-warn {
+  color: var(--warning);
+  font-weight: 600;
+  inline-size: 100%;
+}
+[data-theme="dark"] .plan-run-date .plan-run-date-warn { color: var(--c-orange); }
+
+/* schedule-notebook-9 — ספריית הסרטונים: חיווי «הדירוגים לא נטענו»,
+   עם כפתור נסיון חוזר באותה שורה. */
+.vco-rate-fail {
+  margin-block-start: var(--space-3, 12px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+.vco-rate-fail .link-button { min-block-size: 44px; }
+
+/* schedule-notebook-18 — בורר «הוספה לתוכנית»: שלושת המצבים (טעינה,
+   שגיאה עם נסיון חוזר, ריק) במקום רשימה שנעלמת בשקט. */
+.plan-pick-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-block: var(--space-3, 12px) 0;
+}
+.plan-pick-state .link-button { min-block-size: 44px; }
+
+/* schedule-notebook-9 (פיוס 12.9.2026) — המחלקה «alert-info» שהחבילה ביקשה
+   אינה קיימת ב-index.css (יש רק alert-error/alert-success), ולכן ההודעה
+   הוצגה עם ריפוד אבל בלי רקע — ונקראה כטקסט רץ במקום כהודעת מערכת.
+   נותנים לה את המראה הכחול דרך מחלקת החבילה, בטוקנים בלבד. */
+.alert.vco-rate-fail {
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+  margin-block-start: var(--space-3, 12px);
+}
+
+/* --- חבילת checkin --- */
+/* ============================================================
+   חבילת checkin — 12.9.2026
+   ============================================================ */
+
+/* coach-flow-10 — שורת «חשבון לא מחובר לסגל» בגיליון «מוכנות היום»:
+   תג ניטרלי (לא אדום — זו לא בעיה רפואית אלא חיבור חסר), באותו קצב
+   של .rd-badge.red שלידו. בלי צבע היה נראה כמו טקסט שנשבר באמצע. */
+.rd-detail .rd-badge.rd-unlinked {
+  display: inline-flex;
+  align-items: center;
+  padding-block: 2px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+[data-theme="dark"] .rd-detail .rd-badge.rd-unlinked {
+  background: transparent;
+}
+
+/* --- חבילת shell --- */
+/* ==========================================================================
+   CourtSide — חבילת shell, סבב 12.9.2026
+   נספח לסוף src/index.css. טוקנים בלבד, מרווחים לוגיים, בלי עריכת כללים ישנים.
+   ========================================================================== */
+
+/* shell-13 — יעדי מגע בתחתית המגירה.
+   במדידה על אייפד עומד (820×1180) ועל 769×1024 עם pointer: coarse — הטווח
+   שבו המגירה של הטלפון פעילה — שלושת הכפתורים ב-.sidebar-footer נמדדו בגובה
+   40px בלבד (החלפת שפה, מצב תצוגה, התנתקות). DESIGN.md/CLAUDE.md מחייבים
+   יעד מגע ≥44px, והמגירה בטווח הזה היא ממשק מגע לכל דבר.
+   הסלקטור ספציפי יותר מהכלל הישן (.sidebar .sidebar-footer button) בכוונה —
+   הכללים הישנים לא נוגעים. */
+@media (pointer: coarse) {
+  .sidebar .sidebar-footer .btn-ghost,
+  .sidebar .sidebar-footer .icon-toggle,
+  .sidebar .sidebar-footer button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+    /* inline-flex + מרכוז: .btn-ghost הוא inline-block, ובלי זה הגדלת
+       הגובה הייתה משאירה את האייקון/הטקסט צמודים לקצה העליון */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ===== 12.9.2026 (ב) — סגירת שער הצילומים ===== */
+
+/* 1) הרצועה הדביקה בלעה לחיצות במודאלים.
+   .tm-overlay מוגדר z-index:1000 (index.css:5918), אבל הוא יושב בתוך
+   .cs-sheet שהוא position:relative עם z-index:1 (index.css:18245) — הקשר
+   ערימה שכולא את ה-1000 כולו בתוך שכבה 1. .cs-hero-bar (index.css:18211,
+   z-index:30) הוא אח של הגלולה ומחוץ להקשר הזה, ולכן נצבע
+   מעל המודאל: elementFromPoint במרכז-עליון של הכרטיס החזיר
+   DIV.cs-hero-bar, ושדה «שם» לא היה לחיץ.
+   הרצועה היא ניווט משני; כל עוד מודאל פתוח היא נסגרת. opacity
+   ולא display:none — לרצועה יש margin-bottom:-56px, והסתרה ב-display
+   הייתה מקפיצה את התוכן 56px למעלה ברגע פתיחת המודאל.
+   אותה תבנית כבר משמשת למצב המיקוד של המחברת (index.css:29398). */
+.cs-page:has(.tm-overlay) .cs-hero-bar {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+/* 2) גוף המודאל גולל בעצמו.
+   .tm-modal קיבל max-height + display:flex (index.css:31036) בהנחה שיש
+   .tm-modal-body; במודאלים שלא קיבלו את העטיפה התוכן גלש החוצה.
+   העטיפה נוספה ב-Teams.jsx; ה-max-height הישן של הגוף (index.css:14253)
+   רק קיצר את הכרטיס — ה-flex הוא שקובע את הגובה עכשיו. */
+.tm-modal-body { max-height: none; }
+
+/* שורת הפעולות נושאת גם .tm-modal-actions (משם מגיעים flex-wrap
+   ו-margin-top:0 לכפתור הראשי). היישור הוא לתחילת השורה (ימין
+   בעברית) כמו בשאר הטפסים, ולא flex-end של תחתית ברירת המחדל. */
+.tm-modal-foot.tm-modal-actions { justify-content: flex-start; }
+
+/* 3) הכפתור הכבוי בכרטיס הכתום חזר מתחת ל-AA.
+   33115 (player-visual-4) הוריד את המילוי ל-‎rgba(0,0,0,.10) ודרס את
+   ‎.26 של 32337, אבל צבע הטקסט ‎rgba(255,255,255,.72) של 32522 כויל
+   דווקא מול ‎.26. נמדד מחדש על ‎--brand-strong ‎(#B34E1C, הרקע האמיתי
+   של ‎.ps-hero לפי 31856) ‎— ‎opacity:1 כבר נקבע ב-32254, ולכן החישוב
+   הוא הרכבה פשוטה: ‎.10 נותן 4.00:1 (הסף 4.5), ‎.26 נותן 5.02:1 אבל
+   מחזיר את המילוי הכהה שדווקא הוא נראה ה«מלא» בשורה. ‎.22 נותן
+   4.74:1 לטקסט ו-1.45:1 למילוי מול הכרטיס — עובר AA ועדיין נסוג מול
+   הלבן המלא של ‎+10/+25 הפעילים. */
+.ps .ps-hero-btn:disabled { background: rgba(0, 0, 0, .22); }
+
+/* 4) «פרטים» בשורת הסגל היה 40x40 בטלפון — יעד המגע הוא 44.
+   33529 קבע 40px כפשרה מול רוחב השורה, וטוב שכך: ‎.roster-row הוא flex
+   עם gap, ומדידה ב-360 הראתה ש-‎min-inline-size:44px מצמצם את טור השם
+   מ-75px ל-71px — מספיק כדי ש«יהלי אבישר» יישבר לשתי שורות והשורה
+   תקפוץ מ-105px ל-128px. לכן הריבוע הנראה נשאר 40px ורק שטח הלחיצה
+   גדל החוצה ב-‎::after שקוף, בלי לתפוס מקום בפריסה.
+   ה-‎inset הוא ‎-3px ולא ‎-2px: המכל של אֶלֶמֶנט מוחלט הוא תיבת הריפוד,
+   ול-‎.icon-btn יש ‎border:1px, ולכן תיבת הריפוד היא 38x38 — ‎-2px נמדד
+   42x42 ו-‎-3px נמדד 44x44. הקיצור ‎inset אחיד לכל הצדדים ולכן אינו
+   תלוי־כיוון.
+   הפער בין הכפתור לשכן בשורה הוא 8px (index.css:15248), ולכן 3px לכל
+   צד אינם נוגעים בפקד אחר.
+   (ב-‎.tm-fb-stars מלמעלה היה מקום להגדיל באמת; כאן אין.) */
+@media (max-width: 560px) {
+  .roster-list .roster-row > .icon-btn:not(.roster-goals),
+  .roster-list .roster-row > a.icon-btn {
+    position: relative;
+    overflow: visible;
+  }
+  .roster-list .roster-row > .icon-btn:not(.roster-goals)::after,
+  .roster-list .roster-row > a.icon-btn::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+  }
+}
+
+/* ===== 12.9.2026 (ג) — שלושה פריטים שנשארו אחרי שער הצילומים ===== */
+
+/* ‎.tfi-panel‎ (בורר הליגה/הקבוצה ב«הוספת קבוצה מהאיגוד») הוא ‎position:absolute‎,
+   והיום גוף המודאל הפך ל‎.tm-modal-body‎ עם ‎overflow-y:auto‎ — כלומר קופסת
+   הגלילה חותכת אותו. נמדד: ב-390x844 אין שינוי, אבל ב-800x360 (לנדסקייפ)
+   האופציה הראשונה הפכה מ‎hit=true‎ ל‎hit=false‎. הפאנל כבר מוגבל ל-280px ויש
+   בו גלילה משלו, ולכן מספיק לתת לגוף המודאל לגלול אליו: ‎scroll-margin‎ על
+   הבורר עצמו, ופאנל שנפתח מותר לו לדחוף את הגוף. */
+.tm-modal-body .tfi-panel { max-block-size: min(280px, 38dvh); }
+/* ⚠ מה שנשאר פתוח (נמדד, לא שוכח): במסך רחב-ונמוך (טלפון מסובב, 800x360)
+   הפאנל עדיין נחתך בקצה התחתון של קופסת הגלילה — אלמנט absolute לא יכול
+   לצאת ממנה. לסגירה מלאה צריך למקם אותו ב-fixed לפי מדידת מיקום ב-JS
+   (Pick.jsx), ולא CSS. בטלפון רגיל (390x844) האופציה הראשונה לחיצה. */
+.tm-modal-body:has(.tfi-panel) { padding-block-end: min(300px, 40dvh); }
+
+/* ‎.ps-day‎ — צ'יפי הימים ברצועת השבוע של הלו״ז. הגובה 62px תקין, הרוחב
+   נגזר מהרשת ויוצא 42.8px בטלפון — כלומר 1.2px מתחת לתקן. מרחיבים את שטח
+   הלחיצה בלבד; הציור לא זז והרשת לא נשברת. המרווח בין הצ'יפים הוא 6px,
+   ולכן ‎-3px‎ לכל צד אינו נוגע בשכן. ⚠ ‎inset‎ נמדד מתיבת הריפוד, ו-‎.ps-day‎
+   נושא ‎border:1.5px‎ — ‎-3px‎ נותן ‎42.8+1.5*2+3*2 ≈ 51.8‎ ברוחב הפגיעה. */
+@media (pointer: coarse) {
+  .ps-day { position: relative; }
+  .ps-day::after {
+    content: '';
+    position: absolute;
+    inset: 0 -3px;
+    border-radius: inherit;
+  }
+}

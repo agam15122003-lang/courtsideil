@@ -1,4 +1,10 @@
 import { supabase } from './supabaseClient'
+// 12.9.2026 — L נדרש כאן: ארבע שגיאות ההעלאה מוצגות למשתמש כמו שהן, מודבקות
+// לקידומת מתורגמת אצל הקורא (ProfileForm / DrillForm). בעברית קשיחה יצא
+// במצב English טוסט חצי-אנגלי-חצי-עברי («Image upload failed: התמונה גדולה
+// מדי»), ובעברית — שורה מעורבת כיוונים. L נקרא בזמן הזריקה, כלומר לפי השפה
+// שפעילה באותו רגע.
+import { L } from './i18n'
 
 const BUCKET = 'media'
 
@@ -33,14 +39,19 @@ async function compressImage(file, maxDim = 1600, quality = 0.82) {
 // בלבד (סקירת 3.8: תמונות פנים של קטינים בכתובת ציבורית קבועה).
 // folder: 'avatars' / 'drills' / 'community'. userId משמש לארגון ולמדיניות ה-Storage.
 export async function uploadImage(file, folder, userId) {
-  if (!file) throw new Error('לא נבחר קובץ')
-  if (!file.type.startsWith('image/')) throw new Error('יש לבחור קובץ תמונה')
+  if (!file) throw new Error(L('לא נבחר קובץ', 'No file selected'))
+  if (!file.type.startsWith('image/')) throw new Error(L('יש לבחור קובץ תמונה', 'Please choose an image file'))
   // מגבלה רכה לפני דחיסה — צילומי טלפון גדולים מתקבלים ונדחסים
-  if (file.size > 25 * 1024 * 1024) throw new Error('התמונה גדולה מדי (מקסימום 25MB)')
+  if (file.size > 25 * 1024 * 1024) {
+    throw new Error(L('התמונה גדולה מדי (מקסימום 25MB)', 'The image is too large (25MB max)'))
+  }
 
   const compressed = await compressImage(file)
   if (compressed.size > 5 * 1024 * 1024) {
-    throw new Error('גם אחרי דחיסה התמונה גדולה מדי — נסו תמונה קטנה יותר')
+    throw new Error(L(
+      'גם אחרי דחיסה התמונה גדולה מדי — נסו תמונה קטנה יותר',
+      'Still too large after compression — please try a smaller image'
+    ))
   }
 
   const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase()

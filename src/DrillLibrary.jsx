@@ -75,6 +75,9 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
   // בורר "הוספה לתוכנית"
   const [planPicker, setPlanPicker] = useState(null) // התרגיל שנבחר להוספה
   const [myPlans, setMyPlans] = useState([])
+  // 12.9.2026: שלושת המצבים של רשימת התוכניות בבורר (DESIGN.md §6). קודם
+  // ה-error נבלע והמודאל נראה כאילו אין למאמן אף תוכנית.
+  const [plansState, setPlansState] = useState('ready') // loading | ready | error
   const [newPlanName, setNewPlanName] = useState('')
   const [addingToPlan, setAddingToPlan] = useState(false)
 
@@ -93,14 +96,19 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
   const reqRef = useRef(0)
 
   const openPlanPicker = useCallback(async (drill) => {
-    setPlanPicker(drill)
-    setNewPlanName('')
-    const { data } = await supabase
+    if (drill) { setPlanPicker(drill); setNewPlanName('') } // ריק = «נסה שוב» על מודאל פתוח
+    setPlansState('loading')
+    // 12.9.2026: limit — לרשימה לא הייתה תקרה; 50 האחרונות מספיקות לבורר,
+    // ותוכנית ישנה יותר נגישה ממסך התוכניות.
+    const { data, error } = await supabase
       .from('training_plans')
       .select('id, name')
       .eq('created_by', session.user.id)
       .order('created_at', { ascending: false })
+      .limit(50)
+    if (error) { setMyPlans([]); setPlansState('error'); return }
     setMyPlans(data || [])
+    setPlansState('ready')
   }, [session.user.id])
 
   const insertItem = async (planId, drill) => {
@@ -659,6 +667,10 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
               <h3>{L('הוספה לתוכנית', 'Add to a plan')}</h3>
               <button className="tm-close" onClick={() => setPlanPicker(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* 12.9 — הגוף הוא האזור שנגלל. .tm-modal הוא flex עם max-height
+                (index.css:31036) ורק .tm-modal-body מקבל overflow-y:auto;
+                בלי העטיפה הזו רשימת התוכניות גלשה מחוץ לכרטיס. */}
+            <div className="tm-modal-body">
             <p className="muted small" style={{ margin: '0 0 12px' }}>
               {L('בחר תוכנית קיימת, או צור חדשה עם התרגיל הזה.', 'Pick an existing plan, or create a new one with this drill.')}
             </p>
@@ -674,7 +686,18 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
                 <Plus size={16} /> {L('צור', 'Create')}
               </button>
             </div>
-            {myPlans.length > 0 && (
+            {/* 12.9.2026: טעינה / שגיאה / ריק — שלושה מצבים נפרדים. כשל
+                שליפה אינו «אין תוכניות», ולכן הוא מקבל טקסט וכפתור נסיון. */}
+            {plansState === 'loading' ? (
+              <p className="muted small plan-pick-state">{L('טוען את התוכניות שלך…', 'Loading your plans…')}</p>
+            ) : plansState === 'error' ? (
+              <p className="muted small plan-pick-state">
+                {L('לא הצלחנו לטעון את התוכניות שלך.', "We couldn't load your plans.")}
+                <button type="button" className="link-button" onClick={() => openPlanPicker(null)}>
+                  {L('נסה שוב', 'Try again')}
+                </button>
+              </p>
+            ) : myPlans.length > 0 ? (
               <ul className="plan-pick-list">
                 {myPlans.map((p) => (
                   <li key={p.id}>
@@ -685,7 +708,10 @@ export default function DrillLibrary({ session, profile, embedded, initialSource
                   </li>
                 ))}
               </ul>
+            ) : (
+              <p className="muted small plan-pick-state">{L('אין לך עדיין תוכניות — הקלד שם למעלה כדי ליצור אחת עם התרגיל הזה.', 'You have no plans yet — type a name above to create one with this drill.')}</p>
             )}
+            </div>
           </div>
         </div>
       )}

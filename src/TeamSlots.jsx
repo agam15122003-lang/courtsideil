@@ -10,6 +10,17 @@ import ScheduleGrid from './ScheduleGrid'
 import { SkeletonRoster } from './Skeleton'
 import { ErrorState } from './states'
 
+// 12.9.2026: משבצת קבועה לא «קיימת» לפני שנוצרה. ההרחבה (expandSlots) מייצרת
+// מופע לכל תאריך בטווח, ולכן מאמן שהגדיר היום «ראשון 18:00» ראה מיד עד שלושה
+// ראשונים שעברו כאימונים פתוחים לסיכום — אימונים שמעולם לא התקיימו.
+// מסננים לפי created_at של המשבצת; מסד שטרם קיבל את העמודה מחזיר undefined
+// ואז לא מסננים כלום (התנהגות קודמת).
+export const notBeforeSlotCreated = (slots) => {
+  const from = new Map()
+  for (const s of slots || []) if (s?.created_at) from.set(s.id, String(s.created_at).slice(0, 10))
+  return (o) => { const f = from.get(o.slot_id); return !f || o.date >= f }
+}
+
 // לו"ז קבוע לקבוצה (מאמן) — ימי אימון + שעות. מופיע אוטומטית לשחקנים.
 // כשאימון עבר, כאן נפתחת ה"סקירה" (רשימת שחקנים: עומס, הערת שחקן, הערת מאמן, יעדים).
 // props: coachId, team, onReview(entry)
@@ -95,8 +106,9 @@ export default function TeamSlots({ coachId, team, onReview }) {
     const t = new Date(`${o.date}T${o.end_time || o.start_time || '23:59'}`).getTime()
     return !isNaN(t) && t < nowMs
   }
+  const bornBy = notBeforeSlotCreated(slots)
   const recent = [
-    ...expandSlots(slots, -21, 0).map((o) => ({ session_id: o.session_id, date: o.date, weekday: o.weekday, start_time: o.start_time, end_time: o.end_time, location: o.location })),
+    ...expandSlots(slots, -21, 0).filter(bornBy).map((o) => ({ session_id: o.session_id, date: o.date, weekday: o.weekday, start_time: o.start_time, end_time: o.end_time, location: o.location })),
     ...extra.entries.filter((e) => e.date && e.date <= todayStr).map((e) => ({
       session_id: e.id, date: e.date, weekday: new Date(e.date + 'T00:00').getDay(),
       start_time: e.start_time ? String(e.start_time).slice(0, 5) : '', end_time: e.end_time ? String(e.end_time).slice(0, 5) : '', location: null,

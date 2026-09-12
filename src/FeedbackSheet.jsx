@@ -24,6 +24,17 @@ export const MOOD_BY_KEY = Object.fromEntries(MOODS.map((m) => [m.key, m]))
 
 // על מה עבדת היום — רב-בחירה. נשמר כטקסט בעברית (השחקן והמאמן קוראים אותו ישירות)
 export const FOCUS_OPTS = ['הגנה', 'כדרור', 'קליעה', 'מסירות', 'כושר', 'עונשין']
+// 12.9.2026 (rtl-i18n-10) — הצ'יפים האלה היו המקום היחיד בגיליון שנשאר עברית
+// במצב English (ארבע שורות מעליהם מצבי הרוח כן מתורגמים דרך L). התווית
+// בלבד מתורגמת — **הערך שנשמר למסד נשאר עברית**, כי המאמן קורא אותו ישירות
+// וכל ההיסטוריה כתובה כך.
+// המילון כאן ולא ב-i18n.js: הקובץ ההוא מחוץ לחבילה הזו, ובלאו הכי «עונשין»
+// חסר שם — כלומר ‎tr() לבדה הייתה משאירה מילה אחת בעברית.
+const FOCUS_EN = {
+  'הגנה': 'Defense', 'כדרור': 'Dribbling', 'קליעה': 'Shooting',
+  'מסירות': 'Passing', 'כושר': 'Conditioning', 'עונשין': 'Free throws',
+}
+const focusLabel = (f) => L(f, FOCUS_EN[f] || f)
 
 // גיליון סיכום אימון — נפתח מכפתור "מלא סיכום אימון".
 // מזהה את האימון האחרון שטרם סוכם (או האחרון שסוכם — לעריכה), אוסף עומס+מצב רוח+פוקוס+יעדים+הערה,
@@ -49,20 +60,35 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
     setOffline(false)
     const qs = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
-      supabase.from('team_games').select('id, game_date, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
+      supabase.from('team_games').select('id, game_date, game_time, opponent').eq('coach_id', membership.coach_id).eq('team', membership.team).gte('game_date', from).lte('game_date', today).order('game_date', { ascending: false }),
       supabase.from('player_goals').select('id, title, period, status, target_value, progress_value, unit, player_id').in('period', ['session', 'week', 'month']),
       supabase.from('session_goal_marks').select('goal_id').eq('player_id', me),
       // 1.8 — גם אימונים חד-פעמיים מהלו"ז הם מועמדים לסיכום, לא רק הקבועים
-      supabase.from('schedule_entries').select('id, date').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
+      // 12.9.2026 — select('*') ולא רשימת עמודות: צריך גם את שעת הסיום (ראו
+      // הסינון למטה), ועמודה שחסרה במסד מפילה ב-PostgREST את **כל** השאילתה
+      // ומעלימה את האימונים לגמרי (אותה מלכודת שכבר תועדה ב-PlayerTimeline).
+      supabase.from('schedule_entries').select('*').eq('created_by', membership.coach_id).eq('team', membership.team).gte('date', from).lte('date', today),
     ])
     // ⚠ כשל רשת = לא יודעים. עוצרים כאן במקום להסיק «אין אימון» מ-data ריק.
     if (qs.some((q) => q.error && isNetErr(q.error))) { setOffline(true); setPending(null); return }
     const [{ data: slots }, { data: gm }, { data: gl }, { data: prevMarks }, { data: pr }] = qs
+    // 12.9.2026 (player-flow-12) — המועמדים נבחרו עד היום לפי **תאריך בלבד**,
+    // ולכן אימון קבוע של היום ב-19:00 נכנס לרשימה כבר ב-08:00 בבוקר: הנער
+    // נשאל «כמה קשה היה האימון היום?» שמונה שעות לפני שהאימון התחיל, והתשובה
+    // נשמרה ל-session_effort עם ה-session_id שלו. מסננים לפי שעת הסיום, בדיוק
+    // כמו רצועת הבית (PlayerDashboard.HomeHero). בלי שעה — 23:59, כלומר
+    // האירוע נחשב כמסתיים בסוף היום שלו, ולא מוקדם יותר.
+    const nowTs = Date.now()
+    const ended = (date, time) => {
+      const end = new Date(`${date}T${time || '23:59'}`)
+      return !isNaN(end) && end.getTime() <= nowTs
+    }
     const cands = [
-      ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, title: L('אימון קבוצתי', 'Team practice') })),
-      ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, title: L('אימון קבוצתי', 'Team practice') })),
-      ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
-    ].filter((c) => c.session_date).sort((a, b) => b.session_date.localeCompare(a.session_date))
+      ...expandSlots(slots || [], -3, 0).map((o) => ({ session_id: o.session_id, session_type: 'practice', session_date: o.date, end_at: o.end_time || o.start_time, title: L('אימון קבוצתי', 'Team practice') })),
+      ...(pr || []).map((e) => ({ session_id: e.id, session_type: 'practice', session_date: e.date, end_at: e.end_time || e.start_time || null, title: L('אימון קבוצתי', 'Team practice') })),
+      ...(gm || []).map((g) => ({ session_id: g.id, session_type: 'game', session_date: g.game_date, end_at: g.game_time || null, title: g.opponent ? L(`נגד ${g.opponent}`, `vs ${g.opponent}`) : L('משחק', 'Game') })),
+    ].filter((c) => c.session_date && ended(c.session_date, c.end_at ? String(c.end_at).slice(0, 5) : null))
+      .sort((a, b) => b.session_date.localeCompare(a.session_date))
     const p = cands[0] || null
     setPending(p)
     const markedEver = new Set((prevMarks || []).map((m) => m.goal_id))
@@ -137,11 +163,17 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
         <span className="fbs-grip" />
         <button className="fbs-x" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
         <div className="fbs-title">{L('סיכום האימון', 'Session summary')}</div>
-        <div className="fbs-sub">
-          {pending === undefined ? L('טוען…', 'Loading…')
-            : pending ? `${pending.title}${pending.session_date ? ` · ${new Date(pending.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })}` : ''}`
-            : L('המשוב נשלח ישירות למאמן', 'Your feedback goes straight to your coach')}
-        </div>
+        {/* 12.9.2026 (copy-ux-2-13) — כשאין אימון לסכם הופיעה כאן הכותרת
+            «המשוב נשלח ישירות למאמן», מעל מצב ריק שאומר «אין אימון פתוח
+            לסיכום»: שום דבר לא נשלח ואין מה לשלוח. היא גם ערבבה «משוב» עם
+            «סיכום», שהוא המונח בכל שאר הגיליון. במצב הזה פשוט אין כותרת
+            משנה — המצב הריק שמתחת כבר אומר את הכול. */}
+        {pending !== null && (
+          <div className="fbs-sub">
+            {pending === undefined ? L('טוען…', 'Loading…')
+              : `${pending.title}${pending.session_date ? ` · ${new Date(pending.session_date + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })}` : ''}`}
+          </div>
+        )}
 
         {pending === null && offline ? (
           <div className="fbs-empty">
@@ -158,16 +190,23 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
           </div>
         ) : pending ? (
           <>
-            <div className="fbs-q">{L('כמה קשה היה האימון היום?', 'How hard was practice today?')} <b className="fbs-q-val">{effort}/10</b></div>
-            <div className="fbs-effort">
+            {/* 12.9.2026 (a11y-13) — ‎.fbs-q הוא div רגיל, לא <label>, ולא היה
+                מקושר לשום פקד: קורא מסך שמע עשרה כפתורים «עומס 3 מתוך 10»
+                בלי לדעת שהשאלה היא «כמה קשה היה האימון». כל מיכל מקבל role
+                ו-aria-labelledby אל השאלה שמעליו. העומס הוא בחירה יחידה —
+                radiogroup/radio, בדיוק כמו הדפוס שכבר קיים ב-PendingApproval
+                וב-PlayerGoals; מצב רוח (ניתן לביטול), פוקוס ויעדים הם
+                רב-בחירה ולכן role="group" עם aria-pressed. */}
+            <div className="fbs-q" id="fbs-q-effort">{L('כמה קשה היה האימון היום?', 'How hard was practice today?')} <b className="fbs-q-val">{effort}/10</b></div>
+            <div className="fbs-effort" role="radiogroup" aria-labelledby="fbs-q-effort">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                 <button key={n} className={effort === n ? 'fbs-eff on' : 'fbs-eff'} onClick={() => setEffort(n)}
-                  aria-pressed={effort === n} aria-label={L(`עומס ${n} מתוך 10`, `Load ${n} out of 10`)}>{n}</button>
+                  role="radio" aria-checked={effort === n} aria-label={L(`עומס ${n} מתוך 10`, `Load ${n} out of 10`)}>{n}</button>
               ))}
             </div>
 
-            <div className="fbs-q">{L('איך הרגשת?', 'How did you feel?')}</div>
-            <div className="fbs-moods">
+            <div className="fbs-q" id="fbs-q-mood">{L('איך הרגשת?', 'How did you feel?')}</div>
+            <div className="fbs-moods" role="group" aria-labelledby="fbs-q-mood">
               {MOODS.map((m) => (
                 <button key={m.key} className={mood === m.key ? 'fbs-mood on' : 'fbs-mood'}
                   style={mood === m.key ? { background: m.col, borderColor: 'transparent', color: 'var(--on-color)' } : undefined}
@@ -175,17 +214,17 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
               ))}
             </div>
 
-            <div className="fbs-q">{L('על מה עבדת היום?', 'What did you work on?')}</div>
-            <div className="fbs-focus">
+            <div className="fbs-q" id="fbs-q-focus">{L('על מה עבדת היום?', 'What did you work on?')}</div>
+            <div className="fbs-focus" role="group" aria-labelledby="fbs-q-focus">
               {FOCUS_OPTS.map((f) => (
-                <button key={f} className={focus.includes(f) ? 'fbs-pill on' : 'fbs-pill'} onClick={() => toggleFocus(f)} aria-pressed={focus.includes(f)}>{f}</button>
+                <button key={f} className={focus.includes(f) ? 'fbs-pill on' : 'fbs-pill'} onClick={() => toggleFocus(f)} aria-pressed={focus.includes(f)}>{focusLabel(f)}</button>
               ))}
             </div>
 
             {goals.length > 0 && (
               <>
-                <div className="fbs-q">{L('עמדת ביעדים היום?', 'Did you meet your goals?')}</div>
-                <div className="fbs-checks">
+                <div className="fbs-q" id="fbs-q-goals">{L('עמדת ביעדים היום?', 'Did you meet your goals?')}</div>
+                <div className="fbs-checks" role="group" aria-labelledby="fbs-q-goals">
                   {goals.map((g) => (
                     <button key={g.id} className="fbs-check" onClick={() => setMarks((m) => ({ ...m, [g.id]: !m[g.id] }))} aria-pressed={!!marks[g.id]}>
                       <span className={marks[g.id] ? 'fbs-check-box on' : 'fbs-check-box'}>{marks[g.id] ? <Check size={14} /> : null}</span>
@@ -197,8 +236,11 @@ export default function FeedbackSheet({ session, membership, open, onClose, onSe
               </>
             )}
 
-            <div className="fbs-q">{L('משהו לרשום למאמן?', 'Anything to tell your coach?')}</div>
+            <div className="fbs-q" id="fbs-q-note">{L('משהו לרשום למאמן?', 'Anything to tell your coach?')}</div>
+            {/* 12.9.2026 (a11y-8) — השדה היחיד בגיליון שהתווית שלו הייתה
+                placeholder בלבד, שנעלם ברגע ההקלדה (WCAG 3.3.2) */}
             <textarea className="fbs-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={500}
+              aria-labelledby="fbs-q-note"
               placeholder={L('איך הרגשת, מה עבד, מה קשה…', 'How you felt, what worked, what was hard…')} />
 
             <button className="fbs-send" onClick={submit} disabled={busy || !effort}>

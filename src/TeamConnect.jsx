@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { UserPlus, Copy, Check, X, Share2, KeyRound, QrCode, Link2 } from 'lucide-react'
+import { UserPlus, Copy, Check, X, Share2, KeyRound, QrCode, Link2, RotateCcw } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 // 8.9 — approvedMembers/linkRosterRow: חיבור ידני של חשבון לשורת סגל
-import { getOrCreateJoinCode, pendingRequests, decideMembership, approvedMembers, linkRosterRow } from './players'
+// 12.9 — isMissingColumn: רשימת «בקשות שנדחו» חייבת לשרוד מסד בלי העמודות של ההסכמה
+import { getOrCreateJoinCode, pendingRequests, decideMembership, approvedMembers, linkRosterRow, isMissingColumn } from './players'
 import { waShare } from './share'
 import { SITE_URL } from './constants'
 import Avatar from './Avatar'
@@ -21,7 +22,77 @@ import { confirmDialog } from './confirm'
 // שורות דומות, או מסד בלי העמודה בזמן האישור) ולא היה שום פקד לתקן.
 // כאן: לכל חשבון כזה — בורר של השורות הפנויות בקבוצה + «חיבור» עם אישור
 // שמזכיר שהיעדים והמשימות של השורה עוברים לחשבון (טריגר roster_link_merge).
-export default function TeamConnect({ coachId, team, onApproved }) {
+
+// ---------- 12.9 — שער ההסכמה, מקור אמת אחד ----------
+// למה שלושת העוזרים האלה יושבים דווקא כאן: את אותן בקשות ממתינות מרנדרים
+// **שני** פאנלים בטאב «סגל» — פאנל ההסכמה ב-Teams.jsx והפאנל הזה מתחתיו.
+// ב-Teams היה שער מפורש («לאשר שחקן שההורה שלו טרם אישר?») ובפאנל הזה לא
+// היה שום שער — כלומר ✓ כאן אישר קטין שההורה שלו לא אישר, או שההסכמה שלו
+// בוטלה, בלי אזהרה ובלי ההצהרה שהמודל המשפטי נשען עליה. Teams מייבא מכאן
+// (Teams → TeamConnect, בלי מעגל ייבוא) ולכן יש שער אחד לשני המסכים.
+
+// השוואת שם קבוצה סובלנית לרישיות ולרווחים: אותו שם נשמר לעתים בכתיב שונה
+// בין הפרופיל, שורת הסגל וקוד ההצטרפות — והשוואה מדויקת העלימה בקשה אמיתית.
+export const sameTeam = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+
+// null = מיגרציות ההסכמה טרם רצו (approval_status/has_consent חסרים) — ואז
+// המסך חוזר בדיוק להתנהגות הקודמת: בלי תג, בלי דיאלוג, בלי פאנל.
+export const consentState = (r) => {
+  if (!r?.approval_status) return null
+  if (r.approval_status === 'pending_parent') return 'waiting'
+  if (r.approval_status === 'suspended') return 'revoked'
+  if (r.parent_approved === true) return 'approved'
+  if (r.parent_approved === false) return 'adult'
+  return null // has_consent לא זמין — עדיף בלי תג מאשר תג שקרי
+}
+
+// ההחלטה נשארת של המאמן — אבל היא חייבת להיות מפורשת, לא אגבית.
+// מחזיר true כשמותר להמשיך באישור.
+export async function confirmConsentGate(r) {
+  const st = consentState(r)
+  if (st === 'waiting') {
+    return confirmDialog({
+      title: L('לאשר שחקן שההורה שלו טרם אישר?', 'Approve a player whose parent has not approved?'),
+      message: L(
+        'זהו קטין שהאפוטרופוס שלו עדיין לא אישר את ההרשמה. באישור הבקשה אתם מצהירים שאתם מכירים את השחקן ואת משפחתו. השחקן יצטרף לקבוצה — אבל יישאר מוגבל באפליקציה: בלי העלאת תמונות, בלי כתיבה בקהילה ובצ׳אטים ובלי שליחת הודעות — עד שההורה יאשר.',
+        'This is a minor whose guardian has not yet approved the registration. By approving you confirm that you know the player and their family. The player will join the team — but will stay restricted in the app: no photo uploads, no posting in the community or chats and no messaging — until the parent approves.',
+      ),
+      confirmText: L('אני מכיר את המשפחה — לאשר', 'I know the family — approve'),
+      danger: false,
+    })
+  }
+  if (st === 'revoked') {
+    return confirmDialog({
+      title: L('לאשר שחקן שההסכמה שלו בוטלה?', 'Approve a player whose consent was revoked?'),
+      message: L(
+        'ההורה ביטל את ההסכמה והחשבון מושהה. אישור הבקשה לא יפתח לשחקן את האפליקציה — הוא יישאר חסום עד שהעניין ייפתר מול ההורה או מול מנהל המערכת.',
+        'The parent revoked consent and the account is suspended. Approving will not open the app for this player — they stay blocked until it is resolved with the parent or with an administrator.',
+      ),
+      confirmText: L('אישור בכל זאת', 'Approve anyway'),
+      danger: true,
+    })
+  }
+  return true
+}
+
+// 12.9 — הבקשות שנדחו, כדי שדחייה בטעות תהיה הפיכה **בלי תלות במיגרציה**.
+// (פתיחה מחדש בהקלדת הקוד קיימת רק ב-supabase_pilot_fixes_6_9.sql; בפרוד
+// שטרם הריץ אותו הילד נתקע לנצח עם «המאמן דחה» ולמאמן לא היה שום פקד.)
+// תמיד מערך; כשל שליפה = ריק, והפאנל פשוט לא מוצג.
+async function rejectedRequests(coachId) {
+  const run = (withProfile) => supabase
+    .from('team_memberships')
+    .select(withProfile ? 'id, player_id, team, status, player:profiles!player_id(first_name, last_name, avatar_url)' : 'id, player_id, team, status')
+    .eq('coach_id', coachId).eq('status', 'rejected')
+    .order('created_at', { ascending: false }).limit(30)
+  let { data, error } = await run(true)
+  // עמודה חסרה ב-embed מפילה את כל השאילתה — נסיגה לשורות בלי שם
+  if (error && isMissingColumn(error)) ({ data, error } = await run(false))
+  if (error) { console.error('TeamConnect.rejectedRequests:', error.message || error); return [] }
+  return data || []
+}
+
+export default function TeamConnect({ coachId, team, teams, onApproved }) {
   const [code, setCode] = useState(null)
   const [reqs, setReqs] = useState([])
   const [copied, setCopied] = useState(false)
@@ -38,10 +109,29 @@ export default function TeamConnect({ coachId, team, onApproved }) {
   // ומצב הכשל אומר מה קרה ומאפשר לנסות שוב.
   const [codeErr, setCodeErr] = useState(null)
   const [rev, setRev] = useState(0)
+  // 12.9 — כשל שליפת הסגל אינו «אין שורה פנויה»: בלי ההבחנה הזו המסך הורה
+  // למאמן להוסיף לסגל שחקן שכבר יש לו שורה, ויצר כפילות.
+  const [rosterErr, setRosterErr] = useState(false)
+  // 12.9 — בקשות שנדחו + מי מהן בטיפול «החזרה לבדיקה»
+  const [rejected, setRejected] = useState([])
+  const [restoring, setRestoring] = useState(null)
 
+  // 12.9 — מפתח יציב לרשימת הקבוצות, כדי שמערך חדש בכל רינדור לא ירענן לנצח
+  const teamsKey = (teams || []).join('|')
   const loadReqs = useCallback(async () => {
-    setReqs((await pendingRequests(coachId)).filter((r) => r.team === team))
-  }, [coachId, team])
+    const all = await pendingRequests(coachId)
+    // 12.9 — sameTeam ולא השוואה מדויקת: שם הקבוצה של הבקשה מגיע
+    // מ-team_join_codes ושם הקבוצה שנבחר במסך מגיע מהפרופיל; רווח נסתר או
+    // אות אחת הספיקו כדי שהבקשה תיעלם מהפאנל בזמן שהמונה בבית ממשיך לספור.
+    const list = (teams || [])
+    const mine = all.filter((r) => sameTeam(r.team, team))
+    // בקשה שנרשמה על שם קבוצה שאינה אף אחת מהקבוצות שלי לא מוצגת בשום
+    // פאנל — ולכן היא מוצגת כאן, עם שם הקבוצה שנשמר בבקשה.
+    const orphan = list.length
+      ? all.filter((r) => !list.some((t) => sameTeam(t, r.team))).map((r) => ({ ...r, otherTeam: r.team }))
+      : []
+    setReqs([...mine, ...orphan])
+  }, [coachId, team, teamsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadReqs() }, [loadReqs])
   useEffect(() => {
@@ -57,16 +147,23 @@ export default function TeamConnect({ coachId, team, onApproved }) {
       }
       // מד מחוברים: כמה משורות הסגל כבר מקושרות לחשבון שחקן
       // 8.9 — שולפים גם שם ומספר: אותן שורות משמשות את בורר החיבור הידני
-      const { data } = await supabase.from('team_players')
+      // 12.9 — מפרקים את השגיאה: בלעדיה כשל שליפה השאיר roster=[] והמסך
+      // הכריז «אין שורה פנויה בסגל» על מסד שפשוט לא ענה.
+      const { data, error: rErr } = await supabase.from('team_players')
         .select('id, name, number, player_id').eq('coach_id', coachId).eq('team', team).order('created_at')
       if (!alive) return
-      if (data) {
-        setRoster(data)
-        setMeter({ connected: data.filter((p) => p.player_id).length, total: data.length })
+      setRosterErr(!!rErr)
+      if (rErr) { console.error('TeamConnect.roster:', rErr.message || rErr); setRoster([]); setMeter(null) }
+      else {
+        setRoster(data || [])
+        setMeter({ connected: (data || []).filter((p) => p.player_id).length, total: (data || []).length })
       }
       // 8.9 — החברים המאושרים של הקבוצה, כדי למצוא מי מהם בלי שורה מקושרת
       const mem = await approvedMembers(coachId, team)
       if (alive) setMembers(mem)
+      // 12.9 — הבקשות שנדחו בקבוצה הזו (להחזרה לבדיקה)
+      const rej = await rejectedRequests(coachId)
+      if (alive) setRejected(rej.filter((r) => sameTeam(r.team, team)))
     })()
     return () => { alive = false }
   }, [coachId, team, rev])
@@ -88,8 +185,10 @@ export default function TeamConnect({ coachId, team, onApproved }) {
     const ok = await confirmDialog({
       title: L('לחבר את החשבון לשורה בסגל?', 'Connect this account to the roster row?'),
       message: L(
-        `החשבון של «${who}» יחובר לשורה «${row.name}» בסגל. היעדים והמשימות האישיות שרשמתם על השורה הזו יעברו לחשבון שלו, והוא יראה אותם באפליקציה. אפשר לנתק אחר כך מכרטיס השחקן.`,
-        `The account of “${who}” will be connected to the roster row “${row.name}”. The goals and personal assignments you recorded on that row move to his account, and he will see them in the app. You can disconnect later from the player card.`,
+        // 12.9 — «מכרטיס השחקן» היה הפניה למסך שאין בו פקד ניתוק. הניתוק
+        // יושב במודאל «פרטי שחקן» שנפתח מכפתור «פרטים» על שורת הסגל.
+        `החשבון של «${who}» יחובר לשורה «${row.name}» בסגל. היעדים והמשימות האישיות שרשמתם על השורה הזו יעברו לחשבון שלו, והוא יראה אותם באפליקציה. אפשר לנתק אחר כך מכפתור «פרטים» על שורת השחקן בסגל.`,
+        `The account of “${who}” will be connected to the roster row “${row.name}”. The goals and personal assignments you recorded on that row move to his account, and he will see them in the app. You can disconnect later from the “Details” button on the player's roster row.`,
       ),
       confirmText: L('חיבור', 'Connect'),
       danger: false,
@@ -113,28 +212,50 @@ export default function TeamConnect({ coachId, team, onApproved }) {
     onApproved?.()
   }
 
+  // 12.9 — החזרת בקשה שנדחתה לרשימת הממתינות. זו הדרך היחידה לתקן דחייה
+  // בטעות שאינה תלויה במיגרציה (פתיחה מחדש בהקלדת הקוד קיימת רק
+  // ב-supabase_pilot_fixes_6_9.sql, ובפרוד שטרם הריץ אותו הילד נתקע).
+  const restore = async (m) => {
+    setRestoring(m.id)
+    const { error } = await supabase.from('team_memberships').update({ status: 'pending' }).eq('id', m.id)
+    setRestoring(null)
+    if (error) {
+      console.error('TeamConnect.restore:', error.message || error)
+      toast.error(L('החזרת הבקשה נכשלה — נסו שוב בעוד רגע.', 'Restoring the request failed — try again in a moment.'))
+      return
+    }
+    toast.success(L(`הבקשה של «${playerName(m.player)}» חזרה לרשימת הממתינות`, `“${playerName(m.player)}” is back in the pending list`))
+    setRev((v) => v + 1)
+    loadReqs()
+  }
+
   const decide = async (m, approve) => {
     // 6.9 — ✓ ו-✗ יושבים צמודים ובגודל 34px, ולכן מאשרים דחייה במפורש.
-    // הדחייה **אינה** סוף פסוק: supabase_pilot_fixes_6_9.sql מחזיר בקשה
-    // שנדחתה למצב «ממתין» ברגע שהשחקן מקליד שוב את אותו קוד — ולכן הדיאלוג
-    // אומר בדיוק את זה, ולא «אין דרך חזרה».
+    // 12.9 — הדחייה הפיכה, אבל לא באופן שהובטח כאן קודם: «השחקן מקליד שוב
+    // את אותו קוד והבקשה חוזרת» קיים רק במסד שהריץ את
+    // supabase_pilot_fixes_6_9.sql. מה שתמיד נכון — ומה שכתוב עכשיו — הוא
+    // שהמאמן מחזיר את הבקשה בעצמו מהרשימה «ילדים שמחוץ לקבוצה» בפאנל הזה.
     if (!approve) {
       const ok = await confirmDialog({
         title: L('לדחות את בקשת ההצטרפות?', 'Decline this join request?'),
         message: L(
-          `«${playerName(m.player)}» לא יצטרף לקבוצה, והבקשה תיעלם מהרשימה שלך. אם דחיתם בטעות — אפשר לתקן: השחקן מקליד שוב את אותו קוד הצטרפות, והבקשה חוזרת אליכם.`,
-          `“${playerName(m.player)}” will not join the team, and the request disappears from your list. If you declined by mistake it can be fixed: the player enters the same join code again, and the request comes back to you.`,
+          `«${playerName(m.player)}» לא יצטרף לקבוצה, והבקשה תיעלם מהרשימה שלך. אם דחיתם בטעות — פותחים כאן את «ילדים שמחוץ לקבוצה» ולוחצים «החזרה לבדיקה».`,
+          `“${playerName(m.player)}” will not join the team, and the request disappears from your list. If you declined by mistake — open “Players outside the team” here and tap “Back to review”.`,
         ),
         confirmText: L('דחיית הבקשה', 'Decline request'),
         danger: true,
       })
       if (!ok) return
     }
+    // 12.9 — שער ההסכמה, אותו שער בדיוק שבפאנל שמעל (ראו confirmConsentGate):
+    // עד היום ✓ כאן אישר קטין שההורה שלו טרם אישר בלי שום אזהרה.
+    if (approve && !(await confirmConsentGate(m))) return
     const res = await decideMembership({ ...m }, approve)
     if (!res.ok) { toast.error(L('הפעולה נכשלה: ', 'Action failed: ') + res.reason); return }
     // 3.9 — «חובר לשורה הקיימת של …» / «נוצרה שורה חדשה …» כשיש רמז כזה
     toast.success(approve ? (res.hint || L('השחקן אושר והתווסף לסגל', 'Player approved and added to the roster')) : L('הבקשה נדחתה', 'Request declined'))
     loadReqs()
+    setRev((v) => v + 1) // הסגל, המד ורשימת «בקשות שנדחו» השתנו
     if (approve) onApproved?.()
   }
 
@@ -232,8 +353,18 @@ export default function TeamConnect({ coachId, team, onApproved }) {
             </div>
           )}
 
+          {/* 12.9 — כשל בשליפת הסגל: פס שגיאה עם «נסו שוב», ולא הודעת
+              «אין שורה פנויה בסגל» שגורמת להוספת שורה כפולה */}
+          {rosterErr && (
+            <p className="alert alert-error" style={{ marginBlockStart: 10 }}>
+              {L('לא הצלחנו לטעון את הסגל של הקבוצה. זו תקלת טעינה — שום שחקן לא נמחק. ',
+                 'We could not load the team roster. This is a loading error — no player was deleted. ')}
+              <button type="button" className="link-button" onClick={() => setRev((v) => v + 1)}>{L('נסו שוב', 'Try again')}</button>
+            </p>
+          )}
+
           {/* 8.9 — חשבונות מאושרים בלי שורה מקושרת בסגל: בורר + «חיבור» */}
-          {unattached.length > 0 && (
+          {!rosterErr && unattached.length > 0 && (
             <div className="tc-reqs tc-unlinked">
               <span className="tc-code-label"><Link2 size={14} /> {L('חשבונות שעוד לא מחוברים לשורה בסגל', 'Accounts not yet connected to a roster row')}</span>
               <p className="muted small tc-unlinked-why">
@@ -281,12 +412,49 @@ export default function TeamConnect({ coachId, team, onApproved }) {
                     {m.player?.position ? <span className="muted small"> · {m.player.position}</span> : ''}
                     {/* אין כאן שנת לידה: privacy4 שלל את ההרשאה על העמודה, והבקשה
                         כולה חזרה כ-42501 — כלומר המסך הזה היה ריק תמיד בפרודקשן. */}
+                    {/* 12.9 — בקשה שנרשמה על שם קבוצה שאינו אף אחת מהקבוצות שלך:
+                        מציגים את השם שנשמר בבקשה, אחרת היא לא מופיעה בשום מקום. */}
+                    {m.otherTeam ? (
+                      <span className="muted small" style={{ display: 'block', marginBlockStart: 2 }}>
+                        {L('הבקשה נרשמה על ', 'Requested for ')}«<bdi>{m.otherTeam}</bdi>»
+                      </span>
+                    ) : null}
                   </span>
                   <button className="tc-approve" onClick={() => decide(m, true)} aria-label={L('אישור', 'Approve')}><Check size={16} /></button>
                   <button className="tc-reject" onClick={() => decide(m, false)} aria-label={L('דחייה', 'Decline')}><X size={16} /></button>
                 </div>
               ))}
             </div>
+          )}
+
+          {/* 12.9 — «בקשות שנדחו»: דחייה בטעות הייתה בלתי הפיכה בפרוד, ושני
+              המסכים הבטיחו שאפשר לתקן. כאן זה באמת אפשרי, בלחיצה אחת.
+              המכל אינו .tc-reqs (הוא display:flex, ו-details עם display שאינו
+              block מסתכן בהתנהגות פתיחה/סגירה שונה בין דפדפנים). */}
+          {rejected.length > 0 && (
+            <details className="tc-rejected">
+              <summary className="tc-code-label tc-rejected-sum">
+                <X size={14} /> {L(`ילדים שמחוץ לקבוצה (${rejected.length})`, `Players outside the team (${rejected.length})`)}
+              </summary>
+              {/* 12.9 — הכותרת הייתה «בקשות שנדחו», אבל אותה שורת חברות מסומנת
+                  'rejected' גם כשמסירים שחקן מהסגל (Teams.jsx delPlayer) — כלומר
+                  ילד שהוסר הופיע כאן מתחת ל«דחיתם בטעות?». הנוסח מכסה עכשיו את
+                  שני המקרים, והפעולה נכונה בשניהם: חזרה לרשימת הממתינים. */}
+              <p className="muted small tc-rejected-why">
+                {L('כאן נמצאים ילדים שדחיתם, וגם ילדים שהסרתם מהסגל. «החזרה לבדיקה» מחזירה אותם לרשימת הממתינים לאישור. הפרטים ודיווחי הבוקר שנמחקו בהסרה לא חוזרים.',
+                   'These are players you declined, and players you removed from the roster. “Back to review” returns them to the pending list. Details and morning check-ins deleted on removal do not come back.')}
+              </p>
+              {rejected.map((m) => (
+                <div key={m.id} className="tc-req">
+                  <Avatar name={playerName(m.player)} url={m.player?.avatar_url} size={34} />
+                  <span className="tc-req-name">{playerName(m.player)}</span>
+                  <button type="button" className="btn-soft tc-restore-btn" disabled={restoring === m.id}
+                    aria-busy={restoring === m.id} onClick={() => restore(m)}>
+                    <RotateCcw size={15} /> {L('החזרה לבדיקה', 'Back to review')}
+                  </button>
+                </div>
+              ))}
+            </details>
           )}
       </div>
     </div>

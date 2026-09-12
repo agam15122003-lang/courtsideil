@@ -33,16 +33,36 @@ self.addEventListener('fetch', (e) => {
 
   // ניווט: רשת קודם, ואם אין — העותק השמור של הדף
   if (req.mode === 'navigate') {
+    // 12.9.2026 — זקיף זמן. הנפילה לעותק השמור קרתה רק כש-fetch **נדחה**,
+    // אבל המצב שמתועד בקוד עצמו כתרחיש המרכזי של האולם — WiFi «מחובר בלי
+    // אינטרנט» — הוא מצב שבו הבקשה **תלויה** ולא נדחית. המאמן קיבל טאב לבן
+    // עד ה-timeout של הדפדפן (עשרות שניות) במקום את האפליקציה שכבר במטמון.
+    const net = new Promise((resolve, reject) => {
+      const bail = setTimeout(() => reject(new Error('sw-timeout')), 3000)
+      fetch(req).then(
+        (res) => { clearTimeout(bail); resolve(res) },
+        (err) => { clearTimeout(bail); reject(err) }
+      )
+    })
     e.respondWith(
-      fetch(req)
+      net
         .then((res) => {
-          const copy = res.clone()
-          // waitUntil — בלעדיו ה-SW יכול להיסגר לפני שהכתיבה הסתיימה,
-          // והעותק השמור נשאר בשקט על הגרסה הקודמת
-          e.waitUntil(caches.open(CACHE).then((c) => c.put('/', copy)))
+          // 12.9.2026 — לא כל ניווט הוא «דף האפליקציה». /privacy.html,
+          // /terms.html ו-/accessibility.html הם קבצים סטטיים אמיתיים
+          // (ה-rewrite ב-vercel.json לא תופס אותם), וכל כניסה אליהם דרסה
+          // את העותק השמור של '/' — כלומר הפתיחה הבאה בלי רשת הגישה את
+          // מדיניות הפרטיות במקום האפליקציה. אותו דבר על תשובת 500 רגעית.
+          if (res.ok && !/\.html$/i.test(url.pathname)) {
+            const copy = res.clone()
+            // waitUntil — בלעדיו ה-SW יכול להיסגר לפני שהכתיבה הסתיימה,
+            // והעותק השמור נשאר בשקט על הגרסה הקודמת
+            e.waitUntil(caches.open(CACHE).then((c) => c.put('/', copy)))
+          }
           return res
         })
-        .catch(() => caches.match('/'))
+        // אין עותק שמור (התקנה ראשונה על קו איטי) — מחכים לרשת האמיתית
+        // במקום להחזיר undefined ולהפיל את הניווט לדף השגיאה של הדפדפן
+        .catch(() => caches.match('/').then((c) => c || fetch(req)))
     )
     return
   }

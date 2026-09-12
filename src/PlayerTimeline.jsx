@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   History, Flame, Star, Crown, MessageSquareHeart, Check, Minus,
-  Dumbbell, StickyNote, Send, TrendingUp, Share2, ChevronDown, ThumbsUp, HeartHandshake,
+  Dumbbell, StickyNote, Send, TrendingUp, Share2, ChevronDown, ThumbsUp, HeartHandshake, Lock,
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
@@ -22,15 +22,23 @@ const ymdAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0,
 const coachName = (c) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() || L('המאמן', 'Coach') : L('המאמן', 'Coach')
 const heDate = (d) => new Date(d + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' })
 
-// גרף מגמת עומס — שטח+קו מונפשים על 8 האימונים האחרונים, עם נקודה על האחרון
+// גרף מגמת עומס — קו על 8 האימונים האחרונים, עם נקודה על האחרון
+// 12.9.2026 (player-visual-14) — שלושה תיקונים בציור הזה:
+//  · הציר התחיל בשמאל, כלומר הישן בשמאל והאחרון בימין — הפוך לקריאה
+//    עברית (DESIGN.md §4). עכשיו האינדקס יורד מימין לשמאל, והאימון
+//    האחרון (הנקודה) יושב בשמאל, בסוף הקריאה.
+//  · מילוי השטח היה הגרדיאנט השלישי במוצר, ו-DESIGN.md §2ב מתיר שניים.
+//    קו + נקודה אומרים בדיוק את אותו דבר.
+//  · שתי נקודות אינן מגמה: זה היה קו כמעט ישר ו-110px של שטח ריק.
+//    עד שיש שלושה אימונים מציגים את המספרים עצמם.
 function LoadTrend({ series }) {
   const W = 300, H = 110, p = 10, n = series.length
   if (n < 2) return null
-  const xs = (i) => p + i * ((W - 2 * p) / (n - 1))
+  const sparse = n < 3
+  const xs = (i) => W - p - i * ((W - 2 * p) / (n - 1))
   const ys = (v) => H - p - (v / 10) * (H - 2 * p)
   const pts = series.map((v, i) => [xs(i), ys(v)])
   const line = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ')
-  const area = `${line} L ${xs(n - 1).toFixed(1)} ${H - p} L ${xs(0).toFixed(1)} ${H - p} Z`
   const last = pts[n - 1]
   const avg = series.reduce((s, v) => s + v, 0) / n
   const top = Math.max(...series)
@@ -42,18 +50,21 @@ function LoadTrend({ series }) {
       </div>
       {/* ⚠ צבועים ב---ps-acc ולא ב---accent: הגרף חי עכשיו בתוך מסך ps,
           ולכל מסך שם יש צבע משלו */}
-      <svg viewBox="0 0 300 110" className="ps-trend" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="pltTrend" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="var(--ps-acc)" stopOpacity="0.3" />
-            <stop offset="1" stopColor="var(--ps-acc)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <line x1="10" y1="100" x2="290" y2="100" stroke="var(--ps-hair)" strokeWidth="1" />
-        <path d={area} fill="url(#pltTrend)" />
-        <path d={line} fill="none" stroke="var(--ps-acc)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={last[0]} cy={last[1]} r="5.5" fill="var(--ps-acc)" />
-      </svg>
+      {sparse ? (
+        <div className="ps-steps">
+          {/* הפוך: האחרון ראשון, כי בעברית מתחילים מימין */}
+          {[...series].reverse().map((v, i) => (
+            <span key={i} className="ps-chip ps-chip--acc" dir="ltr">{v}/10</span>
+          ))}
+          <span className="ps-lbl">{L('עוד אימון אחד — ותראה כאן גרף מגמה', 'One more session and a trend chart opens here')}</span>
+        </div>
+      ) : (
+        <svg viewBox="0 0 300 110" className="ps-trend" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="10" y1="100" x2="290" y2="100" stroke="var(--ps-hair)" strokeWidth="1" />
+          <path d={line} fill="none" stroke="var(--ps-acc)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={last[0]} cy={last[1]} r="5.5" fill="var(--ps-acc)" />
+        </svg>
+      )}
       <div className="ps-steps">
         <span className="ps-chip ps-chip--acc">{L(`ממוצע ${avg.toFixed(1)} מתוך 10`, `Avg ${avg.toFixed(1)} of 10`)}</span>
         <span className="ps-lbl">{L(`האימון האחרון: ${series[n - 1]} · הגבוה בתקופה: ${top}`, `Last: ${series[n - 1]} · period high: ${top}`)}</span>
@@ -127,7 +138,16 @@ export function FbReact({ fb, coachId, me, hero = false }) {
 // וציר זמן: כל אימון/משחק שעבר הוא כרטיס אחד שמרכז נוכחות, עומס,
 // יעדים ✓✗, משוב המאמן, סיכום, MVP.
 // ============================================================
-export default function PlayerTimeline({ session, membership, bell, coachName: coachNameProp, onCoach }) {
+// 12.9.2026 (player-flow-2) — restricted נכנס לחתימה. המסך הזה היה היחיד
+// בצד השחקן שפתח את גיליון סיכום האימון גם לחשבון «ממתין לאישור הורה»:
+// הילד מילא עומס+מצב רוח+פוקוס+יעדים+הערה, לחץ «שליחה למאמן», והשער
+// ה-RESTRICTIVE של supabase_consent_enforcement.sql דחה — עם «השליחה
+// נכשלה» שאינו מזכיר הורה במילה. טופס שלם שנדחה בשליחה גרוע מכפתור מושבת
+// עם הסבר (אותה הכרעה שכבר עשה הבית ב-PlayerDashboard).
+// ⚠ ה-prop עדיין אינו מועבר מ-PlayerDashboard (קובץ מחוץ לחבילה הזו), ולכן
+// כשהוא חסר אנחנו קוראים את approval_status של החשבון עצמו ב-load. כשהבית
+// יעביר אותו — ה-prop מנצח, ולא תהיה בדיקה כפולה.
+export default function PlayerTimeline({ session, membership, restricted: restrictedProp, bell, coachName: coachNameProp, onCoach }) {
   // §12 — «אימונים שהיו» כסטאק: כרטיס אחד פתוח, השאר שורות מקופלות
   // ⚠ ‏null = הכול מקופל. עד 17.8 הראשון נפתח מעצמו, וזה מה שהפך את
   // הארכיון לקיר במקום לרשימה.
@@ -138,13 +158,17 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
   const [fbOpen, setFbOpen] = useState(false)
   const [latestFb, setLatestFb] = useState(null) // 1.8 — המשוב המלא האחרון
   const [offline, setOffline] = useState(false) // 6.9 — כשל רשת ≠ «עוד אין היסטוריה»
+  // 12.9.2026 (player-flow-2) — נסיגה כשה-prop לא הועבר. ברירת המחדל false:
+  // מסד ישן / כשל קריאה לא יחסמו שחקן שמותר לו לכתוב.
+  const [selfRestricted, setSelfRestricted] = useState(false)
+  const restricted = restrictedProp ?? selfRestricted
   const me = session.user.id
 
   const load = useCallback(async () => {
     if (!membership) return
     const from = ymdAgo(90)
     const today = new Date().toISOString().slice(0, 10)
-    const [slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ, complQ] = await Promise.all([
+    const [slotsQ, schedQ, gamesQ, effQ, fbQ, revQ, marksQ, rosterQ, complQ, profQ] = await Promise.all([
       supabase.from('team_practice_slots').select('*').eq('coach_id', membership.coach_id).eq('team', membership.team),
       // select('*') ולא רשימת עמודות: הרשימה כללה `location`, שלא הייתה
       // קיימת בטבלה — PostgREST מחזיר 42703 ומפיל את **כל** השאילתה, כלומר
@@ -159,6 +183,9 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
       supabase.from('team_players').select('id').eq('coach_id', membership.coach_id).eq('team', membership.team).eq('player_id', me),
       // 1.8 — «משימות שבוצעו» בסיכום הכללי
       supabase.from('assignment_completions').select('assignment_id, done_at').eq('player_id', me),
+      // 12.9.2026 (player-flow-2) — שער אישור ההורה. עמודה בלבד, על השורה
+      // של המשתמש עצמו: זו אותה בדיקה שהבית עושה (isRestricted).
+      supabase.from('profiles').select('approval_status').eq('id', me).maybeSingle(),
     ])
     // 6.9 — בלי רשת כל ה-data מוחזר null, וקודם המסך הציג את «ההיסטוריה
     // שלך תתחיל כאן» — כאילו לא היה שום אימון. עוצרים ואומרים את האמת.
@@ -166,6 +193,9 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
       setOffline(true); setLatestFb(null); setStats(null); setItems([]); return
     }
     setOffline(false)
+    // מסד בלי approval_status / כשל קריאה — משאירים את המצב הקודם (false),
+    // כי חסימה שגויה של שחקן מותר גרועה מהצגת כפתור שיעבוד ממילא.
+    if (!profQ.error) setSelfRestricted(profQ.data?.approval_status === 'pending_parent')
     // 1.8 — המשוב המלא האחרון מהמאמן, מוצג למעלה
     setLatestFb((fbQ.data || []).find((r) => r.content) || null)
     const rosterId = rosterQ.data?.[0]?.id || null
@@ -259,7 +289,9 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
         <div className="ps-hero">
           <div className="ps-hero-row">
             <b className="ps-hero-kick">
-              {L('המשוב האחרון מ', "Coach's latest feedback · ")}{coachName(latestFb.coach)}
+              {/* 12.9.2026 (copy-ux-1-18) — התחילית מ' נדבקה לשם ויצרה
+                  «המשוב האחרון מדני כהן». מפריד, בדיוק כמו בגרסה האנגלית. */}
+              {L('המשוב האחרון · ', "Coach's latest feedback · ")}{coachName(latestFb.coach)}
               {latestFb.created_at ? ` · ${new Date(latestFb.created_at).toLocaleDateString(L('he-IL', 'en-US'), { day: 'numeric', month: 'numeric' })}` : ''}
             </b>
             {latestFb.rating > 0 && (
@@ -290,9 +322,21 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
             {L('איך הרגשת באימון האחרון? העומס והפתק שלך נשמרים בציר ונשלחים למאמן.',
                'How did the last session feel? Your load and note are saved to your timeline and sent to your coach.')}
           </p>
-          <button type="button" className="ps-btn" onClick={() => setFbOpen(true)}>
+          <button type="button" className="ps-btn" onClick={() => setFbOpen(true)} disabled={restricted}>
             <Send size={17} aria-hidden="true" /> {L('מלא סיכום אימון', 'Log session summary')}
           </button>
+          {/* 12.9.2026 (player-flow-2) — למה הכפתור אפור. הניסוח וההיגיון
+              זהים לשאר המסכים המוגבלים; כפתור «שליחת הקישור להורה» יושב
+              בבאנר הקבוע שמעל כל מסך, ולכן לא משוכפל כאן. */}
+          {restricted && (
+            <p className="rstr-note" role="note">
+              <Lock size={13} aria-hidden="true" />
+              <span className="rstr-txt">
+                {L('סיכום האימון נשלח למאמן, ולכן הוא נפתח רק אחרי שההורה מאשר את החשבון. הקישור להורה נמצא בפס שלמעלה.',
+                   'The session summary is sent to your coach, so it opens only after your parent approves the account. The link for your parent is in the bar above.')}
+              </span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -477,8 +521,12 @@ export default function PlayerTimeline({ session, membership, bell, coachName: c
         </div>
       )}
 
-      <FeedbackSheet session={session} membership={membership} open={fbOpen}
-        onClose={() => setFbOpen(false)} onSent={load} />
+      {/* 12.9.2026 (player-flow-2) — לא מרנדרים את הגיליון כלל למי שהשרת
+          יחסום בשליחה. אותה הכרעה בדיוק כמו בבית (PlayerDashboard). */}
+      {!restricted && (
+        <FeedbackSheet session={session} membership={membership} open={fbOpen}
+          onClose={() => setFbOpen(false)} onSent={load} />
+      )}
     </PlayerScreen>
   )
 }

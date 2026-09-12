@@ -19,6 +19,33 @@ import { PLAYER_SIDE } from './flags'
 
 const MAX = 3
 
+// 12.9 — מה נחשב «תיקון ניסוח» של אותה נקודת מיקוד, ומה החלפה מלאה שלה.
+// למה זה קריטי: ההבחנה הזו קובעת אם סימוני session_goal_marks הישנים ממשיכים
+// להיתלות באותו יעד (ורצועת המגמה ממשיכה) או שהיעד נסגר ונפתח חדש (והשחקנים
+// מקבלים הודעה). זיהוי רחב מדי הורס את הזרימה הנפוצה ביותר במסך — המאמן מוחק
+// «תקשורת בהגנה» ומקליד «ריבאונד» באותה שורה — ואז המגמה של הנקודה הישנה
+// מוצגת על הנקודה החדשה, והשחקנים לא מקבלים הודעה בכלל.
+// לכן: ניסוח = אותו טקסט אחרי נרמול (ניקוד/פיסוק/רווחים/רישיות), או הרחבה
+// שמתחילה באותן מילים בדיוק («ריבאונד» → «ריבאונד — לחסום ולתפוס»).
+// כל שאר השינויים חוזרים לנתיב הישן: סגירת הישן + פתיחת חדש + הודעה.
+const normFocus = (s) => String(s || '')
+  .toLowerCase()
+  .replace(/\p{M}+/gu, '') // ניקוד וטעמים — מסירים לפני הפיסוק כדי לא לפצל מילה
+  .replace(/[^\p{L}\p{N}]+/gu, ' ') // פיסוק, מקפים, גרשיים
+  .trim()
+
+const isReword = (oldTitle, newTitle) => {
+  const a = normFocus(oldTitle)
+  const b = normFocus(newTitle)
+  if (!a || !b) return false
+  if (a === b) return true
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  // רישא קצרה מדי («מ» → «מסירה נוספת») היא במקרים רבים הקלדה חדשה לגמרי,
+  // ולכן דורשים לפחות ארבעה תווים ושהרישא תסתיים בגבול מילה.
+  if (short.length < 4) return false
+  return long.startsWith(`${short} `)
+}
+
 // נקודות מיקוד נפוצות — טאפ אחד, בלי הקלדה
 const FOCUS_CHIPS = [
   ['תקשורת בהגנה', 'Talk on defense'],
@@ -92,20 +119,60 @@ export default function TeamFocus({ coachId, team }) {
 
   const save = async () => {
     if (busy) return
-    const wanted = draft.map((t) => t.trim()).filter(Boolean).slice(0, MAX)
+    const trimmed = draft.map((t) => t.trim())
+    const wanted = trimmed.filter(Boolean).slice(0, MAX)
     setBusy(true)
 
-    // נקודה שהוסרה מסומנת done ולא נמחקת — כדי לא לאבד את סימוני האימונים
+    const pts = points || []
     const keepTitles = new Set(wanted)
-    const toClose = (points || []).filter((p) => !keepTitles.has(p.title))
+    const existingTitles = new Set(pts.map((p) => p.title))
+
+    // 12.9 — תיקון ניסוח של נקודה קיימת הוא **עריכה**, לא נקודה חדשה. עד היום
+    // ההשוואה הייתה על הטקסט בלבד, ולכן שינוי תו אחד («תקשורת בהגנה» →
+    // «תקשורת בהגנה!») סגר את היעד הישן (status='done') ופתח שורה עם id חדש:
+    // כל סימוני session_goal_marks נשארו תלויים ביעד הסגור, ורצועת המגמה
+    // חזרה ל«עדיין לא סומן» — והשחקנים קיבלו שוב הודעה על מיקוד «חדש».
+    // הטופס מסודר לפי מקום (draft[i] ↔ points[i]), ולכן שינוי טקסט באותה שורה
+    // **שהוא תיקון ניסוח** (isReword) הוא עריכה של אותו יעד. שני התנאים
+    // הנוספים נועדו לא לבלבל הזזה בין השורות עם עריכה: אם הטקסט הישן עדיין
+    // מופיע במקום אחר, או שהטקסט החדש הוא נקודה קיימת אחרת — זו הזזה,
+    // ומטפלים בה כמו קודם.
+    const renames = []
+    for (let i = 0; i < pts.length; i++) {
+      const t = trimmed[i]
+      const old = pts[i].title
+      if (!t || t === old || keepTitles.has(old) || existingTitles.has(t)) continue
+      if (!isReword(old, t)) continue // החלפה מלאה → סגירה + פתיחה + הודעה
+      renames.push({ id: pts[i].id, title: t })
+    }
+    if (renames.length) {
+      const res = await Promise.all(renames.map((r) => supabase.from('player_goals')
+        .update({ title: r.title, updated_at: new Date().toISOString() }).eq('id', r.id)))
+      const err = res.find((r) => r.error)?.error
+      if (err) {
+        setBusy(false)
+        console.error('TeamFocus.save rename:', err.message || err)
+        toast.error(L('עדכון נקודת המיקוד נכשל — בדקו את החיבור ונסו שוב', 'Updating the focus point failed — check your connection and try again'))
+        return
+      }
+    }
+    const renamedIds = new Set(renames.map((r) => r.id))
+    const renamedTitles = new Set(renames.map((r) => r.title))
+
+    // נקודה שהוסרה מסומנת done ולא נמחקת — כדי לא לאבד את סימוני האימונים
+    const toClose = pts.filter((p) => !renamedIds.has(p.id) && !keepTitles.has(p.title))
     if (toClose.length) {
       await supabase.from('player_goals')
         .update({ status: 'done', updated_at: new Date().toISOString() })
         .in('id', toClose.map((p) => p.id))
     }
 
-    const existing = new Set((points || []).map((p) => p.title))
+    const existing = new Set([...pts.filter((p) => !renamedIds.has(p.id)).map((p) => p.title), ...renamedTitles])
     const fresh = wanted.filter((t) => !existing.has(t))
+    // 12.9 — הטוסט בסוף הבטיח «נשלח לשחקנים» גם כשלא נשלחה שום הודעה
+    // (תיקון ניסוח, מחיקת נקודה, או הזזה בין שורות). מעכשיו הוא מדווח את מה
+    // שקרה בפועל — אחרת המאמן בטוח שהקבוצה יודעת, וזה לא נכון.
+    let notified = false
     if (fresh.length) {
       const { error } = await supabase.from('player_goals').insert(
         fresh.map((title) => ({
@@ -115,7 +182,10 @@ export default function TeamFocus({ coachId, team }) {
       )
       if (error) {
         setBusy(false)
-        toast.error(L('השמירה נכשלה: ', 'Save failed: ') + error.message)
+        // 12.9 — error.message הגולמי («TypeError: Failed to fetch») הודבק עד היום
+        // לתוך משפט עברי ולא אמר למאמן שום דבר שאפשר לעשות. הטכני לקונסול.
+        console.error('TeamFocus.save insert:', error.message || error)
+        toast.error(L('שמירת המיקוד נכשלה — בדקו את החיבור ונסו שוב', 'Saving the focus failed — check your connection and try again'))
         return
       }
       // מודיעים לשחקנים המחוברים — זו כל ההבטחה של המסך הזה
@@ -127,6 +197,7 @@ export default function TeamFocus({ coachId, team }) {
             .eq('coach_id', coachId).eq('team', team).eq('status', 'approved')
         : { data: [] }
       for (const m of members || []) {
+        notified = true
         sendNotification({
           to: m.player_id, actor: coachId, type: 'message',
           content: L('המאמן עדכן את המיקוד של הקבוצה', 'Your coach updated the team focus'),
@@ -138,7 +209,7 @@ export default function TeamFocus({ coachId, team }) {
     setBusy(false)
     setEditing(false)
     toast.success(wanted.length
-      ? (PLAYER_SIDE ? L('המיקוד נשמר ונשלח לשחקנים', 'Focus saved and sent to the players') : L('המיקוד נשמר', 'Focus saved'))
+      ? (notified ? L('המיקוד נשמר ונשלח לשחקנים', 'Focus saved and sent to the players') : L('המיקוד נשמר', 'Focus saved'))
       : L('המיקוד הנוכחי הסתיים', 'Current focus ended'))
     load()
   }
@@ -149,7 +220,9 @@ export default function TeamFocus({ coachId, team }) {
     const arr = metBy[id]
     if (!arr || !arr.length) return PLAYER_SIDE
       ? L('עדיין לא סומן — יופיע אחרי האימון הבא', 'Not marked yet — appears after the next practice')
-      : L('עדיין לא סומן — מסמנים בסקירת האימון', 'Not marked yet — mark it in the practice review')
+      // 12.9 — «סיכום אימון» הוא השם היחיד של הזרימה הזו בכל האפליקציה (היו
+      // «סקירה»/«סיכום»/«דוח» לאותו מסך אחד, והמאמן לא יכול היה לדעת שזה אותו דבר)
+      : L('עדיין לא סומן — מסמנים בסיכום האימון', 'Not marked yet — mark it in the practice summary')
     const a = arr[arr.length - 1]
     return L(`באימון האחרון · ${a.met} מתוך ${a.total} סימנו`, `Last practice · ${a.met} of ${a.total} marked it`)
   }
@@ -174,7 +247,8 @@ export default function TeamFocus({ coachId, team }) {
                 {(metBy[p.id] || []).length >= 2 && (
                   <span className="tf-trend" title={L('מהאימון הישן לחדש', 'Oldest to newest practice')}>
                     {metBy[p.id].map((s, i) => (
-                      <b key={i} className={i === metBy[p.id].length - 1 ? 'on' : ''}>{s.met}/{s.total}</b>
+                      /* 12.9 — X/Y תמיד dir="ltr" (DESIGN.md §4): בלי זה סדר שני המספרים תלוי בהקשר */
+                      <b key={i} dir="ltr" className={i === metBy[p.id].length - 1 ? 'on' : ''}>{s.met}/{s.total}</b>
                     ))}
                   </span>
                 )}
@@ -183,7 +257,7 @@ export default function TeamFocus({ coachId, team }) {
           </ol>
           <p className="tf-note"><Check size={14} /> {PLAYER_SIDE
             ? L('כל השחקנים רואים את זה, ובסוף כל אימון נשאלים אם עמדו בו.', 'Every player sees this, and is asked after each practice whether they met it.')
-            : L('בסקירת כל אימון תסמן לכל שחקן אם עמד בזה — וכאן תראה את המגמה.', 'In each practice review you mark per player whether they met it — and the trend shows here.')}</p>
+            : L('בסיכום כל אימון תסמן לכל שחקן אם עמד בזה — וכאן תראה את המגמה.', 'In each practice summary you mark per player whether they met it — and the trend shows here.')}</p>
           <button type="button" className="btn-soft tf-cta" onClick={() => setEditing(true)}>
             <Pencil size={15} /> {L('שינוי המיקוד', 'Change the focus')}
           </button>

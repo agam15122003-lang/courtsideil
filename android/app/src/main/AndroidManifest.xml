@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 12.9.2026 — allowBackup="false": ה-WebView מחזיק במכשיר את סשן Supabase
+         ואת העותק האופליין (שמות שחקנים, נוכחות, הרכבים), ו-@capacitor/preferences
+         כותב ל-SharedPreferences. עם גיבוי אוטומטי כל זה עולה ל-Google Drive של
+         בעל המכשיר — לרוב ילד — וניתן גם למשיכה ב-adb backup. מדיניות הפרטיות
+         מצהירה שהעותק המקומי «יושב במכשיר שלך ואינו נשלח אלינו»; כיבוי הגיבוי הוא
+         מה שהופך את המשפט לנכון גם מול גוגל. ⚠ Capacitor דורס את הקובץ רק ב-cap add,
+         לא ב-cap sync — השינוי שורד. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

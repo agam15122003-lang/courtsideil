@@ -12,6 +12,7 @@ import {
   buildArrowDraw,
 } from './anim'
 import { InkPaths } from './ink'
+import { L } from './i18n'
 
 // ===== הפרימיטיבים המשותפים של המגרש =====
 // עד היום CourtDiagram ו-TacticsBoard החזיקו שני עותקים זהים של ציור
@@ -232,8 +233,10 @@ export default function CourtDiagram({ full = false, portrait = false, step, ind
   const arrows = (step && step.arrows) || []
   const svgRef = useRef(null)
   useNotebookDraw(svgRef, index, arrows)
+  // 12.9.2026 — ה-aria-label היה אנגלית חד-לשונית, והרכיב מוצג בעברית בכל
+  // המחברת ולוח הטקטיקה: קורא מסך עברי שמע «basketball court diagram».
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${dim.w} ${dim.h}`} className="nb-court" role="img" aria-label="basketball court diagram">
+    <svg ref={svgRef} viewBox={`0 0 ${dim.w} ${dim.h}`} className="nb-court" role="img" aria-label={L('תרשים מגרש כדורסל', 'Basketball court diagram')}>
       <defs>
         <marker id="nb-arrow" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M0,1 L10,5 L0,9 Z" fill={LINE} />

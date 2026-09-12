@@ -46,23 +46,45 @@ export default class ErrorBoundary extends Component {
     const { error } = this.state
     if (!error) return this.props.children
 
-    return (
+    // 12.9.2026 — קריסת שורש היא מסך אחר לגמרי מקריסת מסך פנימי:
+    //  · אין תפריט, אין סרגל ואין ניווט־כיס — ולכן ההבטחה «אפשר לעבור למסך
+    //    אחר בתפריט» הייתה שקר, והמסך גם ישב חשוף על ה-body בלי מרכוז.
+    //  · «נסה שוב» רק מרנדר את אותו עץ שקרס, כלומר זורק שוב מיד. הכפתור
+    //    הנכון הוא רענון הדף — בדיוק כמו ChunkGate ב-Dashboard.
+    const isRoot = this.props.screen === 'root'
+
+    const body = (
       <div className="empty-state" role="alert">
         <span className="empty-ic"><AlertTriangle size={26} /></span>
-        <div className="empty-title">{L('משהו נתקע במסך הזה', 'Something broke on this screen')}</div>
+        <div className="empty-title">
+          {isRoot
+            ? L('CourtSide נתקעה', 'CourtSide got stuck')
+            : L('משהו נתקע במסך הזה', 'Something broke on this screen')}
+        </div>
         <p className="muted small" style={{ maxWidth: 460 }}>
-          {L(
-            'שאר האפליקציה ממשיכה לעבוד — אפשר לעבור למסך אחר בתפריט, או לנסות לטעון את המסך מחדש.',
-            'The rest of the app still works — switch screens from the menu, or try loading this screen again.'
-          )}
+          {isRoot
+            ? L(
+                'צריך לרענן את הדף. שום דבר שנשמר לא אבד — אחרי הרענון הכול חוזר.',
+                'The page needs a refresh. Nothing saved was lost — it all comes back afterwards.'
+              )
+            : L(
+                'שאר האפליקציה ממשיכה לעבוד — אפשר לעבור למסך אחר בתפריט, או לנסות לטעון את המסך מחדש.',
+                'The rest of the app still works — switch screens from the menu, or try loading this screen again.'
+              )}
         </p>
         <div className="form-actions" style={{ justifyContent: 'center' }}>
-          <button type="button" className="btn-primary" onClick={() => this.setState({ error: null })}>
-            <RotateCcw size={16} /> {L('נסה שוב', 'Try again')}
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => (isRoot ? window.location.reload() : this.setState({ error: null }))}
+          >
+            <RotateCcw size={16} /> {isRoot ? L('רענון הדף', 'Refresh the page') : L('נסה שוב', 'Try again')}
           </button>
         </div>
         <p className="muted small" style={{ marginTop: 8, opacity: 0.75 }}>{String(error?.message || error)}</p>
       </div>
     )
+
+    return isRoot ? <div className="center-screen">{body}</div> : body
   }
 }

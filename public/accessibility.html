@@ -14,7 +14,16 @@
 <meta name="document-id" content="accessibility">
 <meta name="document-version" content="v2 · 24.8.2026">
 <meta name="document-date" content="2026-08-24">
+<!-- 12.9.2026 — color-scheme + theme-color: הצהרה שמבטיחה «ניגודיות AA כולל
+     במצב תצוגה כהה» לא יכולה להיות הדף היחיד שקופץ ללבן מלא במצב כהה.
+     הוספת מצב כהה כאן היא תיקון של הצהרה שסתרה את עצמה. -->
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F4F7FB">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F141E">
 <style>
+  /* 12.9.2026 — color-scheme גם ב-CSS ולא רק ב-meta: כך גם פסי הגלילה,
+     שדות הטופס ותפריטי ההקשר של הדפדפן מתהפכים למצב כהה. */
+  :root{color-scheme:light dark}
   body{font-family:"Rubik","Heebo",Arial,sans-serif;line-height:1.8;color:#1d2330;background:#f6f9fc;margin:0;padding:32px 16px}
   .wrap{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e6edf5;border-radius:16px;padding:32px 28px}
   h1{font-size:26px;margin:0 0 4px}.sub{color:#5b6b82;margin:0 0 8px;font-size:14px}
@@ -23,6 +32,15 @@
   ul{padding-inline-start:22px}
   .ver{display:inline-block;margin:0 0 24px;padding:4px 10px;border:1px solid #e6edf5;border-radius:999px;background:#f6f9fc;color:#5b6b82;font-size:13px}
   .ver code{font-family:inherit}
+  /* 12.9.2026 — מצב כהה, באותם טוקנים של «פרקט ולילה» שבאפליקציה */
+  @media (prefers-color-scheme: dark){
+    body{background:#0F141E;color:#E2EAF6}
+    .wrap{background:#161D2B;border-color:#26304A}
+    h2{color:#C6CEDC}
+    .sub{color:#9AA7BC}
+    a{color:#F0A878}
+    .ver{background:#1C2740;border-color:#26304A;color:#9AA7BC}
+  }
 </style>
 </head>
 <body>

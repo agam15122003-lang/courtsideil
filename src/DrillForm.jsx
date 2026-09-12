@@ -227,7 +227,16 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
     e.preventDefault()
     setError(null)
 
-    // קטגוריה היא חובה (השם נבדק אוטומטית כי הוא required)
+    // 12.9.2026: השם נבדק כאן ולא רק ב-required של הטופס — כפתור השמירה
+    // שבתצוגה המקדימה קורא ל-handleSubmit ישירות, מחוץ ל-<form>, ולכן שום
+    // ולידציית HTML לא רצה שם.
+    if (!title.trim()) {
+      setError(L('כתבו שם לתרגיל.', 'Please give the drill a name.'))
+      toast.error(L('כתבו שם לתרגיל.', 'Please give the drill a name.'))
+      return
+    }
+
+    // קטגוריה היא חובה
     if (!category.trim()) {
       setError(L('כתבו קטגוריה לתרגיל.', 'Please give the drill a category.'))
       toast.error(L('כתבו קטגוריה לתרגיל.', 'Please give the drill a category.'))
@@ -248,7 +257,12 @@ export default function DrillForm({ onSaved, onCancel, drill }) {
       age_groups: orderedGroups,
       tags: tags.length ? tags : null,
       difficulty: difficulty || null,
-      duration_minutes: duration ? Number(duration) : null,
+      // 12.9.2026: העמודה שלמה. '10.5' (או טקסט) הגיע כמות שהוא והפיל את כל
+      // השמירה בהודעת Postgres גולמית — אותה נוסחה כמו במחברת.
+      duration_minutes: (() => {
+        const n = Number(duration)
+        return duration === '' || duration == null || Number.isNaN(n) ? null : Math.max(0, Math.round(n))
+      })(),
       goal: goal.trim() || null,
       equipment: equipment.trim() || null,
       players: players.trim() || null,

@@ -40,6 +40,9 @@ const MAX_IMAGES = 4
 // ריקים («עדיין שקט בערוץ…») למרות שיש בהם עשרות הודעות במסד.
 const CHAT_LIMIT = 300
 const CHAT_COLS = 'id, user_id, channel, content, created_at'
+// 12.9.2026 — גודל החלון שממנו נגזרת רשת הערוצים (ראו loadSummary). כל עוד
+// החלון לא מתמלא הוא מכיל את כל היסטוריית הקהילה, ולכן המונים מדויקים.
+const SUMMARY_WINDOW = 400
 
 // יחס גובה-רוחב לתאי התמונות בפיד. ב-CSS כבר מוגדר 4/3 לתאים הקטנים; כאן
 // משלימים את התאים שנשארו בלי יחס (תמונה בודדת, והתמונה הרחבה בפוסט של שלוש)
@@ -879,44 +882,68 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   }
 
   // ---- רשת הערוצים: הודעה אחרונה + מונה «חדש מאז הביקור» לכל ערוץ ----
-  // שתי שאילתות זעירות לכל ערוץ (שורה אחת + count עם head) במקום שליפה של
-  // 300 שורות עם תוכן. מספר הערוצים קבוע וקטן, ולכן זה זול יותר מהקודם.
+  // 12.9.2026 — שתי שאילתות במקום שתים-עשרה. קודם רצו כאן שתי שאילתות לכל
+  // ערוץ (שורה אחרונה + count עם head) — 6 ערוצים = 12 round-trips בכל רענון,
+  // והרענון נורה בעלייה, כל 30 שניות, בכל חזרה לאפליקציה **ובכל הודעה חדשה
+  // בזמן אמת**. עכשיו: חלון אחד של שלוש עמודות זעירות (id, channel,
+  // created_at), שממנו נגזרים גם ההודעה האחרונה של כל ערוץ וגם המונים,
+  // ואחריו שליפה אחת של גוף שש ההודעות האחרונות.
+  // ⚠ כל עוד החלון לא התמלא הוא מכיל את כל היסטוריית הקהילה, ולכן ערוץ
+  //   שחסר בו באמת ריק. רק כשהוא מתמלא נשלפת שורה ממוקדת לערוץ שקט.
   async function loadSummary(opts = {}) {
     if (!opts.silent) setLoading(true)
     const seen = readSeen()
-    const results = await Promise.all(
-      CHANNELS.map(async (c) => {
-        const lastQ = supabase
-          .from('community_messages')
-          .select(CHAT_COLS)
-          .eq('channel', c.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-        let countQ = supabase
-          .from('community_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('channel', c.id)
-        // בלי חותמת ביקור — «חדש» הוא כל מה שיש בערוץ
-        if (seen[c.id]) countQ = countQ.gt('created_at', seen[c.id])
-        const [lastRes, cntRes] = await Promise.all([lastQ, countQ])
-        return {
-          id: c.id,
-          last: lastRes.data?.[0] || null,
-          fresh: cntRes.count || 0,
-          error: lastRes.error || cntRes.error || null,
-        }
-      })
-    )
+    const ids = CHANNELS.map((c) => c.id)
+    // השוואת זמנים דרך Date ולא כמחרוזות: הסיומת של פוסטגרס ('+00:00')
+    // ושל toISOString ('Z') שונות, והשוואת מחרוזות ביניהן משקרת
+    const seenMs = {}
+    for (const id of ids) seenMs[id] = seen[id] ? new Date(seen[id]).getTime() : null
 
-    const failed = results.find((r) => r.error)
-    if (failed) { handleChatError(failed.error, opts); return }
+    const win = await supabase
+      .from('community_messages')
+      .select('id, channel, created_at')
+      .in('channel', ids)
+      .order('created_at', { ascending: false })
+      .limit(SUMMARY_WINDOW)
+    if (win.error) { handleChatError(win.error, opts); return }
+
+    const rows = win.data || []
+    const lastId = {}
+    const fresh = {}
+    for (const id of ids) fresh[id] = 0
+    for (const r of rows) {
+      const ch = r.channel
+      if (!(ch in fresh)) continue
+      if (!lastId[ch]) lastId[ch] = r.id // השורות ממוינות יורד — הראשונה היא האחרונה
+      // בלי חותמת ביקור — «חדש» הוא כל מה שיש בערוץ
+      if (seenMs[ch] == null || new Date(r.created_at).getTime() > seenMs[ch]) fresh[ch] += 1
+    }
+
+    const byChannel = {}
+    const wanted = Object.values(lastId)
+    if (wanted.length) {
+      const bodies = await supabase.from('community_messages').select(CHAT_COLS).in('id', wanted)
+      if (bodies.error) { handleChatError(bodies.error, opts); return }
+      for (const r of bodies.data || []) byChannel[r.channel] = r
+    }
+    // רק כשהחלון התמלא ייתכן ערוץ שקט שנדחק ממנו
+    if (rows.length >= SUMMARY_WINDOW) {
+      const missing = ids.filter((id) => !byChannel[id])
+      if (missing.length) {
+        const extra = await Promise.all(missing.map((ch) =>
+          supabase.from('community_messages').select(CHAT_COLS)
+            .eq('channel', ch).order('created_at', { ascending: false }).limit(1)
+        ))
+        for (const r of extra) if (r.data?.[0]) byChannel[r.data[0].channel] = r.data[0]
+      }
+    }
 
     const next = {}
-    for (const r of results) next[r.id] = { last: r.last, fresh: r.fresh }
+    for (const id of ids) next[id] = { last: byChannel[id] || null, fresh: fresh[id] }
     setNeedsSql(false)
     setSummary(next)
     setError(null)
-    await fillProfiles(results.map((r) => r.last?.user_id).filter(Boolean))
+    await fillProfiles(Object.values(byChannel).map((r) => r.user_id).filter(Boolean))
     if (!opts.silent) setLoading(false)
   }
 
@@ -958,6 +985,14 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
   // וה-polling עוצר כשהטאב ברקע (סוללה ו-egress).
   useEffect(() => {
     let channel = null
+    // 12.9.2026 — ויסות לרענון רשת הערוצים. עד היום **כל** INSERT בקהילה ירה
+    // רענון מלא של התקצירים, בלי שום throttle: רצף של חמש הודעות בדקה =
+    // חמישה רענונים מלאים לטלפון שסתם פתוח על המסך הזה.
+    let gridTimer = null
+    const refreshGrid = () => {
+      if (gridTimer) return
+      gridTimer = setTimeout(() => { gridTimer = null; loadRef.current({ silent: true }) }, 2500)
+    }
     try {
       channel = supabase
         .channel('community-messages-live')
@@ -967,9 +1002,9 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
           (p) => {
             const row = p.new
             const open = activeRef.current
-            // ברשת הערוצים אין מה לצרף — מרעננים את התקצירים
-            if (!open) { loadRef.current({ silent: true }); return }
-            if (!row?.id) { loadRef.current({ silent: true }); return }
+            // ברשת הערוצים אין מה לצרף — מרעננים את התקצירים (מווסת)
+            if (!open) { refreshGrid(); return }
+            if (!row?.id) { refreshGrid(); return }
             // חובה לסנן: ה-state מחזיק עכשיו את הערוץ הפתוח בלבד, והודעה
             // מערוץ אחר הייתה נכנסת אליו ודוחפת ממנו הודעות אמיתיות.
             if ((row.channel || 'כללי') !== open) return
@@ -985,6 +1020,7 @@ function ChatsHub({ session, initialChannel, onConsumeInitial }) {
     document.addEventListener('visibilitychange', onVis)
     return () => {
       clearInterval(t)
+      if (gridTimer) clearTimeout(gridTimer)
       document.removeEventListener('visibilitychange', onVis)
       if (channel) supabase.removeChannel(channel)
     }

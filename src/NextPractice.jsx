@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CalendarClock, MapPin, Clock, PlayCircle, UserCheck, CalendarPlus, ClipboardCheck, Flame, Target, Trophy, Check as CheckLine, HeartPulse, X, Share2 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { downloadIcs } from './ics'
-import SessionDetail from './SessionDetail'
 import { expandSlotsRange } from './sessionId'
 import { L, trTeam } from './i18n'
 // 4.9 — רצועת «מוכנות היום» מוצגת רק למאמני הפיילוט (PILOT_COACHES)
@@ -14,6 +13,11 @@ import useFocusTrap from './useFocusTrap'
 import { waShare } from './share'
 import { SITE_URL } from './constants'
 import { toast } from './toast'
+
+// 12.9.2026 — SessionDetail (27KB raw / ~8KB gzip) נגרר לחבילת הפתיחה רק
+// מפני שיובא כאן סינכרונית: NextPractice יושב בדף הבית, שיושב ב-Dashboard,
+// שיושב ב-App. בפועל הוא נפתח רק בטאפ על «דוח האימון האחרון» — ולכן עצל.
+const SessionDetail = lazy(() => import('./SessionDetail'))
 
 const pad = (n) => String(n).padStart(2, '0')
 const ilNum = (str) => { if (!str) return ''; const d = new Date(str + 'T00:00'); return isNaN(d) ? str : d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear() }
@@ -121,8 +125,12 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         // דיווח בעצמו (player_id). שחקן שיש לו גם וגם נספר פעם אחת.
         const rosterOfAuth = new Map((roster || []).filter((p) => p.player_id).map((p) => [p.player_id, p.id]))
         const rows = eff || []
+        // 12.9.2026 — שורת עומס שאין לה שורת סגל בקבוצה הזו מחזירה null ואינה
+        // נספרת: המכנה הוא מספר שורות הסגל בלבד, ולכן ילד אחד שדיווח עומס
+        // בעצמו וחשבונו נותק מהשורה (או שאושר לשורה חדשה) הציג «6 מתוך 5»,
+        // וגם הוריד/העלה את הממוצע מול מסך הסקירה, שגוזר רק משורות הסגל.
         const keyOfRow = (r) => (
-          r.roster_id ? `r:${r.roster_id}` : rosterOfAuth.has(r.player_id) ? `r:${rosterOfAuth.get(r.player_id)}` : `p:${r.player_id}`
+          r.roster_id ? `r:${r.roster_id}` : rosterOfAuth.has(r.player_id) ? `r:${rosterOfAuth.get(r.player_id)}` : null
         )
         // 6.9 — ערך אחד לכל שחקן. כששחקן גם דורג על ידי המאמן וגם דיווח
         // בעצמו, הערך של המאמן קובע — בדיוק כמו במסך הסקירה. קודם הממוצע
@@ -131,6 +139,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         const byWho = new Map()
         for (const r of rows) {
           const k = keyOfRow(r)
+          if (!k) continue
           const cur = byWho.get(k) || {}
           if (r.source === 'coach' || (r.roster_id && !r.player_id)) cur.coach = Number(r.effort)
           else cur.player = Number(r.effort)
@@ -141,7 +150,9 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
           .map((e) => (e.coach != null && !Number.isNaN(e.coach) ? e.coach : e.player))
           .filter((n) => n != null && !Number.isNaN(n))
         // שורות המאמן נשארות בלי player_id לתמיד (README) — כל שורה עם player_id היא דיווח עצמי
-        const self = rows.filter((r) => r.player_id).length
+        // 12.9.2026 — גם «דיווחו בעצמם» נספר רק על מי שיש לו שורת סגל, אחרת
+        // המונה הזה יכול לעבור את המכנה בדיוק כמו rated
+        const self = rows.filter((r) => r.player_id && keyOfRow(r)).length
         setRecent({
           id: last.id, team: last.team, date: last.date, start_time: last.start_time, location: last.location,
           rated: who.size, total: (roster || []).length, self,
@@ -228,7 +239,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
           {/* 6.9 — הצ'ק-אין נמלא כל בוקר, גם ביום בלי אימון בלו"ז */}
           <ReadinessStrips session={session} />
           {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
-          {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+          {report && <Suspense fallback={null}><SessionDetail session={session} entry={report} onClose={() => setReport(null)} /></Suspense>}
         </div>
       )
     }
@@ -247,7 +258,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         <ReadinessStrips session={session} />
         {reportStrip}
         {gameStrip}
-        {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+        {report && <Suspense fallback={null}><SessionDetail session={session} entry={report} onClose={() => setReport(null)} /></Suspense>}
       </div>
     )
   }
@@ -344,7 +355,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
         {/* 6.9 — רצועה לכל קבוצה שדיווחו בה היום, לא רק לקבוצת האימון הקרוב */}
         <ReadinessStrips session={session} team={entry.team && !entry.is_personal ? entry.team : null} />
         {(reportStrip || gameStrip) && <div className="nh-next-strips">{reportStrip}{gameStrip}</div>}
-        {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+        {report && <Suspense fallback={null}><SessionDetail session={session} entry={report} onClose={() => setReport(null)} /></Suspense>}
       </div>
     )
   }
@@ -403,7 +414,7 @@ export default function NextPractice({ session, schedule, onNavigate, onEntry, v
       <ReadinessStrips session={session} team={entry.team && !entry.is_personal ? entry.team : null} />
       {reportStrip}
       {gameStrip}
-      {report && <SessionDetail session={session} entry={report} onClose={() => setReport(null)} />}
+      {report && <Suspense fallback={null}><SessionDetail session={session} entry={report} onClose={() => setReport(null)} /></Suspense>}
     </div>
   )
 }
@@ -430,9 +441,12 @@ function ReadinessStrips({ session, team }) {
   const [data, setData] = useState(null) // {roster, checkins, pending:Set}
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  // 12.9.2026 — חותמת השליפה האחרונה, לסף הרענון בחזרה לאפליקציה (למטה)
+  const lastLoad = useRef(0)
 
   const load = useCallback(async () => {
     if (!me || !inPilot) return
+    lastLoad.current = Date.now()
     // select('*') — סובלני למסד בלי wellness_off; שגיאה כלשהי = אין רצועה
     const [rosterRes, ckRes] = await Promise.all([
       supabase.from('team_players').select('*').eq('coach_id', me),
@@ -441,15 +455,21 @@ function ReadinessStrips({ session, team }) {
     if (!alive.current) return
     if (rosterRes.error || ckRes.error) return
     // «ממתין לאישור הורה» — כשל כאן לא מפיל את הרצועה, רק את התווית
+    // 12.9.2026 — מאותה שליפה נגזרים גם השמות מהפרופיל, בשביל דיווח של חשבון
+    // שאין לו שורת סגל (ראו «חשבון לא מחובר» ב-ReadinessStrip)
     let pending = new Set()
+    let names = new Map()
     try {
       const { data: mem, error } = await supabase.from('team_memberships')
-        .select('player_id, status, player:profiles!player_id(approval_status)')
+        .select('player_id, status, player:profiles!player_id(approval_status, first_name, last_name)')
         .eq('coach_id', me).eq('status', 'approved')
-      if (!error) pending = new Set((mem || []).filter((m) => m.player?.approval_status === 'pending_parent').map((m) => m.player_id))
+      if (!error) {
+        pending = new Set((mem || []).filter((m) => m.player?.approval_status === 'pending_parent').map((m) => m.player_id))
+        names = new Map((mem || []).map((m) => [m.player_id, `${m.player?.first_name || ''} ${m.player?.last_name || ''}`.trim()]).filter(([, n]) => n))
+      }
     } catch { /* בלי התווית */ }
     if (!alive.current) return
-    setData({ roster: rosterRes.data || [], checkins: ckRes.data || [], pending })
+    setData({ roster: rosterRes.data || [], checkins: ckRes.data || [], pending, names })
   }, [me, inPilot, today])
 
   useEffect(() => { load() }, [load])
@@ -457,8 +477,15 @@ function ReadinessStrips({ session, team }) {
   // רענון זול כשחוזרים אל הלשונית — בלי לולאת polling.
   // ⚠ מנגנון אחד בלבד: בחזרה לאפליקציה בטלפון נורים גם 'focus' וגם
   //   'visibilitychange', וכל רענון היה רץ פעמיים.
+  // 12.9.2026 — סף של דקה בין רענונים: כל חזרה לאפליקציה שלפה כאן שלוש
+  // טבלאות (ועוד עשר שאילתות ב«דברים לביצוע»), ומאמן שמחליף אפליקציות
+  // עשרות פעמים באימון שילם על כולן שוב ושוב. דיווח חדש לא הולך לשום מקום.
   useEffect(() => {
-    const back = () => { if (document.visibilityState === 'visible') load() }
+    const back = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastLoad.current < 60000) return
+      load()
+    }
     document.addEventListener('visibilitychange', back)
     return () => document.removeEventListener('visibilitychange', back)
   }, [load])
@@ -468,7 +495,7 @@ function ReadinessStrips({ session, team }) {
   const teams = [...new Set([team, ...data.checkins.map((c) => c.team)].filter(Boolean))]
   return teams.map((t) => (
     <ReadinessStrip
-      key={t} team={t} today={today} pending={data.pending}
+      key={t} team={t} today={today} pending={data.pending} profileNames={data.names}
       roster={data.roster.filter((p) => p.team === t)}
       checkins={data.checkins.filter((c) => c.team === t)}
       onRefresh={load}
@@ -476,7 +503,7 @@ function ReadinessStrips({ session, team }) {
   ))
 }
 
-function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
+function ReadinessStrip({ team, today, roster, checkins, pending, profileNames, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [ackedIds, setAckedIds] = useState(() => new Set())
   // 4.9 — כמו כל גיליון בפרויקט (FeedbackSheet): מלכודת פוקוס + Escape סוגר
@@ -496,29 +523,51 @@ function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
     return hasAnswer(a) ? a : null
   }
 
-  const eligible = roster.filter((p) => p.player_id && !p.wellness_off)
-  if (eligible.length === 0) return null
-
   const flagOf = (c) => {
     if (!c) return null
     if (c.sick || c.pain_blocks === true) return 'red'
     if (c.sleep_bucket != null && c.sleep_bucket <= 1) return 'yellow'
     return 'ok'
   }
+
+  const eligible = roster.filter((p) => p.player_id && !p.wellness_off)
+  // 12.9.2026 — דיווח של חשבון שאין לו שורת סגל (המאמן ניתק את החשבון, מחק
+  // את השורה, או שהאישור יצר שורה חדשה) נשמט מכאן לגמרי — כולל דגל אדום
+  // «מפריע לשחק» — בזמן שאותו דיווח כן הופיע ב«דברים לביצוע». שני מסכים
+  // באותו דף חלקו על אותו ילד. עכשיו הוא שורה משלו, עם השם מהפרופיל.
+  const rosterIds = new Set(roster.map((p) => p.id))
+  const rosterAuth = new Set(roster.filter((p) => p.player_id).map((p) => p.player_id))
+  const orphanRows = checkins
+    .filter((c) => hasAnswer(c)
+      && !(c.roster_id && rosterIds.has(c.roster_id))
+      && !(c.player_id && rosterAuth.has(c.player_id)))
+    .map((c) => ({
+      kind: 'report', orphan: true, c, flag: flagOf(c),
+      p: { id: `orphan:${c.id}`, name: (c.player_id && profileNames?.get(c.player_id)) || L('שחקן/ית בלי שורת סגל', 'Player with no roster row') },
+    }))
+  if (eligible.length === 0 && orphanRows.length === 0) return null
+
   const reported = eligible.filter((p) => reportOf(p))
-  const flagged = reported
-    .map((p) => ({ p, c: reportOf(p), flag: flagOf(reportOf(p)) }))
-    .filter((r) => r.flag === 'red' || r.flag === 'yellow')
+  const reportRows = [
+    ...reported.map((p) => ({ kind: 'report', p, c: reportOf(p), flag: flagOf(reportOf(p)) })),
+    ...orphanRows,
+  ]
+  // המונה והמכנה כוללים את השורות האלה — אחרת «דיווחו 3 מתוך 5» מסתיר ילד
+  // שדיווח, והמאמן מחפש דגל שאינו ברשימה
+  const repCount = reportRows.length
+  const totalCount = eligible.length + orphanRows.length
+  const flagged = reportRows.filter((r) => r.flag === 'red' || r.flag === 'yellow')
 
   // ---- הגיליון ----
   const order = { red: 0, yellow: 1, ok: 2 }
   const rows = [
-    ...reported
-      .map((p) => ({ kind: 'report', p, c: reportOf(p), flag: flagOf(reportOf(p)) }))
+    ...reportRows
+      .slice()
       .sort((a, b) => order[a.flag] - order[b.flag] || String(a.p.name).localeCompare(String(b.p.name), 'he')),
     ...eligible.filter((p) => !reportOf(p)).map((p) => ({
       kind: 'grey', p,
-      label: pending.has(p.player_id) ? L('ממתין לאישור הורה', 'Awaiting parent approval') : L('לא דיווח', 'No report'),
+      // 12.9.2026 — «אין דיווח» במקום «לא דיווח» (פועל בזכר על שחקנית)
+      label: pending.has(p.player_id) ? L('ממתין לאישור הורה', 'Awaiting parent approval') : L('אין דיווח', 'No report'),
     })),
     ...roster.filter((p) => p.player_id && p.wellness_off).map((p) => ({
       kind: 'grey', p, label: L('בלי שאלות', 'Questions off'),
@@ -590,7 +639,7 @@ function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
           <button className="icon-btn sd-close" onClick={() => setOpen(false)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
           <span className="sd-badge">{L('מוכנות היום', 'Readiness today')}</span>
           <h2>{trTeam(team)}</h2>
-          <span className="sd-date">{L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</span>
+          <span className="sd-date">{L(`דיווחו ${repCount} מתוך ${totalCount}`, `${repCount} of ${totalCount} reported`)}</span>
         </header>
         <div className="sd-scroll">
           {/* 6.9 — אומרים מראש: «ראיתי את התקינים» לא סוגר שורה מסומנת */}
@@ -608,6 +657,9 @@ function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
                   <b>{r.p.name}</b>
                   {r.kind === 'report' ? (
                     <span className="rd-detail">
+                      {/* 12.9.2026 — דיווח בלי שורת סגל: אומרים מה קרה, כדי שהמאמן
+                          יבין למה הילד לא ברשימה ויחבר אותו מפאנל הסגל */}
+                      {r.orphan && <span className="rd-badge rd-unlinked">{L('חשבון לא מחובר לסגל', 'Account not linked to the roster')}</span>}
                       {r.c.sick && <span className="rd-badge red">{L('חולה היום', 'Sick today')}</span>}
                       {r.c.pain_blocks === true && <span className="rd-badge red">{L('מפריע לשחק', 'Blocks play')}</span>}
                       {words(r.c)}
@@ -649,11 +701,11 @@ function ReadinessStrip({ team, today, roster, checkins, pending, onRefresh }) {
         <span className="np-report-ic"><HeartPulse size={17} /></span>
         <span className="np-report-body">
           {/* 6.9 — שם הקבוצה על הרצועה: יש רצועה לכל קבוצה שדיווחו בה היום */}
-          <strong>{L('מוכנות היום', 'Readiness today')} · {trTeam(team)} · {L(`דיווחו ${reported.length} מתוך ${eligible.length}`, `${reported.length} of ${eligible.length} reported`)}</strong>
+          <strong>{L('מוכנות היום', 'Readiness today')} · {trTeam(team)} · {L(`דיווחו ${repCount} מתוך ${totalCount}`, `${repCount} of ${totalCount} reported`)}</strong>
           <span className="np-report-meta">
             {flagged.length > 0
               ? <span className="rd-attn">{L(`${flagged.length} לשים לב: ${names}`, `${flagged.length} to watch: ${names}`)}</span>
-              : reported.length > 0
+              : repCount > 0
                 ? <span>{L('הכול תקין', 'All good')}</span>
                 : <span>{L('אין דיווחים עדיין הבוקר', 'No reports yet this morning')}</span>}
           </span>

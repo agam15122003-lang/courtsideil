@@ -314,14 +314,22 @@ export default function Admin({ session, profile }) {
     const ok = await confirmDialog({
       title: L('למחוק את החשבון לצמיתות?', 'Permanently delete this account?'),
       // הדיאלוג מצטט את הדוח במפורש — אישור על מספרים, לא על תחושה.
-      message:
-        `${name}${id.email ? ` · ${id.email}` : ''}. ` +
-        L(`יימחקו ${rows} שורות ו-${files} קבצים, ו-${roster} שורות סגל יעברו אנונימיזציה `
-          + '(השם והפרטים מוסרים, נתוני הנוכחות של המאמן נשארים). ',
-          `${rows} rows and ${files} files will be deleted, and ${roster} roster rows will be anonymised `
-          + '(name and details removed, the coach’s attendance data kept). ') +
-        L('יומן ההסכמות נשמר כראיה שההורה אישר. הפעולה אינה הפיכה ואין ממנה שחזור.',
-          'The consent log is kept as evidence that a guardian approved. This cannot be undone or restored.'),
+      // 12.9.2026 — ReactNode ולא מחרוזת, כדי שכתובת המייל תיעטף ב-bdi:
+      // מייל הוא רצף LTR חזק, והנקודה שאחריו ניטרלית — בשורה עברית הפיסוק
+      // נדד לקצה הלא נכון של הכתובת. שאר המסך כבר עוטף מיילים ככה.
+      message: (
+        <>
+          {name}
+          {id.email ? <> · <bdi dir="ltr">{id.email}</bdi></> : null}
+          {'. '}
+          {L(`יימחקו ${rows} שורות ו-${files} קבצים, ו-${roster} שורות סגל יעברו אנונימיזציה `
+            + '(השם והפרטים מוסרים, נתוני הנוכחות של המאמן נשארים). ',
+            `${rows} rows and ${files} files will be deleted, and ${roster} roster rows will be anonymised `
+            + '(name and details removed, the coach’s attendance data kept). ')}
+          {L('יומן ההסכמות נשמר כראיה שההורה אישר. הפעולה אינה הפיכה ואין ממנה שחזור.',
+            'The consent log is kept as evidence that a guardian approved. This cannot be undone or restored.')}
+        </>
+      ),
       confirmText: L('מחק לצמיתות', 'Delete permanently'),
       danger: true,
     })
@@ -410,9 +418,16 @@ export default function Admin({ session, profile }) {
     if (!email) { toast.error(L('צריך למלא מייל של ההורה', 'A guardian email is required')); return }
     const ok = await confirmDialog({
       title: L('להחליף את ההורה הרשום?', 'Change the registered guardian?'),
-      message: L(
-        `ההורה הרשום של ${req.first_name || ''} ${req.last_name || ''} יוחלף ל-${email}. מרגע זה כל הפיקוח ההורי — קישורי האישור, השינוי וביטול ההסכמה — עובר לאדם הזה. עשו זאת רק אחרי שאימתתם את הפנייה מחוץ למערכת, למשל בשיחת טלפון. ההחלטות שכבר נרשמו נשמרות ביומן ההסכמות.`,
-        `The registered guardian of ${req.first_name || ''} ${req.last_name || ''} will be changed to ${email}. From now on all parental oversight — the approval, change and revocation links — moves to that person. Do this only after verifying the request out of band, for example by phone. Decisions already recorded stay in the consent log.`
+      // 12.9.2026 — ReactNode ולא מחרוזת: הכתובת עטופה ב-bdi כדי שהנקודה
+      // שאחריה לא תיסחף לקצה הלא נכון בשורה עברית (ראו runDeletion).
+      message: (
+        <>
+          {L(`ההורה הרשום של ${req.first_name || ''} ${req.last_name || ''} יוחלף ל-`,
+             `The registered guardian of ${req.first_name || ''} ${req.last_name || ''} will be changed to `)}
+          <bdi dir="ltr">{email}</bdi>
+          {L('. מרגע זה כל הפיקוח ההורי — קישורי האישור, השינוי וביטול ההסכמה — עובר לאדם הזה. עשו זאת רק אחרי שאימתתם את הפנייה מחוץ למערכת, למשל בשיחת טלפון. ההחלטות שכבר נרשמו נשמרות ביומן ההסכמות.',
+             '. From now on all parental oversight — the approval, change and revocation links — moves to that person. Do this only after verifying the request out of band, for example by phone. Decisions already recorded stay in the consent log.')}
+        </>
       ),
       confirmText: L('החלף הורה', 'Change guardian'),
       danger: true,

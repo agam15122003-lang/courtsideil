@@ -88,9 +88,14 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
     const pad = (n) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   }
+  // 12.9.2026: התאריך הוא **תמיד** state שהמאמן יכול לשנות. קודם הוא היה נעול
+  // ל-session_date של התוכנית — ו«פתח כתוכנית» על תוכנית של שבוע שעבר רשם את
+  // נוכחות היום על התאריך הישן (ודרס את מה שכבר נרשם שם). האתחול מהתוכנית
+  // נעשה פעם אחת לכל planId, כדי ש«נסה שוב» (tick) לא ידרוס בחירה של המאמן.
   const [dateOverride, setDateOverride] = useState(todayISO)
+  const dateInitFor = useRef(null)
   const team = state.plan?.team || ''
-  const date = state.plan?.session_date || dateOverride
+  const date = dateOverride
 
   // ---------- טעינת התוכנית ----------
   useEffect(() => {
@@ -114,6 +119,12 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
       if (error || !data) {
         setState({ loading: false, error: L('שגיאה בטעינת התוכנית: ', 'Failed to load plan: ') + (error?.message || ''), plan: null, items: [] })
         return
+      }
+      // 12.9.2026: אתחול חד-פעמי של שדה התאריך מהתוכנית (אם יש לה תאריך).
+      // לתוכנית בלי תאריך — נשאר היום.
+      if (dateInitFor.current !== planId) {
+        dateInitFor.current = planId
+        if (data.session_date) setDateOverride(data.session_date)
       }
       if (fromCache) {
         setOffline(true)
@@ -335,10 +346,15 @@ export default function PlanRun({ session, planId, onBack, onEdit }) {
             <span className="muted small"><span dir="ltr">{attending}/{roster.length}</span> {L('נוכחים', 'present')}</span>
           )}
         </div>
-        {team && !state.plan?.session_date && (
+        {team && (
           <p className="muted small nbk-att-hint plan-run-date">
-            {L('לתוכנית אין תאריך — הנוכחות תירשם לתאריך: ', 'This plan has no date — attendance is recorded for: ')}
+            {L('הנוכחות תירשם לתאריך: ', 'Attendance is recorded for: ')}
             <input type="date" dir="ltr" value={dateOverride} onChange={(e) => setDateOverride(e.target.value || todayISO())} aria-label={L('תאריך הנוכחות', 'Attendance date')} />
+            {dateOverride !== todayISO() && (
+              <span className="plan-run-date-warn" role="status">
+                {L('לא להיום — שנו את התאריך אם האימון מתקיים עכשיו.', 'Not today — change the date if this practice is happening now.')}
+              </span>
+            )}
           </p>
         )}
         {!team ? (

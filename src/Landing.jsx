@@ -22,6 +22,11 @@ import ThemeToggle from './ThemeToggle'
 import { L } from './i18n'
 import { ArrowFwd } from './DirIcon'
 import { COACHING_QUOTES } from './constants'
+// 12.9.2026 — תשובת ה-FAQ «איך מצטרפים?» מתארת את **מסך ההרשמה**, ולכן היא
+// נגזרת מ-PLAYER_SIGNUP ולא מ-LANDING_PLAYER_COPY: המתג המקומי קובע רק את
+// שפת השיווק בדף, בעוד הדלת שנפתחת בלחיצה על «מתחילים בחינם» נקבעת בדגל.
+// כששניהם לא הוסכמו, הדף הבטיח «פרופיל מאמן» והכפתור פתח מסך עם דלת «שחקן».
+import { PLAYER_SIGNUP } from './flags'
 // 22.8 — השקת צד המאמן בלבד: הטקסטים של «מאמן ושחקן» נשארים כאן מאחורי
 // מתג, והדף מציג גרסה למאמנים (בלי טיזר — הוסר 30.8, החלטת הבעלים).
 // 2.9 — צד השחקן חזר לפיילוט, והדף קיבל גרסה שמתארת גם אותו.
@@ -163,12 +168,14 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         </>
       ),
     },
-    { q: L('איך מצטרפים?', 'How do I join?'), a: LANDING_PLAYER_COPY
-      ? L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל — מאמן או שחקן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a profile — coach or player. That’s it, you’re in.')
+    { q: L('איך מצטרפים?', 'How do I join?'), a: PLAYER_SIGNUP
+      ? L('לוחצים "מתחילים בחינם", בוחרים מאמן או שחקן, ונרשמים עם אימייל. וזהו, אתם בפנים.', 'Click "Start free", choose coach or player, and sign up with your email. That’s it, you’re in.')
       : L('לוחצים "מתחילים בחינם", נרשמים עם אימייל ומקימים פרופיל מאמן. וזהו, אתם בפנים.', 'Click "Start free", sign up with your email and set up a coach profile. That’s it, you’re in.') },
     ...(!LANDING_PLAYER_COPY ? [{
       q: L('ומה עם השחקנים שלי?', 'What about my players?'),
-      a: L('השחקנים לא חייבים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם.', 'Players don’t have to have an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you.'),
+      // 12.9.2026 — «לא חייבים» ולא «לא יכולים»: חשבון שחקן קיים (PLAYER_SIDE),
+      // והנוסח הקודם השתמע כאילו אין כזה בכלל.
+      a: L('השחקנים לא חייבים חשבון — אתם מזינים את הסגל, רושמים נוכחות, עומס, יעדים ומשוב, והכול נשמר אצלכם. מי שכן רוצה לראות את זה בטלפון שלו, מצטרף בקוד שאתם שולחים.', 'Players don’t have to have an account — you add the roster, log attendance, load, goals and feedback, and it all stays with you. Anyone who does want it on their own phone joins with a code you send.'),
     }] : []),
     { q: L('חייבים לשתף את התרגילים שלי עם כולם?', 'Do I have to share my drills with everyone?'), a: L('לא. אפשר לעבוד לגמרי באופן פרטי, ולשתף עם קהילת המאמנים רק את מה שתבחר — כשתבחר.', 'No. You can work fully privately and share with the coaching community only what you choose — when you choose.') },
   ]
@@ -178,6 +185,11 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
 
   return (
     <div className="land">
+      {/* 12.9.2026 — קישור דילוג + <main>. עד היום כל תוכן הדף (הירו, הפיצ'רים,
+          ה-FAQ) ישב מחוץ לכל landmark: קורא מסך יכול היה לקפוץ רק ל-header
+          ול-footer, ומשתמש מקלדת נאלץ לעבור דרך כל סרגל הכותרת בכל טעינה.
+          ‎.skip-link כבר מעוצב ב-index.css (מוצג רק ב-:focus). */}
+      <a className="skip-link" href="#land-main">{L('דלג לתוכן', 'Skip to content')}</a>
       <header className="land-nav">
         <div className="land-brand">
           <Logo size={30} />
@@ -191,6 +203,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
         </div>
       </header>
 
+      <main id="land-main" className="land-main">
       <section className="land-hero land-hero-night">
         <span className="lhn-glow" aria-hidden="true" />
         <div className="land-hero-text">
@@ -213,7 +226,11 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
               «גלה את הכלים» ירד לקישור עדין מתחתם כדי לא להתחרות בהם. */}
           <div className="land-cta land-cta-auth">
             <button className="btn-primary btn-lg land-cta-login" onClick={goLogin}>
-              <LogIn size={18} />
+              {/* 12.9.2026 — lucide-react log-in הוא חץ שנכנס ימינה אל תוך דלת,
+                  ובעברית הוא מצביע החוצה מהמסך. הכפתור שמתחתיו (ArrowFwd)
+                  מצביע שמאלה, ונוצרו שני חצים מנוגדים זה מעל זה. הופכים
+                  אופקית בעברית בלבד — DirIcon אינו עוטף אייקון שאין לו זוג. */}
+              <LogIn size={18} style={{ transform: L('scaleX(-1)', 'none') }} />
               {L('התחברות', 'Log in')}
             </button>
             <button className="btn-lg land-cta-signup" onClick={goSignup}>
@@ -386,6 +403,7 @@ export default function Landing({ onEnter, onLogin, onSignup }) {
           <ArrowFwd size={18} />
         </button>
       </section>
+      </main>
 
       <footer className="land-footer land-footer-rich">
         <div className="land-footer-grid">

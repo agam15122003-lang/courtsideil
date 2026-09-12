@@ -8,9 +8,15 @@ import { confirmDialog } from './confirm'
 import { SkeletonCards } from './Skeleton'
 import { sendNotification } from './notify'
 
+// «עוד לא נפרס בפרודקשן» — עמודה/טבלה שחסרות במסד (אותה תבנית כמו בשאר המסכים)
+const notDeployed = (e) =>
+  ['42703', '42P01', 'PGRST204'].includes(e?.code) ||
+  /does not exist|could not find/i.test(e?.message || '')
+
 function fmtDate(d) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('he-IL', {
+  // 12.9.2026: סדר היום/חודש לפי שפת הממשק (קודם נעול ל-he-IL)
+  return new Date(d).toLocaleDateString(L('he-IL', 'en-US'), {
     day: 'numeric',
     month: 'numeric',
     year: 'numeric',
@@ -19,6 +25,13 @@ function fmtDate(d) {
 
 // שמונת האזורים של מסמך ההשקה (2.1)
 export const REGIONS = ['צפון', 'חיפה', 'שרון', 'מרכז', 'תל אביב', 'ירושלים', 'שפלה', 'דרום']
+// 12.9.2026: רק התווית מתורגמת — הערך שנשמר במסד ושלפיו מסננים נשאר עברית,
+// בדיוק כמו שכבות הגיל (tr). בלי זה שמות האזורים נשארו עברית במצב English.
+const REGION_EN = {
+  'צפון': 'North', 'חיפה': 'Haifa', 'שרון': 'Sharon', 'מרכז': 'Center',
+  'תל אביב': 'Tel Aviv', 'ירושלים': 'Jerusalem', 'שפלה': 'Shfela', 'דרום': 'South',
+}
+const regionLabel = (r) => (r ? L(r, REGION_EN[r] || r) : '')
 const HOME_AWAY = [
   { id: 'home', label: ['אצלנו', 'Home'] },
   { id: 'away', label: ['אצלם', 'Away'] },
@@ -100,7 +113,10 @@ export default function GamesBoard({ session }) {
     let { error } = await supabase.from('game_requests').insert({
       ...base, region: region || null, date_from: dateFrom || null, date_to: dateTo || null, home_away: homeAway,
     })
-    if (error) ({ error } = await supabase.from('game_requests').insert(base))
+    // 12.9.2026: נופלים לבקשה המצומצמת **רק** כשהעמודות באמת חסרות. קודם כל
+    // שגיאה (רשת, timeout, RLS) הפעילה ניסיון שני בלי אזור/טווח/בית-חוץ —
+    // והבקשה פורסמה בלי בדיוק השדות שלפיהם מסננים אותה, או פורסמה פעמיים.
+    if (error && notDeployed(error)) ({ error } = await supabase.from('game_requests').insert(base))
     setPosting(false)
     if (error) {
       toast.error(L('הפרסום נכשל: ', 'Posting failed: ') + error.message)
@@ -189,7 +205,7 @@ export default function GamesBoard({ session }) {
             {REGIONS.map((r) => (
               <button type="button" key={r} className={region === r ? 'chip selected' : 'chip'}
                 onClick={() => setRegion(region === r ? '' : r)}>
-                {r}
+                {regionLabel(r)}
               </button>
             ))}
           </div>
@@ -250,7 +266,7 @@ export default function GamesBoard({ session }) {
       <div className="chips" style={{ marginTop: 8 }}>
         <button type="button" className={!fRegion ? 'chip selected' : 'chip'} onClick={() => setFRegion('')}>{L('כל הארץ', 'All regions')}</button>
         {REGIONS.map((r) => (
-          <button type="button" key={r} className={fRegion === r ? 'chip selected' : 'chip'} onClick={() => setFRegion(fRegion === r ? '' : r)}>{r}</button>
+          <button type="button" key={r} className={fRegion === r ? 'chip selected' : 'chip'} onClick={() => setFRegion(fRegion === r ? '' : r)}>{regionLabel(r)}</button>
         ))}
       </div>
       <div className="chips" style={{ marginTop: 6 }}>
@@ -294,7 +310,7 @@ export default function GamesBoard({ session }) {
                 <div className="drill-card-top">
                   <h3 className="coach-name">{nameOf(g)}</h3>
                   {g.age_group && <span className="cat-badge">{tr(g.age_group)}</span>}
-                  {g.region && <span className="cat-badge"><MapPin size={11} /> {g.region}</span>}
+                  {g.region && <span className="cat-badge"><MapPin size={11} /> {regionLabel(g.region)}</span>}
                   {g.home_away && <span className="cat-badge">{homeAwayLabel(g.home_away)}</span>}
                 </div>
 

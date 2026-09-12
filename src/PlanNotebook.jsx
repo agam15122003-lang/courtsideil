@@ -139,6 +139,9 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
   const [rosterTick, setRosterTick] = useState(0) // «נסה שוב» לשליפת הסגל
   const [att, setAtt] = useState({}) // team_players.id -> {status, preset, text}
   const attTouched = useRef(false)
+  // 12.9.2026: המפתח (קבוצה|תאריך) שהנוכחות שעל המסך שייכת לו. בלעדיו החלפת
+  // תאריך אחרי סימון השאירה את הסימונים על המסך והשמירה כתבה אותם לתאריך החדש.
+  const attKey = useRef('')
 
   // --- בורר תרגילים ---
   const [picking, setPicking] = useState(false)
@@ -191,6 +194,11 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
         localStorage.setItem(crashKey, JSON.stringify({
           at: Date.now(), name, team, date, duration, body, ink,
           courts: courts.map((c) => ({ id: c.id, board: c.board })), isDraft,
+          // 12.9.2026: גם התרגילים מהספרייה. בלעדיהם השחזור החזיר את הטקסט
+          // אבל ניתק את הקישורים — והשמירה הבאה (keepIds ריק) הייתה מוחקת
+          // מה-plan_items גם קישורים שכבר היו במסד.
+          linked: linked.map(({ key, id, drill_id, title, description, duration_minutes }) =>
+            ({ key, id, drill_id, title, description, duration_minutes })),
         }))
       } catch { /* אחסון מלא/חסום — ההצלה מושבתת בשקט, השמירה הרגילה עובדת */ }
     }, 2500)
@@ -205,7 +213,11 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
       const raw = localStorage.getItem(crashKey)
       if (!raw) return
       const d = JSON.parse(raw)
-      const its = JSON.stringify({ name: d.name, team: d.team, date: d.date, duration: d.duration, body: d.body, linked: linked.map((l) => l.drill_id), isDraft: d.isDraft })
+      // 12.9.2026: משווים את הקישורים **של הטיוטה**, לא של המצב הנוכחי —
+      // אחרת חלק זה תמיד יצא שווה ושינוי בתרגילים לא הציע שחזור.
+      // טיוטה ישנה (בלי השדה) משאירה את ההתנהגות הקודמת.
+      const dLinked = Array.isArray(d.linked) ? d.linked.map((l) => l.drill_id) : linked.map((l) => l.drill_id)
+      const its = JSON.stringify({ name: d.name, team: d.team, date: d.date, duration: d.duration, body: d.body, linked: dLinked, isDraft: d.isDraft })
       if (its + JSON.stringify({ ink: d.ink, courts: d.courts }) === baseSer + inkSer) {
         localStorage.removeItem(crashKey) // זהה למה שנטען — אין מה לשחזר
         return
@@ -227,6 +239,10 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
     if (Array.isArray(d.courts) && d.courts.length) {
       setCourts(d.courts.map((c) => ({ id: c.id || newId(), board: c.board && c.board.steps ? c.board : emptyBoard() })))
     }
+    // 12.9.2026: הקישורים לספרייה חוזרים עם הטיוטה (ראו הערת השמירה)
+    if (Array.isArray(d.linked)) {
+      setLinked(d.linked.filter((l) => l && l.drill_id).map((l) => ({ ...l, key: l.key || l.id || newId() })))
+    }
     setCrashDraft(null)
     toast.success(L('הטיוטה שוחזרה — אל תשכחו לשמור', 'Draft restored — remember to save'))
   }
@@ -239,13 +255,17 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const { data: p } = await supabase
-        .from('profiles').select('first_name, last_name, club, age_groups').eq('id', me).single()
+      // 12.9.2026: הבורר מאחד שני מקורות, בדיוק כמו הלו״ז — קבוצות הפרופיל
+      // **וגם** קבוצות שיש להן סגל. קבוצה שהוקלדה ידנית ויש בה שחקנים אבל
+      // אינה בפרופיל לא הייתה ניתנת לבחירה, ובלי קבוצה אין נוכחות בכלל.
+      const [{ data: p }, { data: rp }] = await Promise.all([
+        supabase.from('profiles').select('first_name, last_name, club, age_groups').eq('id', me).single(),
+        supabase.from('team_players').select('team').eq('coach_id', me),
+      ])
       if (!alive) return
-      if (p) {
-        setCoach({ club: p.club || '', name: `${p.first_name || ''} ${p.last_name || ''}`.trim() })
-        setTeams(Array.isArray(p.age_groups) ? p.age_groups : [])
-      }
+      if (p) setCoach({ club: p.club || '', name: `${p.first_name || ''} ${p.last_name || ''}`.trim() })
+      const set = new Set([...(Array.isArray(p?.age_groups) ? p.age_groups : []), ...((rp || []).map((r) => r.team))])
+      setTeams([...set].filter(Boolean))
     })()
     return () => { alive = false }
   }, [me])
@@ -362,7 +382,13 @@ export default function PlanNotebook({ session, planId, onSaved, onCancel, onOpe
           next[r.player_id] = { status: r.status || 'present', preset, text }
         }
       }
-      if (attRows?.length || !attTouched.current) {
+      // 12.9.2026: שינוי קבוצה/תאריך מאפס תמיד את הסימונים (sameKey=false) —
+      // סימונים של תאריך אחד לא ייכתבו בשמירה על תאריך אחר. רק רענון של אותו
+      // (קבוצה,תאריך) — «נסה שוב» — משמר סימון שהמאמן כבר עשה ועוד לא נשמר.
+      const key = `${team}|${date}`
+      const sameKey = attKey.current === key
+      attKey.current = key
+      if (attRows?.length || !attTouched.current || !sameKey) {
         setAtt(next)
         attTouched.current = false
         // טעינה אינה «שינוי»: מעדכנים בצילום רק את חלק הנוכחות

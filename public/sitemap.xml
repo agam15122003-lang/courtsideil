@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://courtsideil.vercel.app/</loc><lastmod>2026-08-24</lastmod><priority>1.0</priority></url>
-  <url><loc>https://courtsideil.vercel.app/privacy.html</loc><lastmod>2026-08-24</lastmod><priority>0.3</priority></url>
-  <url><loc>https://courtsideil.vercel.app/terms.html</loc><lastmod>2026-08-24</lastmod><priority>0.3</priority></url>
+  <!-- 12.9.2026 — lastmod חייב לשקף את meta[name=document-date] של כל מסמך.
+       כשהוא ישן, גוגל לא זוחל מחדש ותוצאות החיפוש ממשיכות להציג את נוסח v2
+       («בלי חשבונות שחקן ובלי הסכמת הורים») — נוסח שקרי מאז 6.9. -->
+  <url><loc>https://courtsideil.vercel.app/</loc><lastmod>2026-09-12</lastmod><priority>1.0</priority></url>
+  <url><loc>https://courtsideil.vercel.app/privacy.html</loc><lastmod>2026-09-06</lastmod><priority>0.3</priority></url>
+  <url><loc>https://courtsideil.vercel.app/terms.html</loc><lastmod>2026-09-06</lastmod><priority>0.3</priority></url>
   <url><loc>https://courtsideil.vercel.app/accessibility.html</loc><lastmod>2026-08-24</lastmod><priority>0.3</priority></url>
 </urlset>

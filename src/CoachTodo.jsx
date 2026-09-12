@@ -4,7 +4,7 @@
 // כל שורה מנווטת למסך התיקון. מצב ריק: "הכול סגור, מאמן 🏀".
 // כל שאילתה סובלנית לשגיאה/טבלה חסרה — כלל שנכשל פשוט לא מציג שורה.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ClipboardCheck, Target, CalendarDays, Hourglass, AlertTriangle, Users2, CheckCircle2,
   Shield, Check, Rocket, HeartPulse,
@@ -17,6 +17,8 @@ import { ChevronFwd } from './DirIcon'
 // 4.9 — דגלים אדומים מהצ'ק-אין (כאב שמפריע לשחק / חולה): «דיברתי איתו» בטאפ
 import { localDate } from './CheckinCard'
 import { toast } from './toast'
+// 12.9.2026 — סגירת דגל בריאות עוברת דרך אישור (ראו הבלוק «דגלים אדומים»)
+import { confirmDialog } from './confirm'
 
 const pad = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -36,8 +38,17 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
   // ⚠ מנגנון אחד בלבד: בחזרה לאפליקציה בטלפון נורים גם 'focus' וגם
   //   'visibilitychange', וכל רענון היה רץ פעמיים.
   const [tick, setTick] = useState(0)
+  // 12.9.2026 — סף של דקה בין רענונים. כל חזרה לאפליקציה הפעילה כאן עשר
+  // שאילתות (ועוד חמש ברצועת המוכנות), ומאמן שמחליף אפליקציות עשרות פעמים
+  // במהלך אימון שילם עליהן בכל פעם. מה שהרענון קיים בשבילו — דגל צ'ק-אין
+  // שנכתב בצהריים — לא משתנה בתוך דקה.
+  const lastLoad = useRef(0)
   useEffect(() => {
-    const back = () => { if (document.visibilityState === 'visible') setTick((t) => t + 1) }
+    const back = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastLoad.current < 60000) return
+      setTick((t) => t + 1)
+    }
     document.addEventListener('visibilitychange', back)
     return () => document.removeEventListener('visibilitychange', back)
   }, [])
@@ -45,6 +56,7 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
   useEffect(() => {
     if (!me) return
     let alive = true
+    lastLoad.current = Date.now()
     ;(async () => {
       const now = new Date()
       const todayStr = ymd(now)
@@ -56,13 +68,25 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       // בכל טעינת בית. תאריך לפי שעון ישראל (localDate) — כך הצ'ק-אין נכתב.
       const inPilot = isPilotCoach(session?.user?.email)
       const [entriesRes, slotsRes, attRes, revRes, rosterRes, goalsRes, tgRes, asgRes, pendRes, ckRes] = await Promise.all([
+        // 12.9.2026 — `.eq('created_by', me)`: ה-RLS של schedule_entries מתירה
+        // קריאה לכל חבר קבוצה (schedule_member_read), ולכן מאמן שיש לו גם
+        // חברות מאושרת אצל עמית קיבל כאן גם את האימונים של העמית. הם עברו את
+        // הסינון למטה, ומכיוון שהנוכחות והסיכומים מסוננים ל-coach_id שלו הם
+        // הופיעו לנצח כ«עוד פתוח · נוכחות לא סומנה».
         supabase.from('schedule_entries').select('id, team, date, start_time, end_time, is_personal')
-          .gte('date', ymd(from7)).lte('date', todayStr),
+          .eq('created_by', me).gte('date', ymd(from7)).lte('date', todayStr),
         supabase.from('team_practice_slots').select('*').eq('coach_id', me),
+        // 12.9.2026 — 60 יום בלי תקרה היו ~1,500 שורות בכל טעינת בית. הסדר
+        // היורד + התקרה שומרים בדיוק את מה שנדרש: 7 הימים לכלל «אימון פתוח»
+        // והסימונים האחרונים לרצף החיסורים (חיתוך מוריד רק שורות ישנות, ולכן
+        // רצף יכול רק להתקצר — לעולם לא להיווצר יש מאין).
         supabase.from('practice_attendance').select('team, session_date, player_id, status')
-          .eq('coach_id', me).gte('session_date', ymd(addDays(now, -60))),
+          .eq('coach_id', me).gte('session_date', ymd(addDays(now, -60)))
+          .order('session_date', { ascending: false }).limit(600),
         supabase.from('session_reviews').select('session_id').eq('coach_id', me).eq('session_type', 'practice'),
-        supabase.from('team_players').select('id, name, team, player_id').eq('coach_id', me),
+        // 12.9.2026 — select('*') כמו ברצועת המוכנות: צריך גם wellness_off
+        // («בלי שאלות בוקר»), ועמודה חסרה במסד ישן לא מפילה כוכבית
+        supabase.from('team_players').select('*').eq('coach_id', me),
         // select('*') — roster_id (22.8) עלול עוד לא להתקיים במסד
         supabase.from('player_goals').select('*').eq('coach_id', me).neq('status', 'done'),
         supabase.from('team_goals').select('team, content').eq('coach_id', me)
@@ -102,25 +126,61 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
       // (ייחודיות במסד). שינה קצרה = צהוב בגיליון המוכנות בלבד, לא כאן.
       // בלי התראה להורה ובלי פעמון — החלטת הבעלים: «רק שיחה עם הילד».
       {
-        const flags = (ckRes.error ? [] : ckRes.data || [])
-          .filter((c) => (c.sick || c.pain_blocks === true) && !c.handled_at)
         const nameById = new Map(roster.map((p) => [p.id, p.name]))
         const nameByAuth2 = new Map(roster.filter((p) => p.player_id).map((p) => [p.player_id, p.name]))
+        const rosterIdOf = (c) => c.roster_id || (c.player_id && byAuth.get(c.player_id)) || null
+        // 12.9.2026 — «בלי שאלות בוקר» (wellness_off) כובד עד היום רק ברצועת
+        // המוכנות: כאן דיווח מהבוקר שלפני הכיבוי המשיך להופיע עם שם הילד,
+        // אחרי שההורה כבר ביקש שלא יישאל. אותו סינון בדיוק כמו ב-NextPractice.
+        const offIds = new Set(roster.filter((p) => p.wellness_off).map((p) => p.id))
+        const flags = (ckRes.error ? [] : ckRes.data || [])
+          .filter((c) => (c.sick || c.pain_blocks === true) && !c.handled_at)
+          .filter((c) => { const rid = rosterIdOf(c); return !(rid && offIds.has(rid)) })
+        // 12.9.2026 — דגל בלי שם: צ'ק-אין שנכתב על חשבון שכבר לא יושב על שורת
+        // סגל (ניתוק/מחיקה של השורה) הופיע כ«שחקן דיווח כאב», והמאמן נאלץ
+        // לסגור דגל בריאותי של ילד אלמוני. שולפים את השם מהפרופיל דרך
+        // החברות — ורק כשבאמת חסר שם, כדי לא להוסיף שאילתה בטעינה הרגילה.
+        const noName = flags.filter((c) => !rosterIdOf(c) && c.player_id && !nameByAuth2.has(c.player_id))
+        const nameByProfile = new Map()
+        if (noName.length > 0) {
+          const { data: mem } = await supabase.from('team_memberships')
+            .select('player_id, player:profiles!player_id(first_name, last_name)')
+            .eq('coach_id', me).in('player_id', [...new Set(noName.map((c) => c.player_id))])
+          if (!alive) return
+          for (const m of mem || []) {
+            const n = `${m.player?.first_name || ''} ${m.player?.last_name || ''}`.trim()
+            if (n) nameByProfile.set(m.player_id, n)
+          }
+        }
         for (const c of flags) {
-          const name = (c.roster_id && nameById.get(c.roster_id))
-            || (c.player_id && nameByAuth2.get(c.player_id)) || L('שחקן', 'Player')
+          const rid = rosterIdOf(c)
+          const linked = (c.roster_id && nameById.get(c.roster_id)) || (c.player_id && nameByAuth2.get(c.player_id))
+          const name = linked || (c.player_id && nameByProfile.get(c.player_id)) || L('שחקן/ית', 'A player')
           const key = 'checkin' + c.id
           out.push({
             key, Icon: HeartPulse, tone: 'bad',
+            // 12.9.2026 — נוסח שמני במקום פועל בזכר: «נועה דיווח כאב» על שחקנית
             title: c.sick
-              ? L(`${name} חולה היום`, `${name} is sick today`)
-              : L(`${name} דיווח כאב שמפריע לשחק`, `${name} reported pain that blocks play`),
-            sub: L('לחיצה = «דיברתי איתו»', 'Tap = “I talked to him”'),
+              ? L(`${name} — חולה היום`, `${name} — sick today`)
+              : L(`${name} — דיווח על כאב שמפריע לשחק`, `${name} — reported pain that blocks play`),
+            sub: rid
+              ? L('טאפ = סימון «דיברנו» (עם אישור)', 'Tap = mark “we talked” (with a confirm)')
+              : L('החשבון לא מחובר לשורה בסגל · טאפ = סימון «דיברנו»', 'Account not linked to a roster row · tap = mark “we talked”'),
             action: async () => {
+              // 12.9.2026 — אישור לפני סגירת דגל בריאות. השורה נראתה כמו כל
+              // שורת ניווט אחרת (חץ בקצה), אבל הטאפ כתב handled_at במסד ומחק
+              // מהמסך את הדבר הדחוף ביותר בבוקר — בלי שאלה ובלי דרך חזרה.
+              const ok = await confirmDialog({
+                title: L('לסמן שדיברתם?', 'Mark that you talked?'),
+                message: L(`הדגל של ${name} יירד מ«דברים לביצוע» להיום. הדיווח עצמו נשאר בגיליון «מוכנות היום».`,
+                           `${name}'s flag will leave the To-do list for today. The report itself stays in the “Readiness today” sheet.`),
+                confirmText: L('כן, דיברנו', 'Yes, we talked'), danger: false,
+              })
+              if (!ok) return
               const { error } = await supabase.rpc('handle_checkin', { p_id: c.id })
               if (error) { toast.error(L('הסימון נכשל — נסו שוב', 'Failed to mark — try again')); return }
               setRows((cur) => (cur || []).filter((r) => r.key !== key))
-              toast.success(L('סומן — דיברת איתו', 'Marked — you talked to him'))
+              toast.success(L('סומן — דיברתם', 'Marked — you talked'))
             },
           })
         }
@@ -243,12 +303,16 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
             if (r.status === 'absent') run++
             else break
           }
-          if (run >= 3) streaks.push({ name: nameOf.get(pid) || L('שחקן', 'Player'), run })
+          // 12.9.2026 — מחזיקים גם את מזהה שורת הסגל: המפתח נגזר קודם מהשם
+          // בלבד, ושני שחקנים באותו שם (או שורת סגל כפולה) עם 3+ חיסורים
+          // קיבלו אותו key — React רינדר אחד והשמיט את השני בשקט.
+          if (run >= 3) streaks.push({ id: pid, name: nameOf.get(pid) || L('שחקן/ית', 'A player'), run })
         }
         for (const s of streaks.slice(0, 3)) {
           out.push({
-            key: 'streak' + s.name, Icon: AlertTriangle, tone: 'bad', nav: 'teams',
-            title: L(`${s.name} החסיר ${s.run} אימונים ברצף`, `${s.name} missed ${s.run} practices in a row`),
+            key: 'streak' + s.id, Icon: AlertTriangle, tone: 'bad', nav: 'teams',
+            // 12.9.2026 — נוסח שמני: «נועה החסיר 3 אימונים» על שחקנית
+            title: L(`${s.name} — ${s.run} חיסורים ברצף`, `${s.name} — ${s.run} absences in a row`),
             sub: L('שווה שיחה אישית', 'Worth a personal chat'),
           })
         }
@@ -357,7 +421,11 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
                   <b>{r.title}</b>
                   {r.sub && <span>{r.sub}</span>}
                 </span>
-                <ChevronFwd size={15} className="nh-row-go" aria-hidden="true" />
+                {/* 12.9.2026 — שורת פעולה אינה ניווט: החץ ← הבטיח «כאן יש פרטים»
+                    ובגללו מאמנים סגרו דגל בריאות בטעות. וי = «לסמן כטופל». */}
+                {r.action
+                  ? <Check size={15} className="nh-row-go" aria-hidden="true" />
+                  : <ChevronFwd size={15} className="nh-row-go" aria-hidden="true" />}
               </button>
             ))}
           </div>
@@ -393,7 +461,10 @@ export default function CoachTodo({ session, profile, onNavigate, variant }) {
                 <b>{r.title}</b>
                 {r.sub && <span>{r.sub}</span>}
               </span>
-              <ChevronFwd size={16} className="ctd-go" aria-hidden="true" />
+              {/* 12.9.2026 — ראו ההערה בגרסת הכרטיס: פעולה מסומנת בוי, לא בחץ */}
+              {r.action
+                ? <Check size={16} className="ctd-go" aria-hidden="true" />
+                : <ChevronFwd size={16} className="ctd-go" aria-hidden="true" />}
             </button>
           ))}
         </div>

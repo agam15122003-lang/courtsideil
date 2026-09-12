@@ -180,6 +180,23 @@ export default function ParentConsent({ token }) {
     }
   }
 
+  // 12.9.2026 (player-flow-8) — שני כפתורי האימון האישי («אני מאשר/ת» ו«דחייה»)
+  // בדקו רק `if (r.ok)`. כשל רשת מחזיר {ok:false,reason:'network'} ו-RPC חסר
+  // מחזיר {ok:false,notDeployed:true} — בשני המקרים ההורה לחץ, הכפתור הבהב,
+  // והמסך נשאר זהה לחלוטין. הורה שלוחץ פעמיים בלי תגובה נוטש, והקשר בין
+  // המאמן לקטין לא נפתח בלי שאיש ידע למה. אותו טיפול כמו במסלול הראשי
+  // (submit): מסך «עדיין בהקמה» ל-notDeployed, טוסט לכל השאר.
+  // ⚠ מנקים את trainee לפני setFailure — הבלוק של האימון האישי חוזר לפני
+  //   בדיקות ה-failure, ובלעדיו מסך השגיאה לא היה מרונדר כלל.
+  const decideTrainee = async (granted) => {
+    setTrBusy(true)
+    const r = await submitTraineeConsent(token, granted)
+    setTrBusy(false)
+    if (r.ok) { setTrDone({ granted }); return }
+    if (r.notDeployed) { setTrainee(null); setFailure('not_deployed'); return }
+    toast.error(L('השמירה נכשלה — נסו שוב', 'Saving failed — please try again'))
+  }
+
   const shell = (children) => (
     <div className="pc-page">
       <header className="pc-head">
@@ -237,12 +254,7 @@ export default function ParentConsent({ token }) {
             <button
               className="btn-primary"
               disabled={trBusy}
-              onClick={async () => {
-                setTrBusy(true)
-                const r = await submitTraineeConsent(token, true)
-                setTrBusy(false)
-                if (r.ok) setTrDone({ granted: true })
-              }}
+              onClick={() => decideTrainee(true)}
             >
               {trBusy ? L('שומר...', 'Saving...') : L('אני מאשר/ת', 'I approve')}
             </button>
@@ -254,10 +266,7 @@ export default function ParentConsent({ token }) {
                   message: L('לדחות את הבקשה? הקשר לא ייפתח.', 'Decline the request? The connection will not open.'),
                   danger: true,
                 }))) return
-                setTrBusy(true)
-                const r = await submitTraineeConsent(token, false)
-                setTrBusy(false)
-                if (r.ok) setTrDone({ granted: false })
+                await decideTrainee(false)
               }}
             >
               {L('דחייה', 'Decline')}

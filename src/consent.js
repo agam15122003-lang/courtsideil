@@ -445,6 +445,12 @@ const SECTION_LABELS = {
   goals: ['היעדים שלי', 'My goals'],
   player_goals: ['היעדים שלי', 'My goals'],
   goal_logs: ['תיעוד התקדמות ביעדים', 'Goal progress logs'],
+  // 12.9.2026 (data-rls-8) — supabase_pilot_fixes_6_9.sql הוסיף לייצוא שני
+  // מדורים חדשים, והמילון כאן לא עודכן: שניהם נפלו ל«עוד מידע» עם הכותרות
+  // האנגליות «Checkins» ו-«Checkins coach logged», בתוך מסך עברי — ודווקא
+  // בקטגוריה הרגישה ביותר שהמערכת מחזיקה על קטין.
+  checkins: ['שאלות הבוקר שלי', 'My morning check-ins'],
+  checkins_coach_logged: ['שאלות בוקר שהמאמן רשם', 'Check-ins logged by my coach'],
   session_effort: ['דיווחי עומס', 'Effort reports'],
   feedback: ['משוב אחרי אימון', 'Post-practice feedback'],
   session_feedback: ['משוב אחרי אימון', 'Post-practice feedback'],
@@ -502,6 +508,20 @@ const FIELD_LABELS = {
   availability_since: ['זמין מתאריך', 'Available since'],
   effort: ['עומס', 'Effort'],
   mood: ['הרגשה', 'Mood'],
+  // 12.9.2026 (data-rls-8) — עמודות הצ'ק-אין. בלעדיהן ילד בן 13 ראה במסך
+  // «המידע שלי» שורות כמו «Sleep bucket: 2» ו-«Pain area: knee, back» —
+  // בדיוק במקום שכל תכליתו היא שיבין מה מוחזק עליו.
+  checkin_date: ['תאריך הדיווח', 'Check-in date'],
+  sleep_bucket: ['כמה שעות ישנתי', 'Hours I slept'],
+  energy: ['אנרגיה', 'Energy'],
+  body: ['מצב הגוף', 'How my body felt'],
+  pain_area: ['איפה כאב', 'Where it hurt'],
+  pain_blocks: ['הכאב הפריע לשחק', 'The pain kept me from playing'],
+  sick: ['הייתי חולה', 'I was sick'],
+  fill_ms: ['זמן מילוי הטופס (מילישניות)', 'Time it took to fill the form (ms)'],
+  source: ['מי דיווח', 'Who reported'],
+  coach_ack_at: ['המאמן סימן «ראיתי»', 'Coach marked “seen”'],
+  handled_at: ['המאמן סימן «דיברתי איתו»', 'Coach marked “talked to them”'],
   title: ['כותרת', 'Title'],
   text: ['טקסט', 'Text'],
   count: ['כמות', 'Count'],
@@ -555,9 +575,50 @@ const GROUP_DEFS = [
   { id: 'activity', title: ['הפעילות שלי', 'My activity'],
     keys: ['attendance', 'practice_attendance', 'practice_rsvp', 'rsvp', 'assignments', 'assignment_completions',
       'assignment_progress', 'goals', 'player_goals', 'goal_logs', 'session_effort', 'feedback', 'session_feedback',
+      // 12.9.2026 (data-rls-8) — שני מדורי הצ'ק-אין שייכים ל«הפעילות שלי»
+      'checkins', 'checkins_coach_logged',
       'posts', 'comments', 'reactions', 'messages', 'chat_messages', 'notifications', 'admin_requests',
       'account_deletion_requests', 'counts', 'activity'] },
 ]
+
+// ===== צ'ק-אין הבוקר: מספר → מילה =====
+// 12.9.2026 (data-rls-8) — הערכים נשמרים כקודים מספריים (sleep_bucket 0-5,
+// energy 1-5, body 1-3) ואזורי הכאב כמפתחות אנגליים. במסך «המידע שלי» הם
+// הוצגו כמו שהם — «Body: 3» — כלומר בדיוק המידע הרגיש ביותר הוצג בצורה
+// שאי אפשר להבין. המרה כאן ולא ב-dataValueText, כי שם אין הקשר של שם השדה.
+// ⚠ המילים חייבות להישאר זהות לאלה שהילד ראה כשמילא (CheckinCard.jsx —
+//   SLEEP_RANGES / ENERGY_WORDS / BODY_WORDS / PAIN_AREAS). לא מייבאים משם:
+//   זה קובץ רכיב, וייבוא שלו לתוך המודול הזה היה גורר את כל צד השחקן לכל
+//   מסך שמשתמש בהסכמות. משכפלים שש שורות ומסמנים את מקור האמת.
+const CHECKIN_SLEEP = [
+  ['פחות מ-6 שעות', 'Less than 6 hours'], ['6-7 שעות', '6-7 hours'], ['7-8 שעות', '7-8 hours'],
+  ['8-9 שעות', '8-9 hours'], ['9-10 שעות', '9-10 hours'], ['10+ שעות', '10+ hours'],
+]
+const CHECKIN_ENERGY = [['גמור', 'Wiped'], ['עייף', 'Tired'], ['בסדר', 'OK'], ['טוב', 'Good'], ['מלא אנרגיה', 'Full of energy']]
+const CHECKIN_BODY = [['בסדר', 'Fine'], ['קצת תפוס', 'A bit stiff'], ['כואב', 'In pain']]
+const CHECKIN_PAIN = {
+  knee: ['ברך', 'Knee'], ankle_foot: ['קרסול/כף רגל', 'Ankle/foot'], back: ['גב', 'Back'],
+  shoulder_arm: ['כתף/יד', 'Shoulder/arm'], head: ['ראש', 'Head'], other: ['אחר', 'Other'],
+}
+const CHECKIN_SOURCE = { player: ['דיווח עצמי', 'Reported by me'], coach: ['המאמן רשם', 'Logged by my coach'] }
+const CHECKIN_SECTIONS = ['checkins', 'checkins_coach_logged']
+
+// מספר → מילה לפי טבלה, כשהאינדקס בתחום. כל ערך אחר חוזר כמו שהוא: ערך
+// שלא מוכר לנו לא נעלם מהייצוא, הוא רק לא מתורגם.
+const pick = (table, i) => (Array.isArray(table[i]) ? L(table[i][0], table[i][1]) : i)
+
+function humanizeCheckinRow(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return row
+  const out = { ...row }
+  if (typeof out.sleep_bucket === 'number') out.sleep_bucket = pick(CHECKIN_SLEEP, out.sleep_bucket)
+  if (typeof out.energy === 'number') out.energy = pick(CHECKIN_ENERGY, out.energy - 1)
+  if (typeof out.body === 'number') out.body = pick(CHECKIN_BODY, out.body - 1)
+  if (Array.isArray(out.pain_area)) {
+    out.pain_area = out.pain_area.map((k) => (CHECKIN_PAIN[k] ? L(CHECKIN_PAIN[k][0], CHECKIN_PAIN[k][1]) : k))
+  }
+  if (CHECKIN_SOURCE[out.source]) out.source = L(CHECKIN_SOURCE[out.source][0], CHECKIN_SOURCE[out.source][1])
+  return out
+}
 
 // מפתחות שירות של הייצוא עצמו — לא «מידע עליי», ולכן לא מוצגים כסעיף
 const EXPORT_META_KEYS = ['ok', 'success', 'generated_at', 'exported_at', 'generated', 'version', 'schema_version', 'export_version']
@@ -585,7 +646,12 @@ export function groupDataSections(data) {
     if (isSummaryOnly(key, value)) continue
     const gi = GROUP_DEFS.findIndex((g) => g.keys.includes(key))
     const target = gi >= 0 ? groups[gi] : other
-    target.entries.push({ key, value })
+    // 12.9.2026 (data-rls-8) — רק לתצוגה. קובץ ההורדה (exportToJsonText)
+    // ממשיך לקבל את ה-data הגולמי, כי ייצוא נתונים צריך להיות נאמן למסד.
+    const shown = CHECKIN_SECTIONS.includes(key) && Array.isArray(value)
+      ? value.map(humanizeCheckinRow)
+      : value
+    target.entries.push({ key, value: shown })
   }
   return [...groups, other].filter((g) => g.entries.length > 0)
 }

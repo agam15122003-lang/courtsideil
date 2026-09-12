@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Flame, Crown, StickyNote, Save, Check, Minus, Target } from 'lucide-react'
+import { X, Flame, Crown, StickyNote, Save, Check, Minus, Target, ThumbsUp } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { toast } from './toast'
+import { isNetErr } from './offline'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE, COACH_LOGS } from './flags'
 import { sendNotification } from './notify'
@@ -35,7 +36,16 @@ const EFFORT_OPTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 // פשוט לא הופיעו כאן לסימון «עמד ביעד»
 const MARK_PERIODS = ['session', 'week', 'month', 'half_year', 'year']
 const missingCol = (e, col) => !!e && new RegExp(col, 'i').test(e.message || '')
-const SQL_HINT = () => L('כדי לרשום עומס ויעדים לשחקנים צריך להריץ את supabase_coach_only_22_8.sql', 'Logging load and goals per player needs supabase_coach_only_22_8.sql')
+// 12.9 — שם קובץ המיגרציה הוא מידע לבעלים בלבד: PILOT_COACHES ריק, כלומר כל
+// מאמן יכול להיכנס — ומאמן שאינו הבעלים לא יכול «להריץ SQL בסופאבייס», בשבילו
+// זו הודעה חסומה בלי מוצא. הפרט הטכני עובר לקונסול (שם הבעלים ממילא מאתר
+// תקלות), ולמסך נשאר נוסח שאומר מה קרה ומה אפשר לעשות.
+const SQL_FILE = 'supabase_coach_only_22_8.sql'
+const SQL_HINT = () => {
+  console.error(`SessionDetail: רישום עומס/יעדים דורש את ${SQL_FILE}`)
+  return L('רישום העומס והיעדים לשחקנים עדיין לא פעיל בשרת. שאר הסיכום נשמר — נסו שוב מאוחר יותר.',
+    'Logging load and goals per player is not active on the server yet. The rest of the summary was saved — try again later.')
+}
 
 // דף סקירת אימון/משחק למאמן — נוכחות + משוב אישי + הערה כללית + MVP.
 // props: session, entry {id, team, date, start_time, session_type?, opponent?}, onClose
@@ -63,6 +73,7 @@ export default function SessionDetail({ session, entry, onClose }) {
   const [openNote, setOpenNote] = useState({})
   const [fbId, setFbId] = useState({})      // {rosterId: existing feedback row id}
   const [mvp, setMvp] = useState(null)      // rosterId
+  const [mvpAmbig, setMvpAmbig] = useState('') // שם MVP שנשמר ומתאים ליותר משחקן אחד בסגל
   const [overall, setOverall] = useState('')
   const [saving, setSaving] = useState(false)
   const [hadReview, setHadReview] = useState(false) // כבר נשמר דוח בעבר? (כדי לא לשלוח התראות כפולות)
@@ -139,10 +150,20 @@ export default function SessionDetail({ session, entry, onClose }) {
       setGoalOpts(opts)
     }
     setHadReview(!!rev)
+    setMvpAmbig('')
     if (rev) {
       setOverall(rev.overall_note || '')
       if (rev.mvp_player_id && byAuth[rev.mvp_player_id]) setMvp(byAuth[rev.mvp_player_id])
-      else if (rev.mvp_name) { const p = players.find((x) => x.name === rev.mvp_name); if (p) setMvp(p.id) }
+      else if (rev.mvp_name) {
+        // 12.9 — שורת סגל בלי חשבון נשמרת בלי mvp_player_id, ולכן השחזור נופל
+        // לשם. find החזיר תמיד את **הראשון**: בקבוצה עם שני «דניאל כהן» הכתר
+        // הודבק לשחקן הלא נכון, ושמירה נוספת קיבעה את הטעות. מתאימים רק
+        // כשההתאמה יחידה; אחרת מבקשים מהמאמן לבחור שוב — והשם הישן נשמר
+        // (ראו mvpAmbig ב-save) כדי שלא יימחק בדרך.
+        const hits = players.filter((x) => x.name === rev.mvp_name)
+        if (hits.length === 1) setMvp(hits[0].id)
+        else if (hits.length > 1) setMvpAmbig(rev.mvp_name)
+      }
     }
     dirty.current = false // מה שנטען מהמסד אינו «שינוי שלא נשמר»
   }, [me, team, sessionDate, sessionId, sessionType])
@@ -157,7 +178,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       title: L('לצאת בלי לשמור?', 'Leave without saving?'),
       message: L('הנוכחות, העומס וההערות שרשמת לא נשמרו.', 'The attendance, load and notes you logged were not saved.'),
       confirmText: L('צא בלי לשמור', 'Leave without saving'),
-      cancelText: L('חזרה לסקירה', 'Back to the review'),
+      cancelText: L('חזרה לסיכום', 'Back to the summary'),
       danger: true,
     })
     closing.current = false
@@ -192,7 +213,18 @@ export default function SessionDetail({ session, entry, onClose }) {
     let sqlMissing = false
     // כתיבה שנכשלה (רשת של אולם ספורט) — לא סוגרים את החלון ולא אומרים «נשמר»,
     // מחזירים את מצב «יש שינוי שלא נשמר» כדי שהמאמן ינסה שוב בלי לאבד שורה.
-    const fail = (msg, e) => { dirty.current = true; setSaving(false); toast.error(msg + (e?.message || '')) }
+    // 12.9 — עד היום הודבק כאן error.message הגולמי, כלומר «שמירת הנוכחות
+    // נכשלה: TypeError: Failed to fetch» — אנגלית טכנית בתוך משפט עברי, בלי
+    // שום צעד שהמאמן יכול לעשות. הפרט הטכני יורד לקונסול, ולמסך נשאר משפט
+    // עברי שמבדיל בין נפילת רשת (האולם בלי קליטה) לכשל אחר ואומר מה הלאה.
+    const fail = (what, e) => {
+      dirty.current = true; setSaving(false)
+      console.error('SessionDetail.save:', e?.message || e)
+      toast.error(what + (isNetErr(e)
+        ? L(' — אין חיבור. מה שרשמת נשאר על המסך, נסו שוב כשהרשת חוזרת.',
+            ' — no connection. What you logged stays on screen, try again when you are back online.')
+        : L(' — נסו שוב בעוד רגע.', ' — please try again in a moment.')))
+    }
 
     // 1) נוכחות
     const marks = Object.entries(att).filter(([, s]) => s)
@@ -200,7 +232,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       const { error } = sessionType === 'game'
         ? await supabase.from('game_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, game_id: sessionId, player_id: rid, status })), { onConflict: 'game_id,player_id' })
         : await supabase.from('practice_attendance').upsert(marks.map(([rid, status]) => ({ coach_id: me, team, session_date: sessionDate, player_id: rid, status })), { onConflict: 'coach_id,team,session_date,player_id' })
-      if (error) { fail(L('שמירת הנוכחות נכשלה: ', 'Saving attendance failed: '), error); return }
+      if (error) { fail(L('שמירת הנוכחות נכשלה', 'Saving attendance failed'), error); return }
     }
     // סימון נוכחות שהיה שמור ובוטל — בלי המחיקה הוא היה חוזר בפתיחה הבאה
     const clearedAtt = Object.keys(loadedAtt.current).filter((rid) => !att[rid])
@@ -209,7 +241,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         ? supabase.from('game_attendance').delete().eq('game_id', sessionId).in('player_id', clearedAtt)
         : supabase.from('practice_attendance').delete().eq('coach_id', me).eq('team', team).eq('session_date', sessionDate).in('player_id', clearedAtt)
       const { error } = await q
-      if (error) { fail(L('מחיקת סימון נוכחות נכשלה: ', 'Clearing an attendance mark failed: '), error); return }
+      if (error) { fail(L('מחיקת סימון נוכחות נכשלה', 'Clearing an attendance mark failed'), error); return }
     }
 
     // 1ב) עומס שהמאמן רשם (צד המאמן בלבד) — שורה לכל שחקן, על שורת הסגל
@@ -223,7 +255,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       }))
       if (rows.length) {
         const { error } = await supabase.from('session_effort').upsert(rows, { onConflict: 'session_id,roster_id' })
-        if (error) { if (missingCol(error, 'roster_id|source')) sqlMissing = true; else { fail(L('שמירת העומס נכשלה: ', 'Saving the load failed: '), error); return } }
+        if (error) { if (missingCol(error, 'roster_id|source')) sqlMissing = true; else { fail(L('שמירת העומס נכשלה', 'Saving the load failed'), error); return } }
       }
       // עומס שנמחק (לחיצה שנייה על אותו מספר מנקה) — מפתח עם ערך ריק קיים רק אם
       // נטען מהמסד או נבחר ובוטל; בלי המחיקה הערך הישן היה חוזר בפתיחה הבאה.
@@ -231,7 +263,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       if (cleared.length) {
         const { error } = await supabase.from('session_effort').delete()
           .eq('coach_id', me).eq('session_id', sessionId).eq('source', 'coach').in('roster_id', cleared)
-        if (error && !missingCol(error, 'roster_id|source')) { fail(L('מחיקת העומס נכשלה: ', 'Clearing the load failed: '), error); return }
+        if (error && !missingCol(error, 'roster_id|source')) { fail(L('מחיקת העומס נכשלה', 'Clearing the load failed'), error); return }
       }
       // 1ג) «עמד ביעד» — סימוני המאמן
       const gmRows = []
@@ -243,7 +275,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       }
       if (gmRows.length) {
         const { error } = await supabase.from('session_goal_marks').upsert(gmRows, { onConflict: 'session_id,goal_id,roster_id' })
-        if (error) { if (missingCol(error, 'roster_id')) sqlMissing = true; else { fail(L('שמירת סימוני היעדים נכשלה: ', 'Saving the goal marks failed: '), error); return } }
+        if (error) { if (missingCol(error, 'roster_id')) sqlMissing = true; else { fail(L('שמירת סימוני היעדים נכשלה', 'Saving the goal marks failed'), error); return } }
       }
       // סימון שהיה שמור ובוטל (חזר ל«ריק») — מוחקים, אחרת הוא חוזר בפתיחה הבאה
       const gone = []
@@ -254,7 +286,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         const res = await Promise.all(gone.map(({ rid, goalId }) =>
           supabase.from('session_goal_marks').delete().match({ session_id: sessionId, goal_id: goalId, roster_id: rid, coach_id: me })))
         const err = res.find((r) => r.error)?.error
-        if (err && !missingCol(err, 'roster_id')) { fail(L('מחיקת סימון יעד נכשלה: ', 'Clearing a goal mark failed: '), err); return }
+        if (err && !missingCol(err, 'roster_id')) { fail(L('מחיקת סימון יעד נכשלה', 'Clearing a goal mark failed'), err); return }
       }
     }
 
@@ -281,7 +313,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         // מסד שטרם הריץ 22.8: אין roster_id, והשורה שם ממוקשת ב-player_id —
         // לא נוגעים בו (איפוס היה מייתם את השורה גם מהמאמן)
         if (error && missingCol(error, 'roster_id')) ({ error } = await supabase.from('player_feedback').update({ ...payload, roster_id: undefined }).eq('id', fbId[p.id]))
-        if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
+        if (error) { fail(L('שמירת ההערה האישית נכשלה', 'Saving the personal note failed'), error); return }
       } else {
         let { error } = await supabase.from('player_feedback').insert({ ...payload, player_id: null })
         if (error && missingCol(error, 'roster_id')) {
@@ -291,7 +323,7 @@ export default function SessionDetail({ session, entry, onClose }) {
           // (הניסיון הקודם גם נכשל תמיד — ה-payload עוד הכיל roster_id.)
           sqlMissing = true; continue
         }
-        if (error) { fail(L('שמירת ההערה האישית נכשלה: ', 'Saving the personal note failed: '), error); return }
+        if (error) { fail(L('שמירת ההערה האישית נכשלה', 'Saving the personal note failed'), error); return }
       }
     }
 
@@ -300,10 +332,12 @@ export default function SessionDetail({ session, entry, onClose }) {
     const { error: revErr } = await supabase.from('session_reviews').upsert({
       coach_id: me, team, session_type: sessionType, session_id: sessionId, session_date: sessionDate,
       overall_note: overall.trim() || null,
-      mvp_name: mvpP ? mvpP.name : null, mvp_player_id: mvpP?.player_id || null,
+      // 12.9 — mvpAmbig: שם שנשמר בעבר ומתאים לשני שחקנים. לא בוחרים בשבילו
+      // אחד מהם, אבל גם לא מוחקים את מה שהמאמן רשם — עד שיבחר שוב.
+      mvp_name: mvpP ? mvpP.name : (mvpAmbig || null), mvp_player_id: mvpP?.player_id || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'coach_id,session_type,session_id' })
-    if (revErr) { fail(L('שמירת סיכום האימון נכשלה: ', 'Saving the session summary failed: '), revErr); return }
+    if (revErr) { fail(L('שמירת הסיכום נכשלה', 'Saving the summary failed'), revErr); return }
     if (PLAYER_SIDE && mvpP?.player_id && !notified.has(mvpP.player_id)) {
       sendNotification({ to: mvpP.player_id, actor: me, type: 'message', content: L('נבחרת ל-MVP של האימון! 🏀', 'You were picked MVP of the session! 🏀'), nav: 'feedback' })
       notified.add(mvpP.player_id)
@@ -343,7 +377,7 @@ export default function SessionDetail({ session, entry, onClose }) {
 
     setSaving(false)
     if (sqlMissing) { dirty.current = true; toast.error(SQL_HINT()); return }
-    toast.success(L('הסקירה נשמרה', 'Session saved'))
+    toast.success(L('הסיכום נשמר', 'Summary saved'))
     onClose()
   }
 
@@ -367,7 +401,7 @@ export default function SessionDetail({ session, entry, onClose }) {
       <div className="sd-inner" onClick={(e) => e.stopPropagation()}>
         <header className={`sd-hero ${sessionType}`}>
           <button className="icon-btn sd-close" onClick={() => requestClose()} aria-label={L('סגור', 'Close')}><X size={18} /></button>
-          <span className="sd-badge">{sessionType === 'game' ? L('סקירת משחק', 'Game review') : L('סקירת אימון', 'Practice review')}</span>
+          <span className="sd-badge">{sessionType === 'game' ? L('סיכום משחק', 'Game summary') : L('סיכום אימון', 'Practice summary')}</span>
           <h2>{sessionType === 'game' && entry.opponent ? `${trTeam(team)} — ${entry.opponent}` : trTeam(team)}</h2>
           <span className="sd-date">
             {sessionDate ? new Date(sessionDate + 'T00:00').toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'numeric' }) : ''}
@@ -390,6 +424,13 @@ export default function SessionDetail({ session, entry, onClose }) {
                   'Attendance, load, goals and a personal line — all logged by you. Ask the players at the end of practice “how hard was it, 1 to 10?” and log it per player.')
               : L('נוכחות, משוב אישי ו-MVP נקבעים על ידך. את המאמץ מדרגים השחקנים בעצמם בסוף האימון.', 'You set attendance, personal notes and MVP. Players rate their own effort after practice.')}
           </p>
+          {/* 12.9 — ה-MVP השמור מתאים ליותר משחקן אחד בסגל: לא מנחשים בשבילו */}
+          {mvpAmbig && (
+            <p className="muted small sd-hint">
+              <Crown size={13} /> {L(`ה-MVP השמור («${mvpAmbig}») מתאים ליותר משחקן אחד בסגל — סמנו שוב את הכתר לשחקן הנכון.`,
+                `The saved MVP (“${mvpAmbig}”) matches more than one player on the roster — tap the crown again on the right player.`)}
+            </p>
+          )}
 
           {loadErr ? (
             /* שליפת הסגל נכשלה — שגיאה עם «נסה שוב», לא «אין שחקנים» */
@@ -434,7 +475,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                               <Flame size={13} /> <bdi dir="ltr">{eff}/10</bdi> · {L('דיווח עצמי', 'self')}
                             </span>
                           ) : (
-                            <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1–10)', 'Practice load for the player (1–10)')}>
+                            <span className={coachEff[p.id] ? 'sd-eff-badge on' : 'sd-eff-badge'} title={L('עומס האימון לשחקן (1 עד 10)', 'Practice load for the player (1 to 10)')}>
                               <Flame size={13} /> {coachEff[p.id] ? `${coachEff[p.id]}/10` : L('עומס', 'Load')}
                             </span>
                           )}
@@ -446,7 +487,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                           <Flame size={13} /> {eff ? `${eff}/10` : L('טרם דירג', '—')}
                         </span>
                       )}
-                      <button className={mvp === p.id ? 'sd-mvp on' : 'sd-mvp'} onClick={() => { dirty.current = true; setMvp(mvp === p.id ? null : p.id) }} title={L('MVP', 'MVP')} aria-pressed={mvp === p.id}>
+                      <button className={mvp === p.id ? 'sd-mvp on' : 'sd-mvp'} onClick={() => { dirty.current = true; setMvpAmbig(''); setMvp(mvp === p.id ? null : p.id) }} title={L('MVP', 'MVP')} aria-pressed={mvp === p.id}>
                         <Crown size={16} />
                       </button>
                     </div>
@@ -531,7 +572,7 @@ export default function SessionDetail({ session, entry, onClose }) {
                           setAcks((a) => ({ ...a, [p.id]: { ...a[p.id], acked: true } }))
                           sendNotification({ to: acks[p.id].auth, actor: me, type: 'message', content: L('המאמן ראה את הסיכום שלך 👍', 'Your coach saw your summary 👍'), nav: 'feedback' })
                         }}>
-                          👍 {L('ראיתי — שלח לשחקן', 'Seen — tell the player')}
+                          <ThumbsUp size={14} /> {L('ראיתי — שלח לשחקן', 'Seen — tell the player')}
                         </button>
                       )
                     )}
@@ -557,7 +598,7 @@ export default function SessionDetail({ session, entry, onClose }) {
 
           <label className="sd-overall">
             {/* 3.9 — הסיכום הכללי נקרא על ידי חברי הקבוצה (sr_member_read) — לפי PLAYER_SIDE, לא לפי מי רושם */}
-            <span>{!PLAYER_SIDE ? L('סיכום האימון (נשמר להיסטוריה)', 'Session summary (saved to history)') : L('סיכום האימון (נשמר להיסטוריה, גלוי לשחקנים מחוברים)', 'Session summary (saved to history, visible to connected players)')}</span>
+            <span>{!PLAYER_SIDE ? L('הערה כללית על האימון (נשמרת להיסטוריה)', 'General note on the session (saved to history)') : L('הערה כללית על האימון (נשמרת להיסטוריה, גלויה לשחקנים מחוברים)', 'General note on the session (saved to history, visible to connected players)')}</span>
             <textarea className="finder-input" value={overall} onChange={(e) => { dirty.current = true; setOverall(e.target.value) }} rows={3} placeholder={L('איך היה האימון? על מה עבדנו, מה בלט...', 'How was the session? What we worked on, what stood out...')} maxLength={2000} />
           </label>
         </div>
@@ -565,7 +606,7 @@ export default function SessionDetail({ session, entry, onClose }) {
         <footer className="sd-foot">
           <button className="btn-primary sd-save" onClick={save} disabled={saving} aria-busy={saving}>
             {saving && <span className="btn-spinner" aria-hidden="true" />}
-            <Save size={16} /> {L('שמירת הסקירה', 'Save review')}
+            <Save size={16} /> {L('שמירת הסיכום', 'Save summary')}
           </button>
         </footer>
       </div>

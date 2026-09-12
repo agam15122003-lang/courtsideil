@@ -104,9 +104,69 @@ export async function cachedRead(key, run) {
 }
 
 // ---------- תור היציאה ----------
+// 12.9.2026 — מי המשתמש המחובר, במשתנה ברמת המודול.
+//
+// ⚠ למה **לא** await supabase.auth.getSession() בתוך enqueue (הגרסה הראשונה
+//   של החתימה עשתה בדיוק את זה, וזו הייתה רגרסיה במסלול שהיא באה להגן עליו):
+//   getSession בודק אם טוקן הגישה פג, ואם כן הוא יוצא לרשת לרענון — עם
+//   ניסיונות חוזרים ובלי זקיף זמן. באולם עם WiFi «מחובר בלי אינטרנט»
+//   (navigator.onLine נשאר true) הבקשה הזו **תלויה**, וכל הקוראים של enqueue
+//   ממתינים לה — כלומר הכתיבה ל-IndexedDB, שכל תפקידה להציל את העבודה מיד,
+//   נדחית בשניות. מאמן שסוגר את האפליקציה בחלון הזה מאבד את הנוכחות לגמרי.
+//   וגרוע מזה: אחרי כשעה בלי רשת הרענון נכשל, getSession מחזיר session:null
+//   (הנפילה-אחורה לסשן השמור תקפה רק כשטוקן הגישה בתוקף), הפעולה נחתמת בלי
+//   בעלים — והשומר לא חל דווקא בסבב הארוך שבגללו הוא נכתב.
+//
+// לכן: הכתיבה לתור לעולם אינה ממתינה לשכבת ה-auth. ה-uid מוחזק כאן,
+// מתעדכן מאירועי ההתחברות, ונשמר גם כמראה סינכרונית ב-localStorage כדי
+// שגם ההקשה הראשונה אחרי רענון דף בלי רשת תיחתם נכון.
+const UID_MIRROR = 'cs_outbox_uid'
+let cachedUid = (() => { try { return localStorage.getItem(UID_MIRROR) || null } catch { return null } })()
+
+function setUid(id) {
+  cachedUid = id || null
+  try {
+    if (id) localStorage.setItem(UID_MIRROR, id)
+    else localStorage.removeItem(UID_MIRROR)
+  } catch { /* אחסון חסום (ספארי פרטי) — נשארים עם הזיכרון בלבד */ }
+}
+
+// המנוי הזה יורה גם בעלייה (INITIAL_SESSION), ולכן אין צורך בקריאת
+// getSession נוספת. מנקים רק על SIGNED_OUT מפורש: כשל רענון רגעי בלי רשת
+// מגיע כסשן ריק, ואסור שימחק את הבעלים מהפעולות הבאות.
+try {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') setUid(null)
+    else if (session?.user?.id) setUid(session.user.id)
+  })
+} catch { /* לקוח placeholder בלי הגדרות — נשארים עם המראה */ }
+
+// לניגון בלבד: מאשרים מול שכבת ה-auth (שם ההמתנה רצה ברקע), אבל עם זקיף
+// של 3 שניות כמו בכל קריאת אחסון אחרת — PlanNotebook עושה
+// `await flushOutbox()` לפני שמירה, ואסור שהוא ייתקע על רענון טוקן תלוי.
+async function flushUid() {
+  let t
+  try {
+    const res = await Promise.race([
+      supabase.auth.getSession().finally(() => clearTimeout(t)),
+      new Promise((resolve) => { t = setTimeout(() => resolve(null), 3000) }),
+    ])
+    // תשובה מפורשת «אין סשן» מכבדים: זו בדיוק הסיבה שהניגון עוצר.
+    if (res) return res.data?.session?.user?.id || null
+  } catch { /* נופלים לערך השמור */ }
+  return cachedUid
+}
+
 export async function enqueue(op) {
   try {
-    await tx('outbox', 'readwrite', (s) => s.add({ ...op, at: Date.now() }))
+    // 12.9.2026 — חותמת בעלים על כל פעולה. לבעלים שני חשבונות מאמן על אותו
+    // טלפון: הניגון רץ ברמת המודול (online / visibility / דופק דקה) גם
+    // במסך הכניסה, גם אחרי התנתקות וגם כשחשבון אחר מחובר — ואז הפעולה
+    // נדחית ב-RLS, נחשבת «שגיאת שרת» ונמחקת בשקט. נוכחות ומחברת שנרשמו
+    // באולם בלי רשת פשוט נעלמו.
+    // סינכרוני במכוון — ראו ההערה הארוכה למעלה. הכתיבה יוצאת מיד.
+    const uid = op.uid || cachedUid
+    await tx('outbox', 'readwrite', (s) => s.add({ ...op, uid, at: Date.now() }))
     notifyPending()
     return true
   } catch {
@@ -199,12 +259,32 @@ export function flushOutbox() {
   return flushPromise
 }
 async function doFlush() {
+  // 12.9.2026 — בלי משתמש מחובר אין למי לנגן: כל כתיבה תידחה ב-RLS, ועד
+  // היום הדחייה הזו הייתה מוחקת את הפעולה מהתור לצמיתות. במסך הכניסה,
+  // אחרי התנתקות ובזמן שחשבון אחר מחובר — התור פשוט ממתין.
+  const uid = await flushUid()
+  if (!uid) return 0
   const entries = await outboxEntries()
   let played = 0
   for (const [key, op] of entries) {
+    // פעולה של החשבון השני על אותו מכשיר — מדלגים בלי למחוק. היא תנוגן
+    // כשהבעלים שלה יתחבר. (op.uid חסר = פעולה מגרסה ישנה, מתנהגת כקודם.)
+    if (op.uid && op.uid !== uid) continue
     const error = await playOp(op)
     if (error && isNetErr(error)) break // הרשת נפלה שוב — נמשיך בפעם הבאה
-    if (error) console.warn('[offline] פעולה נדחתה על ידי השרת ונזרקה:', op.kind, error.message)
+    if (error) {
+      // 12.9.2026 — לא מוחקים על הכישלון הראשון. דחייה חד-פעמית (סשן
+      // שנתפס באמצע רענון טוקן, אילוץ זמני) הייתה מספיקה כדי לאבד עבודה
+      // שנרשמה באולם. מונים ניסיונות, ועוצרים את הסבב כדי לא לשבור את
+      // סדר התור — הניסיון הבא קורה בדופק הבא.
+      const tries = (op.tries || 0) + 1
+      if (tries < 2) {
+        console.warn('[offline] פעולה נדחתה — ננסה שוב בסבב הבא:', op.kind, error.message)
+        try { await tx('outbox', 'readwrite', (s) => s.put({ ...op, tries }, key)) } catch { /* לא קריטי */ }
+        break
+      }
+      console.warn('[offline] פעולה נדחתה על ידי השרת פעמיים ונזרקה:', op.kind, error.message)
+    }
     await outboxDel(key)
     if (!error) played++
   }

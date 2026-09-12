@@ -182,6 +182,17 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
     const s = scoreEdit
     const our = s.our === '' ? null : Number(s.our)
     const their = s.their === '' ? null : Number(s.their)
+    // 12.9.2026: תוצאה חלקית נשמרה במסד אך outcomeOf מחזיר null לצד חסר —
+    // השורה חזרה להציג «הוספת תוצאה» והמאזן לא זז, אחרי טוסט «נשמר».
+    // דורשים את שני הצדדים יחד; שניהם ריקים = שמירת סיכום בלבד (נתמך).
+    if ((our === null) !== (their === null)) {
+      toast.error(L('מלאו את שתי התוצאות, או השאירו את שתיהן ריקות.', 'Fill in both scores, or leave both empty.'))
+      return
+    }
+    if ((our !== null && !Number.isFinite(our)) || (their !== null && !Number.isFinite(their))) {
+      toast.error(L('התוצאה צריכה להיות מספר.', 'The score must be a number.'))
+      return
+    }
     const { error } = await supabase.from('team_games')
       .update({ our_score: our, their_score: their, summary: s.summary?.trim() || null })
       .eq('id', s.game.id)
@@ -527,6 +538,9 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
               <strong>{L('עריכת משחק', 'Edit game')}</strong>
               <button className="icon-btn" onClick={() => setGEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* 12.9 — הגוף הוא האזור שנגלל (index.css:31036); בלי העטיפה
+                הזו הטופס גלש במסך נמוך והכפתור ירד מתחת לקצה. */}
+            <div className="tm-modal-body">
             <div className="form-grid-2">
               <label className="pf-label">{L('תאריך', 'Date')}
                 <input className="finder-input" type="date" dir="ltr" value={gEdit.game_date || ''} onChange={(e) => setGEdit((g) => ({ ...g, game_date: e.target.value }))} />
@@ -538,7 +552,8 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
             </div>
             <input className="finder-input" value={gEdit.opponent || ''} onChange={(e) => setGEdit((g) => ({ ...g, opponent: e.target.value }))} placeholder={L('יריבה', 'Opponent')} style={{ marginTop: 10 }} />
             <input className="finder-input" value={gEdit.location || ''} onChange={(e) => setGEdit((g) => ({ ...g, location: e.target.value }))} placeholder={L('מיקום', 'Location')} style={{ marginTop: 10 }} />
-            <div className="tm-modal-actions">
+            </div>
+            <div className="tm-modal-foot tm-modal-actions">
               <button className="btn-primary" onClick={saveGame}><Save size={15} /> {L('שמירה', 'Save')}</button>
               <button className="btn-ghost danger" onClick={async () => { const id = gEdit.id; if (await delGame(id)) setGEdit(null) }}><Trash2 size={15} /> {L('מחק', 'Delete')}</button>
             </div>
@@ -555,6 +570,8 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
               <strong>{L('תוצאה וסיכום', 'Score & summary')}</strong>
               <button className="icon-btn" onClick={() => setScoreEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* 12.9 — אותו חוזה: הגוף גולל, «שמירה» נשאר מוצמד לתחתית */}
+            <div className="tm-modal-body">
             <p className="muted small" style={{ margin: '0 0 10px' }}>
               {scoreEdit.game.opponent || L('יריבה', 'Opponent')} · {ilFull(scoreEdit.game.game_date)}
             </p>
@@ -574,7 +591,8 @@ export default function TeamGames({ session, profile, team, teams = [], onBack }
                 onChange={(e) => setScoreEdit((s) => ({ ...s, summary: e.target.value }))}
                 placeholder={L('מה עבד, מה לא, ומה לוקחים לאימון הבא...', 'What worked, what didn’t, what to take to the next practice...')} />
             </label>
-            <div className="tm-modal-actions">
+            </div>
+            <div className="tm-modal-foot tm-modal-actions">
               <button className="btn-primary" onClick={saveScore}><Save size={15} /> {L('שמירה', 'Save')}</button>
             </div>
           </div>

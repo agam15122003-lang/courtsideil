@@ -238,7 +238,19 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
       if (!error && res.data?.id) Object.assign(merged, res.data)
     }
     setBusy(false)
-    if (error) { toast.error(L('לא הצלחנו לשמור — נסה שוב', "Couldn't save — try again")); return }
+    if (error) {
+      // 12.9.2026 — סירוב הרשאה (42501) אינו תקלה חולפת, ולכן «נסו שוב» היה
+      // הודעה שקרית: המאמן ניתק את שורת הסגל, הדליק «בלי שאלות בוקר», או
+      // שהחשבון חזר להמתנת אישור הורה בזמן שהכרטיס פתוח. הילד המשיך להקיש
+      // על צ'יפים שחוזרים ריקים בלי לדעת שהמצב שלו השתנה. במקום זה טוענים
+      // מחדש — ה-useEffect כבר יודע להציג 'unlinked' או 'off' בנוסח הנכון.
+      if (error.code === '42501' || /row-level security/i.test(error.message || '')) {
+        setState('loading')
+        setReload((k) => k + 1)
+        return
+      }
+      toast.error(L('לא הצלחנו לשמור — נסו שוב', "Couldn't save — try again")); return
+    }
     setRow({ ...merged, ...patch, checkin_date: day })
   }
 
@@ -281,8 +293,10 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
           <div className="pc4-head-tx">
             <strong>{L('הצ׳ק-אין של הבוקר', 'Morning check-in')}</strong>
             <span className="pc4-sub">
-              {L('החשבון שלך עוד לא מחובר לרשימת השחקנים של הקבוצה, ולכן אי אפשר לשמור עדיין את שאלות הבוקר. המאמן מחבר אותו מהסגל — זה לוקח לו רגע.',
-                 'Your account is not connected to the team roster yet, so the morning questions cannot be saved for now. Your coach connects it from the roster — it takes a moment.')}
+              {/* 12.9.2026 — מונח אחד לפיצ'ר: «הצ'ק-אין של הבוקר». «שאלות הבוקר»
+                  באותו כרטיס בדיוק מתחת לכותרת נראה כמו שני דברים שונים. */}
+              {L('החשבון שלך עוד לא מחובר לרשימת השחקנים של הקבוצה, ולכן אי אפשר לשמור עדיין את הצ׳ק-אין של הבוקר. המאמן מחבר אותו מהסגל — זה לוקח לו רגע.',
+                 'Your account is not connected to the team roster yet, so the morning check-in cannot be saved for now. Your coach connects it from the roster — it takes a moment.')}
             </span>
           </div>
         </div>
@@ -311,7 +325,9 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
         </div>
         <div className="pc4-foot">
           <button type="button" className="pc4-link" onClick={() => setReload((k) => k + 1)}>
-            <RotateCw size={12} aria-hidden="true" /> {L('נסה שוב', 'Try again')}
+            {/* 12.9.2026 — «נסו שוב» בכל המצבים: באותו כרטיס היו «נסו» ו«נסה»,
+                ו«נסה» גם פונה בזכר בלבד (יש קבוצות בנות במערכת). */}
+            <RotateCw size={12} aria-hidden="true" /> {L('נסו שוב', 'Try again')}
           </button>
         </div>
       </section>
@@ -338,13 +354,17 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
     )
   }
 
+  // 12.9.2026 — שלוש שאלות הבוקר ו«מפריע לשחק?» הן בחירה **יחידה**, ולכן
+  // radiogroup/radio ולא group+aria-pressed: עם aria-pressed קורא המסך הכריז
+  // שישה מתגים עצמאיים, בלי «1 מתוך 6» ובלי לרמוז שבחירה מבטלת את קודמתה.
+  // (הרשימה «איפה כואב?» היא ריבוי-בחירה ונשארת עם aria-pressed.)
   const chipRow = (label, chips, cur, onPick, ltr) => (
     <div className="pc4-q">
       <span className="pc4-q-lbl">{label}</span>
-      <div className="chips pc4-chips" role="group" aria-label={label}>
+      <div className="chips pc4-chips" role="radiogroup" aria-label={label}>
         {chips.map((c) => (
-          <button key={c.v} type="button" disabled={busy}
-            className={cur === c.v ? 'chip selected' : 'chip'} aria-pressed={cur === c.v}
+          <button key={String(c.v)} type="button" disabled={busy} role="radio"
+            className={cur === c.v ? 'chip selected' : 'chip'} aria-checked={cur === c.v}
             onClick={() => onPick(c.v)}>
             {ltr ? <bdi dir="ltr">{c.label}</bdi> : c.label}
           </button>
@@ -417,9 +437,11 @@ export default function CheckinCard({ session, membership, restrictedCtx }) {
           </button>
         ) : (
           <button type="button" className="pc4-link" disabled={busy} onClick={async () => {
+            // 12.9.2026 — ניסוח ניטרלי-מגדר: יש קבוצות בנות במערכת, ושחקנית
+            // בת 13 קראה כאן «אתה חולה היום?» / «שאתה לא מגיע».
             const ok = await confirmDialog({
-              title: L('אתה חולה היום?', 'Are you sick today?'),
-              message: L('המאמן יראה את זה ויֵדע שאתה לא מגיע. אפשר לבטל אחר כך.', 'Your coach will see this and know you are out. You can undo it later.'),
+              title: L('לסמן מחלה להיום?', 'Mark sick for today?'),
+              message: L('המאמן יראה את זה ויֵדע שאי אפשר להגיע היום. אפשר לבטל אחר כך.', 'Your coach will see this and know you can’t make it today. You can undo it later.'),
               confirmText: L('כן, אני חולה', "Yes, I'm sick"), danger: false,
             })
             if (ok) save({ sick: true })

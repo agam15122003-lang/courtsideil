@@ -20,6 +20,9 @@ const NL = String.fromCharCode(10)
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const hm = (t) => (t ? String(t).slice(0, 5) : '')
 const DAYS = [['א', 'Su'], ['ב', 'Mo'], ['ג', 'Tu'], ['ד', 'We'], ['ה', 'Th'], ['ו', 'Fr'], ['ש', 'Sa']]
+// ⚠ 12.9.2026 — הגרש ׳ שייך לקיצור העברי בלבד. הוא היה מודבק אחרי הקיצור
+// בלי תנאי שפה, ולכן במצב English הוצג «Su׳» / «Mo׳». לכן בשורות התצוגה
+// הוא עובר דרך L, כמו שכבר נעשה בהודעת «האימון של יום ...׳ עוד פתוח».
 
 // כותרת סקשן: eyebrow + כותרת + קישור «הכל ←» בקצה.
 // tone (7.8) — שפת הצבע של ההאנדוף: warm=תורך לפעול · cool=כבר נקבע.
@@ -308,7 +311,7 @@ export function WeekSchedule({ session, schedule, onNavigate, variant }) {
                   onClick={() => onNavigate(r._game ? 'teams' : 'schedule')}
                 >
                   <span className="nh-week-day">
-                    <b>{day}׳</b>
+                    <b>{L(day + '׳', day)}</b>
                     <span dir="ltr">{isNaN(d) ? '' : pad(d.getDate())}</span>
                   </span>
                   <span className="nh-week-tx">
@@ -353,7 +356,7 @@ export function WeekSchedule({ session, schedule, onNavigate, variant }) {
               onClick={() => onNavigate(r._game ? 'teams' : 'plans')}
             >
               <span className="hp-week-day">
-                <b>{day}׳</b>
+                <b>{L(day + '׳', day)}</b>
                 <span dir="ltr">{isNaN(d) ? '' : pad(d.getDate())}</span>
               </span>
               <span className="hp-week-tx">

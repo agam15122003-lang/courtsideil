@@ -12,6 +12,8 @@ import { supabase } from './supabaseClient'
 import { toast } from './toast'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE, COACH_LOGS } from './flags'
+// 12.9 — isMissingColumn: נסיגה על שמירה רק כשהעמודה באמת חסרה
+import { isMissingColumn } from './players'
 import { confirmDialog } from './confirm'
 import { sendNotification } from './notify'
 import Avatar from './Avatar'
@@ -64,12 +66,25 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       position: det.position || null, phone: det.phone || null,
     }
     const extra = { birth_date: det.birth_date || null, height: det.height ? parseInt(det.height, 10) : null }
+    // 12.9 — שתי עמודות לתאריך לידה: כאן נשמר birth_date, ובמודאל «פרטי
+    // שחקן» בסגל נשמרת birth_year — והצלבת הגיל מכריעה לפי התאריך. בלי
+    // לכתוב את השנה יחד עם התאריך, ייצוא ה-CSV והמודאל המשיכו להציג את
+    // השנה הישנה אחרי שהמאמן כבר תיקן כאן.
+    const y = det.birth_date ? Number(String(det.birth_date).slice(0, 4)) : null
+    if (y && y > 1900 && y < 2100) extra.birth_year = y
     // fallback — אם עמודות 1.7 (supabase_player_card.sql) טרם נוספו
     let { error } = await supabase.from('team_players').update({ ...base, ...extra }).eq('id', rosterId)
-    if (error) ({ error } = await supabase.from('team_players').update(base).eq('id', rosterId))
+    // 12.9 — נסיגה **רק** כשהעמודה באמת חסרה. קודם כל שגיאה (תאריך לא תקין,
+    // check constraint, 22P02) נפלה לניסיון שני שוויתר בשקט על תאריך הלידה
+    // והגובה — והמאמן קיבל «הפרטים נשמרו» ירוק בזמן שהפער שהוא בא לתקן נשאר.
+    const colMissing = isMissingColumn(error)
+    if (error && colMissing) ({ error } = await supabase.from('team_players').update(base).eq('id', rosterId))
     setSavingDet(false)
     if (error) { toast.error(L('השמירה נכשלה', 'Save failed')); return }
-    toast.success(L('הפרטים נשמרו', 'Details saved'))
+    toast.success(colMissing
+      ? L('השם, המספר, העמדה והטלפון נשמרו — אבל תאריך הלידה והגובה דורשים הרצה של supabase_player_card.sql',
+          'Name, number, position and phone were saved — but birth date and height need supabase_player_card.sql')
+      : L('הפרטים נשמרו', 'Details saved'))
   }
 
   // ---------- זמינות ----------
@@ -81,10 +96,15 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
     const row = { status: nextStatus, injury_note: note?.trim() || null }
     let { error } = await supabase.from('team_players')
       .update({ ...row, availability_since: todayYmd() }).eq('id', rosterId)
-    if (error) ({ error } = await supabase.from('team_players').update(row).eq('id', rosterId))
+    // 12.9 — כמו ב-saveDetails: נסיגה רק כשהעמודה חסרה, אחרת «מאז» היה
+    // נעלם בשקט על כל שגיאה אחרת והמסך הכריז שהעדכון הצליח.
+    const colMissing = isMissingColumn(error)
+    if (error && colMissing) ({ error } = await supabase.from('team_players').update(row).eq('id', rosterId))
     if (error) { toast.error(L('עדכון הזמינות נכשל', 'Availability update failed')); return }
-    setAvail(nextStatus); setAvailSince(todayYmd())
-    toast.success(L('הזמינות עודכנה', 'Availability updated'))
+    setAvail(nextStatus); setAvailSince(colMissing ? null : todayYmd())
+    toast.success(colMissing
+      ? L('הזמינות עודכנה · תאריך «מאז» דורש הרצה של supabase_player_card.sql', 'Availability updated · the “since” date needs supabase_player_card.sql')
+      : L('הזמינות עודכנה', 'Availability updated'))
   }
 
   // ---------- נוכחות + קושי ----------
@@ -192,7 +212,11 @@ export default function PlayerCard({ coachId, team, player, onBack, onOpenDossie
       })))
     })()
     return () => { alive = false }
-  }, [coachId, team, authId])
+    // 12.9 — rosterId בתלויות: האפקט שולף ומסנן לפי rosterId, וברגע שהכרטיס
+    // יוכל להחליף שחקן בלי unmount (למשל «הבא בסגל») הוא היה מציג לשחקן אחד
+    // את המשימות של שחקן אחר — ולשחקן בלי חשבון (authId=null) אין שום תלות
+    // אחרת שתשתנה בכלל.
+  }, [coachId, team, authId, rosterId])
 
   // ---------- ציר זמן משובים ----------
   const [feedback, setFeedback] = useState(null)

@@ -162,16 +162,23 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
 
   return (
     <div className="pg-editor">
-      <div className="pg-periods">
+      {/* 12.9.2026 (a11y-5) — המצב הנבחר היה מקודד אך ורק במחלקה 'on', כלומר
+          בצבע בלבד: קורא מסך שמע ארבעה כפתורים זהים ולא ידע לאיזה טווח
+          היעד יישמר. אותה תבנית שכבר מיושמת נכון ב-PendingApproval. */}
+      <div className="pg-periods" role="radiogroup" aria-label={L('טווח היעד', 'Goal range')}>
         {PERIODS.filter((p) => !p.legacy).map((p) => (
-          <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
+          <button key={p.id} type="button" role="radio" aria-checked={period === p.id}
+            className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
             {L(p.short[0], p.short[1])}
           </button>
         ))}
       </div>
       <div className="pg-add">
         <div className="pg-add-row">
-          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder={L('מה היעד? לדוגמה: שיפור ביד שמאל', "What's the goal? e.g. improve the weak hand")} maxLength={120} />
+          {/* 12.9.2026 (a11y-8) — placeholder אינו תווית (WCAG 3.3.2): הוא נעלם
+              ברגע ההקלדה, וסריקת השמות הנגישים החזירה כאן «ללא שם נגיש».
+              באותו קובץ כבר יש aria-label על שדות אחרים — זו הייתה השמטה. */}
+          <input className="finder-input" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} aria-label={L('מה היעד?', "What's the goal?")} placeholder={L('מה היעד? לדוגמה: שיפור ביד שמאל', "What's the goal? e.g. improve the weak hand")} maxLength={120} />
           <input className="finder-input pg-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={L('עד מתי', 'Due date')} />
           <button className="btn-primary" style={{ marginTop: 0 }} onClick={add} disabled={!title.trim() || busy} aria-label={L('הוסף יעד', 'Add goal')}><Plus size={15} /></button>
         </div>
@@ -180,9 +187,13 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
           <input className="finder-input pg-target" dir="ltr" inputMode="numeric" value={target}
             onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && add()}
+            enterKeyHint="done"
+            aria-label={L('יעד מספרי', 'Numeric target')}
             placeholder={L('יעד מספרי (לא חובה)', 'Numeric target (optional)')} />
           <input className="finder-input pg-unit" value={unit} onChange={(e) => setUnit(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && add()}
+            enterKeyHint="done"
+            aria-label={L('יחידה', 'Unit')}
             placeholder={L('יחידה — זריקות', 'Unit — shots')} maxLength={30} />
         </div>
         <p className="muted small pg-due-line">
@@ -235,8 +246,11 @@ export function PlayerGoalsEditor({ coachId, playerId, rosterId, team, playerNam
                   {/* ⚠ היה כאן disabled={restricted} — משתנה שקיים רק ב-MyGoals (השחקן).
                       בעורך של המאמן הוא לא מוגדר, וכל יעד מספרי הפיל את כרטיס
                       השחקן ב-ReferenceError (נתפס בבוחן 22.8). המאמן אינו «מוגבל». */}
-                  <button className="icon-btn" onClick={() => bump(g, -1)} aria-label="-"><Minus size={14} /></button>
-                  <button className="icon-btn" onClick={() => bump(g, 1)} aria-label="+"><Plus size={14} /></button>
+                  {/* 12.9.2026 (a11y-14) — «-» ו-«+» אינם שם נגיש: קוראי מסך
+                      מכריזים סימן פיסוק בודד באופן לא עקבי (או כלל לא), ושני
+                      הכפתורים נשמעו זהים. אותן מחרוזות שכבר קיימות בצד השחקן. */}
+                  <button className="icon-btn" onClick={() => bump(g, -1)} aria-label={L('הפחתת צעד', 'Step down')}><Minus size={14} /></button>
+                  <button className="icon-btn" onClick={() => bump(g, 1)} aria-label={L('הוספת צעד', 'Add a step')}><Plus size={14} /></button>
                   {/* הקלדה ישירה — ‎100 זריקות לא נרשמות ב-100 לחיצות על ‎+ */}
                   <input className="finder-input ta-prog-in" dir="ltr" inputMode="numeric" placeholder="0"
                     value={progDraft[g.id] ?? String(g.progress_value || '')}
@@ -301,18 +315,25 @@ function AddGoalSheet({ open, onClose, onAdd }) {
         <div className="fbs-title">{L('יעד חדש', 'New goal')}</div>
         <div className="fbs-sub">{L('יעד אישי שלך — המאמן יראה אותו מסומן «אישי»', 'Your personal goal — your coach sees it marked “personal”')}</div>
         <div className="fbs-q">{L('לאיזה טווח?', 'For when?')}</div>
-        <div className="pg-periods">
+        {/* 12.9.2026 (a11y-5) — ראו את ההערה בעורך של המאמן: בחירה יחידה
+            שמקודדת רק בצבע אינה נמסרת לקורא מסך. */}
+        <div className="pg-periods" role="radiogroup" aria-label={L('טווח היעד', 'Goal range')}>
           {PERIODS.filter((p) => !p.legacy).map((p) => (
-            <button key={p.id} type="button" className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
+            <button key={p.id} type="button" role="radio" aria-checked={period === p.id}
+              className={period === p.id ? 'pg-period on' : 'pg-period'} onClick={() => setPeriod(p.id)}>
               {L(p.short[0], p.short[1])}
             </button>
           ))}
         </div>
+        {/* 12.9.2026 (a11y-8) — ‎.fbs-q הוא div ולא <label>, ולכן השאלה שמעל
+            השדה אינה חלק מהשם הנגיש שלו. aria-label במפורש על כל שדה. */}
         <div className="fbs-q">{L('מה היעד?', "What's the goal?")}</div>
         <input className="plg2-input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
+          aria-label={L('מה היעד?', "What's the goal?")}
           placeholder={L('למשל: 100 זריקות ליום', 'e.g. 100 shots a day')} />
         <div className="fbs-q">{L('יעד (מספר) — לא חובה', 'Target (number) — optional')}</div>
-        <input className="plg2-input" dir="ltr" inputMode="numeric" value={target}
+        <input className="plg2-input" dir="ltr" inputMode="numeric" value={target} enterKeyHint="done"
+          aria-label={L('יעד (מספר) — לא חובה', 'Target (number) — optional')}
           onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ''))} placeholder={L('למשל: 100', 'e.g. 100')} />
         <button className="fbs-send" onClick={submit} disabled={!title.trim() || busy}>
           <Plus size={18} /> {busy ? L('מוסיף…', 'Adding…') : L('הוסף יעד', 'Add goal')}
@@ -396,7 +417,8 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
       return
     }
     await recordLog(g.id, next)
-    if (done && g.status !== 'done') { toast.success(L('הושלם יעד! 🎉', 'Goal completed! 🎉')); burstConfetti() }
+    // 12.9.2026 (copy-ux-2-12) — מילה אחת לאותו מצב בכל המסך: «הושג».
+    if (done && g.status !== 'done') { toast.success(L('היעד הושג! 🎉', 'Goal achieved! 🎉')); burstConfetti() }
   }
 
   const bump = async (g, dir) => {
@@ -535,6 +557,9 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
         value={amtInput[g.id] || ''}
         onChange={(e) => setAmtInput((m) => ({ ...m, [g.id]: e.target.value.replace(/[^0-9]/g, '') }))}
         onKeyDown={(e) => e.key === 'Enter' && logAmount(g)}
+        /* 12.9.2026 (mobile-ergonomics-12) — Enter כאן *רושם* את הכמות, אבל
+           המקש באייפון נשאר «return» ואיש לא ידע שזה קיצור הדרך. */
+        enterKeyHint="done"
         aria-label={L('כמה ביצעת היום?', 'How much today?')}
       />
       <button type="button" className="ps-add" onClick={() => logAmount(g)} disabled={restricted || !amtInput[g.id]}>
@@ -576,6 +601,7 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
               value={amtInput[heroGoal.id] || ''}
               onChange={(e) => setAmtInput((m) => ({ ...m, [heroGoal.id]: e.target.value.replace(/[^0-9]/g, '') }))}
               onKeyDown={(e) => e.key === 'Enter' && logAmount(heroGoal)}
+              enterKeyHint="done" /* 12.9.2026 (mobile-ergonomics-12) */
               aria-label={L('כמה ביצעת היום?', 'How much today?')}
             />
             <button type="button" className="ps-hero-btn" onClick={() => logAmount(heroGoal)} disabled={restricted || !amtInput[heroGoal.id]}>
@@ -664,7 +690,9 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
                         </>
                       )}
                       <button type="button" className="ps-add" onClick={() => toggleDone(g)} disabled={restricted}>
-                        <Check size={14} aria-hidden="true" /> {g.status === 'done' ? L('בוצע', 'Done') : L('סמן שבוצע', 'Mark done')}
+                        {/* 12.9.2026 (copy-ux-2-12) — «הושג» ולא «בוצע»: אותו
+                            מצב נקרא על המסך הזה בשלוש מילים שונות. */}
+                        <Check size={14} aria-hidden="true" /> {g.status === 'done' ? L('הושג', 'Achieved') : L('סמן שהושג', 'Mark achieved')}
                       </button>
                     </div>
                   </>
@@ -708,7 +736,8 @@ export function MyGoals({ session, membership, restricted = false, personalIds =
               >
                 <span className="ps-okdot" aria-hidden="true"><Check size={14} /></span>
                 <span className="ps-grow ps-t13b">{g.title}</span>
-                <span className="ps-chip ps-chip--ok">{own ? L('הושלם · לביטול', 'Done · tap to undo') : L('הושלם', 'Done')}</span>
+                {/* 12.9.2026 (copy-ux-2-12) — «הושג», כמו בכותרת ובשורת המספרים */}
+                <span className="ps-chip ps-chip--ok">{own ? L('הושג · לביטול', 'Achieved · tap to undo') : L('הושג', 'Achieved')}</span>
               </Row>
             )
           })}

@@ -9,7 +9,6 @@ import Home from './Home'
 import Avatar from './Avatar'
 import QuoteStrip from './QuoteStrip'
 import Notifications from './Notifications'
-import PendingApproval from './PendingApproval'
 import AdultConfirm from './AdultConfirm'
 import ErrorBoundary from './ErrorBoundary'
 import useNavMarker from './useNavMarker'
@@ -30,7 +29,6 @@ import PlayerSideClosed from './PlayerSideClosed'
 // מאמן מושעה — מסך הסבר במקום אפליקציה שכל שמירה בה נכשלת בשקט
 import AccountBlocked from './AccountBlocked'
 import GuidedTour, { tourSeen, markTourSeen } from './GuidedTour'
-import Help from './Help'
 
 // ===== טעינה עצלה שעומדת בדפלוי באמצע סשן =====
 // אחרי דפלוי לוורסל הנכסים עם ה-hash הישן נמחקים, ו-import() של chunk ישן
@@ -127,6 +125,13 @@ const PlayerDossier = lazy(lazyRetry(() => import('./PlayerDossier')))
 // 10a — הצד הציבורי של הפרופיל הוא בדיוק המסך שמאמן אחר רואה
 const CoachProfile = lazy(lazyRetry(() => import('./CoachProfile')))
 const Media = lazy(lazyRetry(() => import('./Media')))
+// 12.9.2026 — «שאלות ותשובות» עבר לטעינה עצלה: Help גורר את src/faqData.js
+// (33KB מקור, ~9.5KB gzip בצ'אנק הפתיחה) בשביל מסך שנפתח מהתפריט בלבד ורוב
+// המשתמשים לא פותחים אף פעם. הוא כבר מרונדר בתוך ה-Suspense של המסכים.
+const Help = lazy(lazyRetry(() => import('./Help')))
+// 12.9.2026 — גם מסך ההמתנה/ההשעיה: 27KB מקור שנטענו לכל מבקר בשביל מסך
+// שרואים אותו רק בחשבון ממתין או מושעה.
+const PendingApproval = lazy(lazyRetry(() => import('./PendingApproval')))
 import {
   Home as HomeIcon,
   User,
@@ -368,7 +373,13 @@ export default function Dashboard({ session }) {
     setView(id)
   }
 
-  // מונה הודעות שלא נקראו — ל-badge בניווט (מתרענן במעבר מסך ואחת לדקה)
+  // מונה הודעות שלא נקראו — ל-badge בניווט (מתרענן בחזרה לאפליקציה ואחת לדקה)
+  // 12.9.2026 — שני תיקונים באותו אפקט:
+  //  · שער visibility, כמו בכל שאר הפולרים בפרויקט (Community, Messages,
+  //    CoachChat). בלעדיו זו הייתה שאילתה בדקה לנצח גם כשהטלפון בכיס.
+  //  · `view` ירד מהתלויות: כל מעבר מסך הרס את ה-interval, בנה אותו מחדש
+  //    וירה שאילתה נוספת מיד — מסלול של עשרה מסכים = עשר שאילתות מיותרות.
+  //    הרענון בחזרה לאפליקציה מכסה את המקרה שבאמת חשוב.
   const [unread, setUnread] = useState(0)
   useEffect(() => {
     let alive = true
@@ -381,9 +392,16 @@ export default function Dashboard({ session }) {
       if (alive && !error) setUnread(count || 0)
     }
     loadUnread()
-    const t = setInterval(loadUnread, 60000)
-    return () => { alive = false; clearInterval(t) }
-  }, [session.user.id, view])
+    const tick = () => { if (document.visibilityState === 'visible') loadUnread() }
+    const onVis = () => { if (document.visibilityState === 'visible') loadUnread() }
+    const t = setInterval(tick, 60000)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      alive = false
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [session.user.id])
 
   async function loadProfile() {
     setLoading(true)
@@ -409,6 +427,11 @@ export default function Dashboard({ session }) {
         const c = await cacheGet(`profile:${session.user.id}`)
         if (c?.data) {
           setProfile(c.data)
+          // 12.9.2026 — גם כאן נכתבת חותמת התפקיד. היא נכתבה רק בענף
+          // ההצלחה, ולכן מאמן שנכנס בלי רשת (או בפעם הראשונה אחרי כשל
+          // טעינה) נראה ל-App כ«לא מאמן» — והשומר שמונע חטיפת קוד הצטרפות
+          // מקישור שהוא עצמו לחץ עליו פשוט לא פעל.
+          try { localStorage.setItem(`cs_role_${session.user.id}`, c.data.role || '') } catch { /* ignore */ }
           setLoading(false)
           return
         }
@@ -603,12 +626,19 @@ export default function Dashboard({ session }) {
       )
     }
     return (
-      <PendingApproval
-        profile={profile}
-        status="suspended"
-        onEditProfile={() => setEditing(true)}
-        onRecheck={loadProfile}
-      />
+      // Suspense — PendingApproval נטען עצלנית (ראו למעלה)
+      <Suspense
+        fallback={(
+          <div className="center-screen"><div className="app-loading"><div className="loader" /></div></div>
+        )}
+      >
+        <PendingApproval
+          profile={profile}
+          status="suspended"
+          onEditProfile={() => setEditing(true)}
+          onRecheck={loadProfile}
+        />
+      </Suspense>
     )
   }
 

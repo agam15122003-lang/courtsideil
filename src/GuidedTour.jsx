@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, ArrowLeft, ArrowRight } from 'lucide-react'
-import { L } from './i18n'
+import { X } from 'lucide-react'
+// 12.9.2026 — חצים כיווניים דרך DirIcon ולא ישירות מ-lucide: שני החצים כאן
+// היו קשיחים, ובמצב English «הקודם» הצביע ימינה ו«הבא» שמאלה.
+import { ArrowFwd, ArrowBack } from './DirIcon'
+import { L, getDir } from './i18n'
 import { motionOff } from './anim'
 import tourSteps from './tourSteps'
 import useFocusTrap from './useFocusTrap'
@@ -204,9 +207,12 @@ export default function GuidedTour({ onGo, onClose }) {
   useEffect(() => {
     const onKey = (e) => {
       // Escape מגיע מ-useFocusTrap, לא מכאן — אחרת finish רץ פעמיים
-      // חצים לפי סדר הקריאה בעברית: «הבא» הוא שמאלה
-      if (e.key === 'ArrowLeft' || e.key === 'Enter') { e.preventDefault(); next() }
-      if (e.key === 'ArrowRight') { e.preventDefault(); prev() }
+      // 12.9.2026 — חצים לפי כיוון הקריאה בפועל: בעברית «הבא» הוא שמאלה,
+      // באנגלית ימינה. קודם זה היה קשיח והתהפך במצב English.
+      const fwd = getDir() === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
+      const back = getDir() === 'rtl' ? 'ArrowRight' : 'ArrowLeft'
+      if (e.key === fwd || e.key === 'Enter') { e.preventDefault(); next() }
+      if (e.key === back) { e.preventDefault(); prev() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -261,12 +267,12 @@ export default function GuidedTour({ onGo, onClose }) {
         <div className="tour-acts">
           {i > 0 && (
             <button type="button" className="btn-ghost tour-back" onClick={prev}>
-              <ArrowRight size={15} aria-hidden="true" /> {L('הקודם', 'Back')}
+              <ArrowBack size={15} /> {L('הקודם', 'Back')}
             </button>
           )}
           <button type="button" className="btn-primary tour-next" onClick={next}>
             {step.last ? L('סיימנו', 'Done') : L('הבא', 'Next')}
-            {!step.last && <ArrowLeft size={15} aria-hidden="true" />}
+            {!step.last && <ArrowFwd size={15} />}
           </button>
         </div>
       </div>

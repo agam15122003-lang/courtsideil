@@ -83,12 +83,28 @@ export default function JoinWithCode({ onJoin, onBack, onSkip }) {
 
     const next = [...cells]
     let i = start
+    let dropped = 0
     for (const ch of chars) {
-      if (i >= CELLS) break
+      if (i >= CELLS) { dropped += 1; continue }
       next[i] = ch
       i += 1
     }
     setCells(next)
+
+    // 12.9.2026 (player-flow-17) — הרג'קס של הלינק (App.jsx) מקבל 4–10 תווים,
+    // ולכן אפשר להדביק כאן קוד ארוך משישה. עד היום התווים העודפים נזרקו
+    // בשקט **ומיד נשלחה** הגרסה הגזומה — הילד קיבל «קוד לא נמצא» בלי לדעת
+    // שנחתך משהו. עוצרים, אומרים, ולא שולחים משהו שהוא לא הקליד.
+    if (dropped) {
+      setError(
+        L(
+          `הקוד שהודבק ארוך מ-${CELLS} תווים, ולכן לא שלחנו אותו. בדוק אותו מול המאמן והקלד מחדש.`,
+          `The code you pasted is longer than ${CELLS} characters, so we did not send it. Check it with your coach and retype it.`,
+        ),
+      )
+      focusCell(CELLS - 1)
+      return
+    }
     setError(null)
 
     // קוד מלא = שליחה אוטומטית, בלי לחכות ללחיצה
@@ -170,9 +186,13 @@ export default function JoinWithCode({ onJoin, onBack, onSkip }) {
               <span className="csa-eyebrow">{L('הרשמה · שחקן', 'Sign up · Player')}</span>
               <h1 className="csa-title">{L('יש לך קוד מהמאמן?', 'Got a code from your coach?')}</h1>
               <p className="csa-sub">
+                {/* 12.9.2026 (copy-ux-1-3 · player-flow-9) — הנוסח הקודם הבטיח
+                    «בלי לחכות לאישור ידני», אבל join_with_code יוצר חברות עם
+                    status='pending' והמסך הבא אומר «ממתין לאישור המאמן». ילד
+                    שהאמין להבטחה הסיק שמשהו נשבר. אומרים את מה שקורה. */}
                 {L(
-                  'מקלידים את הקוד שהמאמן שלח. הוא מחבר אותך לקבוצה הנכונה — בלי לחכות לאישור ידני.',
-                  'Type in the code your coach sent. It connects you to the right team — with no manual approval to wait for.',
+                  'מקלידים את הקוד שהמאמן שלח. הוא מחבר אותך לקבוצה הנכונה — המאמן רק צריך לאשר, וזה בדרך כלל לוקח לו רגע.',
+                  'Type in the code your coach sent. It connects you to the right team — your coach just needs to approve, and that usually takes them a moment.',
                 )}
               </p>
             </div>

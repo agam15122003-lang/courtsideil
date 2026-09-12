@@ -820,7 +820,9 @@ function Dossier({ me, rosterRow, catalog, personId, ensurePerson, entries, load
           <div className="pd-card-h">
             <h3>{L('דירוגים', 'Ratings')}</h3>
             <span className="muted small">
-              {readOnly ? L('1–5 · קריאה בלבד', '1–5 · read only') : L('1–5 · לחיצה על אותה נקודה מבטלת', '1–5 · tap the same dot to clear')}
+              {/* 12.9 — המקף הארוך (–) הוא תו ניטרלי, ובפסקה RTL הוא הפך את
+                  «1–5» ל«5–1» על המסך. bdi+ltr מקבע את סדר הטווח. */}
+              <bdi dir="ltr">1–5</bdi> · {readOnly ? L('קריאה בלבד', 'read only') : L('לחיצה על אותה נקודה מבטלת', 'tap the same dot to clear')}
             </span>
           </div>
           {catalog.cats.map((c) => {
@@ -1586,7 +1588,7 @@ function CatalogEditor({ club, rows, onSaved }) {
           )}
           <div className="chips">
             <button type="button" className={draft.kind === 'rating' ? 'chip selected' : 'chip'}
-              onClick={() => setDraft((d) => ({ ...d, kind: 'rating' }))}>{L('דירוג 1–5', 'Rating 1–5')}</button>
+              onClick={() => setDraft((d) => ({ ...d, kind: 'rating' }))}>{L('דירוג', 'Rating')} <bdi dir="ltr">1–5</bdi></button>
             <button type="button" className={draft.kind === 'number' ? 'chip selected' : 'chip'}
               onClick={() => setDraft((d) => ({ ...d, kind: 'number' }))}>{L('מדידה במספר', 'Measurement')}</button>
           </div>
@@ -1651,7 +1653,8 @@ function CatalogEditor({ club, rows, onSaved }) {
                           <span className="pd-cat-nm">
                             {m.label}
                             <span className="pd-cat-kind">
-                              {m.kind === 'number' ? (m.unit || L('מספר', 'number')) : '1–5'}
+                              {/* 12.9 — טווח עם מקף ארוך בתוך RTL מתהפך; bdi/ltr מקבע */}
+                              {m.kind === 'number' ? (m.unit || L('מספר', 'number')) : <bdi dir="ltr">1–5</bdi>}
                             </span>
                             {overridden && <span className="pd-cat-tag">{L('שונה במועדון', 'Club change')}</span>}
                             {own && <span className="pd-cat-tag own">{L('של המועדון', 'Club metric')}</span>}

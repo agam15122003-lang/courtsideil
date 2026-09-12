@@ -112,11 +112,25 @@ export default function TrainingPlans({ session, initialPlanId, onConsumeInitial
     if (copyingRef.current) return
     copyingRef.current = true
     try {
-      const { data: pis, error: e1 } = await supabase
-        .from('plan_items')
-        .select('drill_id, position, duration_minutes, note, title, description')
-        .eq('plan_id', plan.id)
-        .order('position')
+      // 12.9.2026: שלוש דרגות מסד גם כאן (כמו COLS_BY_TIER למעלה). קודם
+      // נשלפו title/description בלי שום ירידת דרגה — מסד שטרם הריץ את
+      // מיגרציית ה-plan_items החזיר 42703, ו«התחל מתוכנית קיימת» נפל עם
+      // הודעת Postgres גולמית. `part` נוסף כדי שהחלוקה ל«חלק N» של תוכנית
+      // ישנה לא תיעלם בהעתקה. הדרגה שנבחרה מבטיחה שכל עמודה שנשלפה גם קיימת
+      // בכתיבה חזרה.
+      const ITEM_COLS = [
+        'drill_id, position, part, duration_minutes, note, title, description',
+        'drill_id, position, duration_minutes, note, title, description',
+        'drill_id, position, duration_minutes, note',
+      ]
+      let itier = 0
+      let { data: pis, error: e1 } = await supabase
+        .from('plan_items').select(ITEM_COLS[0]).eq('plan_id', plan.id).order('position')
+      while (e1 && notDeployed(e1) && itier < ITEM_COLS.length - 1) {
+        itier += 1
+        ;({ data: pis, error: e1 } = await supabase
+          .from('plan_items').select(ITEM_COLS[itier]).eq('plan_id', plan.id).order('position'))
+      }
       if (e1) {
         toast.error(L('שגיאה: ', 'Error: ') + e1.message)
         return

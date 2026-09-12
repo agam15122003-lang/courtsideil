@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Plus, Trash2, Users2, Target, CalendarClock, X,
-  Pencil, Save, Trophy, ChevronRight, ChevronLeft, Download, Info,
+  Pencil, Save, Trophy, Download, Info,
   Briefcase, Phone, CalendarRange, CalendarDays, RotateCcw, Bandage,
   UserCheck, MessageSquareHeart, Star, Send as SendIcon,
   Printer, Check, Share2, CalendarSearch, ClipboardPaste,
@@ -27,14 +27,17 @@ import { confirmDialog } from './confirm'
 import useFocusTrap from './useFocusTrap'
 import LeagueTable from './LeagueTable'
 import TeamGames from './TeamGames'
-import TeamConnect from './TeamConnect'
+// 12.9 — consentState/confirmConsentGate/sameTeam חיים ב-TeamConnect ומשמשים
+// את שני הפאנלים שמציגים את אותן בקשות (ראו ההערה שם) — שער הסכמה אחד.
+import TeamConnect, { consentState, confirmConsentGate, sameTeam } from './TeamConnect'
 import PlayerCard from './PlayerCard'
 import Page from './Page'
-import { ChevronFwd } from './DirIcon'
+import { ChevronFwd, ChevronBack } from './DirIcon'
 import { sendNotification } from './notify'
 import { SkeletonRoster } from './Skeleton'
 // 8.9 — unlinkRosterRow: ניתוק חשבון שחקן משורת סגל (מכרטיס השחקן)
-import { pendingRequests, decideMembership, ageMismatches, unlinkRosterRow } from './players'
+// 12.9 — isMissingColumn: נסיגה רק כשהעמודה באמת חסרה, לא על כל שגיאה
+import { pendingRequests, decideMembership, ageMismatches, unlinkRosterRow, isMissingColumn } from './players'
 import { waShare } from './share'
 
 // פירוק רשימה מודבקת לשורות של { number, name }.
@@ -72,6 +75,18 @@ export function parseRoster(text) {
 }
 
 
+// 12.9 — נרמול שם להשוואה. זהה ל-normName ב-players.js (שם הוא פנימי ולא
+// מיוצא, ו-players.js אינו חלק מהחבילה הזו). למה זה חשוב דווקא כאן: החיבור
+// האוטומטי של חשבון שחקן לשורת סגל קיימת משתמש בנרמול הזה ומתחבר **רק**
+// כשיש התאמה אחת בדיוק — ולכן «יוסי בן־דוד» שהודבק ו«יוסי בן דוד» שהוקלד
+// ביד נשארו שתי שורות, החיבור נכשל בשקט ונוצרה שורה שלישית.
+const normName = (s) => String(s || '')
+  .toLowerCase()
+  .replace(/[\u200b\u200e\u200f\ufeff]/g, '')
+  .replace(/[׳״'"`\-–—־]/g, '')
+  .replace(/[\s\u00a0]+/g, ' ')
+  .trim()
+
 // ---- סטטוס שחקן ----
 const STATUSES = [
   { key: 'active', he: 'פעיל', en: 'Active' },
@@ -84,16 +99,8 @@ const statusLabel = (k) => L((STATUSES.find((x) => x.key === k) || STATUSES[0]).
 // ---- הקשר ההסכמה של בקשת הצטרפות ----
 // המודל כאן נשען על המאמן כשומר האנושי: הוא זה שמכיר את השחקן ואת המשפחה.
 // כדי שההחלטה שלו תהיה מודעת ולא מקרית, כל בקשה מסומנת במצב ההסכמה שלה.
-// null = המיגרציה טרם רצה (approval_status/has_consent חסרים) — ואז המסך
-// חוזר בדיוק להתנהגות של היום: בלי תג, בלי דיאלוג, בלי פאנל.
-const consentState = (r) => {
-  if (!r?.approval_status) return null
-  if (r.approval_status === 'pending_parent') return 'waiting'
-  if (r.approval_status === 'suspended') return 'revoked'
-  if (r.parent_approved === true) return 'approved'
-  if (r.parent_approved === false) return 'adult'
-  return null // has_consent לא זמין — עדיף בלי תג מאשר תג שקרי
-}
+// 12.9 — consentState (וגם שער האישור confirmConsentGate) עברו ל-TeamConnect.jsx
+// ומיובאים מלמעלה: אותן בקשות מוצגות בשני פאנלים, וצריך שער אחד לשניהם.
 // הטקסטים נשמרים he/en ולא עוברים ב-L כאן: מודול נטען פעם אחת, והחלפת
 // שפה בזמן ריצה הייתה מקבעת את השפה של הטעינה הראשונה.
 // הצבעים דרך טוקנים בלבד — אין hex, ואין תוספת ל-index.css.
@@ -117,9 +124,9 @@ const AGE_SEVERITY = {
   major: { he: 'פער משמעותי', en: 'Significant gap', style: { background: 'var(--warn-soft)', color: 'var(--warn-ink)' } },
   minor: { he: 'פער קטן', en: 'Small gap', style: { background: 'var(--surface-alt)', color: 'var(--text-muted)' } },
 }
-// השוואת שם קבוצה סובלנית לרישיות ולרווחים: אותו שם נשמר לעתים בכתיב שונה
-// בין הפרופיל לשורת הסגל, ופאנל ריק בזמן שהצ׳יפ מראה מספר גרוע מכלום.
-const sameTeam = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+// השוואת שם קבוצה סובלנית לרישיות ולרווחים (sameTeam) מיובאת מ-TeamConnect:
+// אותו שם נשמר לעתים בכתיב שונה בין הפרופיל לשורת הסגל, ופאנל ריק בזמן
+// שהצ׳יפ מראה מספר גרוע מכלום.
 
 // ---- תפקידי צוות מקצועי ----
 const STAFF_ROLES = [
@@ -324,7 +331,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     const rows = await pendingRequests(me, { quiet: true })
     if (token !== reqTokenRef.current) return // קבוצה אחרת נבחרה בינתיים
     setReqsFailed(!!rows.loadError)
-    setReqs(rows.filter((r) => r.team === team))
+    // 12.9 — sameTeam ולא השוואה מדויקת: רווח נסתר או אות גדולה בשם הקבוצה
+    // הספיקו כדי שהבקשה תיעלם מהפאנל בזמן שהמונה בבית ממשיך לספור אותה.
+    setReqs(rows.filter((r) => sameTeam(r.team, team)))
     setReqsLoading(false)
   }
   // צד המאמן בלבד: אין בקשות הצטרפות (אין חשבונות שחקן) — לא שולפים בכלל
@@ -383,32 +392,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   )
 
   const decideRequest = async (r, approve) => {
-    const st = consentState(r)
-    // ההחלטה נשארת של המאמן — אבל היא חייבת להיות מפורשת, לא אגבית.
-    if (approve && st === 'waiting') {
-      const ok = await confirmDialog({
-        title: L('לאשר שחקן שההורה שלו טרם אישר?', 'Approve a player whose parent has not approved?'),
-        message: L(
-          'זהו קטין שהאפוטרופוס שלו עדיין לא אישר את ההרשמה. באישור הבקשה אתם מצהירים שאתם מכירים את השחקן ואת משפחתו. השחקן יצטרף לקבוצה — אבל יישאר מוגבל באפליקציה: בלי העלאת תמונות, בלי כתיבה בקהילה ובצ׳אטים ובלי שליחת הודעות — עד שההורה יאשר.',
-          'This is a minor whose guardian has not yet approved the registration. By approving you confirm that you know the player and their family. The player will join the team — but will stay restricted in the app: no photo uploads, no posting in the community or chats and no messaging — until the parent approves.',
-        ),
-        confirmText: L('אני מכיר את המשפחה — לאשר', 'I know the family — approve'),
-        danger: false,
-      })
-      if (!ok) return
-    }
-    if (approve && st === 'revoked') {
-      const ok = await confirmDialog({
-        title: L('לאשר שחקן שההסכמה שלו בוטלה?', 'Approve a player whose consent was revoked?'),
-        message: L(
-          'ההורה ביטל את ההסכמה והחשבון מושהה. אישור הבקשה לא יפתח לשחקן את האפליקציה — הוא יישאר חסום עד שהעניין ייפתר מול ההורה או מול מנהל המערכת.',
-          'The parent revoked consent and the account is suspended. Approving will not open the app for this player — they stay blocked until it is resolved with the parent or with an administrator.',
-        ),
-        confirmText: L('אישור בכל זאת', 'Approve anyway'),
-        danger: true,
-      })
-      if (!ok) return
-    }
+    // 12.9 — שער ההסכמה עבר ל-confirmConsentGate (TeamConnect.jsx) ומשמש גם
+    // את פאנל החיבור שמתחת, שעד היום אישר בלי שום אזהרה.
+    if (approve && !(await confirmConsentGate(r))) return
     setDeciding(r.id)
     const res = await decideMembership({ ...r }, approve)
     setDeciding(null)
@@ -484,8 +470,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     if (!pasteRows.length || pasteBusy) return
     setPasteBusy(true)
     // שם שכבר קיים בסגל מדולג — מאמן שמדביק פעמיים לא מקבל כפילויות
-    const have = new Set(players.map((x) => String(x.name || '').toLowerCase()))
-    const fresh = pasteRows.filter((r) => !have.has(r.name.toLowerCase()))
+    // 12.9 — normName ולא toLowerCase בלבד: מקף, גרש או רווח כפול הספיקו
+    // כדי שאותו ילד ייכנס פעמיים, ואז החיבור האוטומטי לחשבון נכשל בשקט.
+    const have = new Set(players.map((x) => normName(x.name)))
+    const fresh = pasteRows.filter((r) => !have.has(normName(r.name)))
     if (!fresh.length) {
       toast.error(L('כל השמות ברשימה כבר בסגל.', 'Every name on the list is already in the roster.'))
       setPasteBusy(false)
@@ -511,6 +499,15 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
 
   const addPlayer = async () => {
     if (!pName.trim()) return
+    // 12.9 — שם דומה שכבר בסגל: הוספה שקטה יצרה שורה כפולה שההיסטוריה
+    // (יעדים, משימות, עומס) נשארת על הישנה, וחסמה את החיבור האוטומטי לחשבון.
+    const twin = players.find((x) => normName(x.name) === normName(pName))
+    if (twin && !(await confirmDialog({
+      title: L('כבר יש בסגל שם דומה', 'A similar name is already on the roster'),
+      message: L(`«${twin.name}» כבר רשום בסגל. אם זה אותו שחקן — עדיף לערוך את השורה הקיימת, כי כל מה שנרשם עליו (יעדים, משימות, עומס) יושב עליה. להוסיף בכל זאת שורה נוספת?`,
+                 `“${twin.name}” is already on the roster. If this is the same player, better edit the existing row — everything recorded about him (goals, tasks, load) sits there. Add another row anyway?`),
+      confirmText: L('הוספה בכל זאת', 'Add anyway'),
+    }))) return
     const { error } = await supabase.from('team_players').insert({ coach_id: me, team, name: pName.trim(), number: pNum.trim() || null, status: 'active' })
     if (error) { console.error('teams add:', error.message); toast.error(L('ההוספה נכשלה — נסו שוב בעוד רגע.', 'Add failed — try again in a moment.')); return }
     setPName(''); setPNum(''); load()
@@ -526,16 +523,36 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
   }
   const savePlayer = async () => {
     const p = pEdit
-    const { error } = await supabase.from('team_players').update({
+    const year = p.birth_year ? parseInt(p.birth_year, 10) : null
+    const base = {
       name: (p.name || '').trim(), number: (p.number || '').toString().trim() || null,
       status: p.status, position: p.position || null,
-      birth_year: p.birth_year ? parseInt(p.birth_year, 10) : null,
+      birth_year: year,
       phone: p.phone || null, notes: p.notes || null, injury_note: p.injury_note || null,
-    }).eq('id', p.id)
+    }
+    // 12.9 — תאריך הלידה נערך בכרטיס השחקן (birth_date) והשנה נערכת כאן
+    // (birth_year), והצלבת הגיל מכריעה לפי התאריך. כשהמאמן מקליד כאן שנה
+    // חדשה שסותרת תאריך קיים, התיקון שלו לא היה מנקה את הפער — ולכן
+    // התאריך הסותר מתאפס, והשנה שהוקלדה עכשיו היא האמת היחידה.
+    // 12.9 — חובה להשוות לשנה שהייתה בפתיחת המודאל (_y0) ולא רק לתאריך:
+    // בלי זה כל שמירה על שורה שכבר סותרת (גם שמירה שנגעה רק בטלפון או
+    // בסטטוס) הייתה מוחקת את תאריך הלידה המלא — איבוד המידע המדויק יותר.
+    // _y0 חסר = לא יודעים מה השתנה ⇒ לא נוגעים בתאריך.
+    const y0 = p._y0 == null || p._y0 === '' ? null : parseInt(p._y0, 10)
+    const yearEdited = '_y0' in p && year !== y0
+    const clash = !!(p.birth_date && year && yearEdited && Number(String(p.birth_date).slice(0, 4)) !== year)
+    let { error } = await supabase.from('team_players')
+      .update(clash ? { ...base, birth_date: null } : base).eq('id', p.id)
+    // מסד שטרם הריץ את supabase_player_card.sql — אין עמודת birth_date
+    if (error && clash && isMissingColumn(error)) ({ error } = await supabase.from('team_players').update(base).eq('id', p.id))
     if (error) { console.error('teams save player:', error.message); toast.error(L('השמירה נכשלה — נסו שוב בעוד רגע.', 'Save failed — try again in a moment.')); return }
     // שנת לידה שהשתנתה כאן היא בדיוק מה שהצלבת הגיל בודקת — מרעננים אותה,
     // אחרת הפער היה ממשיך להופיע אחרי שהמאמן כבר תיקן אותו.
-    toast.success(L('פרטי השחקן נשמרו', 'Player saved')); setPEdit(null); load(); loadAges()
+    toast.success(clash
+      ? L('פרטי השחקן נשמרו · תאריך הלידה המלא שהיה רשום לא התאים לשנה הזו ולכן נמחק — אפשר להזין אותו מחדש בכרטיס השחקן',
+          'Player saved · the full birth date on file did not match this year and was cleared — you can re-enter it in the player card')
+      : L('פרטי השחקן נשמרו', 'Player saved'))
+    setPEdit(null); load(); loadAges()
   }
   // 4.9 — «בלי שאלות בוקר»: כיבוי הצ'ק-אין לילד בודד (בקשת הורה בוואטסאפ —
   // בלי סבב הסכמות). טאפ אחד, נשמר מיד; סובלני למסד שטרם הריץ את המיגרציה.
@@ -583,17 +600,58 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
     toast.success(L('החשבון נותק מהשורה', 'Account disconnected from the row'))
   }
 
-  const delPlayer = async (id) => {
+  // 12.9 — הסרה מהסגל מחקה שורה אחת בלבד (team_players), ולכן:
+  //   · חשבון מקושר נשאר 'approved' ב-team_memberships — וזו הטבלה שממנה
+  //     נגזרות כל הרשאות הקריאה של השחקן (is_team_member): הילד שהוסר
+  //     המשיך לראות את הלו״ז ואת סיכומי האימונים.
+  //   · דיווחי הצ׳ק-אין שהילד שלח בעצמו נושאים player_id (ולא roster_id),
+  //     ולכן שרדו את המחיקה — והכלי היחיד למחוק אותם
+  //     (purge_checkins_for_roster) מחפש את שורת הסגל שכבר לא קיימת.
+  // הסדר כאן מכוון: קודם מוציאים את החשבון (אם נכשל — כלום לא נגע),
+  // אחר כך מוחקים את הדיווחים בזמן שהשורה עוד קיימת, ורק אז את השורה.
+  const delPlayer = async (p) => {
+    const linked = !!p.player_id
     if (!(await confirmDialog({
       title: L('להסיר את השחקן מהסגל?', 'Remove this player from the roster?'),
-      message: L('השחקן יוסר מהקבוצה יחד עם הפרטים שרשמת עליו. אי אפשר לשחזר.',
-                 'The player will be removed from the team along with the details you recorded. This cannot be undone.'),
+      message: linked
+        ? L('השחקן יוסר מהקבוצה יחד עם הפרטים שרשמת עליו, והחשבון שלו יוצא מהקבוצה — הוא יפסיק לראות את הלו״ז ואת סיכומי האימונים. גם דיווחי הבוקר שלו יימחקו, ואי אפשר לשחזר אותם. את החשבון עצמו אפשר להחזיר אחר כך מ«ילדים שמחוץ לקבוצה» בפאנל החיבור.',
+             'The player will be removed from the team along with the details you recorded, and his account leaves the team — he will stop seeing the schedule and the practice summaries. His morning check-ins are deleted too and cannot be restored. The account itself can be brought back later from “Players outside the team” in the connect panel.')
+        : L('השחקן יוסר מהקבוצה יחד עם הפרטים שרשמת עליו, וגם עם דיווחי הבוקר שנאספו עליו. אי אפשר לשחזר.',
+             'The player will be removed from the team along with the details you recorded and the morning check-ins collected for him. This cannot be undone.'),
       confirmText: L('הסרת השחקן', 'Remove player'),
       danger: true,
     }))) return
-    // כשל מחיקה נבלע בשקט ונראה בדיוק כמו הצלחה — עד לרענון הבא
-    const { error } = await supabase.from('team_players').delete().eq('id', id)
+    // 1) החשבון יוצא מהקבוצה. כשל כאן עוצר הכול — עדיף שורת סגל שנשארה
+    //    מאשר ילד שמחוק מהרשימה וממשיך לראות את הכול.
+    if (linked) {
+      const { data: mem, error: mErr } = await supabase.from('team_memberships')
+        .update({ status: 'rejected', decided_at: new Date().toISOString() })
+        .eq('coach_id', me).eq('team', p.team || team).eq('player_id', p.player_id).select('id')
+      if (mErr) {
+        console.error('teams del player/membership:', mErr.message)
+        toast.error(L('לא הצלחנו להוציא את החשבון שלו מהקבוצה — השחקן לא הוסר. נסו שוב בעוד רגע.',
+                      'We could not remove his account from the team — the player was not removed. Try again in a moment.'))
+        return
+      }
+      if (Array.isArray(mem) && mem.length === 0) {
+        // שם הקבוצה בשורת החברות נשמר לפעמים בכתיב אחר — אומרים את זה
+        toast.error(L('לא נמצאה שורת חברות לחשבון שלו בקבוצה הזו — ייתכן שהוא עדיין מחובר לקבוצה באפליקציה.',
+                      'No membership row was found for his account in this team — he may still be connected to the team in the app.'))
+      }
+    }
+    // 2) דיווחי הצ׳ק-אין, כל עוד שורת הסגל קיימת. מסד שטרם הריץ את
+    //    supabase_pilot_fixes_6_9.sql לא מכיר את הפונקציה — אומרים את זה.
+    let purgeMissing = false
+    const { error: pErr } = await supabase.rpc('purge_checkins_for_roster', { p_roster: p.id })
+    // ok:false + 'no_table' = אין בכלל טבלת צ'ק-אין, כלומר אין מה למחוק
+    if (pErr) { purgeMissing = true; console.warn('teams del player/purge:', pErr.message || pErr) }
+    // 3) שורת הסגל. כשל מחיקה נבלע בשקט ונראה בדיוק כמו הצלחה — עד לרענון הבא
+    const { error } = await supabase.from('team_players').delete().eq('id', p.id)
     if (error) { console.error('teams del player:', error.message); toast.error(L('ההסרה נכשלה — נסו שוב בעוד רגע.', 'Removal failed — try again in a moment.')); return }
+    if (purgeMissing) {
+      toast.error(L('השחקן הוסר, אבל דיווחי הבוקר שלו לא נמחקו — צריך להריץ את supabase_pilot_fixes_6_9.sql.',
+                    'The player was removed, but his morning check-ins were not deleted — supabase_pilot_fixes_6_9.sql is needed.'))
+    }
     setPEdit(null); load(); loadAges()
   }
 
@@ -875,8 +933,12 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             <input className="finder-input" type="text" value={pName} onChange={(e) => setPName(e.target.value)}
               placeholder={L('שם השחקן', 'Player name')} aria-label={L('שם השחקן', 'Player name')}
               onKeyDown={(e) => e.key === 'Enter' && addPlayer()} />
-            <input className="finder-input roster-num" type="text" value={pNum} onChange={(e) => setPNum(e.target.value)}
-              placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" />
+            {/* 12.9 — inputMode=numeric: המאמן מוסיף שחקנים ברצף מהטלפון,
+                והשדה הזה פתח מקלדת אותיות מלאה בכל שורה (הקונבנציה בפרויקט
+                היא numeric, כולל שדה «שנת לידה» באותו קובץ). */}
+            <input className="finder-input roster-num" type="text" inputMode="numeric" value={pNum}
+              onChange={(e) => setPNum(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder={L('מס׳', '#')} aria-label={L('מספר חולצה', 'Jersey number')} dir="ltr" maxLength={3} />
             <button className="btn-primary" style={{ marginTop: 0 }} onClick={addPlayer} aria-label={L('הוספת שחקן', 'Add player')}><Plus size={16} /></button>
           </div>
 
@@ -947,7 +1009,18 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             </div>
             <ul className="roster-list">
               {players.map((p) => (
-                <li key={p.id} className="roster-row roster-clickable" onClick={() => setPlayerPage({ ...p })}>
+                /* 12.9 — השורה נפתחה רק בעכבר: בלי role/tabIndex/מקלדת, ובמסך
+                   צר שני כפתורי הגיבוי («פרטים» ו«יעדים») מוסתרים ב-CSS —
+                   כלומר בטלפון לא הייתה שום דרך מקלדת או קורא-מסך לפתוח את
+                   כרטיס השחקן. הכפתורים שבתוך השורה עוצרים את ה-onClick
+                   ממילא, ולכן Enter/רווח כאן פותחים תמיד את הכרטיס. */
+                <li key={p.id} className="roster-row roster-clickable" onClick={() => setPlayerPage({ ...p })}
+                  role="button" tabIndex={0}
+                  aria-label={L(`כרטיס השחקן של ${p.name}`, `Player card for ${p.name}`)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return // לחיצה על כפתור בתוך השורה
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPlayerPage({ ...p }) }
+                  }}>
                   {p.number ? <span className="roster-jersey">{p.number}</span> : <Avatar name={p.name} size={34} />}
                   <span className="roster-name">
                     <span className="roster-name-line">
@@ -987,7 +1060,10 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                   {COACH_LOGS && (
                     <button className="icon-btn roster-goals" onClick={(e) => { e.stopPropagation(); setGpEdit({ player_id: p.player_id, roster_id: p.id, name: p.name, team }) }} aria-label={L('יעדים', 'Goals')} title={L('יעדים אישיים', 'Personal goals')}><Target size={15} /></button>
                   )}
-                  <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
+                  {/* 12.9 — _y0 = שנת הלידה כפי שהייתה בפתיחת המודאל. בלעדיה savePlayer
+                      לא יכול להבחין בין «המאמן הקליד שנה חדשה» לבין «השורה כבר סותרת»,
+                      והיה מוחק את תאריך הלידה המלא גם בשמירה שנגעה רק בטלפון. */}
+                  <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPEdit({ ...p, _y0: p.birth_year }) }} aria-label={L('פרטים', 'Details')}><Info size={15} /></button>
                 </li>
               ))}
             </ul>
@@ -1064,7 +1140,7 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
           {/* 4.9 — פיילוט: הפאנל מוצג רק למאמן שברשימת PILOT_COACHES (ריקה = כולם).
               קישורי #/join שכבר יצאו ממשיכים לעבוד — רק הדלת ליצירת חדשים מוגבלת. */}
           {PLAYER_SIDE && isPilotCoach(session.user.email) &&
-            <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} onApproved={load} />}
+            <TeamConnect key={`${team}:${reqsRev}`} coachId={me} team={team} teams={teams} onApproved={load} />}
 
           {/* משחקים וטבלה — מסך משלהם. בטלפון אין פאנל צד, ולכן זו הדלת
               היחידה אליהם, והיא חייבת להיות בזרימה הראשית. */}
@@ -1108,7 +1184,14 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             ) : (
               <ul className="roster-list">
                 {staff.map((s) => (
-                  <li key={s.id} className="roster-row roster-clickable" onClick={() => setSEdit({ ...s })}>
+                  /* 12.9 — אותו תיקון כמו בשורת השחקן: פתיחה במקלדת ושם נגיש */
+                  <li key={s.id} className="roster-row roster-clickable" onClick={() => setSEdit({ ...s })}
+                    role="button" tabIndex={0}
+                    aria-label={L(`עריכת ${s.name}`, `Edit ${s.name}`)}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSEdit({ ...s }) }
+                    }}>
                     <span className="staff-ic"><Briefcase size={16} /></span>
                     <span className="roster-name">
                       {s.name}
@@ -1190,10 +1273,12 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             {/* שבוע */}
             <div className="goal-card-v2 gc-week">
               <div className="goal-card-top"><span className="goal-ic"><CalendarRange size={17} /></span><h3>{L('השבוע', 'This week')}</h3></div>
+              {/* 12.9 — ChevronBack/ChevronFwd ולא חצים קשיחים: במצב English
+                  (dir=ltr) «קודם» הצביע ימינה ו«הבא» שמאלה, בדיוק הפוך. */}
               <div className="period-pill">
-                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, -7))} aria-label={L('שבוע קודם', 'Prev week')}><ChevronRight size={17} /></button>
+                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, -7))} aria-label={L('שבוע קודם', 'Prev week')}><ChevronBack size={17} /></button>
                 <span className="period-text" dir="ltr">{weekLabel(gWeek)}</span>
-                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, 7))} aria-label={L('שבוע הבא', 'Next week')}><ChevronLeft size={17} /></button>
+                <button className="period-arrow" onClick={() => setGWeek((d) => addDays(d, 7))} aria-label={L('שבוע הבא', 'Next week')}><ChevronFwd size={17} /></button>
               </div>
               {ymd(gWeek) !== ymd(sundayOf(new Date())) && (
                 <button className="period-today2" onClick={() => setGWeek(sundayOf(new Date()))}><RotateCcw size={13} /> {L('חזרה לשבוע הנוכחי', 'Back to this week')}</button>
@@ -1206,9 +1291,9 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             <div className="goal-card-v2 gc-month">
               <div className="goal-card-top"><span className="goal-ic"><CalendarDays size={17} /></span><h3>{L('החודש', 'This month')}</h3></div>
               <div className="period-pill">
-                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, -1))} aria-label={L('חודש קודם', 'Prev month')}><ChevronRight size={17} /></button>
+                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, -1))} aria-label={L('חודש קודם', 'Prev month')}><ChevronBack size={17} /></button>
                 <span className="period-text">{monthLabel(gMonth)}</span>
-                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, 1))} aria-label={L('חודש הבא', 'Next month')}><ChevronLeft size={17} /></button>
+                <button className="period-arrow" onClick={() => setGMonth((d) => addMonths(d, 1))} aria-label={L('חודש הבא', 'Next month')}><ChevronFwd size={17} /></button>
               </div>
               {monthKey(gMonth) !== monthKey(new Date()) && (
                 <button className="period-today2" onClick={() => setGMonth(addMonths(new Date(), 0))}><RotateCcw size={13} /> {L('חזרה לחודש הנוכחי', 'Back to this month')}</button>
@@ -1248,12 +1333,17 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
 
       {/* ===================== מודאל: פרטי שחקן ===================== */}
       {pEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true">
+        /* 12.9 — aria-label: role="dialog" בלי שם נגיש הוכרז כ«דיאלוג» בלבד */
+        <div className="tm-overlay" role="dialog" aria-modal="true" aria-label={L('פרטי שחקן', 'Player details')}>
           <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי שחקן', 'Player details')}</strong>
               <button className="icon-btn" onClick={() => setPEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* 12.9 — הגוף הוא האזור שנגלל. .tm-modal הוא flex עם max-height
+                (index.css:31036) והסתמך על העטיפה הזו; בלעדיה התוכן גלש
+                מחוץ לכרטיס ונצבע על ה-scrim. */}
+            <div className="tm-modal-body">
             <div className="form-grid-2">
               <label className="pf-label">{L('שם', 'Name')}
                 <input className="finder-input" value={pEdit.name || ''} onChange={(e) => setPEdit((p) => ({ ...p, name: e.target.value }))} />
@@ -1319,22 +1409,33 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
                 )}
               </div>
             )}
-            <div className="tm-modal-actions">
-              <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
-              {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, יעדים ומשוב */}
-              <button className="btn-soft" onClick={() => printPlayerReport({ player: pEdit, team, att: attByPlayer[pEdit.id] })}>
-                <Printer size={15} /> {L('דוח התקדמות', 'Progress report')}
-              </button>
-              <button className="btn-ghost danger" onClick={() => delPlayer(pEdit.id)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
-            </div>
-
             {/* משוב אישי — לשחקן מחובר; בצד המאמן בלבד — לכל שורת סגל */}
             {fbOpen && (
               <div className="tm-feedback">
                 <span className="field-label"><MessageSquareHeart size={15} /> {PLAYER_SIDE && pEdit.player_id ? L('שליחת משוב לשחקן', 'Send feedback to player') : L('משוב אישי — נשמר אצלך בלבד', 'Personal note — kept with you only')}</span>
+                {/* 12.9 — radiogroup בלי אף role="radio" אינו חוקי: קורא המסך
+                    לא דיווח כמה כוכבים סומנו ולא הפעיל ניווט חצים. כל כוכב הוא
+                    עכשיו radio אמיתי — aria-checked, tabIndex מתגלגל (רק
+                    הכוכב הנבחר בסדר ה-Tab), וחצים שזזים לפי כיוון הכתיבה
+                    בפועל, כדי שגם במצב English החץ «קדימה» יעלה דירוג. */}
                 <div className="tm-fb-stars" role="radiogroup" aria-label={L('דירוג', 'Rating')}>
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} type="button" className={n <= fbRating ? 'tm-star on' : 'tm-star'} onClick={() => setFbRating(n === fbRating ? 0 : n)} aria-label={L(`${n} כוכבים`, `${n} stars`)}>
+                    <button key={n} type="button" role="radio" aria-checked={n === fbRating}
+                      tabIndex={n === (fbRating || 1) ? 0 : -1}
+                      className={n <= fbRating ? 'tm-star on' : 'tm-star'}
+                      onClick={() => setFbRating(n === fbRating ? 0 : n)}
+                      onKeyDown={(e) => {
+                        const rtl = getComputedStyle(e.currentTarget).direction === 'rtl'
+                        const back = e.key === 'ArrowDown' || e.key === (rtl ? 'ArrowRight' : 'ArrowLeft')
+                        const fwd = e.key === 'ArrowUp' || e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')
+                        if (!back && !fwd) return
+                        e.preventDefault()
+                        const next = Math.min(5, Math.max(1, (fbRating || 0) + (fwd ? 1 : -1)))
+                        setFbRating(next)
+                        const group = e.currentTarget.parentElement
+                        group?.querySelectorAll('.tm-star')[next - 1]?.focus()
+                      }}
+                      aria-label={L(`${n} כוכבים`, `${n} stars`)}>
                       <Star size={20} fill={n <= fbRating ? 'currentColor' : 'none'} />
                     </button>
                   ))}
@@ -1368,18 +1469,32 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             {COACH_LOGS && (
               <PlayerGoalsEditor coachId={me} playerId={pEdit.player_id} rosterId={pEdit.id} team={pEdit.team} playerName={pEdit.name} />
             )}
+            </div>
+            {/* 12.9 — שורת הכפתורים יצאה מהגלילה: «שמירה» נשאר גלוי
+                גם כשהמשוב והיעדים מאריכים את המודאל. */}
+            <div className="tm-modal-foot tm-modal-actions">
+              <button className="btn-primary" onClick={savePlayer}><Save size={15} /> {L('שמירה', 'Save')}</button>
+              {/* א-6 — דוח התקדמות לעמוד אחד: נוכחות, משימות, יעדים ומשוב */}
+              <button className="btn-soft" onClick={() => printPlayerReport({ player: pEdit, team, att: attByPlayer[pEdit.id] })}>
+                <Printer size={15} /> {L('דוח התקדמות', 'Progress report')}
+              </button>
+              <button className="btn-ghost danger" onClick={() => delPlayer(pEdit)}><Trash2 size={15} /> {L('הסר שחקן', 'Remove')}</button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ===================== מודאל: איש צוות ===================== */}
       {sEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true">
+        /* 12.9 — aria-label: ראו ההערה בדיאלוג «פרטי שחקן» */
+        <div className="tm-overlay" role="dialog" aria-modal="true" aria-label={L('פרטי איש צוות', 'Staff details')}>
           <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong>{L('פרטי איש צוות', 'Staff details')}</strong>
               <button className="icon-btn" onClick={() => setSEdit(null)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* ראו ההערה בדיאלוג «פרטי שחקן» — הגוף הוא האזור שנגלל */}
+            <div className="tm-modal-body">
             <label className="pf-label">{L('שם', 'Name')}
               <input className="finder-input" value={sEdit.name || ''} onChange={(e) => setSEdit((s) => ({ ...s, name: e.target.value }))} />
             </label>
@@ -1394,7 +1509,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
             <label className="pf-label" style={{ marginTop: 8 }}>{L('הערות', 'Notes')}
               <textarea className="finder-input" rows={3} value={sEdit.notes || ''} onChange={(e) => setSEdit((s) => ({ ...s, notes: e.target.value }))} />
             </label>
-            <div className="tm-modal-actions">
+            </div>
+            <div className="tm-modal-foot tm-modal-actions">
               <button className="btn-primary" onClick={saveStaff}><Save size={15} /> {L('שמירה', 'Save')}</button>
               <button className="btn-ghost danger" onClick={() => delStaff(sEdit.id)}><Trash2 size={15} /> {L('הסר', 'Remove')}</button>
             </div>
@@ -1414,7 +1530,8 @@ export default function Teams({ session, profile, onNavigate, initialTab, onCons
 
       {/* יעדים מהירות לשחקן — נגיש מהסגל, לא קבור בעריכה */}
       {gpEdit && (
-        <div className="tm-overlay" role="dialog" aria-modal="true" onClick={() => setGpEdit(null)}>
+        /* 12.9 — aria-label: ראו ההערה בדיאלוג «פרטי שחקן» */
+        <div className="tm-overlay" role="dialog" aria-modal="true" aria-label={L('יעדים אישיים', 'Personal goals')} onClick={() => setGpEdit(null)}>
           <div className="tm-modal" ref={dlgRef} onClick={(e) => e.stopPropagation()}>
             <div className="tm-modal-head">
               <strong><Target size={16} /> {L('יעדים', 'Goals')} · {gpEdit.name}</strong>

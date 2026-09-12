@@ -15,15 +15,53 @@ import { FAQ_CATEGORIES, faqItems } from './faqData'
 //
 // אין כאן טופס שנשלח לשרת. הקשר הוא מייל עם נושא וגוף מוכנים מראש —
 // זה עובד גם בטלפון, לא דורש טבלה חדשה במסד, ולא נכשל בשקט.
+// ⚠ 12.9.2026 — כל מחרוזת כאן היא thunk (‎() => L(...)‎) ולא ערך.
+// CAT_META הוא const ברמת המודול, ולכן L() נקרא פעם אחת בטעינת המודול:
+// כשהוא החזיק מחרוזות מוכנות, כל החלפת שפה השאירה את תת-הכותרות בשפה
+// הישנה. זה הדפוס שכל שאר המודולים בפרויקט כבר מקיימים (Dashboard.PAGE_META,
+// Admin, ProfileForm ועוד).
+// ⚠ המפתח נשאר עברית — הוא ה-category שנשמר ב-faqData ומשמש להתאמה.
+// התווית המוצגת היא label(), ולכן במצב English המסך כבר לא מציג כותרות
+// עברית לצד תת-כותרות אנגלית.
 const CAT_META = {
-  'התחלה': { Icon: Rocket, sub: L('הצעדים הראשונים, ומה עושים כשהמסך ריק', 'First steps, and what to do with an empty screen') },
-  'הקבוצה והסגל': { Icon: Shield, sub: L('שחקנים, נוכחות, ומה נשמר אצלך', 'Players, attendance, and what stays with you') },
-  'אימונים ותרגילים': { Icon: ClipboardList, sub: L('תוכניות, ספריית התרגילים, ומה שהקהילה שיתפה', 'Plans, the drill library, and what the community shared') },
-  'לו״ז וסקירה': { Icon: CalendarDays, sub: L('ימי אימון קבועים, נוכחות, עומס וסקירה', 'Fixed practice days, attendance, load and review') },
-  'קהילה': { Icon: MessagesSquare, sub: L('מאמנים אחרים, הודעות ומשחקי אימון', 'Other coaches, messages and scrimmages') },
-  'פרטיות וחשבון': { Icon: Lock, sub: L('מי רואה מה, סיסמה, ומחיקת חשבון', 'Who sees what, passwords, and deleting an account') },
-  'תקלות': { Icon: Wrench, sub: L('כשמשהו לא נשמר, לא נטען או נראה שבור', 'When something is not saved, not loading, or looks broken') },
+  'התחלה': {
+    Icon: Rocket,
+    label: () => L('התחלה', 'Getting started'),
+    sub: () => L('הצעדים הראשונים, ומה עושים כשהמסך ריק', 'First steps, and what to do with an empty screen'),
+  },
+  'הקבוצה והסגל': {
+    Icon: Shield,
+    label: () => L('הקבוצה והסגל', 'Team & roster'),
+    sub: () => L('שחקנים, נוכחות, ומה נשמר אצלך', 'Players, attendance, and what stays with you'),
+  },
+  'אימונים ותרגילים': {
+    Icon: ClipboardList,
+    label: () => L('אימונים ותרגילים', 'Practices & drills'),
+    sub: () => L('תוכניות, ספריית התרגילים, ומה שהקהילה שיתפה', 'Plans, the drill library, and what the community shared'),
+  },
+  'לו״ז וסקירה': {
+    Icon: CalendarDays,
+    label: () => L('לו״ז וסקירה', 'Schedule & review'),
+    sub: () => L('ימי אימון קבועים, נוכחות, עומס וסקירה', 'Fixed practice days, attendance, load and review'),
+  },
+  'קהילה': {
+    Icon: MessagesSquare,
+    label: () => L('קהילה', 'Community'),
+    sub: () => L('מאמנים אחרים, הודעות ומשחקי אימון', 'Other coaches, messages and scrimmages'),
+  },
+  'פרטיות וחשבון': {
+    Icon: Lock,
+    label: () => L('פרטיות וחשבון', 'Privacy & account'),
+    sub: () => L('מי רואה מה, סיסמה, ומחיקת חשבון', 'Who sees what, passwords, and deleting an account'),
+  },
+  'תקלות': {
+    Icon: Wrench,
+    label: () => L('תקלות', 'Troubleshooting'),
+    sub: () => L('כשמשהו לא נשמר, לא נטען או נראה שבור', 'When something is not saved, not loading, or looks broken'),
+  },
 }
+// תווית לתצוגה לפי מפתח הקטגוריה; מפתח לא מוכר מוצג כמו שהוא
+const catLabel = (key) => CAT_META[key]?.label?.() || key
 
 export default function Help({ profile, onStartTour }) {
   const [q, setQ] = useState('')
@@ -111,8 +149,8 @@ export default function Help({ profile, onStartTour }) {
                 <button key={c} type="button" className="hlp-tile" onClick={() => pick(c)}>
                   <span className="hlp-tile-ic"><Icon size={19} aria-hidden="true" /></span>
                   <span className="hlp-tile-tx">
-                    <b>{c}</b>
-                    <span className="muted small">{meta.sub}</span>
+                    <b>{catLabel(c)}</b>
+                    <span className="muted small">{meta.sub?.()}</span>
                   </span>
                   <span className="hlp-tile-n">{counts[c] || 0}</span>
                 </button>
@@ -129,7 +167,7 @@ export default function Help({ profile, onStartTour }) {
             <button type="button" className="btn-soft hlp-back" onClick={() => { setCat(''); setOpen(null) }}>
               <ArrowBack size={15} aria-hidden="true" /> {L('כל הנושאים', 'All topics')}
             </button>
-            <h2 className="hlp-group-title">{cat}</h2>
+            <h2 className="hlp-group-title">{catLabel(cat)}</h2>
           </div>
           <ul className="hlp-list">{shown.map(item)}</ul>
         </>
@@ -153,7 +191,7 @@ export default function Help({ profile, onStartTour }) {
             </p>
             {groups.map((g) => (
               <section key={g.cat} className="hlp-group">
-                <h2 className="hlp-group-title">{g.cat}</h2>
+                <h2 className="hlp-group-title">{catLabel(g.cat)}</h2>
                 <ul className="hlp-list">{g.rows.map(item)}</ul>
               </section>
             ))}

@@ -21,11 +21,26 @@ export function useConfirm() {
 export function ConfirmHost() {
   const [state, setState] = useState(null) // { opts, resolve } | null
 
+  // 12.9.2026 — ניקוי מוגן. _open הוא משתנה מודול יחיד, והניקוי איפס אותו
+  // בלי לבדוק שהוא עדיין שלי. כשענף של App שהחזיק host התחלף לענף בלי host,
+  // הניקוי מחק את ה-_open של ה-host **החי** שב-main.jsx — וה-effect שלו כבר
+  // לא רץ שוב. מרגע זה כל confirmDialog נפל ל-window.confirm באנגלית ו-LTR,
+  // כולל «לצאת בלי לשמור?» של המחברת. (המופעים הכפולים ב-App.jsx הוסרו גם הם.)
   useEffect(() => {
-    _open = (opts) =>
-      new Promise((resolve) => setState({ opts, resolve }))
-    return () => { _open = null }
+    const mine = (opts) => new Promise((resolve) => setState({ opts, resolve }))
+    _open = mine
+    return () => { if (_open === mine) _open = null }
   }, [])
+
+  // 12.9.2026 — נעילת גלילת הרקע כל עוד הדיאלוג פתוח, בדיוק כמו PocketNav
+  // ובית השחקן. בלעדיה הדף המשיך להיגלל מתחת לכיסוי הקבוע בזמן שהמיקוד
+  // לכוד — באצבע זה נראה כאילו האישור צף והתוכן בורח מתחתיו.
+  useEffect(() => {
+    if (!state) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [!!state])
 
   const close = useCallback((val) => {
     setState((s) => {

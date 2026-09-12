@@ -54,6 +54,8 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
               <strong>{L('דיווח', 'Report')}{targetLabel ? ` · ${targetLabel}` : ''}</strong>
               <button className="icon-btn" onClick={() => setOpen(false)} aria-label={L('סגור', 'Close')}><X size={18} /></button>
             </div>
+            {/* 12.9 — אותו חוזה גלילה של .tm-modal (index.css:31036) */}
+            <div className="tm-modal-body">
             <label className="pf-label">{L('סיבת הדיווח', 'Reason')}
               <select className="finder-input" value={reason} onChange={(e) => setReason(e.target.value)}>
                 {REASONS.map((r) => <option key={r.key} value={r.key}>{L(r.he, r.en)}</option>)}
@@ -62,7 +64,8 @@ export default function ReportButton({ session, targetType, targetId, targetLabe
             <label className="pf-label" style={{ marginTop: 8 }}>{L('פירוט (לא חובה)', 'Details (optional)')}
               <textarea className="finder-input" rows={3} value={details} onChange={(e) => setDetails(e.target.value)} placeholder={L('ספר לנו מה קרה...', 'Tell us what happened...')} />
             </label>
-            <div className="tm-modal-actions">
+            </div>
+            <div className="tm-modal-foot tm-modal-actions">
               <button className="btn-primary" onClick={submit} disabled={busy} aria-busy={busy}>{busy && <span className="btn-spinner" aria-hidden="true" />}{busy ? L('שולח...', 'Sending...') : L('שליחת דיווח', 'Send report')}</button>
               <button className="btn-ghost" onClick={() => setOpen(false)}>{L('ביטול', 'Cancel')}</button>
             </div>

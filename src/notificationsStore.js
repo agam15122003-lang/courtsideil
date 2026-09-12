@@ -42,10 +42,17 @@ export async function loadNotifications() {
   set({ items: data || [], available: true, failed: false, loading: false })
 }
 
+// 12.9.2026 — הדופק עוצר כשהטאב ברקע, כמו כל שאר הפולרים בפרויקט. כל קריאה
+// היא select עם join על profiles ו-limit 30, ועד היום היא רצה כל דקה לנצח —
+// גם כשהטלפון בכיס. בחזרה לאפליקציה מרעננים פעם אחת, כדי שההתראות יהיו
+// עדכניות בדיוק ברגע שמסתכלים עליהן.
+const tick = () => { if (document.visibilityState === 'visible') loadNotifications() }
+
 function start(myId) {
   uid = myId
   loadNotifications()
-  poll = setInterval(loadNotifications, 60000)
+  poll = setInterval(tick, 60000)
+  document.addEventListener('visibilitychange', tick)
   try {
     channel = supabase
       .channel('notifications-' + myId)
@@ -61,10 +68,14 @@ function start(myId) {
 function stop() {
   clearInterval(poll)
   poll = null
+  document.removeEventListener('visibilitychange', tick)
   if (channel) supabase.removeChannel(channel)
   channel = null
   uid = null
-  state = { items: [], loading: true, available: true, failed: false }
+  // 12.9.2026 — דרך set() ולא השמה ישירה. האיפוס הישיר לא הודיע לאף מנוי,
+  // ולכן אחרי החלפת חשבון על אותו מכשיר שני הפעמונים (הסרגל והמגירה) המשיכו
+  // להציג את ה-badge ואת ההתראות של המשתמש הקודם עד שהשליפה החדשה חזרה.
+  set({ items: [], loading: true, available: true, failed: false })
 }
 
 // סימון הכול כנקרא — משותף, כדי שכל שלושת הפעמונים יאבדו את ה-badge יחד

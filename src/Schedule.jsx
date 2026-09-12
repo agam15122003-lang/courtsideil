@@ -9,6 +9,7 @@ import { SkeletonCards } from './Skeleton'
 import SessionDetail from './SessionDetail'
 import { PlanSheetById } from './PlanSheet'
 import { expandSlotsRange } from './sessionId'
+import { notBeforeSlotCreated } from './TeamSlots'
 import { L, trTeam } from './i18n'
 import { PLAYER_SIDE } from './flags'
 import { confirmDialog } from './confirm'
@@ -69,7 +70,9 @@ const ilDate = (str) => {
   if (!str) return ''
   const d = new Date(str + 'T00:00')
   if (isNaN(d)) return str
-  return d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  // 12.9.2026: הלוקאל לפי שפת הממשק — קודם היה נעול ל-he-IL, ושמות ימים
+  // וחודשים בעברית («יום שני», «ספטמבר») זלגו לתוך ממשק אנגלי.
+  return d.toLocaleDateString(L('he-IL', 'en-US'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 
@@ -77,6 +80,17 @@ const ilDate = (str) => {
 // props: session
 export default function Schedule({ session, onNavigate }) {
   const me = session.user.id
+  // 12.9.2026: קו «עכשיו» ו«הבא בתור» חושבו רק בזמן הרינדור — מסך שנשאר פתוח
+  // באולם (בדיוק התרחיש שבשבילו נבנה «הבא בתור») הקפיא את השעה של רגע
+  // הפתיחה, כולל אימון שכבר הסתיים. טיק דקתי, ורענון בחזרה לטאב.
+  const [, setMinuteTick] = useState(0)
+  useEffect(() => {
+    const bump = () => setMinuteTick((t) => t + 1)
+    const id = setInterval(bump, 60000)
+    const onVis = () => { if (!document.hidden) bump() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
+  }, [])
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()))
   const [teamFilter, setTeamFilter] = useState('')
   // 1.2 — ברירת המחדל היא הרשימה השבועית; גריד השעות נפתח לפי דרישה
@@ -126,7 +140,6 @@ export default function Schedule({ session, onNavigate }) {
   const [planId, setPlanId] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
-  const [repeatWeekly, setRepeatWeekly] = useState(false)
   const [myTeams, setMyTeams] = useState([])
 
   // רשימת הקבוצות של המאמן — לבחירה מדויקת (חשוב כדי שהשחקנים יראו את האימון)
@@ -151,7 +164,14 @@ export default function Schedule({ session, onNavigate }) {
     let alive = true
     ;(async () => {
       const { error } = await supabase.from('schedule_entries').select('id, location').limit(1)
-      if (alive) setHasLoc(!error)
+      // 12.9.2026: רק שגיאת «עמודה חסרה» מסתירה את שדה המקום. קודם גם כשל
+      // רשת רגעי (האולם בלי קליטה) נספר כ«אין עמודה», והשדה נעלם מהטופס עד
+      // לרענון הדף — למרות שהעמודה קיימת בפרוד.
+      const missing = !!error && (
+        error.code === '42703' || error.code === 'PGRST204' ||
+        /does not exist|could not find/i.test(error.message || '')
+      )
+      if (alive) setHasLoc(!missing)
     })()
     return () => { alive = false }
   }, [])
@@ -171,7 +191,9 @@ export default function Schedule({ session, onNavigate }) {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekEnd = addDays(weekStart, 6)
-  const allSlotOccs = expandSlotsRange(slots, weekStart, weekEnd)
+  // 12.9.2026: מסננים מופעים שקדמו ליצירת המשבצת — ניווט לשבוע שעבר הציג
+  // אימונים קבועים שמעולם לא התקיימו (ראו notBeforeSlotCreated ב-TeamSlots).
+  const allSlotOccs = expandSlotsRange(slots, weekStart, weekEnd).filter(notBeforeSlotCreated(slots))
   // §4 — בורר קבוצה: כשמאמנים יותר מקבוצה אחת, אפשר לצפות בלו"ז של
   // קבוצה ספציפית. '' = כל הקבוצות. אימון אישי מוצג תמיד.
   // הרשימה מ-myTeams (כל הקבוצות של המאמן), לא מנתוני השבוע — אחרת
@@ -479,10 +501,14 @@ export default function Schedule({ session, onNavigate }) {
 
   // openAdd מקבל שעה שלמה (לחיצה) — openRange מקבל טווח מדויק (גרירה).
   const openAdd = (dateStr, hour) => {
+    // 12.9.2026: השעה נחסמת ל-22 לפני החישוב. לחיצה על שורת 23:00 (או בקצה
+    // התחתון של העמודה, שהחזיר 24) פתחה טופס שבו ההתחלה והסיום זהים — או
+    // '24:00', שדה time לא חוקי שנראה ריק — ושום שמירה לא הצליחה.
+    const h = hour != null ? Math.min(22, Math.max(0, hour)) : null
     openRange(
       dateStr,
-      hour != null ? `${pad(hour)}:00` : '18:00',
-      hour != null ? `${pad(Math.min(hour + 1, 23))}:00` : '19:30',
+      h != null ? `${pad(h)}:00` : '18:00',
+      h != null ? `${pad(h + 1)}:00` : '19:30',
     )
   }
   const openRange = (dateStr, start, end) => {
@@ -494,7 +520,6 @@ export default function Schedule({ session, onNavigate }) {
     setTeam(myTeams.length === 1 ? myTeams[0] : '')
     setPlanId('')
     setNote('')
-    setRepeatWeekly(false)
     setSelected(null)
     setAdding(true)
   }
@@ -512,6 +537,21 @@ export default function Schedule({ session, onNavigate }) {
       toast.error(L('בחר קבוצה או סמן "אימון אישי".', 'Choose a team or mark "Personal practice".'))
       return
     }
+    // 12.9.2026: הנוכחות ממופתחת לפי מאמן+קבוצה+תאריך — שני אימונים לאותה
+    // קבוצה באותו יום חולקים רשומת נוכחות אחת, וכל סימון דורס את השני.
+    // «ימי אימון קבועים» כבר חוסם את זה; כאן מזהירים לפני ההוספה במקום לתת
+    // לאיבוד הנתונים לקרות בשקט. (מפתח נוכחות לפי אימון — שינוי נפרד.)
+    if (!isPersonal) {
+      const t = team.trim()
+      const clash = entries.some((e) => e.date === formDate && !e.is_personal && e.team === t)
+        || allSlotOccs.some((o) => o.date === formDate && o.team === t)
+      if (clash && !(await confirmDialog({
+        title: L('כבר יש אימון לקבוצה הזו ביום הזה', 'This team already has a practice that day'),
+        message: L('הנוכחות נרשמת פעם אחת ליום ולקבוצה — שני האימונים יחלקו אותה, וסימון באחד ידרוס את השני.',
+                   'Attendance is recorded once per day per team — the two practices will share it, and marking one overwrites the other.'),
+        confirmText: L('בכל זאת להוסיף', 'Add anyway'),
+      }))) return
+    }
     setSaving(true)
     const base = {
       created_by: me,
@@ -524,12 +564,10 @@ export default function Schedule({ session, onNavigate }) {
       note: note.trim() || null,
     }
     if (hasLoc && location.trim()) base.location = location.trim()
-    // אימון חוזר: יוצרים 12 מופעים שבועיים (מאותו יום בשבוע)
-    const rows = []
-    const weeks = repeatWeekly && !isPersonal ? 12 : 1
-    for (let i = 0; i < weeks; i++) {
-      rows.push({ ...base, date: ymd(addDays(new Date(formDate + 'T00:00'), i * 7)) })
-    }
+    // 12.9.2026: «אימון חוזר» הוסר — המתג מעולם לא הופיע בטופס, כך שהלולאה
+    // הייתה קוד מת. אימונים שבועיים נוצרים ב«ימי אימון קבועים» (הקישור כבר
+    // נמצא בטופס, ב-cal-recurring-tip).
+    const rows = [{ ...base, date: formDate }]
     let { error } = await supabase.from('schedule_entries').insert(rows)
     // רשת ביטחון שנייה: אם הבדיקה אמרה שהעמודה קיימת אבל השרת מסרב
     // (מסד שדרסו לו את המיגרציה, cache ישן של PostgREST) — שומרים בלעדיה
@@ -548,7 +586,7 @@ export default function Schedule({ session, onNavigate }) {
       return
     }
     setAdding(false)
-    toast.success(weeks > 1 ? L(`נוספו ${weeks} אימונים שבועיים`, `Added ${weeks} weekly practices`) : L('האימון נוסף ללו"ז', 'Practice added to schedule'))
+    toast.success(L('האימון נוסף ללו"ז', 'Practice added to schedule'))
     load()
   }
 
@@ -564,7 +602,9 @@ export default function Schedule({ session, onNavigate }) {
     load()
   }
 
-  const locale = 'he-IL' // תאריכים תמיד בפורמט ישראלי (יום · חודש · שנה)
+  // 12.9.2026: כותרות ימי הלוח לפי שפת הממשק. קודם היה קבוע 'he-IL' —
+  // «יום ב׳» הופיע גם במצב English. נקרא ברינדור, ולכן החלפת שפה מיידית.
+  const locale = L('he-IL', 'en-US')
   // פורמט מספרי ישראלי (יום.חודש.שנה) — אין בלבול RTL עם שמות חודשים
   const weekLabel =
     `${weekStart.getDate()}.${weekStart.getMonth() + 1}` +
@@ -816,6 +856,13 @@ export default function Schedule({ session, onNavigate }) {
                   const s = hoursOf(m.start_time) ?? 18
                   return { key: 'm' + m.id, s, en: hoursOf(m.end_time) ?? s + 1 }
                 }),
+                // 12.9.2026: גם המשחקים נכנסים לחישוב החפיפה. קודם הם צוירו
+                // ברוחב מלא מחוץ לאשכול — משחק ואימון באותה שעה הסתירו זה את
+                // זה לגמרי. אין להם שעת סיום, ולכן שעה אחת (כמו הגובה שלהם).
+                ...dayGames.map((g) => {
+                  const s = hoursOf(g.game_time)
+                  return s == null ? null : { key: 'g' + g.id, s, en: s + 1 }
+                }).filter(Boolean),
               ].sort((a, b) => a.s - b.s || a.en - b.en)
               const lanePos = {}
               {
@@ -933,7 +980,7 @@ export default function Schedule({ session, onNavigate }) {
                       <button
                         key={'g' + g.id}
                         className="cal-event csx-game"
-                        style={{ top: (s - startHour) * rowH, height: Math.max(28, rowH - 2) }}
+                        style={{ top: (s - startHour) * rowH, height: Math.max(28, rowH - 2), ...laneStyle('g' + g.id) }}
                         onPointerDown={(ev) => ev.stopPropagation()}
                         onClick={(ev) => {
                           ev.stopPropagation()

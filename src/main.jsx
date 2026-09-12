@@ -64,11 +64,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* גדר בטיחות אחרונה: ה-boundaries שבתוך הדשבורד מכסים רק את תוכן המסך,
         וקריסה ב-chrome (ניווט, sidebar, מסכי Auth/Landing) הייתה מסך לבן מלא. */}
+    {/* 12.9.2026 — ה-chrome הצף (טוסטים, דיאלוג אישור, ווידג'ט הנגישות) עבר
+        לתוך הגדר. כאחים שלה הם לא היו מוגנים בכלל: זריקה באחד מהם (למשל
+        localStorage חסום בספארי פרטי) פירקה את כל השורש — גם את האפליקציה
+        עצמה — והמשתמש ראה מסך לבן במקום הודעת שגיאה. */}
     <ErrorBoundary screen="root">
       <App />
+      <Toaster />
+      <ConfirmHost />
+      <AccessibilityWidget />
     </ErrorBoundary>
-    <Toaster />
-    <ConfirmHost />
-    <AccessibilityWidget />
   </React.StrictMode>,
 )

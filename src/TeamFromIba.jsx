@@ -101,6 +101,10 @@ export default function TeamFromIba({ teamOptions, club, onClose, onPick }) {
           <button type="button" className="icon-btn" onClick={onClose} aria-label={L('סגור', 'Close')}><X size={18} /></button>
         </div>
 
+        {/* 12.9 — הגוף הוא האזור שנגלל. .tm-modal הוא flex עם max-height
+            (index.css:31036) ורק .tm-modal-body מקבל overflow-y:auto; בלי
+            העטיפה הזו התוכן גלש והכפתור נשאר מחוץ למסך. */}
+        <div className="tm-modal-body">
         <p className="muted small tfi-lede">
           {L('בוחרים את הקבוצה כמו שהיא רשומה באיגוד — והיא נכנסת לקבוצות שלך, כבר מקושרת ללו״ז ולטבלת הליגה.',
              'Pick the team as it is registered with the association — it joins your teams already linked to the schedule and league table.')}
@@ -150,13 +154,19 @@ export default function TeamFromIba({ teamOptions, club, onClose, onPick }) {
           disabled={!leagueId || busy === 'teams'}
         />
 
-        <button type="button" className="btn-primary" style={{ marginTop: 14 }} disabled={!ready} onClick={confirm}>
-          <Link2 size={15} aria-hidden="true" /> {L('הוספה וקישור', 'Add and link')}
-        </button>
-        <p className="muted small" style={{ marginTop: 8 }}>
+        <p className="muted small" style={{ marginTop: 14 }}>
           {L('הקישור ולוח המשחקים נשמרים יחד עם הפרופיל — אין צורך לייבא שוב במסך אחר.',
              'The link and the fixture list are saved together with your profile — no need to import again elsewhere.')}
         </p>
+        </div>
+
+        {/* 12.9 — שורת הפעולה יצאה מהגלילה: «הוספה וקישור» גלוי גם כשרשימת
+            הקבוצות מאריכה את המודאל. */}
+        <div className="tm-modal-foot tm-modal-actions">
+          <button type="button" className="btn-primary" disabled={!ready} onClick={confirm}>
+            <Link2 size={15} aria-hidden="true" /> {L('הוספה וקישור', 'Add and link')}
+          </button>
+        </div>
       </div>
     </div>
   )
